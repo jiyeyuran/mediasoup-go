@@ -9,9 +9,11 @@ import (
 
 type EventEmitter interface {
 	AddListener(evt string, listeners ...interface{})
+	Once(evt string, listener interface{})
 	Emit(evt string, argv ...interface{}) (err error)
 	SafeEmit(evt string, argv ...interface{})
 	RemoveListener(evt string, listener interface{}) (ok bool)
+	RemoveAllListeners(evt string)
 	On(evt string, listener ...interface{})
 	Off(evt string, listener interface{})
 	ListenerCount(evt string) int
@@ -22,11 +24,13 @@ type (
 	intervalListener struct {
 		Value reflect.Value
 		Argv  []reflect.Type
+		Fired bool
+		Once  bool
 	}
 
 	eventEmitter struct {
 		logger       logrus.FieldLogger
-		evtListeners map[string][]intervalListener
+		evtListeners map[string][]*intervalListener
 		mu           sync.Mutex
 	}
 )
@@ -41,7 +45,7 @@ func (e *eventEmitter) AddListener(evt string, listeners ...interface{}) {
 	if len(listeners) == 0 {
 		return
 	}
-	var listenerValues []intervalListener
+	var listenerValues []*intervalListener
 
 	for _, listener := range listeners {
 		listenerValue := reflect.ValueOf(listener)
@@ -56,7 +60,7 @@ func (e *eventEmitter) AddListener(evt string, listeners ...interface{}) {
 			argv = append(argv, listenerType.In(i))
 		}
 
-		listenerValues = append(listenerValues, intervalListener{
+		listenerValues = append(listenerValues, &intervalListener{
 			Value: listenerValue,
 			Argv:  argv,
 		})
@@ -66,10 +70,29 @@ func (e *eventEmitter) AddListener(evt string, listeners ...interface{}) {
 	defer e.mu.Unlock()
 
 	if e.evtListeners == nil {
-		e.evtListeners = make(map[string][]intervalListener)
+		e.evtListeners = make(map[string][]*intervalListener)
 	}
 
 	e.evtListeners[evt] = append(e.evtListeners[evt], listenerValues...)
+}
+
+func (e *eventEmitter) Once(evt string, listener interface{}) {
+	e.AddListener(evt, listener)
+
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	listenerPointer := reflect.ValueOf(listener).Pointer()
+	listeners := e.evtListeners[evt]
+
+	for i := len(listeners) - 1; i >= 0; i-- {
+		item := listeners[i]
+
+		if item.Value.Pointer() == listenerPointer {
+			item.Once = true
+			break
+		}
+	}
 }
 
 // Emit fires a particular event
@@ -87,6 +110,10 @@ func (e *eventEmitter) Emit(evt string, argv ...interface{}) (err error) {
 	}
 
 	for _, listener := range e.evtListeners[evt] {
+		if listener.Once && listener.Fired {
+			continue
+		}
+
 		// delete unwanted arguments
 		if len(callArgv) > len(listener.Argv) {
 			callArgv = callArgv[0:len(listener.Argv)]
@@ -100,6 +127,10 @@ func (e *eventEmitter) Emit(evt string, argv ...interface{}) (err error) {
 		}
 
 		listener.Value.Call(callArgv)
+
+		if !listener.Fired {
+			listener.Fired = true
+		}
 	}
 
 	return
@@ -143,7 +174,7 @@ func (e *eventEmitter) RemoveListener(evt string, listener interface{}) (ok bool
 		return
 	}
 
-	var modifiedListeners []intervalListener
+	var modifiedListeners []*intervalListener
 
 	if len(listeners) > 1 {
 		modifiedListeners = append(listeners[:idx], listeners[idx+1:]...)
@@ -152,6 +183,13 @@ func (e *eventEmitter) RemoveListener(evt string, listener interface{}) (ok bool
 	e.evtListeners[evt] = modifiedListeners
 
 	return true
+}
+
+func (e *eventEmitter) RemoveAllListeners(evt string) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	delete(e.evtListeners, evt)
 }
 
 func (e *eventEmitter) On(evt string, listener ...interface{}) {
@@ -177,8 +215,5 @@ func (e *eventEmitter) Len() int {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
-	if e.evtListeners == nil {
-		return 0
-	}
 	return len(e.evtListeners)
 }
