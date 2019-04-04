@@ -37,7 +37,7 @@ func NewWorker(workerBin string, options ...Option) (worker *Worker, err error) 
 		option(opts)
 	}
 
-	logger := Logger().WithField("type", "Worker")
+	logger := AppLogger().WithField("type", "Worker")
 
 	logger.Debug("constructor()")
 
@@ -74,7 +74,7 @@ func NewWorker(workerBin string, options ...Option) (worker *Worker, err error) 
 
 	channel := NewChannel(socket, pid)
 
-	workerLogger := Logger().WithField("type", fmt.Sprintf(`worker[pid:%d]`, pid))
+	workerLogger := AppLogger().WithField("type", fmt.Sprintf(`worker[pid:%d]`, pid))
 
 	go func() {
 		r := bufio.NewReader(stderr)
@@ -102,7 +102,7 @@ func NewWorker(workerBin string, options ...Option) (worker *Worker, err error) 
 		EventEmitter: NewEventEmitter(logger),
 		pid:          pid,
 		channel:      channel,
-		observer:     NewEventEmitter(Logger()),
+		observer:     NewEventEmitter(AppLogger()),
 		logger:       logger,
 		workerLogger: workerLogger,
 		child:        child,

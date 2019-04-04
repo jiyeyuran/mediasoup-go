@@ -9,7 +9,7 @@ type Router struct {
 
 func NewRouter(internal Internal, data interface{}, channel *Channel) *Router {
 	return &Router{
-		EventEmitter: NewEventEmitter(Logger()),
+		EventEmitter: NewEventEmitter(AppLogger()),
 		internal:     internal,
 		data:         data,
 		channel:      channel,

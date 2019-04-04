@@ -2,12 +2,12 @@ package mediasoup
 
 import "github.com/sirupsen/logrus"
 
-var logger logrus.FieldLogger = logrus.WithField("app", "mediasoup")
+var logger = logrus.New()
 
-func Logger() logrus.FieldLogger {
+func Logger() *logrus.Logger {
 	return logger
 }
 
-func SetLogger(l logrus.FieldLogger) {
-	logger = l
+func AppLogger() logrus.FieldLogger {
+	return logger.WithField("app", "mediasoup")
 }
