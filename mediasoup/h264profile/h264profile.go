@@ -237,9 +237,10 @@ func IsSameProfile(profileLevelIdStr1, profileLevelIdStr2 string) bool {
 		profileLevelId1.Profile == profileLevelId2.Profile
 }
 
-type SdpProfile struct {
-	ProfileLevelId        string
-	LevelAsymmetryAllowed bool
+type RtpH264Parameter struct {
+	PacketizationMode     int    `json:"packetization-mode"`
+	ProfileLevelId        string `json:"profile-level-id,omitempty"`
+	LevelAsymmetryAllowed int    `json:"level-asymmetry-allowed"`
 }
 
 /**
@@ -266,7 +267,7 @@ type SdpProfile struct {
  */
 func GenerateProfileLevelIdForAnswer(
 	localSupportedParams,
-	remoteOfferedParams SdpProfile,
+	remoteOfferedParams RtpH264Parameter,
 ) (str string, err error) {
 	if len(localSupportedParams.ProfileLevelId) == 0 &&
 		len(remoteOfferedParams.ProfileLevelId) == 0 {
@@ -290,8 +291,9 @@ func GenerateProfileLevelIdForAnswer(
 	}
 
 	// Parse level information.
-	levelAsymmetryAllowed := localSupportedParams.LevelAsymmetryAllowed &&
-		remoteOfferedParams.LevelAsymmetryAllowed
+	levelAsymmetryAllowed :=
+		localSupportedParams.LevelAsymmetryAllowed > 0 &&
+			remoteOfferedParams.LevelAsymmetryAllowed > 0
 	localLevel := localProfileLevelId.Level
 	remoteLevel := remoteProfileLevelId.Level
 	minLevel := minLevel(localLevel, remoteLevel)
