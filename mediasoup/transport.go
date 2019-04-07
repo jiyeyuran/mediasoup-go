@@ -11,6 +11,8 @@ import (
 )
 
 type Transport interface {
+	EventEmitter
+
 	Id() string
 	Closed() bool
 	AppData() interface{}

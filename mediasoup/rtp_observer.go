@@ -5,6 +5,8 @@ import (
 )
 
 type RtpObserver interface {
+	EventEmitter
+
 	Id() string
 	Closed() bool
 	Paused() bool
@@ -14,19 +16,19 @@ type RtpObserver interface {
 	Resume()
 	AddProducer(producerId string)
 	RemoveProducer(producerId string)
+	AddObserver(rtpObserverId string, observer interface{})
 }
 
 type baseRtpObserver struct {
 	EventEmitter
-	logger          logrus.FieldLogger
-	internal        Internal
-	channel         *Channel
-	closed          bool
-	paused          bool
-	getProducerById FetchProducerFunc
+	logger   logrus.FieldLogger
+	internal Internal
+	channel  *Channel
+	closed   bool
+	paused   bool
 }
 
-func newRtpObserver(internal Internal, channel *Channel, getProducerById FetchProducerFunc) *baseRtpObserver {
+func newRtpObserver(internal Internal, channel *Channel) RtpObserver {
 	logger := TypeLogger("RtpObserver")
 
 	logger.Debug("constructor()")
@@ -36,9 +38,8 @@ func newRtpObserver(internal Internal, channel *Channel, getProducerById FetchPr
 		logger:       logger,
 		// - .RouterId
 		// - .RtpObserverId
-		internal:        internal,
-		channel:         channel,
-		getProducerById: getProducerById,
+		internal: internal,
+		channel:  channel,
 	}
 }
 
@@ -129,4 +130,8 @@ func (rtpObserver *baseRtpObserver) RemoveProducer(producerId string) {
 	internal.ProducerId = producerId
 
 	rtpObserver.channel.Request("rtpObserver.removeProducer", internal, nil)
+}
+
+func (rtpObserver *baseRtpObserver) AddObserver(rtpObserverId string, observer interface{}) {
+	rtpObserver.channel.On(rtpObserverId, observer)
 }

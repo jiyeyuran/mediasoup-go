@@ -7,7 +7,7 @@ import (
 )
 
 type AudioLevelObserver struct {
-	*baseRtpObserver
+	RtpObserver
 	logger logrus.FieldLogger
 }
 
@@ -16,19 +16,21 @@ func NewAudioLevelObserver(
 	channel *Channel,
 	getProducerById FetchProducerFunc,
 ) *AudioLevelObserver {
-	audioLevelObserver := &AudioLevelObserver{
-		baseRtpObserver: newRtpObserver(internal, channel, getProducerById),
-		logger:          TypeLogger("AudioLevelObserver"),
+	o := &AudioLevelObserver{
+		RtpObserver: newRtpObserver(internal, channel),
+		logger:      TypeLogger("AudioLevelObserver"),
 	}
 
-	audioLevelObserver.handleWorkerNotifications()
+	o.handleWorkerNotifications(internal.RtpObserverId, getProducerById)
 
-	return audioLevelObserver
+	return o
 }
 
-func (audioLevelObserver AudioLevelObserver) handleWorkerNotifications() {
-	audioLevelObserver.channel.On(
-		audioLevelObserver.internal.RtpObserverId,
+func (o *AudioLevelObserver) handleWorkerNotifications(
+	rtpObserverId string,
+	getProducerById FetchProducerFunc,
+) {
+	o.RtpObserver.AddObserver(rtpObserverId,
 		func(event string, data json.RawMessage) {
 			switch event {
 			case "volumes":
@@ -43,7 +45,8 @@ func (audioLevelObserver AudioLevelObserver) handleWorkerNotifications() {
 				json.Unmarshal([]byte(data), &notifications)
 
 				for _, notification := range notifications {
-					producer := audioLevelObserver.getProducerById(notification.ProducerId)
+					producer := getProducerById(notification.ProducerId)
+
 					if producer != nil {
 						volumes = append(volumes, VolumeInfo{
 							Producer: producer,
@@ -53,12 +56,12 @@ func (audioLevelObserver AudioLevelObserver) handleWorkerNotifications() {
 				}
 
 				if len(volumes) > 0 {
-					audioLevelObserver.SafeEmit("volumes", volumes)
+					o.SafeEmit("volumes", volumes)
 				}
 			case "silence":
-				audioLevelObserver.SafeEmit("silence")
+				o.SafeEmit("silence")
 			default:
-				audioLevelObserver.logger.Errorf(`ignoring unknown event "%s"`, event)
+				o.logger.Errorf(`ignoring unknown event "%s"`, event)
 			}
 		},
 	)
