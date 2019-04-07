@@ -68,3 +68,20 @@ type ConsumerScore struct {
 type VideoLayer struct {
 	SpatialLayer uint8 `json:"spatialLayer"`
 }
+
+type FetchRouterRtpCapabilitiesFunc func() RtpCapabilities
+
+type CreateProducerParams struct {
+	Id            string
+	Kind          string
+	RtpParameters RtpProducerCapabilities
+	Paused        bool
+	AppData       interface{}
+}
+
+type CreateConsumerParams struct {
+	ProducerId      string
+	RtpCapabilities RtpConsumerCapabilities
+	Paused          bool
+	AppData         interface{}
+}

@@ -248,7 +248,7 @@ func GetProducerRtpParametersMapping(
  */
 func GetConsumableRtpParameters(
 	kind string,
-	params RtpConsumerCapabilities,
+	params RtpProducerCapabilities,
 	caps RtpCapabilities,
 	rtpMapping RtpProducerCapabilities,
 ) (consumableParams RtpConsumerCapabilities, err error) {
@@ -383,12 +383,15 @@ func CanConsume(consumableParams RtpConsumerCapabilities, caps RtpCapabilities) 
  *
  */
 func GetConsumerRtpParameters(
-	consumableParams RtpConsumerCapabilities, caps RtpCapabilities,
+	consumableParams RtpConsumerCapabilities, caps RtpConsumerCapabilities,
 ) (consumerParams RtpConsumerCapabilities, err error) {
+	capCodecs := []RtpCodecCapability{}
+
 	for _, capCodec := range caps.Codecs {
-		if err = checkCodecCapability(&capCodec); err != nil {
+		if err = checkCodecCapability(capCodec.RtpCodecCapability); err != nil {
 			return
 		}
+		capCodecs = append(capCodecs, *capCodec.RtpCodecCapability)
 	}
 
 	consumableCodecs := consumableParams.Codecs
@@ -396,7 +399,7 @@ func GetConsumerRtpParameters(
 
 	for _, codec := range consumableCodecs {
 		matchedCapCodec, ok := selectMatchedCodecs(
-			*codec.RtpCodecCapability, caps.Codecs, codecMatchStrict)
+			*codec.RtpCodecCapability, capCodecs, codecMatchStrict)
 
 		if !ok {
 			continue

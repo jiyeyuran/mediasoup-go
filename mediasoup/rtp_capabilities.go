@@ -14,6 +14,7 @@ type RtpProducerCapabilities struct {
 	Codecs           []RtpMappingCodec     `json:"codecs,omitempty"`
 	HeaderExtensions []RtpMappingHeaderExt `json:"headerExtensions,omitempty"`
 	Encodings        []RtpMappingEncoding  `json:"encodings,omitempty"`
+	Rtcp             *RtcpConfiguation     `json:"rtcp,omitempty"`
 }
 
 type RtpConsumerCapabilities struct {
