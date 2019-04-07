@@ -20,7 +20,7 @@ type RtpConsumerCapabilities struct {
 	Codecs           []RtpMappingCodec     `json:"codecs,omitempty"`
 	HeaderExtensions []RtpMappingHeaderExt `json:"headerExtensions,omitempty"`
 	Encodings        []RtpEncoding         `json:"encodings,omitempty"`
-	Rtcp             RtpMappingRtcp        `json:"rtcp,omitempty"`
+	Rtcp             RtcpConfiguation      `json:"rtcp,omitempty"`
 }
 
 type RtpMappingCodec struct {
@@ -41,9 +41,9 @@ type RtpMappingEncoding struct {
 	MappedSsrc int64 `json:"mappedSsrc,omitempty"`
 }
 
-type RtpMappingRtcp struct {
+type RtcpConfiguation struct {
 	Cname       string `json:"cname,omitempty"`
-	ReducedSize bool   `json:"reduced_size,omitempty"`
+	ReducedSize bool   `json:"reducedSize,omitempty"`
 	Mux         bool   `json:"mux,omitempty"`
 }
 

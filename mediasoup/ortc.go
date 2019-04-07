@@ -332,7 +332,7 @@ func GetConsumableRtpParameters(
 		}
 	}
 
-	consumableParams.Rtcp = RtpMappingRtcp{
+	consumableParams.Rtcp = RtcpConfiguation{
 		Cname:       params.Rtcp.Cname,
 		ReducedSize: true,
 		Mux:         true,
