@@ -240,7 +240,7 @@ func (producer *Producer) handleWorkerNotifications() {
 			producer.observer.SafeEmit("videoorientationchange", orientation)
 
 		default:
-			producer.logger.Error(`ignoring unknown event "%s"`, event)
+			producer.logger.Errorf(`ignoring unknown event "%s"`, event)
 		}
 	})
 }

@@ -58,7 +58,7 @@ func (audioLevelObserver AudioLevelObserver) handleWorkerNotifications() {
 			case "silence":
 				audioLevelObserver.SafeEmit("silence")
 			default:
-				audioLevelObserver.logger.Error(`ignoring unknown event "%s"`, event)
+				audioLevelObserver.logger.Errorf(`ignoring unknown event "%s"`, event)
 			}
 		},
 	)

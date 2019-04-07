@@ -338,7 +338,7 @@ func (consumer *Consumer) handleWorkerNotifications() {
 			consumer.observer.SafeEmit("layerschange", layer)
 
 		default:
-			consumer.logger.Error(`ignoring unknown event "%s"`, event)
+			consumer.logger.Errorf(`ignoring unknown event "%s"`, event)
 		}
 	})
 }
