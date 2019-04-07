@@ -53,3 +53,18 @@ type VideoOrientation struct {
 	Flip     bool  `json:"flip,omitempty"`
 	Rotation uint8 `json:"rotation,omitempty"`
 }
+
+type ConsumerData struct {
+	Kind          string
+	Type          string
+	RtpParameters RtpConsumerCapabilities
+}
+
+type ConsumerScore struct {
+	Producer uint8 `json:"producer,omitempty"`
+	Consumer uint8 `json:"consumer,omitempty"`
+}
+
+type VideoLayer struct {
+	SpatialLayer uint8 `json:"spatialLayer"`
+}
