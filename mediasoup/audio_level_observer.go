@@ -2,10 +2,13 @@ package mediasoup
 
 import (
 	"encoding/json"
+
+	"github.com/sirupsen/logrus"
 )
 
 type AudioLevelObserver struct {
 	*RtpObserver
+	logger logrus.FieldLogger
 }
 
 func NewAudioLevelObserver(
@@ -15,6 +18,7 @@ func NewAudioLevelObserver(
 ) *AudioLevelObserver {
 	return &AudioLevelObserver{
 		RtpObserver: NewRtpObserver(internal, channel, getProducerById),
+		logger:      TypeLogger("AudioLevelObserver"),
 	}
 }
 
