@@ -4,7 +4,19 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-type RtpObserver struct {
+type RtpObserver interface {
+	Id() string
+	Closed() bool
+	Paused() bool
+	Close()
+	routerClosed()
+	Pause()
+	Resume()
+	AddProducer(producerId string)
+	RemoveProducer(producerId string)
+}
+
+type baseRtpObserver struct {
 	EventEmitter
 	logger          logrus.FieldLogger
 	internal        Internal
@@ -14,13 +26,12 @@ type RtpObserver struct {
 	getProducerById FetchProducerFunc
 }
 
-//
-func NewRtpObserver(internal Internal, channel *Channel, getProducerById FetchProducerFunc) *RtpObserver {
+func newRtpObserver(internal Internal, channel *Channel, getProducerById FetchProducerFunc) *baseRtpObserver {
 	logger := TypeLogger("RtpObserver")
 
 	logger.Debug("constructor()")
 
-	return &RtpObserver{
+	return &baseRtpObserver{
 		EventEmitter: NewEventEmitter(logger),
 		logger:       logger,
 		// - .RouterId
@@ -31,19 +42,19 @@ func NewRtpObserver(internal Internal, channel *Channel, getProducerById FetchPr
 	}
 }
 
-func (rtpObserver RtpObserver) Id() string {
+func (rtpObserver baseRtpObserver) Id() string {
 	return rtpObserver.internal.RtpObserverId
 }
 
-func (rtpObserver RtpObserver) Closed() bool {
+func (rtpObserver baseRtpObserver) Closed() bool {
 	return rtpObserver.closed
 }
 
-func (rtpObserver RtpObserver) Paused() bool {
+func (rtpObserver baseRtpObserver) Paused() bool {
 	return rtpObserver.paused
 }
 
-func (rtpObserver *RtpObserver) Close() {
+func (rtpObserver *baseRtpObserver) Close() {
 	if rtpObserver.closed {
 		return
 	}
@@ -59,7 +70,7 @@ func (rtpObserver *RtpObserver) Close() {
 }
 
 // Router was closed.
-func (rtpObserver *RtpObserver) RouterClosed() {
+func (rtpObserver *baseRtpObserver) routerClosed() {
 	if rtpObserver.closed {
 		return
 	}
@@ -75,7 +86,7 @@ func (rtpObserver *RtpObserver) RouterClosed() {
 }
 
 // Pause the RtpObserver.
-func (rtpObserver *RtpObserver) Pause() {
+func (rtpObserver *baseRtpObserver) Pause() {
 	if rtpObserver.paused {
 		return
 	}
@@ -88,7 +99,7 @@ func (rtpObserver *RtpObserver) Pause() {
 }
 
 // Resume the RtpObserver.
-func (rtpObserver *RtpObserver) Resume() {
+func (rtpObserver *baseRtpObserver) Resume() {
 	if !rtpObserver.paused {
 		return
 
@@ -101,7 +112,7 @@ func (rtpObserver *RtpObserver) Resume() {
 }
 
 // Add a Producer to the RtpObserver.
-func (rtpObserver *RtpObserver) AddProducer(producerId string) {
+func (rtpObserver *baseRtpObserver) AddProducer(producerId string) {
 	rtpObserver.logger.Debug("addProducer()")
 
 	internal := rtpObserver.internal
@@ -111,7 +122,7 @@ func (rtpObserver *RtpObserver) AddProducer(producerId string) {
 }
 
 // Remove a Producer from the RtpObserver.
-func (rtpObserver *RtpObserver) removeProducer(producerId string) {
+func (rtpObserver *baseRtpObserver) RemoveProducer(producerId string) {
 	rtpObserver.logger.Debug("removeProducer()")
 
 	internal := rtpObserver.internal

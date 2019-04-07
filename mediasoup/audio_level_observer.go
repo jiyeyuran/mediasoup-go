@@ -7,7 +7,7 @@ import (
 )
 
 type AudioLevelObserver struct {
-	*RtpObserver
+	*baseRtpObserver
 	logger logrus.FieldLogger
 }
 
@@ -17,8 +17,8 @@ func NewAudioLevelObserver(
 	getProducerById FetchProducerFunc,
 ) *AudioLevelObserver {
 	audioLevelObserver := &AudioLevelObserver{
-		RtpObserver: NewRtpObserver(internal, channel, getProducerById),
-		logger:      TypeLogger("AudioLevelObserver"),
+		baseRtpObserver: newRtpObserver(internal, channel, getProducerById),
+		logger:          TypeLogger("AudioLevelObserver"),
 	}
 
 	audioLevelObserver.handleWorkerNotifications()
