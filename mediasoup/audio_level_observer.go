@@ -37,7 +37,7 @@ func (audioLevelObserver AudioLevelObserver) handleWorkerNotifications() {
 				var volumes []VolumeInfo
 				var notifications []struct {
 					ProducerId string
-					Volume     float64
+					Volume     uint8
 				}
 
 				json.Unmarshal([]byte(data), &notifications)

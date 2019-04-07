@@ -31,6 +31,24 @@ func (r Response) Err() error {
 type FetchProducerFunc func(producerId string) *Producer
 
 type VolumeInfo struct {
-	Producer *Producer
-	Volume   float64
+	Producer *Producer `json:"producer,omitempty"`
+	Volume   uint8     `json:"volume,omitempty"`
+}
+
+type ProducerData struct {
+	Kind                    string
+	Type                    string
+	RtpParameters           RtpProducerCapabilities
+	ConsumableRtpParameters RtpConsumerCapabilities
+}
+
+type ProducerScore struct {
+	Score uint8  `json:"score,omitempty"`
+	Ssrc  uint32 `json:"ssrc,omitempty"`
+}
+
+type VideoOrientation struct {
+	Camera   bool  `json:"camera,omitempty"`
+	Flip     bool  `json:"flip,omitempty"`
+	Rotation uint8 `json:"rotation,omitempty"`
 }
