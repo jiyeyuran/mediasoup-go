@@ -155,7 +155,7 @@ func (producer *Producer) TransportClosed() {
 	producer.SafeEmit("transportclose")
 
 	// Emit observer event.
-	producer.observer.SafeEmit("transportclose")
+	producer.observer.SafeEmit("close")
 }
 
 // Dump Producer.
