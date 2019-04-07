@@ -112,6 +112,7 @@ type PlainTransportData struct {
 	RtcpMux     bool           `json:"rtcpMux,omitempty"`
 	Comedia     string         `json:"comedia,omitempty"`
 	MultiSource bool           `json:"multiSource,omitempty"`
+	Tuple       TransportTuple `json:"tuple,omitempty"`
 	RtcpTuple   TransportTuple `json:"rtcpTuple,omitempty"`
 }
 

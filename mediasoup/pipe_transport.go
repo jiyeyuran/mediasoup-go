@@ -16,7 +16,7 @@ type PipeTransport struct {
 func NewPipeTransport(data PipeTransportData, params CreateTransportParams) Transport {
 	logger := TypeLogger("PipeTransport")
 
-	logger.Debug("ructor()")
+	logger.Debug("constructor()")
 
 	return &PipeTransport{
 		baseTransport: newTransport(params),
