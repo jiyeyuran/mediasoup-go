@@ -9,6 +9,6 @@ func init() {
 	rand.Seed(time.Now().UnixNano())
 }
 
-func generateRandomNumber() int64 {
-	return rand.Int63n(900000000) + 100000000
+func generateRandomNumber() uint32 {
+	return uint32(rand.Int63n(900000000)) + 100000000
 }

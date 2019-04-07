@@ -36,9 +36,9 @@ type RtpMappingHeaderExt struct {
 }
 
 type RtpMappingEncoding struct {
-	Rid        int64 `json:"rid,omitempty"`
-	Ssrc       int64 `json:"ssrc,omitempty"`
-	MappedSsrc int64 `json:"mappedSsrc,omitempty"`
+	Rid        uint32 `json:"rid,omitempty"`
+	Ssrc       uint32 `json:"ssrc,omitempty"`
+	MappedSsrc uint32 `json:"mappedSsrc,omitempty"`
 }
 
 type RtcpConfiguation struct {
@@ -68,7 +68,7 @@ type RtpParameter struct {
 }
 
 type RtpEncoding struct {
-	Ssrc int64        `json:"ssrc,omitempty"`
+	Ssrc uint32       `json:"ssrc,omitempty"`
 	Rtx  *RtpEncoding `json:"rtx,omitempty"`
 }
 
