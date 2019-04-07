@@ -45,6 +45,7 @@ type ProducerData struct {
 type ProducerScore struct {
 	Score uint8  `json:"score,omitempty"`
 	Ssrc  uint32 `json:"ssrc,omitempty"`
+	Rid   uint32 `json:"rid,omitempty"`
 }
 
 type VideoOrientation struct {
