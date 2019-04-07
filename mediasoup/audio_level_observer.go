@@ -16,10 +16,14 @@ func NewAudioLevelObserver(
 	channel *Channel,
 	getProducerById FetchProducerFunc,
 ) *AudioLevelObserver {
-	return &AudioLevelObserver{
+	audioLevelObserver := &AudioLevelObserver{
 		RtpObserver: NewRtpObserver(internal, channel, getProducerById),
 		logger:      TypeLogger("AudioLevelObserver"),
 	}
+
+	audioLevelObserver.handleWorkerNotifications()
+
+	return audioLevelObserver
 }
 
 func (audioLevelObserver AudioLevelObserver) handleWorkerNotifications() {
