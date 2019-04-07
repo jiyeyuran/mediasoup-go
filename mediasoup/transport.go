@@ -19,7 +19,7 @@ type Transport interface {
 	routerClose()
 	Dump() Response
 	GetStats() Response
-	Connect() error
+	Connect(TransportConnectParams) error
 	Produce(CreateProducerParams) (*Producer, error)
 	Consume(CreateConsumerParams) (*Consumer, error)
 }
@@ -47,27 +47,21 @@ type baseTransport struct {
  * @emits @newproducer
  * @emits @producerclose
  */
-func newTransport(
-	internal Internal,
-	channel *Channel,
-	appData interface{},
-	getRouterRtpCapabilities FetchRouterRtpCapabilitiesFunc,
-	getProducerById FetchProducerFunc,
-) Transport {
+func newTransport(params CreateTransportParams) *baseTransport {
 	logger := TypeLogger("Transport")
 
-	logger.Debug("ructor()")
+	logger.Debug("constructor()")
 
 	transport := &baseTransport{
 		EventEmitter: NewEventEmitter(logger),
 		logger:       logger,
 		// - .routerId
 		// - .transportId
-		internal:                 internal,
-		channel:                  channel,
-		appData:                  appData,
-		getRouterRtpCapabilities: getRouterRtpCapabilities,
-		getProducerById:          getProducerById,
+		internal:                 params.Internal,
+		channel:                  params.Channel,
+		appData:                  params.AppData,
+		getRouterRtpCapabilities: params.GetRouterRtpCapabilities,
+		getProducerById:          params.GetProducerById,
 		producers:                make(map[string]*Producer),
 		consumers:                make(map[string]*Consumer),
 		observer:                 NewEventEmitter(AppLogger()),
@@ -189,7 +183,7 @@ func (transport *baseTransport) GetStats() Response {
 	return transport.channel.Request("transport.getStats", transport.internal, nil)
 }
 
-func (transport *baseTransport) Connect() error {
+func (transport *baseTransport) Connect(TransportConnectParams) error {
 	return errors.New("method not implemented in the subclass")
 }
 
@@ -350,7 +344,7 @@ func (transport *baseTransport) Consume(params CreateConsumerParams) (consumer *
 	var status struct {
 		Paused         bool
 		ProducerPaused bool
-		Score          ConsumerScore
+		Score          *ConsumerScore
 	}
 	if err = resp.Result(&status); err != nil {
 		return

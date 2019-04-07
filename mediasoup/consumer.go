@@ -16,7 +16,7 @@ type Consumer struct {
 	paused         bool
 	closed         bool
 	producerPaused bool
-	score          ConsumerScore
+	score          *ConsumerScore
 	// Current video layers (just for video with simulcast or SVC).
 	currentLayers *VideoLayer
 	observer      EventEmitter
@@ -41,7 +41,7 @@ func NewConsumer(
 	appData interface{},
 	paused bool,
 	producerPaused bool,
-	score ConsumerScore,
+	score *ConsumerScore,
 ) *Consumer {
 	logger := TypeLogger("Consumer")
 
@@ -111,7 +111,7 @@ func (consumer *Consumer) ProducerPaused() bool {
 }
 
 // Consumer score with consumer and consumer keys.
-func (consumer *Consumer) Score() ConsumerScore {
+func (consumer *Consumer) Score() *ConsumerScore {
 	return consumer.score
 }
 
@@ -318,7 +318,7 @@ func (consumer *Consumer) handleWorkerNotifications() {
 
 			json.Unmarshal([]byte(data), &score)
 
-			consumer.score = score
+			consumer.score = &score
 
 			consumer.SafeEmit("score", score)
 
