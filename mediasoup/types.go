@@ -101,7 +101,7 @@ type TransportConnectParams struct {
 	// plain transport
 	RtcpPort int `json:"rtcpPort,omitempty"`
 	// webrtc transport
-	DtlsParamters *DtlsParamters `json:"dtlsParamters,omitempty"`
+	DtlsParameters *DtlsParameters `json:"dtlsParameters,omitempty"`
 }
 
 type PipeTransportData struct {
@@ -116,14 +116,15 @@ type PlainTransportData struct {
 	RtcpTuple   TransportTuple `json:"rtcpTuple,omitempty"`
 }
 
-type WebrtcTransportData struct {
-	IceRole          string         `json:"iceRole,omitempty"`
-	IceParameters    IceParameters  `json:"iceParameters,omitempty"`
-	IceCandidates    []IceCandidate `json:"iceCandidates,omitempty"`
-	IceState         string         `json:"iceState,omitempty"`
-	IceSelectedTuple TransportTuple `json:"iceSelected_tuple,omitempty"`
-	DtlsState        string         `json:"dtlsState,omitempty"`
-	DtlsRemoteCert   string         `json:"dtlsRemoteCert,omitempty"`
+type WebRtcTransportData struct {
+	IceRole          string          `json:"iceRole,omitempty"`
+	IceParameters    IceParameters   `json:"iceParameters,omitempty"`
+	IceCandidates    []IceCandidate  `json:"iceCandidates,omitempty"`
+	IceState         string          `json:"iceState,omitempty"`
+	IceSelectedTuple *TransportTuple `json:"iceSelectedTuple,omitempty"`
+	DtlsParameters   DtlsParameters  `json:"dtlsParameters,omitempty"`
+	DtlsState        string          `json:"dtlsState,omitempty"`
+	DtlsRemoteCert   string          `json:"dtlsRemoteCert,omitempty"`
 }
 
 type TransportTuple struct {
@@ -150,7 +151,7 @@ type IceCandidate struct {
 	TcpType    string `json:"tcpType,omitempty"`
 }
 
-type DtlsParamters struct {
+type DtlsParameters struct {
 	Role         string           `json:"role,omitempty"`
 	Fingerprints DtlsFingerprints `json:"fingerprints,omitempty"`
 }
