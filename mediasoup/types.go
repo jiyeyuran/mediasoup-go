@@ -7,7 +7,7 @@ type H map[string]interface{}
 type Internal struct {
 	RouterId      string `json:"routerId,omitempty"`
 	TransportId   string `json:"transportId,omitempty"`
-	ProduceId     string `json:"produceId,omitempty"`
+	ProducerId    string `json:"producerId,omitempty"`
 	ConsumerId    string `json:"consumerId,omitempty"`
 	RtpObserverId string `json:"rtpObserverId,omitempty"`
 }
@@ -26,4 +26,11 @@ func (r Response) Result(v interface{}) error {
 
 func (r Response) Err() error {
 	return r.err
+}
+
+type FetchProducerFunc func(producerId string) *Producer
+
+type VolumeInfo struct {
+	Producer *Producer
+	Volume   float64
 }

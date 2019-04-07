@@ -11,3 +11,7 @@ func Logger() *logrus.Logger {
 func AppLogger() logrus.FieldLogger {
 	return logger.WithField("app", "mediasoup")
 }
+
+func TypeLogger(value string) logrus.FieldLogger {
+	return AppLogger().WithField("type", value)
+}
