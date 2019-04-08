@@ -37,7 +37,7 @@ func NewWorker(workerBin string, options ...Option) (worker *Worker, err error) 
 		option(opts)
 	}
 
-	logger := AppLogger().WithField("type", "Worker")
+	logger := TypeLogger("Worker")
 
 	logger.Debug("constructor()")
 
@@ -74,7 +74,7 @@ func NewWorker(workerBin string, options ...Option) (worker *Worker, err error) 
 
 	channel := NewChannel(socket, pid)
 
-	workerLogger := AppLogger().WithField("type", fmt.Sprintf(`worker[pid:%d]`, pid))
+	workerLogger := TypeLogger(fmt.Sprintf(`worker[pid:%d]`, pid))
 
 	go func() {
 		r := bufio.NewReader(stderr)

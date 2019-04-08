@@ -34,8 +34,8 @@ type Channel struct {
 }
 
 func NewChannel(socket net.Conn, pid int) *Channel {
-	logger := AppLogger().WithField("type", fmt.Sprintf("Channel[pid:%d]", pid))
-	workerLogger := AppLogger().WithField("type", fmt.Sprintf("worker[pid:%d]", pid))
+	logger := TypeLogger(fmt.Sprintf("Channel[pid:%d]", pid))
+	workerLogger := TypeLogger(fmt.Sprintf("worker[pid:%d]", pid))
 
 	channel := &Channel{
 		EventEmitter: NewEventEmitter(logger),
