@@ -12,9 +12,9 @@ type AudioLevelObserver struct {
 }
 
 func NewAudioLevelObserver(
-	internal Internal,
+	internal internalData,
 	channel *Channel,
-	getProducerById FetchProducerFunc,
+	getProducerById fetchProducerFunc,
 ) *AudioLevelObserver {
 	o := &AudioLevelObserver{
 		baseRtpObserver: newRtpObserver(internal, channel),
@@ -28,7 +28,7 @@ func NewAudioLevelObserver(
 
 func (o *AudioLevelObserver) handleWorkerNotifications(
 	rtpObserverId string,
-	getProducerById FetchProducerFunc,
+	getProducerById fetchProducerFunc,
 ) {
 	o.baseRtpObserver.channel.On(rtpObserverId,
 		func(event string, data json.RawMessage) {

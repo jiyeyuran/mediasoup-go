@@ -21,13 +21,13 @@ type RtpObserver interface {
 type baseRtpObserver struct {
 	EventEmitter
 	logger   logrus.FieldLogger
-	internal Internal
+	internal internalData
 	channel  *Channel
 	closed   bool
 	paused   bool
 }
 
-func newRtpObserver(internal Internal, channel *Channel) *baseRtpObserver {
+func newRtpObserver(internal internalData, channel *Channel) *baseRtpObserver {
 	logger := TypeLogger("RtpObserver")
 
 	logger.Debug("constructor()")

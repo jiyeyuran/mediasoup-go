@@ -4,7 +4,7 @@ import "encoding/json"
 
 type H map[string]interface{}
 
-type Internal struct {
+type internalData struct {
 	RouterId      string `json:"routerId,omitempty"`
 	TransportId   string `json:"transportId,omitempty"`
 	ProducerId    string `json:"producerId,omitempty"`
@@ -12,6 +12,7 @@ type Internal struct {
 	RtpObserverId string `json:"rtpObserverId,omitempty"`
 }
 
+// Response from worker
 type Response struct {
 	data json.RawMessage
 	err  error
@@ -24,41 +25,48 @@ func (r Response) Result(v interface{}) error {
 	return json.Unmarshal([]byte(r.data), v)
 }
 
+func (r Response) Data() []byte {
+	return []byte(r.data)
+}
+
 func (r Response) Err() error {
 	return r.err
 }
 
-type FetchProducerFunc func(producerId string) *Producer
+type fetchProducerFunc func(producerId string) *Producer
 
-type FetchRouterRtpCapabilitiesFunc func() RtpCapabilities
+type fetchRouterRtpCapabilitiesFunc func() RtpCapabilities
 
+// []VolumeInfo is the parameter of event "volumes" emitted by AudioLevelObserver
 type VolumeInfo struct {
-	Producer *Producer `json:"producer,omitempty"`
-	Volume   uint8     `json:"volume,omitempty"`
+	Producer *Producer
+	Volume   uint8
 }
 
+// VideoLayer is the parameter of event "layerschange" emitted by Consumer
 type VideoLayer struct {
 	SpatialLayer uint8 `json:"spatialLayer"`
 }
 
+// VideoOrientation is the parameter of event "videoorientationchange" emitted by Producer
 type VideoOrientation struct {
 	Camera   bool  `json:"camera,omitempty"`
 	Flip     bool  `json:"flip,omitempty"`
 	Rotation uint8 `json:"rotation,omitempty"`
 }
 
-type RouterData struct {
+type routerData struct {
 	RtpCapabilities RtpCapabilities
 }
 
-type ProducerData struct {
+type producerData struct {
 	Kind                    string
 	Type                    string
 	RtpParameters           RtpRemoteCapabilities
 	ConsumableRtpParameters RtpRemoteCapabilities
 }
 
-type ConsumerData struct {
+type consumerData struct {
 	Kind          string
 	Type          string
 	RtpParameters RtpRemoteCapabilities
@@ -91,11 +99,11 @@ type transportConsumeParams struct {
 }
 
 type createTransportParams struct {
-	Internal                 Internal
+	Internal                 internalData
 	Channel                  *Channel
 	AppData                  interface{}
-	GetRouterRtpCapabilities FetchRouterRtpCapabilitiesFunc
-	GetProducerById          FetchProducerFunc
+	GetRouterRtpCapabilities fetchRouterRtpCapabilitiesFunc
+	GetProducerById          fetchProducerFunc
 }
 
 type transportConnectParams struct {

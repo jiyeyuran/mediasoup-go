@@ -9,8 +9,8 @@ import (
 type Consumer struct {
 	EventEmitter
 	logger         logrus.FieldLogger
-	internal       Internal
-	data           ConsumerData
+	internal      internalData
+	data           consumerData
 	channel        *Channel
 	appData        interface{}
 	paused         bool
@@ -35,8 +35,8 @@ type Consumer struct {
  * @emits @consumerclose
  */
 func NewConsumer(
-	internal Internal,
-	data ConsumerData,
+	internal internalData,
+	data consumerData,
 	channel *Channel,
 	appData interface{},
 	paused bool,

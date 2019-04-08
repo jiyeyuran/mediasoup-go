@@ -10,8 +10,8 @@ import (
 type Router struct {
 	EventEmitter
 	logger                  logrus.FieldLogger
-	internal                Internal
-	data                    RouterData
+	internal                internalData
+	data                    routerData
 	channel                 *Channel
 	transports              map[string]Transport
 	producers               map[string]*Producer
@@ -21,7 +21,7 @@ type Router struct {
 	closed                  bool
 }
 
-func NewRouter(internal Internal, data RouterData, channel *Channel) *Router {
+func NewRouter(internal internalData, data routerData, channel *Channel) *Router {
 	logger := TypeLogger("Router")
 
 	logger.Debug("constructor()")

@@ -29,12 +29,12 @@ type Transport interface {
 type baseTransport struct {
 	EventEmitter
 	logger                   logrus.FieldLogger
-	internal                 Internal
+	internal                internalData
 	channel                  *Channel
 	appData                  interface{}
 	closed                   bool
-	getRouterRtpCapabilities FetchRouterRtpCapabilitiesFunc
-	getProducerById          FetchProducerFunc
+	getRouterRtpCapabilities fetchRouterRtpCapabilitiesFunc
+	getProducerById          fetchProducerFunc
 	producers                map[string]*Producer
 	consumers                map[string]*Consumer
 	cnameForProducers        string
@@ -273,7 +273,7 @@ func (transport *baseTransport) Produce(params transportProduceParams) (producer
 		return
 	}
 
-	producerData := ProducerData{
+	producerData := producerData{
 		Kind:                    kind,
 		RtpParameters:           rtpParameters,
 		Type:                    status.Type,
@@ -347,7 +347,7 @@ func (transport *baseTransport) Consume(params transportConsumeParams) (consumer
 		return
 	}
 
-	data := ConsumerData{
+	data := consumerData{
 		Kind:          producer.Kind(),
 		RtpParameters: rtpParameters,
 		Type:          producer.Type(),

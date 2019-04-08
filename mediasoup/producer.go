@@ -9,8 +9,8 @@ import (
 type Producer struct {
 	EventEmitter
 	logger   logrus.FieldLogger
-	internal Internal
-	data     ProducerData
+	internal internalData
+	data     producerData
 	channel  *Channel
 	appData  interface{}
 	paused   bool
@@ -28,8 +28,8 @@ type Producer struct {
  * @emits @close
  */
 func NewProducer(
-	internal Internal,
-	data ProducerData,
+	internal internalData,
+	data producerData,
 	channel *Channel,
 	appData interface{},
 	paused bool,

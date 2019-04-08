@@ -87,7 +87,7 @@ func (t *PipeTransport) Consume(params transportConsumeParams) (consumer *Consum
 		return
 	}
 
-	data := ConsumerData{
+	data := consumerData{
 		Kind:          producer.Kind(),
 		RtpParameters: rtpParameters,
 		Type:          "pipe",

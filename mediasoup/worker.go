@@ -185,7 +185,7 @@ func (w *Worker) UpdateSettings(logLevel string, logTags []string) Response {
 func (w *Worker) CreateRouter(mediaCodecs []RtpCodecCapability) (router *Router, err error) {
 	w.logger.Debug("createRouter()")
 
-	internal := Internal{RouterId: uuid.NewV4().String()}
+	internal :=internalData{RouterId: uuid.NewV4().String()}
 
 	rsp := w.channel.Request("worker.createRouter", internal, nil)
 	if err = rsp.Err(); err != nil {
@@ -196,7 +196,7 @@ func (w *Worker) CreateRouter(mediaCodecs []RtpCodecCapability) (router *Router,
 	if err != nil {
 		return
 	}
-	data := RouterData{RtpCapabilities: rtpCapabilities}
+	data := routerData{RtpCapabilities: rtpCapabilities}
 
 	router = NewRouter(internal, data, w.channel)
 
