@@ -53,7 +53,8 @@ type RtcpFeedback struct {
 
 type RtpParameter struct {
 	h264profile.RtpH264Parameter
-	Apt int `json:"apt,omitempty"` // used by rtx codec
+	Apt          int `json:"apt,omitempty"`          // used by rtx codec
+	Useinbandfec int `json:"useinbandfec,omitempty"` // used by audio
 }
 
 type RtpMappingEncoding struct {
