@@ -18,7 +18,7 @@ type Transport interface {
 	AppData() interface{}
 	Observer() EventEmitter
 	Close() error
-	routerClose()
+	routerClosed()
 	Dump() Response
 	GetStats() Response
 	Connect(TransportConnectParams) error
@@ -141,7 +141,7 @@ func (transport *baseTransport) Close() (err error) {
  *
  * @virtual
  */
-func (transport *baseTransport) routerClose() {
+func (transport *baseTransport) routerClosed() {
 	if transport.closed {
 		return
 	}

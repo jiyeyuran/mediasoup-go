@@ -109,7 +109,7 @@ func (t *WebRtcTransport) routerClosed() {
 	t.data.IceSelectedTuple = nil
 	t.data.DtlsState = "closed"
 
-	t.baseTransport.routerClose()
+	t.baseTransport.routerClosed()
 }
 
 /**
