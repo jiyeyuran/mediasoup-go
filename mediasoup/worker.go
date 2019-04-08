@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"strconv"
+	"strings"
 	"syscall"
 
 	uuid "github.com/satori/go.uuid"
@@ -51,6 +52,9 @@ func NewWorker(workerBin string, options ...Option) (worker *Worker, err error) 
 	if err != nil {
 		return
 	}
+
+	logger.Debugf(
+		"spawning worker process: %s %s", workerBin, strings.Join(opts.WorkerArgs(), " "))
 
 	child := exec.Command(workerBin, opts.WorkerArgs()...)
 	child.ExtraFiles = []*os.File{os.NewFile(uintptr(fd2), "")}
