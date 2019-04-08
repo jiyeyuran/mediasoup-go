@@ -7,7 +7,7 @@ import (
 )
 
 type AudioLevelObserver struct {
-	RtpObserver
+	*baseRtpObserver
 	logger logrus.FieldLogger
 }
 
@@ -17,8 +17,8 @@ func NewAudioLevelObserver(
 	getProducerById FetchProducerFunc,
 ) *AudioLevelObserver {
 	o := &AudioLevelObserver{
-		RtpObserver: newRtpObserver(internal, channel),
-		logger:      TypeLogger("AudioLevelObserver"),
+		baseRtpObserver: newRtpObserver(internal, channel),
+		logger:          TypeLogger("AudioLevelObserver"),
 	}
 
 	o.handleWorkerNotifications(internal.RtpObserverId, getProducerById)
@@ -30,7 +30,7 @@ func (o *AudioLevelObserver) handleWorkerNotifications(
 	rtpObserverId string,
 	getProducerById FetchProducerFunc,
 ) {
-	o.RtpObserver.AddObserver(rtpObserverId,
+	o.baseRtpObserver.channel.On(rtpObserverId,
 		func(event string, data json.RawMessage) {
 			switch event {
 			case "volumes":

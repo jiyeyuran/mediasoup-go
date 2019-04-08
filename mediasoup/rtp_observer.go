@@ -16,7 +16,6 @@ type RtpObserver interface {
 	Resume()
 	AddProducer(producerId string)
 	RemoveProducer(producerId string)
-	AddObserver(rtpObserverId string, observer interface{})
 }
 
 type baseRtpObserver struct {
@@ -28,7 +27,7 @@ type baseRtpObserver struct {
 	paused   bool
 }
 
-func newRtpObserver(internal Internal, channel *Channel) RtpObserver {
+func newRtpObserver(internal Internal, channel *Channel) *baseRtpObserver {
 	logger := TypeLogger("RtpObserver")
 
 	logger.Debug("constructor()")
@@ -130,8 +129,4 @@ func (rtpObserver *baseRtpObserver) RemoveProducer(producerId string) {
 	internal.ProducerId = producerId
 
 	rtpObserver.channel.Request("rtpObserver.removeProducer", internal, nil)
-}
-
-func (rtpObserver *baseRtpObserver) AddObserver(rtpObserverId string, observer interface{}) {
-	rtpObserver.channel.On(rtpObserverId, observer)
 }
