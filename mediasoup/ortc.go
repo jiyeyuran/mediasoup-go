@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/jiyeyuran/mediasoup-go/mediasoup/h264profile"
+	h264 "github.com/jiyeyuran/mediasoup-go/mediasoup/h264profile"
 )
 
 var DYNAMIC_PAYLOAD_TYPES = [...]int{
@@ -50,7 +50,7 @@ func GenerateRouterRtpCapabilities(mediaCodecs []RtpCodecCapability) (caps RtpCa
 		}
 
 		codec, matched := selectMatchedCodecs(
-			mediaCodec, supportedCodecs, codecMatchNormal)
+			&mediaCodec, supportedCodecs, codecMatchNormal)
 
 		if !matched {
 			err = NewUnsupportedError(
@@ -130,7 +130,7 @@ func GetProducerRtpParametersMapping(
 		}
 
 		matchedCapCodec, matched := selectMatchedCodecs(
-			*codec.RtpCodecCapability, caps.Codecs, codecMatchStrictAndModify)
+			codec.RtpCodecCapability, caps.Codecs, codecMatchStrictAndModify)
 
 		if !matched {
 			err = fmt.Errorf(
@@ -361,7 +361,7 @@ func CanConsume(consumableParams, caps RtpRemoteCapabilities) bool {
 
 	for _, codec := range consumableParams.Codecs {
 		codec, matched := selectMatchedCodecs(
-			*codec.RtpCodecCapability, capCodecs, codecMatchStrict)
+			codec.RtpCodecCapability, capCodecs, codecMatchStrict)
 
 		if !matched {
 			continue
@@ -404,7 +404,7 @@ func GetConsumerRtpParameters(
 
 	for _, codec := range consumableCodecs {
 		matchedCapCodec, matched := selectMatchedCodecs(
-			*codec.RtpCodecCapability, capCodecs, codecMatchStrict)
+			codec.RtpCodecCapability, capCodecs, codecMatchStrict)
 
 		if !matched {
 			continue
@@ -524,54 +524,63 @@ func checkCodecParameters(codec *RtpCodecCapability) error {
 }
 
 func selectMatchedCodecs(
-	aCodec RtpCodecCapability,
+	aCodec *RtpCodecCapability,
 	bCodecs []RtpCodecCapability,
-	mode codecMatchMode,
-) (codec RtpCodecCapability, matched bool) {
-	aMimeType := strings.ToLower(aCodec.MimeType)
-
+	mode codecMatchMode) (codec RtpCodecCapability, matched bool) {
 	for _, bCodec := range bCodecs {
-		bMimeType := strings.ToLower(bCodec.MimeType)
+		if matchedCodecs(aCodec, bCodec, mode) {
+			return bCodec, true
+		}
+	}
+	return
+}
 
-		if aMimeType != bMimeType {
+func matchedCodecs(
+	aCodec *RtpCodecCapability,
+	bCodec RtpCodecCapability,
+	mode codecMatchMode) (matched bool) {
+	aMimeType := strings.ToLower(aCodec.MimeType)
+	bMimeType := strings.ToLower(bCodec.MimeType)
+
+	if aMimeType != bMimeType {
+		return
+	}
+
+	if aCodec.ClockRate != bCodec.ClockRate {
+		return
+	}
+
+	if strings.HasPrefix(aMimeType, "audio/") &&
+		aCodec.Channels > 0 &&
+		bCodec.Channels > 0 &&
+		aCodec.Channels != bCodec.Channels {
+		return
+	}
+
+	switch aMimeType {
+	case "video/h264":
+		parameters := aCodec.Parameters
+		if parameters == nil {
+			return
+		}
+		if parameters.PacketizationMode != parameters.PacketizationMode {
 			return
 		}
 
-		if aCodec.ClockRate != bCodec.ClockRate {
-			return
-		}
-
-		if strings.HasPrefix(aMimeType, "audio/") &&
-			aCodec.Channels > 0 &&
-			bCodec.Channels > 0 &&
-			aCodec.Channels != bCodec.Channels {
-			return
-		}
-
-		switch aMimeType {
-		case "video/h264":
-			if aCodec.Parameters.PacketizationMode !=
-				bCodec.Parameters.PacketizationMode {
+		if mode&codecMatchStrict > 0 {
+			selectedProfileLevelId, err := h264.GenerateProfileLevelIdForAnswer(
+				parameters.RtpH264Parameter, parameters.RtpH264Parameter)
+			if err != nil {
 				return
 			}
 
-			if mode&codecMatchStrict > 0 {
-				selectedProfileLevelId, err := h264profile.GenerateProfileLevelIdForAnswer(
-					aCodec.Parameters.RtpH264Parameter, bCodec.Parameters.RtpH264Parameter)
-				if err != nil {
-					return
-				}
-
-				if mode&codecMatchModify > 0 {
-					aCodec.Parameters.ProfileLevelId = selectedProfileLevelId
-				}
+			if mode&codecMatchModify > 0 {
+				parameters.ProfileLevelId = selectedProfileLevelId
 			}
 		}
-
-		return bCodec, true
 	}
 
-	return
+	return true
 }
 
 func matchHeaderExtensions(aExt, bExt RtpHeaderExtension) bool {
