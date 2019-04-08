@@ -22,8 +22,8 @@ type Transport interface {
 	Dump() Response
 	GetStats() Response
 	Connect(TransportConnectParams) error
-	Produce(CreateProducerParams) (*Producer, error)
-	Consume(CreateConsumerParams) (*Consumer, error)
+	Produce(TransportProduceParams) (*Producer, error)
+	Consume(TransportConsumeParams) (*Consumer, error)
 }
 
 type baseTransport struct {
@@ -198,7 +198,7 @@ func (transport *baseTransport) Connect(TransportConnectParams) error {
  * @param [paused=false] - Whether the Consumer must start paused.
  * @param [appData={}] - Custom app data.
  */
-func (transport *baseTransport) Produce(params CreateProducerParams) (producer *Producer, err error) {
+func (transport *baseTransport) Produce(params TransportProduceParams) (producer *Producer, err error) {
 	transport.logger.Debug("produce()")
 
 	id := params.Id
@@ -308,7 +308,7 @@ func (transport *baseTransport) Produce(params CreateProducerParams) (producer *
  * @param [paused=false] - Whether the Consumer must start paused.
  * @param [appData={}] - Custom app data.
  */
-func (transport *baseTransport) Consume(params CreateConsumerParams) (consumer *Consumer, err error) {
+func (transport *baseTransport) Consume(params TransportConsumeParams) (consumer *Consumer, err error) {
 	transport.logger.Debug("consume()")
 
 	producerId := params.ProducerId

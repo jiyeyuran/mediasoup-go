@@ -55,7 +55,7 @@ func (t *PlainRtpTransport) Connect(params TransportConnectParams) (err error) {
  * @override
  * @returns {Consumer}
  */
-func (t *PlainRtpTransport) Consume(params CreateConsumerParams) (*Consumer, error) {
+func (t *PlainRtpTransport) Consume(params TransportConsumeParams) (*Consumer, error) {
 	if t.data.MultiSource {
 		return nil, errors.New("cannot call consume() with multiSource set")
 	}

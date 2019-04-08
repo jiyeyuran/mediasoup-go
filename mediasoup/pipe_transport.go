@@ -53,7 +53,7 @@ func (t *PipeTransport) Connect(params TransportConnectParams) (err error) {
  *
  * @override
  */
-func (t *PipeTransport) Consume(params CreateConsumerParams) (consumer *Consumer, err error) {
+func (t *PipeTransport) Consume(params TransportConsumeParams) (consumer *Consumer, err error) {
 	t.logger.Debug("consume()")
 
 	producerId, appData := params.ProducerId, params.AppData

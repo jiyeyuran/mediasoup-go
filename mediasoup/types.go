@@ -71,7 +71,7 @@ type VideoLayer struct {
 
 type FetchRouterRtpCapabilitiesFunc func() RtpCapabilities
 
-type CreateProducerParams struct {
+type TransportProduceParams struct {
 	Id            string                  `json:"id,omitempty"`
 	Kind          string                  `json:"kind,omitempty"`
 	RtpParameters RtpProducerCapabilities `json:"rtpParameters,omitempty"`
@@ -79,7 +79,7 @@ type CreateProducerParams struct {
 	AppData       interface{}             `json:"appData,omitempty"`
 }
 
-type CreateConsumerParams struct {
+type TransportConsumeParams struct {
 	ProducerId      string                  `json:"producerId,omitempty"`
 	RtpCapabilities RtpConsumerCapabilities `json:"rtpCapabilities,omitempty"`
 	Paused          bool                    `json:"paused,omitempty"`
