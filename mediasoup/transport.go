@@ -257,7 +257,7 @@ func (transport *baseTransport) Produce(params transportProduceParams) (producer
 		internal.ProducerId = uuid.NewV4().String()
 	}
 
-	reqData := map[string]interface{}{
+	reqData := H{
 		"kind":          kind,
 		"rtpParameters": rtpParameters,
 		"rtpMapping":    rtpMapping,
@@ -328,7 +328,7 @@ func (transport *baseTransport) Consume(params transportConsumeParams) (consumer
 	internal.ConsumerId = uuid.NewV4().String()
 	internal.ProducerId = producerId
 
-	reqData := map[string]interface{}{
+	reqData := H{
 		"kind":                   producer.Kind(),
 		"rtpParameters":          rtpParameters,
 		"type":                   producer.Type(),

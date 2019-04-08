@@ -70,7 +70,7 @@ func (t *PipeTransport) Consume(params transportConsumeParams) (consumer *Consum
 	internal.ConsumerId = uuid.NewV4().String()
 	internal.ProducerId = producerId
 
-	reqData := map[string]interface{}{
+	reqData := H{
 		"kind":                   producer.Kind(),
 		"rtpParameters":          rtpParameters,
 		"type":                   "pipe",
