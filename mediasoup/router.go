@@ -163,8 +163,10 @@ func (router *Router) CreateWebRtcTransport(
 
 	internal := router.internal
 	internal.TransportId = uuid.NewV4().String()
+	reqData := params
+	reqData.AppData = nil
 
-	resp := router.channel.Request("router.createWebRtcTransport", internal, params)
+	resp := router.channel.Request("router.createWebRtcTransport", internal, reqData)
 
 	var data WebRtcTransportData
 	if err = resp.Result(&data); err != nil {
@@ -221,8 +223,10 @@ func (router *Router) CreatePlainRtpTransport(
 
 	internal := router.internal
 	internal.TransportId = uuid.NewV4().String()
+	reqData := params
+	reqData.AppData = nil
 
-	resp := router.channel.Request("router.createPlainRtpTransport", internal, params)
+	resp := router.channel.Request("router.createPlainRtpTransport", internal, reqData)
 
 	var data PlainTransportData
 	if err = resp.Result(&data); err != nil {
@@ -272,8 +276,10 @@ func (router *Router) CreatePipeTransport(
 
 	internal := router.internal
 	internal.TransportId = uuid.NewV4().String()
+	reqData := params
+	reqData.AppData = nil
 
-	resp := router.channel.Request("router.createPipeTransport", internal, params)
+	resp := router.channel.Request("router.createPipeTransport", internal, reqData)
 
 	var data PipeTransportData
 	if err = resp.Result(&data); err != nil {
