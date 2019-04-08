@@ -337,6 +337,6 @@ var supportedRtpCapabilities = RtpCapabilities{
 	},
 }
 
-func GetRtpCapabilities() RtpCapabilities {
+func GetSupportedRtpCapabilities() RtpCapabilities {
 	return supportedRtpCapabilities
 }

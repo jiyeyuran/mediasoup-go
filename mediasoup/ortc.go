@@ -36,7 +36,7 @@ func GenerateRouterRtpCapabilities(mediaCodecs []RtpCodecCapability) (caps RtpCa
 		return
 	}
 
-	supportedRtpCapabilities := GetRtpCapabilities()
+	supportedRtpCapabilities := GetSupportedRtpCapabilities()
 	supportedCodecs := supportedRtpCapabilities.Codecs
 
 	caps.HeaderExtensions = supportedRtpCapabilities.HeaderExtensions
