@@ -14,25 +14,33 @@ type RtpProducerCapabilities struct {
 	Codecs           []RtpMappingCodec     `json:"codecs,omitempty"`
 	HeaderExtensions []RtpMappingHeaderExt `json:"headerExtensions,omitempty"`
 	Encodings        []RtpMappingEncoding  `json:"encodings,omitempty"`
-	Rtcp             *RtcpConfiguation     `json:"rtcp,omitempty"`
-}
-
-type RtpConsumerCapabilities struct {
-	Codecs           []RtpMappingCodec     `json:"codecs,omitempty"`
-	HeaderExtensions []RtpMappingHeaderExt `json:"headerExtensions,omitempty"`
-	Encodings        []RtpEncoding         `json:"encodings,omitempty"`
 	Rtcp             RtcpConfiguation      `json:"rtcp,omitempty"`
 }
 
-type RtpMappingCodec struct {
+type RtpConsumerCapabilities struct {
+	Codecs           []RtpRemoteCodec     `json:"codecs,omitempty"`
+	HeaderExtensions []RtpRemoteHeaderExt `json:"headerExtensions,omitempty"`
+	Encodings        []RtpEncoding        `json:"encodings,omitempty"`
+	Rtcp             RtcpConfiguation     `json:"rtcp,omitempty"`
+}
+
+type RtpRemoteCodec struct {
 	*RtpCodecCapability
-	PayloadType       int `json:"payloadType,omitempty"`
+	PayloadType int `json:"payloadType,omitempty"`
+}
+
+type RtpMappingCodec struct {
+	RtpRemoteCodec
 	MappedPayloadType int `json:"mappedPayloadType,omitempty"`
 }
 
-type RtpMappingHeaderExt struct {
+type RtpRemoteHeaderExt struct {
 	*RtpHeaderExtension
-	Id       int `json:"id,omitempty"`
+	Id int `json:"id,omitempty"`
+}
+
+type RtpMappingHeaderExt struct {
+	RtpRemoteHeaderExt
 	MappedId int `json:"mappedId,omitempty"`
 }
 
@@ -76,8 +84,8 @@ type RtpEncoding struct {
 type RtpHeaderExtension struct {
 	Kind             string `json:"kind,omitempty"`
 	Uri              string `json:"uri,omitempty"`
-	PreferredId      int    `json:"preferredId,omitempty"`
-	PreferredEncrypt bool   `json:"preferredEncrypt,omitempty"`
+	PreferredId      int    `json:"preferredId,omitempty"`      // used by router
+	PreferredEncrypt bool   `json:"preferredEncrypt,omitempty"` // used by router
 }
 
 var supportedRtpCapabilities = RtpCapabilities{

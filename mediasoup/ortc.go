@@ -194,7 +194,7 @@ func GetProducerRtpParametersMapping(
 	// Generate codecs mapping.
 	for codec, capCodec := range codecToCapCodec {
 		rtpMapping.Codecs = append(rtpMapping.Codecs, RtpMappingCodec{
-			PayloadType:       codec.PayloadType,
+			RtpRemoteCodec:    RtpRemoteCodec{PayloadType: codec.PayloadType},
 			MappedPayloadType: capCodec.PreferredPayloadType,
 		})
 	}
@@ -221,8 +221,8 @@ func GetProducerRtpParametersMapping(
 		rtpMapping.HeaderExtensions = append(
 			rtpMapping.HeaderExtensions,
 			RtpMappingHeaderExt{
-				Id:       ext.Id,
-				MappedId: matchedCapExt.PreferredId,
+				RtpRemoteHeaderExt: RtpRemoteHeaderExt{Id: ext.Id},
+				MappedId:           matchedCapExt.PreferredId,
 			},
 		)
 	}
@@ -278,7 +278,7 @@ func GetConsumableRtpParameters(
 			}
 		}
 
-		consumableCodec := RtpMappingCodec{
+		consumableCodec := RtpRemoteCodec{
 			RtpCodecCapability: &matchedCapCodec,
 			PayloadType:        matchedCapCodec.PreferredPayloadType,
 		}
@@ -296,7 +296,7 @@ func GetConsumableRtpParameters(
 		}
 
 		if consumableCapRtxCodec != nil {
-			consumableRtxCodec := RtpMappingCodec{
+			consumableRtxCodec := RtpRemoteCodec{
 				RtpCodecCapability: consumableCapRtxCodec,
 			}
 
@@ -312,9 +312,11 @@ func GetConsumableRtpParameters(
 			continue
 		}
 
-		consumableExt := RtpMappingHeaderExt{
-			RtpHeaderExtension: &RtpHeaderExtension{Uri: capExt.Uri},
-			Id:                 capExt.PreferredId,
+		consumableExt := RtpRemoteHeaderExt{
+			RtpHeaderExtension: &RtpHeaderExtension{
+				Uri: capExt.Uri,
+			},
+			Id: capExt.PreferredId,
 		}
 
 		consumableParams.HeaderExtensions = append(

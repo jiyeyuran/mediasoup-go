@@ -224,9 +224,7 @@ func (transport *baseTransport) Produce(params TransportProduceParams) (producer
 		!strings.Contains(details.Name(), "PipeTransport") {
 		// If CNAME is given and we don"t have yet a CNAME for Producers in this
 		// Transport, take it.
-		if len(transport.cnameForProducers) == 0 &&
-			rtpParameters.Rtcp != nil &&
-			len(rtpParameters.Rtcp.Cname) > 0 {
+		if len(transport.cnameForProducers) == 0 && len(rtpParameters.Rtcp.Cname) > 0 {
 			transport.cnameForProducers = rtpParameters.Rtcp.Cname
 		} else if len(transport.cnameForProducers) == 0 {
 			// Otherwise if we don"t have yet a CNAME for Producers and the RTP parameters
@@ -235,9 +233,6 @@ func (transport *baseTransport) Produce(params TransportProduceParams) (producer
 		}
 
 		// Override Producer"s CNAME.
-		if rtpParameters.Rtcp == nil {
-			rtpParameters.Rtcp = &RtcpConfiguation{}
-		}
 		rtpParameters.Rtcp.Cname = transport.cnameForProducers
 	}
 
