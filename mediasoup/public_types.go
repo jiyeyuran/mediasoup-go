@@ -148,7 +148,7 @@ type ListenIp struct {
 }
 
 type CreateAudioLevelObserverParams struct {
-	MaxEntries int `json:"maxEntries,omitempty"`
-	Threshold  int `json:"threshold,omitempty"`
-	Interval   int `json:"interval,omitempty"`
+	MaxEntries uint32 `json:"maxEntries,omitempty"`
+	Threshold  int    `json:"threshold,omitempty"`
+	Interval   uint32 `json:"interval,omitempty"`
 }
