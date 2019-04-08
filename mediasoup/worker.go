@@ -156,7 +156,7 @@ func (w *Worker) Close() {
 
 	// Close every Router.
 	for _, router := range w.routers {
-		router.WorkerClosed()
+		router.workerClosed()
 	}
 	w.routers = make(map[string]*Router)
 
@@ -182,7 +182,7 @@ func (w *Worker) UpdateSettings(logLevel string, logTags []string) Response {
 }
 
 // CreateRouter creates a router.
-func (w *Worker) CreateRouter(mediaCodecs interface{}) (router *Router, err error) {
+func (w *Worker) CreateRouter(mediaCodecs []RtpCodecCapability) (router *Router, err error) {
 	w.logger.Debug("createRouter()")
 
 	internal := Internal{RouterId: uuid.NewV4().String()}
@@ -192,11 +192,13 @@ func (w *Worker) CreateRouter(mediaCodecs interface{}) (router *Router, err erro
 		return
 	}
 
-	// This may throw.
-	// const rtpCapabilities = ortc.generateRouterRtpCapabilities(mediaCodecs);
-	// const data = { rtpCapabilities };
+	rtpCapabilities, err := GenerateRouterRtpCapabilities(mediaCodecs)
+	if err != nil {
+		return
+	}
+	data := RouterData{RtpCapabilities: rtpCapabilities}
 
-	router = NewRouter(internal, nil, w.channel)
+	router = NewRouter(internal, data, w.channel)
 
 	w.routers[internal.RouterId] = router
 	router.On("@close", func() {

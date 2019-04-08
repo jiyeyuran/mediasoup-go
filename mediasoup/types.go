@@ -4,6 +4,10 @@ import "encoding/json"
 
 type H map[string]interface{}
 
+type RouterData struct {
+	RtpCapabilities RtpCapabilities
+}
+
 type Internal struct {
 	RouterId      string `json:"routerId,omitempty"`
 	TransportId   string `json:"transportId,omitempty"`
@@ -38,8 +42,8 @@ type VolumeInfo struct {
 type ProducerData struct {
 	Kind                    string
 	Type                    string
-	RtpParameters           RtpProducerCapabilities
-	ConsumableRtpParameters RtpConsumerCapabilities
+	RtpParameters           RtpRemoteCapabilities
+	ConsumableRtpParameters RtpRemoteCapabilities
 }
 
 type ProducerScore struct {
@@ -57,7 +61,7 @@ type VideoOrientation struct {
 type ConsumerData struct {
 	Kind          string
 	Type          string
-	RtpParameters RtpConsumerCapabilities
+	RtpParameters RtpRemoteCapabilities
 }
 
 type ConsumerScore struct {
@@ -74,14 +78,14 @@ type FetchRouterRtpCapabilitiesFunc func() RtpCapabilities
 type TransportProduceParams struct {
 	Id            string                  `json:"id,omitempty"`
 	Kind          string                  `json:"kind,omitempty"`
-	RtpParameters RtpProducerCapabilities `json:"rtpParameters,omitempty"`
+	RtpParameters RtpRemoteCapabilities `json:"rtpParameters,omitempty"`
 	Paused        bool                    `json:"paused,omitempty"`
 	AppData       interface{}             `json:"appData,omitempty"`
 }
 
 type TransportConsumeParams struct {
 	ProducerId      string                  `json:"producerId,omitempty"`
-	RtpCapabilities RtpConsumerCapabilities `json:"rtpCapabilities,omitempty"`
+	RtpCapabilities RtpRemoteCapabilities `json:"rtpCapabilities,omitempty"`
 	Paused          bool                    `json:"paused,omitempty"`
 	AppData         interface{}             `json:"appData,omitempty"`
 }
@@ -129,9 +133,9 @@ type WebRtcTransportData struct {
 
 type TransportTuple struct {
 	LocalIp    string `json:"localIp,omitempty"`
-	LocalPort  string `json:"localPort,omitempty"`
+	LocalPort  int    `json:"localPort,omitempty"`
 	RemoteIp   string `json:"remoteIp,omitempty"`
-	RemotePort string `json:"remotePort,omitempty"`
+	RemotePort int    `json:"remotePort,omitempty"`
 	Protocol   string `json:"protocol,omitempty"`
 }
 
@@ -162,4 +166,43 @@ type DtlsFingerprints struct {
 	Sha256 string `json:"sha-256,omitempty"`
 	Sha384 string `json:"sha-384,omitempty"`
 	Sha512 string `json:"sha-512,omitempty"`
+}
+
+type CreateWebRtcTransportParams struct {
+	ListenIps []ListenIp  `json:"listenIps,omitempty"`
+	EnableUdp bool        `json:"enableUdp,omitempty"`
+	EnableTcp bool        `json:"enableTcp,omitempty"`
+	PreferUdp bool        `json:"preferUdp,omitempty"`
+	PreferTcp bool        `json:"preferTcp,omitempty"`
+	AppData   interface{} `json:"appData,omitempty"`
+}
+
+type CreatePlainRtpTransportParams struct {
+	ListenIp    ListenIp    `json:"listenIp,omitempty"`
+	RtcpMux     bool        `json:"rtcpMux,omitempty"`
+	Comedia     string      `json:"comedia,omitempty"`
+	MultiSource bool        `json:"multiSource,omitempty"`
+	AppData     interface{} `json:"appData,omitempty"`
+}
+
+type CreatePipeTransportParams struct {
+	ListenIp ListenIp    `json:"listenIp,omitempty"`
+	AppData  interface{} `json:"appData,omitempty"`
+}
+
+type PipeToRouterParams struct {
+	ProducerId string   `json:"producerId,omitempty"`
+	Router     *Router  `json:"router,omitempty"`
+	ListenIp   ListenIp `json:"listenIp,omitempty"`
+}
+
+type ListenIp struct {
+	Ip          string `json:"ip,omitempty"`
+	AnnouncedIp string `json:"announcedIp,omitempty"`
+}
+
+type CreateAudioLevelObserverParams struct {
+	MaxEntries int `json:"maxEntries,omitempty"`
+	Threshold  int `json:"threshold,omitempty"`
+	Interval   int `json:"interval,omitempty"`
 }

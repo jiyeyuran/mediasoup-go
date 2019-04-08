@@ -11,44 +11,23 @@ type RtpCapabilities struct {
 	FecMechanisms    []string             `json:"fecMechanisms,omitempty"`
 }
 
-type RtpProducerCapabilities struct {
+type RtpRemoteCapabilities struct {
 	Codecs           []RtpMappingCodec     `json:"codecs,omitempty"`
 	HeaderExtensions []RtpMappingHeaderExt `json:"headerExtensions,omitempty"`
 	Encodings        []RtpMappingEncoding  `json:"encodings,omitempty"`
 	Rtcp             RtcpConfiguation      `json:"rtcp,omitempty"`
 }
 
-type RtpConsumerCapabilities struct {
-	Codecs           []RtpRemoteCodec     `json:"codecs,omitempty"`
-	HeaderExtensions []RtpRemoteHeaderExt `json:"headerExtensions,omitempty"`
-	Encodings        []RtpEncoding        `json:"encodings,omitempty"`
-	Rtcp             RtcpConfiguation     `json:"rtcp,omitempty"`
-}
-
-type RtpRemoteCodec struct {
-	*RtpCodecCapability
-	PayloadType int `json:"payloadType,omitempty"`
-}
-
 type RtpMappingCodec struct {
-	RtpRemoteCodec
+	*RtpCodecCapability
+	PayloadType       int `json:"payloadType,omitempty"`
 	MappedPayloadType int `json:"mappedPayloadType,omitempty"`
 }
 
-type RtpRemoteHeaderExt struct {
-	*RtpHeaderExtension
-	Id int `json:"id,omitempty"`
-}
-
 type RtpMappingHeaderExt struct {
-	RtpRemoteHeaderExt
+	*RtpHeaderExtension
+	Id       int `json:"id,omitempty"`
 	MappedId int `json:"mappedId,omitempty"`
-}
-
-type RtpMappingEncoding struct {
-	Rid        uint32 `json:"rid,omitempty"`
-	Ssrc       uint32 `json:"ssrc,omitempty"`
-	MappedSsrc uint32 `json:"mappedSsrc,omitempty"`
 }
 
 type RtcpConfiguation struct {
@@ -77,9 +56,11 @@ type RtpParameter struct {
 	Apt int `json:"apt,omitempty"` // used by rtx codec
 }
 
-type RtpEncoding struct {
-	Ssrc uint32       `json:"ssrc,omitempty"`
-	Rtx  *RtpEncoding `json:"rtx,omitempty"`
+type RtpMappingEncoding struct {
+	Rid        uint32              `json:"rid,omitempty"`
+	Ssrc       uint32              `json:"ssrc,omitempty"`
+	MappedSsrc uint32              `json:"mappedSsrc,omitempty"`
+	Rtx        *RtpMappingEncoding `json:"rtx,omitempty"`
 }
 
 type RtpHeaderExtension struct {
