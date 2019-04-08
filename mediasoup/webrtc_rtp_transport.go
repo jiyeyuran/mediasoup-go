@@ -12,7 +12,7 @@ type WebRtcTransport struct {
 	data   WebRtcTransportData
 }
 
-func NewWebRtcTransport(data WebRtcTransportData, params CreateTransportParams) Transport {
+func NewWebRtcTransport(data WebRtcTransportData, params createTransportParams) Transport {
 	logger := TypeLogger("WebRtcTransportData")
 
 	logger.Debug("constructor()")
@@ -119,7 +119,7 @@ func (t *WebRtcTransport) routerClosed() {
  *
  * @override
  */
-func (t *WebRtcTransport) Connect(params TransportConnectParams) (err error) {
+func (t *WebRtcTransport) Connect(params transportConnectParams) (err error) {
 	t.logger.Debug("connect()")
 
 	resp := t.channel.Request("transport.connect", t.internal, params)

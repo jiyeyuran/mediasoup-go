@@ -12,7 +12,7 @@ type PlainRtpTransport struct {
 	data   PlainTransportData
 }
 
-func NewPlainRtpTransport(data PlainTransportData, params CreateTransportParams) Transport {
+func NewPlainRtpTransport(data PlainTransportData, params createTransportParams) Transport {
 	logger := TypeLogger("PlainRtpTransport")
 
 	logger.Debug("constructor()")
@@ -41,7 +41,7 @@ func (t PlainRtpTransport) RtcpTuple() TransportTuple {
  *
  * @override
  */
-func (t *PlainRtpTransport) Connect(params TransportConnectParams) (err error) {
+func (t *PlainRtpTransport) Connect(params transportConnectParams) (err error) {
 	t.logger.Debug("connect()")
 
 	resp := t.channel.Request("transport.connect", t.internal, params)
@@ -55,7 +55,7 @@ func (t *PlainRtpTransport) Connect(params TransportConnectParams) (err error) {
  * @override
  * @returns {Consumer}
  */
-func (t *PlainRtpTransport) Consume(params TransportConsumeParams) (*Consumer, error) {
+func (t *PlainRtpTransport) Consume(params transportConsumeParams) (*Consumer, error) {
 	if t.data.MultiSource {
 		return nil, errors.New("cannot call consume() with multiSource set")
 	}

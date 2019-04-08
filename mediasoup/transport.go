@@ -21,9 +21,9 @@ type Transport interface {
 	routerClosed()
 	Dump() Response
 	GetStats() Response
-	Connect(TransportConnectParams) error
-	Produce(TransportProduceParams) (*Producer, error)
-	Consume(TransportConsumeParams) (*Consumer, error)
+	Connect(transportConnectParams) error
+	Produce(transportProduceParams) (*Producer, error)
+	Consume(transportConsumeParams) (*Consumer, error)
 }
 
 type baseTransport struct {
@@ -49,7 +49,7 @@ type baseTransport struct {
  * @emits @newproducer
  * @emits @producerclose
  */
-func newTransport(params CreateTransportParams) *baseTransport {
+func newTransport(params createTransportParams) *baseTransport {
 	logger := TypeLogger("Transport")
 
 	logger.Debug("constructor()")
@@ -185,7 +185,7 @@ func (transport *baseTransport) GetStats() Response {
 	return transport.channel.Request("transport.getStats", transport.internal, nil)
 }
 
-func (transport *baseTransport) Connect(TransportConnectParams) error {
+func (transport *baseTransport) Connect(transportConnectParams) error {
 	return errors.New("method not implemented in the subclass")
 }
 
@@ -198,7 +198,7 @@ func (transport *baseTransport) Connect(TransportConnectParams) error {
  * @param [paused=false] - Whether the Consumer must start paused.
  * @param [appData={}] - Custom app data.
  */
-func (transport *baseTransport) Produce(params TransportProduceParams) (producer *Producer, err error) {
+func (transport *baseTransport) Produce(params transportProduceParams) (producer *Producer, err error) {
 	transport.logger.Debug("produce()")
 
 	id := params.Id
@@ -303,7 +303,7 @@ func (transport *baseTransport) Produce(params TransportProduceParams) (producer
  * @param [paused=false] - Whether the Consumer must start paused.
  * @param [appData={}] - Custom app data.
  */
-func (transport *baseTransport) Consume(params TransportConsumeParams) (consumer *Consumer, err error) {
+func (transport *baseTransport) Consume(params transportConsumeParams) (consumer *Consumer, err error) {
 	transport.logger.Debug("consume()")
 
 	producerId := params.ProducerId

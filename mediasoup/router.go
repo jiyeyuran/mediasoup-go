@@ -171,7 +171,7 @@ func (router *Router) CreateWebRtcTransport(
 		return
 	}
 
-	transport = NewWebRtcTransport(data, CreateTransportParams{
+	transport = NewWebRtcTransport(data, createTransportParams{
 		Internal: router.internal,
 		Channel:  router.channel,
 		AppData:  params.AppData,
@@ -229,7 +229,7 @@ func (router *Router) CreatePlainRtpTransport(
 		return
 	}
 
-	transport = NewPlainRtpTransport(data, CreateTransportParams{
+	transport = NewPlainRtpTransport(data, createTransportParams{
 		Internal: router.internal,
 		Channel:  router.channel,
 		AppData:  params.AppData,
@@ -280,7 +280,7 @@ func (router *Router) CreatePipeTransport(
 		return
 	}
 
-	transport = NewPipeTransport(data, CreateTransportParams{
+	transport = NewPipeTransport(data, createTransportParams{
 		Internal: router.internal,
 		Channel:  router.channel,
 		AppData:  params.AppData,
@@ -368,14 +368,14 @@ func (router *Router) PipeToRouter(
 		localTuple := localPipeTransport.(*PipeTransport).Tuple()
 		remoteTuple := remotePipeTransport.(*PipeTransport).Tuple()
 
-		err = localPipeTransport.Connect(TransportConnectParams{
+		err = localPipeTransport.Connect(transportConnectParams{
 			Ip:   remoteTuple.LocalIp,
 			Port: remoteTuple.LocalPort,
 		})
 		if err != nil {
 			return
 		}
-		err = remotePipeTransport.Connect(TransportConnectParams{
+		err = remotePipeTransport.Connect(transportConnectParams{
 			Ip:   localTuple.LocalIp,
 			Port: localTuple.LocalPort,
 		})
@@ -407,14 +407,14 @@ func (router *Router) PipeToRouter(
 		}
 	}()
 
-	pipeConsumer, err = localPipeTransport.Consume(TransportConsumeParams{
+	pipeConsumer, err = localPipeTransport.Consume(transportConsumeParams{
 		ProducerId: params.ProducerId,
 		Paused:     producer.Paused(),
 	})
 	if err != nil {
 		return
 	}
-	pipeProducer, err = localPipeTransport.Produce(TransportProduceParams{
+	pipeProducer, err = localPipeTransport.Produce(transportProduceParams{
 		Id:            producer.Id(),
 		Kind:          pipeConsumer.Kind(),
 		RtpParameters: pipeConsumer.RtpParameters(),

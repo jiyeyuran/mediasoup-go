@@ -4,10 +4,6 @@ import "encoding/json"
 
 type H map[string]interface{}
 
-type RouterData struct {
-	RtpCapabilities RtpCapabilities
-}
-
 type Internal struct {
 	RouterId      string `json:"routerId,omitempty"`
 	TransportId   string `json:"transportId,omitempty"`
@@ -34,9 +30,25 @@ func (r Response) Err() error {
 
 type FetchProducerFunc func(producerId string) *Producer
 
+type FetchRouterRtpCapabilitiesFunc func() RtpCapabilities
+
 type VolumeInfo struct {
 	Producer *Producer `json:"producer,omitempty"`
 	Volume   uint8     `json:"volume,omitempty"`
+}
+
+type VideoLayer struct {
+	SpatialLayer uint8 `json:"spatialLayer"`
+}
+
+type VideoOrientation struct {
+	Camera   bool  `json:"camera,omitempty"`
+	Flip     bool  `json:"flip,omitempty"`
+	Rotation uint8 `json:"rotation,omitempty"`
+}
+
+type RouterData struct {
+	RtpCapabilities RtpCapabilities
 }
 
 type ProducerData struct {
@@ -46,22 +58,16 @@ type ProducerData struct {
 	ConsumableRtpParameters RtpRemoteCapabilities
 }
 
-type ProducerScore struct {
-	Score uint8  `json:"score,omitempty"`
-	Ssrc  uint32 `json:"ssrc,omitempty"`
-	Rid   uint32 `json:"rid,omitempty"`
-}
-
-type VideoOrientation struct {
-	Camera   bool  `json:"camera,omitempty"`
-	Flip     bool  `json:"flip,omitempty"`
-	Rotation uint8 `json:"rotation,omitempty"`
-}
-
 type ConsumerData struct {
 	Kind          string
 	Type          string
 	RtpParameters RtpRemoteCapabilities
+}
+
+type ProducerScore struct {
+	Score uint8  `json:"score,omitempty"`
+	Ssrc  uint32 `json:"ssrc,omitempty"`
+	Rid   uint32 `json:"rid,omitempty"`
 }
 
 type ConsumerScore struct {
@@ -69,28 +75,22 @@ type ConsumerScore struct {
 	Consumer uint8 `json:"consumer,omitempty"`
 }
 
-type VideoLayer struct {
-	SpatialLayer uint8 `json:"spatialLayer"`
-}
-
-type FetchRouterRtpCapabilitiesFunc func() RtpCapabilities
-
-type TransportProduceParams struct {
-	Id            string                  `json:"id,omitempty"`
-	Kind          string                  `json:"kind,omitempty"`
+type transportProduceParams struct {
+	Id            string                `json:"id,omitempty"`
+	Kind          string                `json:"kind,omitempty"`
 	RtpParameters RtpRemoteCapabilities `json:"rtpParameters,omitempty"`
-	Paused        bool                    `json:"paused,omitempty"`
-	AppData       interface{}             `json:"appData,omitempty"`
+	Paused        bool                  `json:"paused,omitempty"`
+	AppData       interface{}           `json:"appData,omitempty"`
 }
 
-type TransportConsumeParams struct {
-	ProducerId      string                  `json:"producerId,omitempty"`
+type transportConsumeParams struct {
+	ProducerId      string                `json:"producerId,omitempty"`
 	RtpCapabilities RtpRemoteCapabilities `json:"rtpCapabilities,omitempty"`
-	Paused          bool                    `json:"paused,omitempty"`
-	AppData         interface{}             `json:"appData,omitempty"`
+	Paused          bool                  `json:"paused,omitempty"`
+	AppData         interface{}           `json:"appData,omitempty"`
 }
 
-type CreateTransportParams struct {
+type createTransportParams struct {
 	Internal                 Internal
 	Channel                  *Channel
 	AppData                  interface{}
@@ -98,7 +98,7 @@ type CreateTransportParams struct {
 	GetProducerById          FetchProducerFunc
 }
 
-type TransportConnectParams struct {
+type transportConnectParams struct {
 	// pipe and plain transport
 	Ip   string `json:"ip,omitempty"`
 	Port int    `json:"port,omitempty"`

@@ -13,7 +13,7 @@ type PipeTransport struct {
 	data   PipeTransportData
 }
 
-func NewPipeTransport(data PipeTransportData, params CreateTransportParams) Transport {
+func NewPipeTransport(data PipeTransportData, params createTransportParams) Transport {
 	logger := TypeLogger("PipeTransport")
 
 	logger.Debug("constructor()")
@@ -37,7 +37,7 @@ func (t PipeTransport) Tuple() TransportTuple {
  *
  * @override
  */
-func (t *PipeTransport) Connect(params TransportConnectParams) (err error) {
+func (t *PipeTransport) Connect(params transportConnectParams) (err error) {
 	t.logger.Debug("connect()")
 
 	resp := t.channel.Request("transport.connect", t.internal, params)
@@ -53,7 +53,7 @@ func (t *PipeTransport) Connect(params TransportConnectParams) (err error) {
  *
  * @override
  */
-func (t *PipeTransport) Consume(params TransportConsumeParams) (consumer *Consumer, err error) {
+func (t *PipeTransport) Consume(params transportConsumeParams) (consumer *Consumer, err error) {
 	t.logger.Debug("consume()")
 
 	producerId, appData := params.ProducerId, params.AppData
