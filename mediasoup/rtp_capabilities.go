@@ -1,6 +1,7 @@
 package mediasoup
 
 import (
+	"github.com/jinzhu/copier"
 	"github.com/jiyeyuran/mediasoup-go/mediasoup/h264profile"
 )
 
@@ -337,6 +338,8 @@ var supportedRtpCapabilities = RtpCapabilities{
 	},
 }
 
-func GetSupportedRtpCapabilities() RtpCapabilities {
-	return supportedRtpCapabilities
+func GetSupportedRtpCapabilities() (rtpCapabilities RtpCapabilities) {
+	copier.Copy(&rtpCapabilities, &supportedRtpCapabilities)
+
+	return
 }
