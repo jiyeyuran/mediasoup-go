@@ -174,7 +174,7 @@ func (router *Router) CreateWebRtcTransport(
 	}
 
 	transport = NewWebRtcTransport(data, createTransportParams{
-		Internal: router.internal,
+		Internal: internal,
 		Channel:  router.channel,
 		AppData:  params.AppData,
 		GetRouterRtpCapabilities: func() RtpCapabilities {
@@ -234,7 +234,7 @@ func (router *Router) CreatePlainRtpTransport(
 	}
 
 	transport = NewPlainRtpTransport(data, createTransportParams{
-		Internal: router.internal,
+		Internal: internal,
 		Channel:  router.channel,
 		AppData:  params.AppData,
 		GetRouterRtpCapabilities: func() RtpCapabilities {
@@ -287,7 +287,7 @@ func (router *Router) CreatePipeTransport(
 	}
 
 	transport = NewPipeTransport(data, createTransportParams{
-		Internal: router.internal,
+		Internal: internal,
 		Channel:  router.channel,
 		AppData:  params.AppData,
 		GetRouterRtpCapabilities: func() RtpCapabilities {
@@ -475,7 +475,7 @@ func (router *Router) CreateAudioLevelObserver(
 	}
 
 	rtpObserver = NewAudioLevelObserver(
-		router.internal,
+		internal,
 		router.channel,
 		func(producerId string) *Producer {
 			return router.producers[producerId]
