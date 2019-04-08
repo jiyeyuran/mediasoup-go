@@ -52,7 +52,7 @@ func GenerateRouterRtpCapabilities(mediaCodecs []RtpCodecCapability) (caps RtpCa
 		codec, matched := selectMatchedCodecs(
 			mediaCodec, supportedCodecs, codecMatchNormal)
 
-		if matched {
+		if !matched {
 			err = NewUnsupportedError(
 				fmt.Sprintf(`media codec not supported [mimeType:%s]`, mediaCodec.MimeType))
 			return
@@ -360,10 +360,10 @@ func CanConsume(consumableParams, caps RtpRemoteCapabilities) bool {
 	var matchingCodecs []RtpCodecCapability
 
 	for _, codec := range consumableParams.Codecs {
-		codec, ok := selectMatchedCodecs(
+		codec, matched := selectMatchedCodecs(
 			*codec.RtpCodecCapability, capCodecs, codecMatchStrict)
 
-		if !ok {
+		if !matched {
 			continue
 		}
 
@@ -403,10 +403,10 @@ func GetConsumerRtpParameters(
 	rtxSupported := false
 
 	for _, codec := range consumableCodecs {
-		matchedCapCodec, ok := selectMatchedCodecs(
+		matchedCapCodec, matched := selectMatchedCodecs(
 			*codec.RtpCodecCapability, capCodecs, codecMatchStrict)
 
-		if !ok {
+		if !matched {
 			continue
 		}
 
@@ -504,7 +504,7 @@ func GetPipeConsumerRtpParameters(
 }
 
 func checkCodecCapability(codec *RtpCodecCapability) (err error) {
-	if codec == nil || len(codec.MimeType) > 0 || codec.ClockRate == 0 {
+	if codec == nil || len(codec.MimeType) == 0 || codec.ClockRate == 0 {
 		return NewTypeError("invalid RTCRtpCodecCapability")
 	}
 
