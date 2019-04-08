@@ -65,7 +65,11 @@ func (c *Channel) Close() {
 	c.closed = true
 }
 
-func (c *Channel) Request(method string, internal, data interface{}) (rsp Response) {
+func (c *Channel) Request(
+	method string,
+	internal interface{},
+	data ...interface{},
+) (rsp Response) {
 	if c.nextId < 4294967295 {
 		c.nextId++
 	} else {
@@ -99,7 +103,9 @@ func (c *Channel) Request(method string, internal, data interface{}) (rsp Respon
 		Id:       id,
 		Method:   method,
 		Internal: internal,
-		Data:     data,
+	}
+	if len(data) > 0 {
+		req.Data = data[0]
 	}
 	rawData, _ := json.Marshal(req)
 
