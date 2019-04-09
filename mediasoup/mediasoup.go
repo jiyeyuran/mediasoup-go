@@ -15,7 +15,7 @@ func CreateWorker(workerBin string, options ...Option) (worker *Worker, err erro
 	wg.Add(1)
 
 	worker.On("@failure", func(errr error) {
-		err = errr
+		worker, err = nil, errr
 		wg.Done()
 	})
 
