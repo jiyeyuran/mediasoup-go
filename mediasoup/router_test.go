@@ -37,7 +37,7 @@ var testRouterMediaCodecs = []RtpCodecCapability{
 }
 
 func TestCreateRouter_Succeeds(t *testing.T) {
-	worker, _ := NewWorker("", WithLogLevel("warn"))
+	worker := CreateTestWorker()
 	called := 0
 	var callRouter *Router
 	worker.Observer().Once("newrouter", func(router *Router) {
@@ -95,14 +95,14 @@ func TestCreateRouter_Succeeds(t *testing.T) {
 }
 
 func TestCreateRouter_TypeError(t *testing.T) {
-	worker, _ := NewWorker("", WithLogLevel("warn"))
+	worker := CreateTestWorker()
 	_, err := worker.CreateRouter(nil)
 
 	assert.IsType(t, err, NewTypeError(""))
 }
 
 func TestCreateRouter_InvalidStateError(t *testing.T) {
-	worker, _ := NewWorker("", WithLogLevel("warn"))
+	worker := CreateTestWorker()
 	worker.Close()
 
 	_, err := worker.CreateRouter(testRouterMediaCodecs)
@@ -110,7 +110,7 @@ func TestCreateRouter_InvalidStateError(t *testing.T) {
 }
 
 func TestRouterClose_Succeeds(t *testing.T) {
-	worker, _ := NewWorker("", WithLogLevel("warn"))
+	worker := CreateTestWorker()
 	router, _ := worker.CreateRouter(testRouterMediaCodecs)
 	called := 0
 	router.Observer().Once("close", func() {
@@ -123,7 +123,7 @@ func TestRouterClose_Succeeds(t *testing.T) {
 }
 
 func TestRouterEmitsWorkCloseIfWorkerIsClosed(t *testing.T) {
-	worker, _ := NewWorker("", WithLogLevel("warn"))
+	worker := CreateTestWorker()
 	router, _ := worker.CreateRouter(testRouterMediaCodecs)
 	called := 0
 	router.Observer().Once("close", func() {

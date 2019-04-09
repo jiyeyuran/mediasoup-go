@@ -21,7 +21,7 @@ var (
 )
 
 func TestCreateAudioLevelObserver_Succeeds(t *testing.T) {
-	worker, _ := NewWorker("", WithLogLevel("warn"))
+	worker := CreateTestWorker()
 	router, _ := worker.CreateRouter(audioLevelMediaCodecs)
 	audioLevelObserver, err := router.CreateAudioLevelObserver(nil)
 
@@ -39,7 +39,7 @@ func TestCreateAudioLevelObserver_Succeeds(t *testing.T) {
 }
 
 func TestCreateAudioLevelObserver_TypeError(t *testing.T) {
-	worker, _ := NewWorker("", WithLogLevel("warn"))
+	worker := CreateTestWorker()
 	router, _ := worker.CreateRouter(audioLevelMediaCodecs)
 	_, err := router.CreateAudioLevelObserver(&CreateAudioLevelObserverParams{
 		MaxEntries: 0,
@@ -48,7 +48,7 @@ func TestCreateAudioLevelObserver_TypeError(t *testing.T) {
 }
 
 func TestCreateAudioLevelObserver_Pause_Resume(t *testing.T) {
-	worker, _ := NewWorker("", WithLogLevel("warn"))
+	worker := CreateTestWorker()
 	router, _ := worker.CreateRouter(audioLevelMediaCodecs)
 	audioLevelObserver, err := router.CreateAudioLevelObserver(nil)
 
@@ -64,7 +64,7 @@ func TestCreateAudioLevelObserver_Pause_Resume(t *testing.T) {
 }
 
 func TestCreateAudioLevelObserver_Close(t *testing.T) {
-	worker, _ := NewWorker("", WithLogLevel("warn"))
+	worker := CreateTestWorker()
 	router, _ := worker.CreateRouter(audioLevelMediaCodecs)
 	_, err := router.CreateAudioLevelObserver(nil)
 	assert.NoError(t, err)
@@ -90,7 +90,7 @@ func TestCreateAudioLevelObserver_Close(t *testing.T) {
 }
 
 func TestCreateAudioLevelObserver_Router_Close(t *testing.T) {
-	worker, _ := NewWorker("", WithLogLevel("warn"))
+	worker := CreateTestWorker()
 	router, _ := worker.CreateRouter(audioLevelMediaCodecs)
 	audioLevelObserver, err := router.CreateAudioLevelObserver(nil)
 	assert.NoError(t, err)
@@ -106,9 +106,7 @@ func TestCreateAudioLevelObserver_Router_Close(t *testing.T) {
 }
 
 func TestCreateAudioLevelObserver_Worker_Close(t *testing.T) {
-	worker, err := NewWorker("")
-	assert.NoError(t, err)
-
+	worker := CreateTestWorker()
 	router, err := worker.CreateRouter(audioLevelMediaCodecs)
 	assert.NoError(t, err)
 
