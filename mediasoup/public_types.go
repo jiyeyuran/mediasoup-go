@@ -79,9 +79,9 @@ type WebRtcTransportData struct {
 
 type TransportTuple struct {
 	LocalIp    string `json:"localIp,omitempty"`
-	LocalPort  int    `json:"localPort,omitempty"`
+	LocalPort  uint16 `json:"localPort,omitempty"`
 	RemoteIp   string `json:"remoteIp,omitempty"`
-	RemotePort int    `json:"remotePort,omitempty"`
+	RemotePort uint16 `json:"remotePort,omitempty"`
 	Protocol   string `json:"protocol,omitempty"`
 }
 
@@ -95,7 +95,7 @@ type IceCandidate struct {
 	Foundation uint32 `json:"foundation,omitempty"`
 	Priority   uint32 `json:"priority,omitempty"`
 	Ip         string `json:"ip,omitempty"`
-	Port       int    `json:"port,omitempty"`
+	Port       uint16 `json:"port,omitempty"`
 	Type       string `json:"type,omitempty"`
 	Protocol   string `json:"protocol,omitempty"`
 	TcpType    string `json:"tcpType,omitempty"`

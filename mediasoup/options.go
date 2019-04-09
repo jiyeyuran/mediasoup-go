@@ -7,13 +7,13 @@ import (
 
 // Options to start worker
 type Options struct {
-	Version             string
-	LogLevel            string
-	LogTags             []string
-	RTCMinPort          int
-	RTCMaxPort          int
-	DTLSCertificateFile string
-	DTLSPrivateKeyFile  string
+	Version             string   `json:"version,omitempty"`
+	LogLevel            string   `json:"logLevel,omitempty"`
+	LogTags             []string `json:"logTags,omitempty"`
+	RTCMinPort          uint16   `json:"rtcMinPort,omitempty"`
+	RTCMaxPort          uint16   `json:"rtcMaxPort,omitempty"`
+	DTLSCertificateFile string   `json:"dtlsCertificateFile,omitempty"`
+	DTLSPrivateKeyFile  string   `json:"dtlsPrivateKeyFile,omitempty"`
 }
 
 func NewOptions() *Options {
@@ -44,13 +44,8 @@ func (o *Options) WorkerArgs() []string {
 		}
 	}
 
-	if o.RTCMinPort > 0 {
-		workerArgs = append(workerArgs, fmt.Sprintf("--rtcMinPort=%d", o.RTCMinPort))
-	}
-
-	if o.RTCMaxPort > 0 {
-		workerArgs = append(workerArgs, fmt.Sprintf("--rtcMaxPort=%d", o.RTCMaxPort))
-	}
+	workerArgs = append(workerArgs, fmt.Sprintf("--rtcMinPort=%d", o.RTCMinPort))
+	workerArgs = append(workerArgs, fmt.Sprintf("--rtcMaxPort=%d", o.RTCMaxPort))
 
 	if len(o.DTLSCertificateFile) > 0 && len(o.DTLSPrivateKeyFile) > 0 {
 		workerArgs = append(workerArgs, "--dtlsCertificateFile="+o.DTLSCertificateFile)
@@ -80,13 +75,13 @@ func WithLogTags(logTags []string) Option {
 	}
 }
 
-func WithRTCMinPort(rtcMinPort int) Option {
+func WithRTCMinPort(rtcMinPort uint16) Option {
 	return func(o *Options) {
 		o.RTCMinPort = rtcMinPort
 	}
 }
 
-func WithRTCMaxPort(rtcMaxPort int) Option {
+func WithRTCMaxPort(rtcMaxPort uint16) Option {
 	return func(o *Options) {
 		o.RTCMaxPort = rtcMaxPort
 	}

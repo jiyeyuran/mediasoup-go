@@ -51,9 +51,9 @@ type createTransportParams struct {
 type transportConnectParams struct {
 	// pipe and plain transport
 	Ip   string `json:"ip,omitempty"`
-	Port int    `json:"port,omitempty"`
+	Port uint16 `json:"port,omitempty"`
 	// plain transport
-	RtcpPort int `json:"rtcpPort,omitempty"`
+	RtcpPort uint16 `json:"rtcpPort,omitempty"`
 	// webrtc transport
 	DtlsParameters *DtlsParameters `json:"dtlsParameters,omitempty"`
 }
