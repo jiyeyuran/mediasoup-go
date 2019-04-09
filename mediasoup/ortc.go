@@ -65,6 +65,20 @@ func GenerateRouterRtpCapabilities(mediaCodecs []RtpCodecCapability) (caps RtpCa
 			codec.Channels = 1
 		}
 
+		// Merge the media codec parameters.
+		if codec.Parameters == nil {
+			codec.Parameters = &RtpParameter{}
+		}
+		if mediaCodec.Parameters != nil {
+			codec.Parameters = mediaCodec.Parameters
+			// mergo.Merge(codec.Parameters, mediaCodec.Parameters)
+		}
+
+		// Make rtcpFeedback an array.
+		if codec.RtcpFeedback == nil {
+			codec.RtcpFeedback = []RtcpFeedback{}
+		}
+
 		// Assign a payload type.
 		if codec.PreferredPayloadType == 0 {
 			if dynamicPayloadTypeIdx >= len(DYNAMIC_PAYLOAD_TYPES) {
@@ -93,6 +107,7 @@ func GenerateRouterRtpCapabilities(mediaCodecs []RtpCodecCapability) (caps RtpCa
 				MimeType:             fmt.Sprintf("%s/rtx", codec.Kind),
 				PreferredPayloadType: pt,
 				ClockRate:            codec.ClockRate,
+				RtcpFeedback:         []RtcpFeedback{},
 				Parameters: &RtpParameter{
 					Apt: codec.PreferredPayloadType,
 				},
@@ -559,23 +574,28 @@ func matchedCodecs(
 
 	switch aMimeType {
 	case "video/h264":
-		parameters := aCodec.Parameters
-		if parameters == nil {
-			return
+		aParameters, bParameters := aCodec.Parameters, bCodec.Parameters
+		if aParameters == nil {
+			aParameters = &RtpParameter{}
 		}
-		if parameters.PacketizationMode != parameters.PacketizationMode {
+		if bParameters == nil {
+			bParameters = &RtpParameter{}
+		}
+
+		if aParameters.PacketizationMode != bParameters.PacketizationMode {
 			return
 		}
 
 		if mode&codecMatchStrict > 0 {
 			selectedProfileLevelId, err := h264.GenerateProfileLevelIdForAnswer(
-				parameters.RtpH264Parameter, parameters.RtpH264Parameter)
+				aParameters.RtpH264Parameter, bParameters.RtpH264Parameter)
 			if err != nil {
 				return
 			}
 
 			if mode&codecMatchModify > 0 {
-				parameters.ProfileLevelId = selectedProfileLevelId
+				aParameters.ProfileLevelId = selectedProfileLevelId
+				aCodec.Parameters = aParameters
 			}
 		}
 	}
