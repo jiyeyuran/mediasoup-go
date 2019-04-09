@@ -27,7 +27,7 @@ type Worker struct {
 	routers      map[string]*Router
 }
 
-func NewWorker(workerBin string, options ...Option) (worker *Worker, err error) {
+func newWorker(workerBin string, options ...Option) (worker *Worker, err error) {
 	if len(workerBin) == 0 {
 		workerBin = os.Getenv("MEDIASOUP_WORKER_BIN")
 	}
@@ -176,13 +176,10 @@ func (w *Worker) Dump() Response {
 }
 
 // UpdateSettings Update settings.
-func (w *Worker) UpdateSettings(logLevel string, logTags []string) Response {
+func (w *Worker) UpdateSettings(options Options) Response {
 	w.logger.Debugln("updateSettings()")
 
-	return w.channel.Request("worker.updateSettings", nil, H{
-		"logLevel": logLevel,
-		"logTags":  logTags,
-	})
+	return w.channel.Request("worker.updateSettings", nil, options)
 }
 
 // CreateRouter creates a router.
