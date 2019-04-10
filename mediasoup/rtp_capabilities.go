@@ -2,7 +2,7 @@ package mediasoup
 
 import (
 	"github.com/jinzhu/copier"
-	"github.com/jiyeyuran/mediasoup-go/mediasoup/h264profile"
+	h264 "github.com/jiyeyuran/mediasoup-go/mediasoup/h264profile"
 )
 
 type RtpCapabilities struct {
@@ -57,9 +57,11 @@ type RtcpFeedback struct {
 }
 
 type RtpCodecParameter struct {
-	h264profile.RtpH264Parameter     // used by h264 codec
-	Apt                          int `json:"apt,omitempty"`          // used by rtx codec
-	Useinbandfec                 int `json:"useinbandfec,omitempty"` // used by audio
+	h264.RtpH264Parameter     // used by h264 codec
+	Apt                   int `json:"apt,omitempty"`                    // used by rtx codec
+	Useinbandfec          int `json:"useinbandfec,omitempty"`           // used by opus
+	Minptime              int `json:"minptime,omitempty"`               // used by opus
+	XGoogleStartBitrate   int `json:"x-google-start-bitrate,omitempty"` // used by video
 }
 
 type RtpHeaderExtension struct {
@@ -211,7 +213,7 @@ var supportedRtpCapabilities = RtpCapabilities{
 			MimeType:  "video/H264",
 			ClockRate: 90000,
 			Parameters: &RtpCodecParameter{
-				RtpH264Parameter: h264profile.RtpH264Parameter{
+				RtpH264Parameter: h264.RtpH264Parameter{
 					PacketizationMode:     1,
 					LevelAsymmetryAllowed: 1,
 				},
@@ -228,7 +230,7 @@ var supportedRtpCapabilities = RtpCapabilities{
 			MimeType:  "video/H264",
 			ClockRate: 90000,
 			Parameters: &RtpCodecParameter{
-				RtpH264Parameter: h264profile.RtpH264Parameter{
+				RtpH264Parameter: h264.RtpH264Parameter{
 					PacketizationMode:     0,
 					LevelAsymmetryAllowed: 1,
 				},
@@ -245,7 +247,7 @@ var supportedRtpCapabilities = RtpCapabilities{
 			MimeType:  "video/H265",
 			ClockRate: 90000,
 			Parameters: &RtpCodecParameter{
-				RtpH264Parameter: h264profile.RtpH264Parameter{
+				RtpH264Parameter: h264.RtpH264Parameter{
 					PacketizationMode:     1,
 					LevelAsymmetryAllowed: 1,
 				},
@@ -262,7 +264,7 @@ var supportedRtpCapabilities = RtpCapabilities{
 			MimeType:  "video/H265",
 			ClockRate: 90000,
 			Parameters: &RtpCodecParameter{
-				RtpH264Parameter: h264profile.RtpH264Parameter{
+				RtpH264Parameter: h264.RtpH264Parameter{
 					PacketizationMode:     0,
 					LevelAsymmetryAllowed: 1,
 				},
