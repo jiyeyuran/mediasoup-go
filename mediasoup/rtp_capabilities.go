@@ -11,29 +11,33 @@ type RtpCapabilities struct {
 	FecMechanisms    []string             `json:"fecMechanisms,omitempty"`
 }
 
-type RtpRemoteCapabilities struct {
+type RtpParameters struct {
+	Codecs           []RtpCodecCapability `json:"codecs,omitempty"`
+	HeaderExtensions []RtpHeaderExtension `json:"headerExtensions,omitempty"`
+	Encodings        []RtpEncoding        `json:"encodings,omitempty"`
+	Rtcp             RtcpConfiguation     `json:"rtcp,omitempty"`
+}
+
+type RtpMappingParameters struct {
 	Codecs           []RtpMappingCodec     `json:"codecs,omitempty"`
 	HeaderExtensions []RtpMappingHeaderExt `json:"headerExtensions,omitempty"`
 	Encodings        []RtpMappingEncoding  `json:"encodings,omitempty"`
-	Rtcp             RtcpConfiguation      `json:"rtcp,omitempty"`
 }
 
 type RtpMappingCodec struct {
-	*RtpCodecCapability
 	PayloadType       int `json:"payloadType,omitempty"`
 	MappedPayloadType int `json:"mappedPayloadType,omitempty"`
 }
 
 type RtpMappingHeaderExt struct {
-	*RtpHeaderExtension
 	Id       int `json:"id,omitempty"`
 	MappedId int `json:"mappedId,omitempty"`
 }
 
-type RtcpConfiguation struct {
-	Cname       string `json:"cname,omitempty"`
-	ReducedSize bool   `json:"reducedSize,omitempty"`
-	Mux         bool   `json:"mux,omitempty"`
+type RtpMappingEncoding struct {
+	Rid        string `json:"rid,omitempty"`
+	Ssrc       uint32 `json:"ssrc,omitempty"`
+	MappedSsrc uint32 `json:"mappedSsrc,omitempty"`
 }
 
 type RtpCodecCapability struct {
@@ -41,6 +45,7 @@ type RtpCodecCapability struct {
 	MimeType             string             `json:"mimeType,omitempty"`
 	ClockRate            int                `json:"clockRate,omitempty"`
 	Channels             int                `json:"channels,omitempty"`
+	PayloadType          int                `json:"payloadType,omitempty"`
 	PreferredPayloadType int                `json:"preferredPayloadType,omitempty"`
 	Parameters           *RtpCodecParameter `json:"parameters,omitempty"`
 	RtcpFeedback         []RtcpFeedback     `json:"rtcpFeedback,omitempty"`
@@ -52,25 +57,31 @@ type RtcpFeedback struct {
 }
 
 type RtpCodecParameter struct {
-	h264profile.RtpH264Parameter
-	Apt          int `json:"apt,omitempty"`          // used by rtx codec
-	Useinbandfec int `json:"useinbandfec,omitempty"` // used by audio
-}
-
-type RtpMappingEncoding struct {
-	Rid              string              `json:"rid,omitempty"`
-	Ssrc             uint32              `json:"ssrc,omitempty"`
-	MappedSsrc       uint32              `json:"mappedSsrc,omitempty"`
-	MaxBitrate       uint32              `json:"maxBitrate,omitempty"`
-	CodecPayloadType uint32              `json:"codecPayloadType,omitempty"`
-	Rtx              *RtpMappingEncoding `json:"rtx,omitempty"`
+	h264profile.RtpH264Parameter     // used by h264 codec
+	Apt                          int `json:"apt,omitempty"`          // used by rtx codec
+	Useinbandfec                 int `json:"useinbandfec,omitempty"` // used by audio
 }
 
 type RtpHeaderExtension struct {
+	Id               int    `json:"id,omitempty"`
 	Kind             string `json:"kind,omitempty"`
 	Uri              string `json:"uri,omitempty"`
-	PreferredId      int    `json:"preferredId,omitempty"`      // used by router
-	PreferredEncrypt bool   `json:"preferredEncrypt,omitempty"` // used by router
+	PreferredId      int    `json:"preferredId,omitempty"`
+	PreferredEncrypt bool   `json:"preferredEncrypt,omitempty"`
+}
+
+type RtpEncoding struct {
+	Rid              string       `json:"rid,omitempty"`
+	Ssrc             uint32       `json:"ssrc,omitempty"`
+	MaxBitrate       uint32       `json:"maxBitrate,omitempty"`
+	CodecPayloadType uint32       `json:"codecPayloadType,omitempty"`
+	Rtx              *RtpEncoding `json:"rtx,omitempty"`
+}
+
+type RtcpConfiguation struct {
+	Cname       string `json:"cname,omitempty"`
+	ReducedSize bool   `json:"reducedSize,omitempty"`
+	Mux         bool   `json:"mux,omitempty"`
 }
 
 var supportedRtpCapabilities = RtpCapabilities{

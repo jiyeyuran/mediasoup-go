@@ -497,7 +497,7 @@ func (router *Router) CreateAudioLevelObserver(
  * @param {RTCRtpCapabilities} rtpCapabilities - Remote RTP capabilities.
  *
  */
-func (router *Router) CanConsume(producerId string, rtpCapabilities RtpRemoteCapabilities) bool {
+func (router *Router) CanConsume(producerId string, rtpCapabilities RtpParameters) bool {
 	producer := router.producers[producerId]
 
 	if producer == nil {

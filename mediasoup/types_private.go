@@ -15,20 +15,20 @@ type routerData struct {
 type producerData struct {
 	Kind                    string
 	Type                    string
-	RtpParameters           RtpRemoteCapabilities
-	ConsumableRtpParameters RtpRemoteCapabilities
+	RtpParameters           RtpParameters
+	ConsumableRtpParameters RtpParameters
 }
 
 type consumerData struct {
 	Kind          string
 	Type          string
-	RtpParameters RtpRemoteCapabilities
+	RtpParameters RtpParameters
 }
 
 type transportProduceParams struct {
 	Id            string                `json:"id,omitempty"`
 	Kind          string                `json:"kind,omitempty"`
-	RtpParameters RtpRemoteCapabilities `json:"rtpParameters,omitempty"`
+	RtpParameters RtpParameters `json:"rtpParameters,omitempty"`
 	Paused        bool                  `json:"paused,omitempty"`
 	AppData       interface{}           `json:"appData,omitempty"`
 }

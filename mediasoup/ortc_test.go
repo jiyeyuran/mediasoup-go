@@ -196,64 +196,56 @@ func TestProducerComsumerPipeRtpParameters_Succeed(t *testing.T) {
 	routerRtpCapabilities, err := GenerateRouterRtpCapabilities(mediaCodecs)
 	assert.NoError(t, err)
 
-	rtpParameters := RtpRemoteCapabilities{
-		Codecs: []RtpMappingCodec{
+	rtpParameters := RtpParameters{
+		Codecs: []RtpCodecCapability{
 			{
-				RtpCodecCapability: &RtpCodecCapability{
-					Kind:      "video",
-					MimeType:  "video/H264",
-					ClockRate: 90000,
-					RtcpFeedback: []RtcpFeedback{
-						{Type: "nack"},
-						{Type: "nack", Parameter: "pli"},
-						{Type: "goog-remb"},
-					},
-					Parameters: &RtpCodecParameter{
-						RtpH264Parameter: h264profile.RtpH264Parameter{
-							PacketizationMode: 1,
-							ProfileLevelId:    "4d0032",
-						},
+				Kind:      "video",
+				MimeType:  "video/H264",
+				ClockRate: 90000,
+				RtcpFeedback: []RtcpFeedback{
+					{Type: "nack"},
+					{Type: "nack", Parameter: "pli"},
+					{Type: "goog-remb"},
+				},
+				Parameters: &RtpCodecParameter{
+					RtpH264Parameter: h264profile.RtpH264Parameter{
+						PacketizationMode: 1,
+						ProfileLevelId:    "4d0032",
 					},
 				},
 				PayloadType: 111,
 			},
 			{
-				RtpCodecCapability: &RtpCodecCapability{
-					MimeType:  "video/rtx",
-					ClockRate: 90000,
-					Parameters: &RtpCodecParameter{
-						Apt: 111,
-					},
+				MimeType:  "video/rtx",
+				ClockRate: 90000,
+				Parameters: &RtpCodecParameter{
+					Apt: 111,
 				},
 				PayloadType: 112,
 			},
 		},
-		HeaderExtensions: []RtpMappingHeaderExt{
+		HeaderExtensions: []RtpHeaderExtension{
 			{
-				RtpHeaderExtension: &RtpHeaderExtension{
-					Uri: "urn:ietf:params:rtp-hdrext:sdes:mid",
-				},
-				Id: 1,
+				Uri: "urn:ietf:params:rtp-hdrext:sdes:mid",
+				Id:  1,
 			},
 			{
-				RtpHeaderExtension: &RtpHeaderExtension{
-					Uri: "urn:3gpp:video-orientation",
-				},
-				Id: 2,
+				Uri: "urn:3gpp:video-orientation",
+				Id:  2,
 			},
 		},
-		Encodings: []RtpMappingEncoding{
+		Encodings: []RtpEncoding{
 			{
 				Ssrc:       11111111,
 				MaxBitrate: 111111,
-				Rtx: &RtpMappingEncoding{
+				Rtx: &RtpEncoding{
 					Ssrc: 11111112,
 				},
 			},
 			{
 				Ssrc:       21111111,
 				MaxBitrate: 222222,
-				Rtx: &RtpMappingEncoding{
+				Rtx: &RtpEncoding{
 					Ssrc: 21111112,
 				},
 			},
@@ -309,15 +301,15 @@ func TestProducerComsumerPipeRtpParameters_Succeed(t *testing.T) {
 	assert.EqualValues(t, 90000, consumableRtpParameters.Codecs[1].ClockRate)
 	assert.Equal(t, &RtpCodecParameter{Apt: 101}, consumableRtpParameters.Codecs[1].Parameters)
 
-	assert.Equal(t, RtpMappingEncoding{
+	assert.Equal(t, RtpEncoding{
 		Ssrc:       rtpMapping.Encodings[0].MappedSsrc,
 		MaxBitrate: 111111,
 	}, consumableRtpParameters.Encodings[0])
-	assert.Equal(t, RtpMappingEncoding{
+	assert.Equal(t, RtpEncoding{
 		Ssrc:       rtpMapping.Encodings[1].MappedSsrc,
 		MaxBitrate: 222222,
 	}, consumableRtpParameters.Encodings[1])
-	assert.Equal(t, RtpMappingEncoding{
+	assert.Equal(t, RtpEncoding{
 		Ssrc:       rtpMapping.Encodings[2].MappedSsrc,
 		MaxBitrate: 333333,
 	}, consumableRtpParameters.Encodings[2])
@@ -409,32 +401,28 @@ func TestProducerComsumerPipeRtpParameters_Succeed(t *testing.T) {
 	assert.NoError(t, err)
 
 	assert.Len(t, consumerRtpParameters.Codecs, 2)
-	assertJSONEq(t, RtpMappingCodec{
-		RtpCodecCapability: &RtpCodecCapability{
-			MimeType:  "video/H264",
-			ClockRate: 90000,
-			RtcpFeedback: []RtcpFeedback{
-				{Type: "nack"},
-				{Type: "nack", Parameter: "pli"},
-				{Type: "foo", Parameter: "FOO"},
-			},
-			Parameters: &RtpCodecParameter{
-				RtpH264Parameter: h264profile.RtpH264Parameter{
-					PacketizationMode: 1,
-					ProfileLevelId:    "4d0032",
-				},
+	assertJSONEq(t, RtpCodecCapability{
+		MimeType:  "video/H264",
+		ClockRate: 90000,
+		RtcpFeedback: []RtcpFeedback{
+			{Type: "nack"},
+			{Type: "nack", Parameter: "pli"},
+			{Type: "foo", Parameter: "FOO"},
+		},
+		Parameters: &RtpCodecParameter{
+			RtpH264Parameter: h264profile.RtpH264Parameter{
+				PacketizationMode: 1,
+				ProfileLevelId:    "4d0032",
 			},
 		},
 		PayloadType: 101,
 	}, consumerRtpParameters.Codecs[0])
-	assertJSONEq(t, RtpMappingCodec{
-		RtpCodecCapability: &RtpCodecCapability{
-			MimeType:     "video/rtx",
-			ClockRate:    90000,
-			RtcpFeedback: []RtcpFeedback{},
-			Parameters: &RtpCodecParameter{
-				Apt: 101,
-			},
+	assertJSONEq(t, RtpCodecCapability{
+		MimeType:     "video/rtx",
+		ClockRate:    90000,
+		RtcpFeedback: []RtcpFeedback{},
+		Parameters: &RtpCodecParameter{
+			Apt: 101,
 		},
 		PayloadType: 102,
 	}, consumerRtpParameters.Codecs[1])
@@ -443,18 +431,14 @@ func TestProducerComsumerPipeRtpParameters_Succeed(t *testing.T) {
 	assert.NotEmpty(t, consumerRtpParameters.Encodings[0].Rtx)
 	assert.NotEmpty(t, consumerRtpParameters.Encodings[0].Rtx.Ssrc)
 
-	assert.ElementsMatch(t, []RtpMappingHeaderExt{
+	assert.ElementsMatch(t, []RtpHeaderExtension{
 		{
-			RtpHeaderExtension: &RtpHeaderExtension{
-				Uri: "urn:ietf:params:rtp-hdrext:toffset",
-			},
-			Id: 2,
+			Uri: "urn:ietf:params:rtp-hdrext:toffset",
+			Id:  2,
 		},
 		{
-			RtpHeaderExtension: &RtpHeaderExtension{
-				Uri: "urn:3gpp:video-orientation",
-			},
-			Id: 4,
+			Uri: "urn:3gpp:video-orientation",
+			Id:  4,
 		},
 	}, consumerRtpParameters.HeaderExtensions)
 
@@ -467,19 +451,17 @@ func TestProducerComsumerPipeRtpParameters_Succeed(t *testing.T) {
 	pipeConsumerRtpParameters := GetPipeConsumerRtpParameters(consumableRtpParameters)
 
 	assert.Len(t, pipeConsumerRtpParameters.Codecs, 1)
-	assertJSONEq(t, RtpMappingCodec{
-		RtpCodecCapability: &RtpCodecCapability{
-			MimeType:  "video/H264",
-			ClockRate: 90000,
-			RtcpFeedback: []RtcpFeedback{
-				{Type: "nack", Parameter: "pli"},
-				{Type: "ccm", Parameter: "fir"},
-			},
-			Parameters: &RtpCodecParameter{
-				RtpH264Parameter: h264profile.RtpH264Parameter{
-					PacketizationMode: 1,
-					ProfileLevelId:    "4d0032",
-				},
+	assertJSONEq(t, RtpCodecCapability{
+		MimeType:  "video/H264",
+		ClockRate: 90000,
+		RtcpFeedback: []RtcpFeedback{
+			{Type: "nack", Parameter: "pli"},
+			{Type: "ccm", Parameter: "fir"},
+		},
+		Parameters: &RtpCodecParameter{
+			RtpH264Parameter: h264profile.RtpH264Parameter{
+				PacketizationMode: 1,
+				ProfileLevelId:    "4d0032",
 			},
 		},
 		PayloadType: 101,
@@ -527,23 +509,21 @@ func TestGetProducerRtpParametersMapping_UnsupportedError(t *testing.T) {
 	routerRtpCapabilities, err := GenerateRouterRtpCapabilities(mediaCodecs)
 	assert.NoError(t, err)
 
-	rtpParameters := RtpRemoteCapabilities{
-		Codecs: []RtpMappingCodec{
+	rtpParameters := RtpParameters{
+		Codecs: []RtpCodecCapability{
 			{
-				RtpCodecCapability: &RtpCodecCapability{
-					Kind:      "video",
-					MimeType:  "video/VP8",
-					ClockRate: 90000,
-					RtcpFeedback: []RtcpFeedback{
-						{Type: "nack"},
-						{Type: "nack", Parameter: "pli"},
-					},
+				Kind:      "video",
+				MimeType:  "video/VP8",
+				ClockRate: 90000,
+				RtcpFeedback: []RtcpFeedback{
+					{Type: "nack"},
+					{Type: "nack", Parameter: "pli"},
 				},
 				PayloadType: 120,
 			},
 		},
-		HeaderExtensions: []RtpMappingHeaderExt{},
-		Encodings: []RtpMappingEncoding{
+		HeaderExtensions: []RtpHeaderExtension{},
+		Encodings: []RtpEncoding{
 			{
 				Ssrc: 11111111,
 			},

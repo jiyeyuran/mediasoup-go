@@ -73,7 +73,7 @@ func (producer *Producer) Kind() string {
 }
 
 // RTP parameters.
-func (producer *Producer) RtpParameters() RtpRemoteCapabilities {
+func (producer *Producer) RtpParameters() RtpParameters {
 	return producer.data.RtpParameters
 }
 
@@ -84,7 +84,7 @@ func (producer *Producer) Type() string {
 }
 
 // Consumable RTP parameters.
-func (producer *Producer) ConsumableRtpParameters() RtpRemoteCapabilities {
+func (producer *Producer) ConsumableRtpParameters() RtpParameters {
 	return producer.data.ConsumableRtpParameters
 }
 

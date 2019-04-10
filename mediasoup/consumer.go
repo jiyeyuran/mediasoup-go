@@ -90,7 +90,7 @@ func (consumer *Consumer) Kind() string {
 }
 
 // RTP parameters.
-func (consumer *Consumer) RtpParameters() RtpRemoteCapabilities {
+func (consumer *Consumer) RtpParameters() RtpParameters {
 	return consumer.data.RtpParameters
 }
 

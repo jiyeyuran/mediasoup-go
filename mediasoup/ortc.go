@@ -71,8 +71,8 @@ func GenerateRouterRtpCapabilities(mediaCodecs []RtpCodecCapability) (caps RtpCa
 			codec.Parameters = &RtpCodecParameter{}
 		}
 		if mediaCodec.Parameters != nil {
-			codec.Parameters = mediaCodec.Parameters
 			// mergo.Merge(codec.Parameters, mediaCodec.Parameters)
+			codec.Parameters = mediaCodec.Parameters
 		}
 
 		// Make rtcpFeedback an array.
@@ -130,14 +130,14 @@ func GenerateRouterRtpCapabilities(mediaCodecs []RtpCodecCapability) (caps RtpCa
  *
  */
 func GetProducerRtpParametersMapping(
-	params RtpRemoteCapabilities,
+	params RtpParameters,
 	caps RtpCapabilities,
-) (rtpMapping RtpRemoteCapabilities, err error) {
+) (rtpMapping RtpMappingParameters, err error) {
 	// Match parameters media codecs to capabilities media codecs.
-	codecToCapCodec := map[RtpMappingCodec]RtpCodecCapability{}
+	codecToCapCodec := map[*RtpCodecCapability]RtpCodecCapability{}
 
-	for _, codec := range params.Codecs {
-		if err = checkCodecParameters(codec.RtpCodecCapability); err != nil {
+	for i, codec := range params.Codecs {
+		if err = checkCodecParameters(codec); err != nil {
 			return
 		}
 
@@ -146,7 +146,7 @@ func GetProducerRtpParametersMapping(
 		}
 
 		matchedCapCodec, matched := selectMatchedCodecs(
-			codec.RtpCodecCapability, caps.Codecs, codecMatchStrictAndModify)
+			&codec, caps.Codecs, codecMatchStrictAndModify)
 
 		if !matched {
 			err = NewUnsupportedError(
@@ -155,10 +155,10 @@ func GetProducerRtpParametersMapping(
 			)
 		}
 
-		codecToCapCodec[codec] = matchedCapCodec
+		codecToCapCodec[&params.Codecs[i]] = matchedCapCodec
 	}
 
-	for _, codec := range params.Codecs {
+	for i, codec := range params.Codecs {
 		if !strings.HasSuffix(strings.ToLower(codec.MimeType), "/rtx") {
 			continue
 		}
@@ -168,23 +168,23 @@ func GetProducerRtpParametersMapping(
 			return
 		}
 
-		var associatedMediaCodec RtpMappingCodec
+		var associatedMediaCodec *RtpCodecCapability
 
-		for _, mediaCodec := range params.Codecs {
+		for i, mediaCodec := range params.Codecs {
 			if mediaCodec.PayloadType == codec.Parameters.Apt {
-				associatedMediaCodec = mediaCodec
+				associatedMediaCodec = &params.Codecs[i]
 				break
 			}
 		}
 
-		if associatedMediaCodec.RtpCodecCapability == nil {
+		if associatedMediaCodec == nil {
 			err = NewTypeError(`missing media codec found for RTX PT %d`, codec.PayloadType)
 			return
 		}
 
 		capMediaCodec := codecToCapCodec[associatedMediaCodec]
 
-		var associatedCapRtxCodec RtpCodecCapability
+		var associatedCapRtxCodec *RtpCodecCapability
 
 		// Ensure that the capabilities media codec has a RTX codec.
 		for _, capCodec := range caps.Codecs {
@@ -192,12 +192,12 @@ func GetProducerRtpParametersMapping(
 				continue
 			}
 			if capCodec.Parameters.Apt == capMediaCodec.PreferredPayloadType {
-				associatedCapRtxCodec = capCodec
+				associatedCapRtxCodec = &capCodec
 				break
 			}
 		}
 
-		if associatedCapRtxCodec.PreferredPayloadType == 0 {
+		if associatedCapRtxCodec == nil {
 			err = NewUnsupportedError(
 				"no RTX codec for capability codec PT %d",
 				capMediaCodec.PreferredPayloadType,
@@ -205,7 +205,7 @@ func GetProducerRtpParametersMapping(
 			return
 		}
 
-		codecToCapCodec[codec] = associatedCapRtxCodec
+		codecToCapCodec[&params.Codecs[i]] = *associatedCapRtxCodec
 	}
 
 	// Generate codecs mapping.
@@ -221,7 +221,7 @@ func GetProducerRtpParametersMapping(
 		var matchedCapExt *RtpHeaderExtension
 
 		for _, capExt := range caps.HeaderExtensions {
-			if matchHeaderExtensions(*ext.RtpHeaderExtension, capExt) {
+			if matchHeaderExtensions(ext, capExt) {
 				matchedCapExt = &capExt
 				break
 			}
@@ -266,12 +266,12 @@ func GetProducerRtpParametersMapping(
  */
 func GetConsumableRtpParameters(
 	kind string,
-	params RtpRemoteCapabilities,
+	params RtpParameters,
 	caps RtpCapabilities,
-	rtpMapping RtpRemoteCapabilities,
-) (consumableParams RtpRemoteCapabilities, err error) {
+	rtpMapping RtpMappingParameters,
+) (consumableParams RtpParameters, err error) {
 	for _, codec := range params.Codecs {
-		if err = checkCodecParameters(codec.RtpCodecCapability); err != nil {
+		if err = checkCodecParameters(codec); err != nil {
 			return
 		}
 
@@ -296,15 +296,13 @@ func GetConsumableRtpParameters(
 				break
 			}
 		}
-		consumableCodec := RtpMappingCodec{
-			RtpCodecCapability: &RtpCodecCapability{
-				MimeType:     matchedCapCodec.MimeType,
-				ClockRate:    matchedCapCodec.ClockRate,
-				Channels:     matchedCapCodec.Channels,
-				RtcpFeedback: matchedCapCodec.RtcpFeedback,
-				Parameters:   codec.Parameters, // Keep the Producer parameters.
-			},
-			PayloadType: matchedCapCodec.PreferredPayloadType,
+		consumableCodec := RtpCodecCapability{
+			MimeType:     matchedCapCodec.MimeType,
+			ClockRate:    matchedCapCodec.ClockRate,
+			Channels:     matchedCapCodec.Channels,
+			RtcpFeedback: matchedCapCodec.RtcpFeedback,
+			Parameters:   codec.Parameters, // Keep the Producer parameters.
+			PayloadType:  matchedCapCodec.PreferredPayloadType,
 		}
 		consumableCodec.Parameters = codec.Parameters // Keep the Producer parameters.
 
@@ -321,15 +319,13 @@ func GetConsumableRtpParameters(
 		}
 
 		if consumableCapRtxCodec != nil {
-			consumableRtxCodec := RtpMappingCodec{
-				RtpCodecCapability: &RtpCodecCapability{
-					MimeType:     consumableCapRtxCodec.MimeType,
-					ClockRate:    consumableCapRtxCodec.ClockRate,
-					Channels:     consumableCapRtxCodec.Channels,
-					RtcpFeedback: consumableCapRtxCodec.RtcpFeedback,
-					Parameters:   consumableCapRtxCodec.Parameters,
-				},
-				PayloadType: consumableCapRtxCodec.PreferredPayloadType,
+			consumableRtxCodec := RtpCodecCapability{
+				MimeType:     consumableCapRtxCodec.MimeType,
+				ClockRate:    consumableCapRtxCodec.ClockRate,
+				Channels:     consumableCapRtxCodec.Channels,
+				RtcpFeedback: consumableCapRtxCodec.RtcpFeedback,
+				Parameters:   consumableCapRtxCodec.Parameters,
+				PayloadType:  consumableCapRtxCodec.PreferredPayloadType,
 			}
 
 			consumableParams.Codecs = append(consumableParams.Codecs, consumableRtxCodec)
@@ -344,11 +340,9 @@ func GetConsumableRtpParameters(
 			continue
 		}
 
-		consumableExt := RtpMappingHeaderExt{
-			RtpHeaderExtension: &RtpHeaderExtension{
-				Uri: capExt.Uri,
-			},
-			Id: capExt.PreferredId,
+		consumableExt := RtpHeaderExtension{
+			Uri: capExt.Uri,
+			Id:  capExt.PreferredId,
 		}
 
 		consumableParams.HeaderExtensions = append(
@@ -377,27 +371,26 @@ func GetConsumableRtpParameters(
  * Check whether the given RTP capabilities can consume the given Producer.
  *
  */
-func CanConsume(consumableParams, caps RtpRemoteCapabilities) bool {
+func CanConsume(consumableParams, caps RtpParameters) bool {
 	capCodecs := []RtpCodecCapability{}
 
 	for _, capCodec := range caps.Codecs {
-		if checkCodecCapability(capCodec.RtpCodecCapability) != nil {
+		if checkCodecCapability(&capCodec) != nil {
 			return false
 		}
-		capCodecs = append(capCodecs, *capCodec.RtpCodecCapability)
+		capCodecs = append(capCodecs, capCodec)
 	}
 
 	var matchingCodecs []RtpCodecCapability
 
 	for _, codec := range consumableParams.Codecs {
-		codec, matched := selectMatchedCodecs(
-			codec.RtpCodecCapability, capCodecs, codecMatchStrict)
+		matchedCodec, matched := selectMatchedCodecs(&codec, capCodecs, codecMatchStrict)
 
 		if !matched {
 			continue
 		}
 
-		matchingCodecs = append(matchingCodecs, codec)
+		matchingCodecs = append(matchingCodecs, matchedCodec)
 	}
 
 	// Ensure there is at least one media codec.
@@ -418,21 +411,20 @@ func CanConsume(consumableParams, caps RtpRemoteCapabilities) bool {
  *
  */
 func GetConsumerRtpParameters(
-	consumableParams RtpRemoteCapabilities, caps RtpCapabilities,
-) (consumerParams RtpRemoteCapabilities, err error) {
+	consumableParams RtpParameters, caps RtpCapabilities,
+) (consumerParams RtpParameters, err error) {
 	for _, capCodec := range caps.Codecs {
 		if err = checkCodecCapability(&capCodec); err != nil {
 			return
 		}
 	}
 
-	consumableCodecs, rtxSupported := []RtpMappingCodec{}, false
+	consumableCodecs, rtxSupported := []RtpCodecCapability{}, false
 
 	copier.Copy(&consumableCodecs, &consumableParams.Codecs)
 
 	for _, codec := range consumableCodecs {
-		matchedCapCodec, matched := selectMatchedCodecs(
-			codec.RtpCodecCapability, caps.Codecs, codecMatchStrict)
+		matchedCapCodec, matched := selectMatchedCodecs(&codec, caps.Codecs, codecMatchStrict)
 
 		if !matched {
 			continue
@@ -464,12 +456,12 @@ func GetConsumerRtpParameters(
 		}
 	}
 
-	consumerEncoding := RtpMappingEncoding{
+	consumerEncoding := RtpEncoding{
 		Ssrc: generateRandomNumber(),
 	}
 
 	if rtxSupported {
-		consumerEncoding.Rtx = &RtpMappingEncoding{
+		consumerEncoding.Rtx = &RtpEncoding{
 			Ssrc: generateRandomNumber(),
 		}
 	}
@@ -491,12 +483,10 @@ func GetConsumerRtpParameters(
  * @returns {RTCRtpParameters}
  * @throws {TypeError} if wrong arguments.
  */
-func GetPipeConsumerRtpParameters(
-	consumableParams RtpRemoteCapabilities,
-) (consumerParams RtpRemoteCapabilities) {
+func GetPipeConsumerRtpParameters(consumableParams RtpParameters) (consumerParams RtpParameters) {
 	consumerParams.Rtcp = consumableParams.Rtcp
 
-	consumableCodecs := []RtpMappingCodec{}
+	consumableCodecs := []RtpCodecCapability{}
 	copier.Copy(&consumableCodecs, &consumableParams.Codecs)
 
 	for _, codec := range consumableCodecs {
@@ -524,7 +514,7 @@ func GetPipeConsumerRtpParameters(
 		}
 	}
 
-	consumableEncodings := []RtpMappingEncoding{}
+	consumableEncodings := []RtpEncoding{}
 	copier.Copy(&consumableEncodings, &consumableParams.Encodings)
 
 	for _, encoding := range consumableEncodings {
@@ -537,7 +527,7 @@ func GetPipeConsumerRtpParameters(
 }
 
 func checkCodecCapability(codec *RtpCodecCapability) (err error) {
-	if codec == nil || len(codec.MimeType) == 0 || codec.ClockRate == 0 {
+	if len(codec.MimeType) == 0 || codec.ClockRate == 0 {
 		return NewTypeError("invalid RTCRtpCodecCapability")
 	}
 
@@ -549,8 +539,8 @@ func checkCodecCapability(codec *RtpCodecCapability) (err error) {
 	return
 }
 
-func checkCodecParameters(codec *RtpCodecCapability) error {
-	if codec == nil || len(codec.MimeType) == 0 || codec.ClockRate == 0 {
+func checkCodecParameters(codec RtpCodecCapability) error {
+	if len(codec.MimeType) == 0 || codec.ClockRate == 0 {
 		return NewTypeError("invalid RTCRtpCodecParameter{s")
 	}
 	return nil
