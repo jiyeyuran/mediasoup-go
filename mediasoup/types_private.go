@@ -34,10 +34,10 @@ type transportProduceParams struct {
 }
 
 type transportConsumeParams struct {
-	ProducerId      string                `json:"producerId,omitempty"`
-	RtpCapabilities RtpRemoteCapabilities `json:"rtpCapabilities,omitempty"`
-	Paused          bool                  `json:"paused,omitempty"`
-	AppData         interface{}           `json:"appData,omitempty"`
+	ProducerId      string          `json:"producerId,omitempty"`
+	RtpCapabilities RtpCapabilities `json:"rtpCapabilities,omitempty"`
+	Paused          bool            `json:"paused,omitempty"`
+	AppData         interface{}     `json:"appData,omitempty"`
 }
 
 type createTransportParams struct {

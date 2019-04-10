@@ -58,10 +58,12 @@ type RtpParameter struct {
 }
 
 type RtpMappingEncoding struct {
-	Rid        uint32              `json:"rid,omitempty"`
-	Ssrc       uint32              `json:"ssrc,omitempty"`
-	MappedSsrc uint32              `json:"mappedSsrc,omitempty"`
-	Rtx        *RtpMappingEncoding `json:"rtx,omitempty"`
+	Rid              string              `json:"rid,omitempty"`
+	Ssrc             uint32              `json:"ssrc,omitempty"`
+	MappedSsrc       uint32              `json:"mappedSsrc,omitempty"`
+	MaxBitrate       uint32              `json:"maxBitrate,omitempty"`
+	CodecPayloadType uint32              `json:"codecPayloadType,omitempty"`
+	Rtx              *RtpMappingEncoding `json:"rtx,omitempty"`
 }
 
 type RtpHeaderExtension struct {
