@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/imdario/mergo"
 	"github.com/jinzhu/copier"
 	h264 "github.com/jiyeyuran/mediasoup-go/mediasoup/h264profile"
 )
@@ -71,8 +72,7 @@ func GenerateRouterRtpCapabilities(mediaCodecs []RtpCodecCapability) (caps RtpCa
 			codec.Parameters = &RtpCodecParameter{}
 		}
 		if mediaCodec.Parameters != nil {
-			// mergo.Merge(codec.Parameters, mediaCodec.Parameters)
-			codec.Parameters = mediaCodec.Parameters
+			mergo.Merge(codec.Parameters, mediaCodec.Parameters, mergo.WithOverride)
 		}
 
 		// Make rtcpFeedback an array.
