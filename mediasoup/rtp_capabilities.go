@@ -37,13 +37,13 @@ type RtcpConfiguation struct {
 }
 
 type RtpCodecCapability struct {
-	Kind                 string         `json:"kind,omitempty"`
-	MimeType             string         `json:"mimeType,omitempty"`
-	ClockRate            int            `json:"clockRate,omitempty"`
-	Channels             int            `json:"channels,omitempty"`
-	PreferredPayloadType int            `json:"preferredPayloadType,omitempty"`
-	Parameters           *RtpParameter  `json:"parameters,omitempty"`
-	RtcpFeedback         []RtcpFeedback `json:"rtcpFeedback,omitempty"`
+	Kind                 string             `json:"kind,omitempty"`
+	MimeType             string             `json:"mimeType,omitempty"`
+	ClockRate            int                `json:"clockRate,omitempty"`
+	Channels             int                `json:"channels,omitempty"`
+	PreferredPayloadType int                `json:"preferredPayloadType,omitempty"`
+	Parameters           *RtpCodecParameter `json:"parameters,omitempty"`
+	RtcpFeedback         []RtcpFeedback     `json:"rtcpFeedback,omitempty"`
 }
 
 type RtcpFeedback struct {
@@ -51,7 +51,7 @@ type RtcpFeedback struct {
 	Parameter string `json:"parameter,omitempty"`
 }
 
-type RtpParameter struct {
+type RtpCodecParameter struct {
 	h264profile.RtpH264Parameter
 	Apt          int `json:"apt,omitempty"`          // used by rtx codec
 	Useinbandfec int `json:"useinbandfec,omitempty"` // used by audio
@@ -199,7 +199,7 @@ var supportedRtpCapabilities = RtpCapabilities{
 			Kind:      "video",
 			MimeType:  "video/H264",
 			ClockRate: 90000,
-			Parameters: &RtpParameter{
+			Parameters: &RtpCodecParameter{
 				RtpH264Parameter: h264profile.RtpH264Parameter{
 					PacketizationMode:     1,
 					LevelAsymmetryAllowed: 1,
@@ -216,7 +216,7 @@ var supportedRtpCapabilities = RtpCapabilities{
 			Kind:      "video",
 			MimeType:  "video/H264",
 			ClockRate: 90000,
-			Parameters: &RtpParameter{
+			Parameters: &RtpCodecParameter{
 				RtpH264Parameter: h264profile.RtpH264Parameter{
 					PacketizationMode:     0,
 					LevelAsymmetryAllowed: 1,
@@ -233,7 +233,7 @@ var supportedRtpCapabilities = RtpCapabilities{
 			Kind:      "video",
 			MimeType:  "video/H265",
 			ClockRate: 90000,
-			Parameters: &RtpParameter{
+			Parameters: &RtpCodecParameter{
 				RtpH264Parameter: h264profile.RtpH264Parameter{
 					PacketizationMode:     1,
 					LevelAsymmetryAllowed: 1,
@@ -250,7 +250,7 @@ var supportedRtpCapabilities = RtpCapabilities{
 			Kind:      "video",
 			MimeType:  "video/H265",
 			ClockRate: 90000,
-			Parameters: &RtpParameter{
+			Parameters: &RtpCodecParameter{
 				RtpH264Parameter: h264profile.RtpH264Parameter{
 					PacketizationMode:     0,
 					LevelAsymmetryAllowed: 1,

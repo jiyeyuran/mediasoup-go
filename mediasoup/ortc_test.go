@@ -16,7 +16,7 @@ func TestGenerateRouterRtpCapabilities_Succeeds(t *testing.T) {
 			ClockRate:    48000,
 			Channels:     2,
 			RtcpFeedback: []RtcpFeedback{},
-			Parameters: &RtpParameter{
+			Parameters: &RtpCodecParameter{
 				Useinbandfec: 1,
 			},
 		},
@@ -30,7 +30,7 @@ func TestGenerateRouterRtpCapabilities_Succeeds(t *testing.T) {
 			MimeType:     "video/H264",
 			ClockRate:    90000,
 			RtcpFeedback: []RtcpFeedback{},
-			Parameters: &RtpParameter{
+			Parameters: &RtpCodecParameter{
 				RtpH264Parameter: h264profile.RtpH264Parameter{
 					LevelAsymmetryAllowed: 1,
 					ProfileLevelId:        "42e01f",
@@ -51,7 +51,7 @@ func TestGenerateRouterRtpCapabilities_Succeeds(t *testing.T) {
 		ClockRate:            48000,
 		Channels:             2,
 		RtcpFeedback:         []RtcpFeedback{},
-		Parameters: &RtpParameter{
+		Parameters: &RtpCodecParameter{
 			Useinbandfec: 1,
 		},
 	}, rtpCapabilities.Codecs[0])
@@ -68,7 +68,7 @@ func TestGenerateRouterRtpCapabilities_Succeeds(t *testing.T) {
 			{Type: "ccm", Parameter: "fir"},
 			{Type: "goog-remb"},
 		},
-		Parameters: &RtpParameter{},
+		Parameters: &RtpCodecParameter{},
 	}, rtpCapabilities.Codecs[1])
 
 	// VP8 RTX.
@@ -78,7 +78,7 @@ func TestGenerateRouterRtpCapabilities_Succeeds(t *testing.T) {
 		PreferredPayloadType: 102,
 		ClockRate:            90000,
 		RtcpFeedback:         []RtcpFeedback{},
-		Parameters: &RtpParameter{
+		Parameters: &RtpCodecParameter{
 			Apt: 101,
 		},
 	}, rtpCapabilities.Codecs[2])
@@ -95,7 +95,7 @@ func TestGenerateRouterRtpCapabilities_Succeeds(t *testing.T) {
 			{Type: "ccm", Parameter: "fir"},
 			{Type: "goog-remb"},
 		},
-		Parameters: &RtpParameter{
+		Parameters: &RtpCodecParameter{
 			RtpH264Parameter: h264profile.RtpH264Parameter{
 				PacketizationMode:     0,
 				LevelAsymmetryAllowed: 1,
@@ -111,7 +111,7 @@ func TestGenerateRouterRtpCapabilities_Succeeds(t *testing.T) {
 		PreferredPayloadType: 104,
 		ClockRate:            90000,
 		RtcpFeedback:         []RtcpFeedback{},
-		Parameters: &RtpParameter{
+		Parameters: &RtpCodecParameter{
 			Apt: 103,
 		},
 	}, rtpCapabilities.Codecs[4])
@@ -140,7 +140,7 @@ func TestGenerateRouterRtpCapabilities_UnsupportedError(t *testing.T) {
 				Kind:      "video",
 				MimeType:  "video/H264",
 				ClockRate: 90000,
-				Parameters: &RtpParameter{
+				Parameters: &RtpCodecParameter{
 					RtpH264Parameter: h264profile.RtpH264Parameter{
 						PacketizationMode: 5,
 					},
@@ -183,7 +183,7 @@ func TestProducerComsumerPipeRtpParameters_Succeed(t *testing.T) {
 			Kind:      "video",
 			MimeType:  "video/H264",
 			ClockRate: 90000,
-			Parameters: &RtpParameter{
+			Parameters: &RtpCodecParameter{
 				RtpH264Parameter: h264profile.RtpH264Parameter{
 					LevelAsymmetryAllowed: 1,
 					PacketizationMode:     1,
@@ -208,7 +208,7 @@ func TestProducerComsumerPipeRtpParameters_Succeed(t *testing.T) {
 						{Type: "nack", Parameter: "pli"},
 						{Type: "goog-remb"},
 					},
-					Parameters: &RtpParameter{
+					Parameters: &RtpCodecParameter{
 						RtpH264Parameter: h264profile.RtpH264Parameter{
 							PacketizationMode: 1,
 							ProfileLevelId:    "4d0032",
@@ -221,7 +221,7 @@ func TestProducerComsumerPipeRtpParameters_Succeed(t *testing.T) {
 				RtpCodecCapability: &RtpCodecCapability{
 					MimeType:  "video/rtx",
 					ClockRate: 90000,
-					Parameters: &RtpParameter{
+					Parameters: &RtpCodecParameter{
 						Apt: 111,
 					},
 				},
@@ -297,7 +297,7 @@ func TestProducerComsumerPipeRtpParameters_Succeed(t *testing.T) {
 	assert.Equal(t, "video/H264", consumableRtpParameters.Codecs[0].MimeType)
 	assert.EqualValues(t, 101, consumableRtpParameters.Codecs[0].PayloadType)
 	assert.EqualValues(t, 90000, consumableRtpParameters.Codecs[0].ClockRate)
-	assert.Equal(t, &RtpParameter{
+	assert.Equal(t, &RtpCodecParameter{
 		RtpH264Parameter: h264profile.RtpH264Parameter{
 			PacketizationMode: 1,
 			ProfileLevelId:    "4d0032",
@@ -307,7 +307,7 @@ func TestProducerComsumerPipeRtpParameters_Succeed(t *testing.T) {
 	assert.Equal(t, "video/rtx", consumableRtpParameters.Codecs[1].MimeType)
 	assert.EqualValues(t, 102, consumableRtpParameters.Codecs[1].PayloadType)
 	assert.EqualValues(t, 90000, consumableRtpParameters.Codecs[1].ClockRate)
-	assert.Equal(t, &RtpParameter{Apt: 101}, consumableRtpParameters.Codecs[1].Parameters)
+	assert.Equal(t, &RtpCodecParameter{Apt: 101}, consumableRtpParameters.Codecs[1].Parameters)
 
 	assert.Equal(t, RtpMappingEncoding{
 		Ssrc:       rtpMapping.Encodings[0].MappedSsrc,
@@ -347,7 +347,7 @@ func TestProducerComsumerPipeRtpParameters_Succeed(t *testing.T) {
 					{Type: "nack", Parameter: "pli"},
 					{Type: "foo", Parameter: "FOO"},
 				},
-				Parameters: &RtpParameter{
+				Parameters: &RtpCodecParameter{
 					RtpH264Parameter: h264profile.RtpH264Parameter{
 						PacketizationMode: 1,
 						ProfileLevelId:    "4d0032",
@@ -359,7 +359,7 @@ func TestProducerComsumerPipeRtpParameters_Succeed(t *testing.T) {
 				MimeType:             "video/rtx",
 				ClockRate:            90000,
 				PreferredPayloadType: 102,
-				Parameters: &RtpParameter{
+				Parameters: &RtpCodecParameter{
 					Apt: 101,
 				},
 			},
@@ -418,7 +418,7 @@ func TestProducerComsumerPipeRtpParameters_Succeed(t *testing.T) {
 				{Type: "nack", Parameter: "pli"},
 				{Type: "foo", Parameter: "FOO"},
 			},
-			Parameters: &RtpParameter{
+			Parameters: &RtpCodecParameter{
 				RtpH264Parameter: h264profile.RtpH264Parameter{
 					PacketizationMode: 1,
 					ProfileLevelId:    "4d0032",
@@ -432,7 +432,7 @@ func TestProducerComsumerPipeRtpParameters_Succeed(t *testing.T) {
 			MimeType:     "video/rtx",
 			ClockRate:    90000,
 			RtcpFeedback: []RtcpFeedback{},
-			Parameters: &RtpParameter{
+			Parameters: &RtpCodecParameter{
 				Apt: 101,
 			},
 		},
@@ -475,7 +475,7 @@ func TestProducerComsumerPipeRtpParameters_Succeed(t *testing.T) {
 				{Type: "nack", Parameter: "pli"},
 				{Type: "ccm", Parameter: "fir"},
 			},
-			Parameters: &RtpParameter{
+			Parameters: &RtpCodecParameter{
 				RtpH264Parameter: h264profile.RtpH264Parameter{
 					PacketizationMode: 1,
 					ProfileLevelId:    "4d0032",
@@ -515,7 +515,7 @@ func TestGetProducerRtpParametersMapping_UnsupportedError(t *testing.T) {
 			Kind:      "video",
 			MimeType:  "video/H264",
 			ClockRate: 90000,
-			Parameters: &RtpParameter{
+			Parameters: &RtpCodecParameter{
 				RtpH264Parameter: h264profile.RtpH264Parameter{
 					PacketizationMode: 1,
 					ProfileLevelId:    "640032",

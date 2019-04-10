@@ -13,7 +13,7 @@ var testRouterMediaCodecs = []RtpCodecCapability{
 		MimeType:  "audio/opus",
 		ClockRate: 48000,
 		Channels:  2,
-		Parameters: &RtpParameter{
+		Parameters: &RtpCodecParameter{
 			Useinbandfec: 1,
 		},
 	},
@@ -26,7 +26,7 @@ var testRouterMediaCodecs = []RtpCodecCapability{
 		Kind:      "video",
 		MimeType:  "video/H264",
 		ClockRate: 90000,
-		Parameters: &RtpParameter{
+		Parameters: &RtpCodecParameter{
 			RtpH264Parameter: h264profile.RtpH264Parameter{
 				LevelAsymmetryAllowed: 1,
 				PacketizationMode:     1,

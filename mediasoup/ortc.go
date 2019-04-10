@@ -68,7 +68,7 @@ func GenerateRouterRtpCapabilities(mediaCodecs []RtpCodecCapability) (caps RtpCa
 
 		// Merge the media codec parameters.
 		if codec.Parameters == nil {
-			codec.Parameters = &RtpParameter{}
+			codec.Parameters = &RtpCodecParameter{}
 		}
 		if mediaCodec.Parameters != nil {
 			codec.Parameters = mediaCodec.Parameters
@@ -109,7 +109,7 @@ func GenerateRouterRtpCapabilities(mediaCodecs []RtpCodecCapability) (caps RtpCa
 				PreferredPayloadType: pt,
 				ClockRate:            codec.ClockRate,
 				RtcpFeedback:         []RtcpFeedback{},
-				Parameters: &RtpParameter{
+				Parameters: &RtpCodecParameter{
 					Apt: codec.PreferredPayloadType,
 				},
 			}
@@ -551,7 +551,7 @@ func checkCodecCapability(codec *RtpCodecCapability) (err error) {
 
 func checkCodecParameters(codec *RtpCodecCapability) error {
 	if codec == nil || len(codec.MimeType) == 0 || codec.ClockRate == 0 {
-		return NewTypeError("invalid RTCRtpCodecParameters")
+		return NewTypeError("invalid RTCRtpCodecParameter{s")
 	}
 	return nil
 }
@@ -594,10 +594,10 @@ func matchedCodecs(
 	case "video/h264":
 		aParameters, bParameters := aCodec.Parameters, bCodec.Parameters
 		if aParameters == nil {
-			aParameters = &RtpParameter{}
+			aParameters = &RtpCodecParameter{}
 		}
 		if bParameters == nil {
-			bParameters = &RtpParameter{}
+			bParameters = &RtpCodecParameter{}
 		}
 
 		if aParameters.PacketizationMode != bParameters.PacketizationMode {
