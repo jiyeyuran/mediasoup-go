@@ -6,13 +6,15 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+var _ Transport = (*WebRtcTransport)(nil)
+
 type WebRtcTransport struct {
 	*baseTransport
 	logger logrus.FieldLogger
 	data   WebRtcTransportData
 }
 
-func NewWebRtcTransport(data WebRtcTransportData, params createTransportParams) Transport {
+func NewWebRtcTransport(data WebRtcTransportData, params createTransportParams) *WebRtcTransport {
 	logger := TypeLogger("WebRtcTransportData")
 
 	logger.Debug("constructor()")

@@ -6,13 +6,15 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+var _ Transport = (*PlainRtpTransport)(nil)
+
 type PlainRtpTransport struct {
 	*baseTransport
 	logger logrus.FieldLogger
 	data   PlainTransportData
 }
 
-func NewPlainRtpTransport(data PlainTransportData, params createTransportParams) Transport {
+func NewPlainRtpTransport(data PlainTransportData, params createTransportParams) *PlainRtpTransport {
 	logger := TypeLogger("PlainRtpTransport")
 
 	logger.Debug("constructor()")
@@ -28,7 +30,7 @@ func (t PlainRtpTransport) Tuple() TransportTuple {
 	return t.data.Tuple
 }
 
-func (t PlainRtpTransport) RtcpTuple() TransportTuple {
+func (t PlainRtpTransport) RtcpTuple() *TransportTuple {
 	return t.data.RtcpTuple
 }
 
@@ -46,6 +48,7 @@ func (t *PlainRtpTransport) Connect(params transportConnectParams) (err error) {
 
 	resp := t.channel.Request("transport.connect", t.internal, params)
 
+	// Update data.
 	return resp.Result(&t.data)
 }
 

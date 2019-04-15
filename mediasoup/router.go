@@ -158,7 +158,7 @@ func (router *Router) Dump() Response {
  */
 func (router *Router) CreateWebRtcTransport(
 	params CreateWebRtcTransportParams,
-) (transport Transport, err error) {
+) (transport *WebRtcTransport, err error) {
 	router.logger.Debug("createWebRtcTransport()")
 
 	internal := router.internal
@@ -218,7 +218,7 @@ func (router *Router) CreateWebRtcTransport(
  */
 func (router *Router) CreatePlainRtpTransport(
 	params CreatePlainRtpTransportParams,
-) (transport Transport, err error) {
+) (transport *PlainRtpTransport, err error) {
 	router.logger.Debug("createPlainRtpTransport()")
 
 	internal := router.internal
@@ -271,7 +271,7 @@ func (router *Router) CreatePlainRtpTransport(
  */
 func (router *Router) CreatePipeTransport(
 	params CreatePipeTransportParams,
-) (transport Transport, err error) {
+) (transport *PipeTransport, err error) {
 	router.logger.Debug("createPipeTransport()")
 
 	internal := router.internal

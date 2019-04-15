@@ -59,11 +59,11 @@ type PipeTransportData struct {
 }
 
 type PlainTransportData struct {
-	RtcpMux     bool           `json:"rtcpMux,omitempty"`
-	Comedia     string         `json:"comedia,omitempty"`
-	MultiSource bool           `json:"multiSource,omitempty"`
-	Tuple       TransportTuple `json:"tuple,omitempty"`
-	RtcpTuple   TransportTuple `json:"rtcpTuple,omitempty"`
+	RtcpMux     bool            `json:"rtcpMux,omitempty"`
+	Comedia     bool            `json:"comedia,omitempty"`
+	MultiSource bool            `json:"multiSource,omitempty"`
+	Tuple       TransportTuple  `json:"tuple,omitempty"`
+	RtcpTuple   *TransportTuple `json:"rtcpTuple,omitempty"`
 }
 
 type WebRtcTransportData struct {
@@ -125,8 +125,8 @@ type CreateWebRtcTransportParams struct {
 
 type CreatePlainRtpTransportParams struct {
 	ListenIp    ListenIp    `json:"listenIp,omitempty"`
-	RtcpMux     bool        `json:"rtcpMux,omitempty"`
-	Comedia     string      `json:"comedia,omitempty"`
+	RtcpMux     bool        `json:"rtcpMux"` //should set explicitly
+	Comedia     bool        `json:"comedia,omitempty"`
 	MultiSource bool        `json:"multiSource,omitempty"`
 	AppData     interface{} `json:"appData,omitempty"`
 }

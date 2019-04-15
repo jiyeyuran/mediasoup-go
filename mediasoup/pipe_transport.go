@@ -7,13 +7,15 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+var _ Transport = (*PipeTransport)(nil)
+
 type PipeTransport struct {
 	*baseTransport
 	logger logrus.FieldLogger
 	data   PipeTransportData
 }
 
-func NewPipeTransport(data PipeTransportData, params createTransportParams) Transport {
+func NewPipeTransport(data PipeTransportData, params createTransportParams) *PipeTransport {
 	logger := TypeLogger("PipeTransport")
 
 	logger.Debug("constructor()")
