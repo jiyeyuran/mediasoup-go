@@ -361,7 +361,7 @@ func GetConsumableRtpParameters(
 	consumableParams.Rtcp = RtcpConfiguation{
 		Cname:       params.Rtcp.Cname,
 		ReducedSize: true,
-		Mux:         true,
+		Mux:         newBool(true),
 	}
 
 	return
@@ -413,6 +413,8 @@ func CanConsume(consumableParams, caps RtpParameters) bool {
 func GetConsumerRtpParameters(
 	consumableParams RtpParameters, caps RtpCapabilities,
 ) (consumerParams RtpParameters, err error) {
+	consumerParams.HeaderExtensions = []RtpHeaderExtension{}
+
 	for _, capCodec := range caps.Codecs {
 		if err = checkCodecCapability(&capCodec); err != nil {
 			return

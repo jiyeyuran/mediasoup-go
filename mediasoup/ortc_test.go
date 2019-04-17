@@ -317,7 +317,7 @@ func TestProducerComsumerPipeRtpParameters_Succeed(t *testing.T) {
 	assert.Equal(t, RtcpConfiguation{
 		Cname:       rtpParameters.Rtcp.Cname,
 		ReducedSize: true,
-		Mux:         true,
+		Mux:         newBool(true),
 	}, consumableRtpParameters.Rtcp)
 
 	remoteRtpCapabilities := RtpCapabilities{
@@ -445,7 +445,7 @@ func TestProducerComsumerPipeRtpParameters_Succeed(t *testing.T) {
 	assert.Equal(t, RtcpConfiguation{
 		Cname:       rtpParameters.Rtcp.Cname,
 		ReducedSize: true,
-		Mux:         true,
+		Mux:         newBool(true),
 	}, consumerRtpParameters.Rtcp)
 
 	pipeConsumerRtpParameters := GetPipeConsumerRtpParameters(consumableRtpParameters)
@@ -481,7 +481,7 @@ func TestProducerComsumerPipeRtpParameters_Succeed(t *testing.T) {
 	assert.Equal(t, RtcpConfiguation{
 		Cname:       rtpParameters.Rtcp.Cname,
 		ReducedSize: true,
-		Mux:         true,
+		Mux:         newBool(true),
 	}, pipeConsumerRtpParameters.Rtcp)
 }
 

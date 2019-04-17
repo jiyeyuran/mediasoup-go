@@ -44,14 +44,14 @@ type VideoOrientation struct {
 }
 
 type ProducerScore struct {
-	Score uint8  `json:"score,omitempty"`
-	Ssrc  uint32 `json:"ssrc,omitempty"`
+	Score uint8  `json:"score"`
+	Ssrc  uint32 `json:"ssrc"`
 	Rid   uint32 `json:"rid,omitempty"`
 }
 
 type ConsumerScore struct {
-	Producer uint8 `json:"producer,omitempty"`
-	Consumer uint8 `json:"consumer,omitempty"`
+	Producer uint8 `json:"producer"`
+	Consumer uint8 `json:"consumer"`
 }
 
 type PipeTransportData struct {
@@ -92,7 +92,7 @@ type IceParameters struct {
 }
 
 type IceCandidate struct {
-	Foundation uint32 `json:"foundation,omitempty"`
+	Foundation string `json:"foundation,omitempty"`
 	Priority   uint32 `json:"priority,omitempty"`
 	Ip         string `json:"ip,omitempty"`
 	Port       uint16 `json:"port,omitempty"`
@@ -102,16 +102,13 @@ type IceCandidate struct {
 }
 
 type DtlsParameters struct {
-	Role         string           `json:"role,omitempty"`
-	Fingerprints DtlsFingerprints `json:"fingerprints,omitempty"`
+	Role         string            `json:"role,omitempty"`
+	Fingerprints []DtlsFingerprint `json:"fingerprints,omitempty"`
 }
 
-type DtlsFingerprints struct {
-	Sha1   string `json:"sha-1,omitempty"`
-	Sha224 string `json:"sha-224,omitempty"`
-	Sha256 string `json:"sha-256,omitempty"`
-	Sha384 string `json:"sha-384,omitempty"`
-	Sha512 string `json:"sha-512,omitempty"`
+type DtlsFingerprint struct {
+	Algorithm string `json:"algorithm,omitempty"`
+	Value     string `json:"value,omitempty"`
 }
 
 type CreateWebRtcTransportParams struct {
