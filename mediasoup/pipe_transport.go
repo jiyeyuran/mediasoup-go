@@ -48,6 +48,21 @@ func (t *PipeTransport) Connect(params transportConnectParams) (err error) {
 }
 
 /**
+ * Create a pipe producer.
+ *
+ * @param [id] - Producer id (just for PipeTransports).
+ * @param kind - "audio"/"video".
+ * @param rtpParameters - Remote RTP parameters.
+ * @param [paused=false] - Whether the Consumer must start paused.
+ * @param [appData={}] - Custom app data.
+ *
+ * @override
+ */
+func (transport *PipeTransport) Produce(params transportProduceParams) (producer *Producer, err error) {
+	return transport.baseTransport.Produce(params)
+}
+
+/**
  * Create a pipe Consumer.
  *
  * @param {String} producerId
@@ -59,6 +74,10 @@ func (t *PipeTransport) Consume(params transportConsumeParams) (consumer *Consum
 	t.logger.Debug("consume()")
 
 	producerId, appData := params.ProducerId, params.AppData
+
+	if appData == nil {
+		appData = H{}
+	}
 
 	producer := t.getProducerById(producerId)
 
