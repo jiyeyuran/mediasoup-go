@@ -2,6 +2,7 @@ package mediasoup
 
 import (
 	"reflect"
+	"runtime/debug"
 	"sync"
 
 	"github.com/sirupsen/logrus"
@@ -98,18 +99,23 @@ func (e *eventEmitter) Once(evt string, listener interface{}) {
 // Emit fires a particular event
 func (e *eventEmitter) Emit(evt string, argv ...interface{}) (err error) {
 	e.mu.Lock()
-	defer e.mu.Unlock()
 
 	if e.evtListeners == nil {
+		e.mu.Unlock()
 		return // has no listeners to emit yet
 	}
+
+	listeners := e.evtListeners[evt]
+
+	e.mu.Unlock()
+
 	var callArgv []reflect.Value
 
 	for _, a := range argv {
 		callArgv = append(callArgv, reflect.ValueOf(a))
 	}
 
-	for _, listener := range e.evtListeners[evt] {
+	for _, listener := range listeners {
 		if listener.Once && listener.Fired {
 			continue
 		}
@@ -140,6 +146,7 @@ func (e *eventEmitter) Emit(evt string, argv ...interface{}) (err error) {
 func (e *eventEmitter) SafeEmit(evt string, argv ...interface{}) {
 	defer func() {
 		if r := recover(); r != nil {
+			debug.PrintStack()
 			e.logger.WithField("event", evt).Errorln(r)
 		}
 	}()
