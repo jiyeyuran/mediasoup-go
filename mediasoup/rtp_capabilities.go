@@ -12,6 +12,7 @@ type RtpCapabilities struct {
 }
 
 type RtpParameters struct {
+	Mid              string               `json:"mid,omitempty"` // AUDIO, VIDEO
 	Codecs           []RtpCodecCapability `json:"codecs,omitempty"`
 	HeaderExtensions []RtpHeaderExtension `json:"headerExtensions,omitempty"`
 	Encodings        []RtpEncoding        `json:"encodings,omitempty"`
@@ -83,7 +84,7 @@ type RtpEncoding struct {
 type RtcpConfiguation struct {
 	Cname       string `json:"cname,omitempty"`
 	ReducedSize bool   `json:"reducedSize,omitempty"`
-	Mux         bool   `json:"mux,omitempty"`
+	Mux         *bool  `json:"mux,omitempty"`
 }
 
 var supportedRtpCapabilities = RtpCapabilities{
