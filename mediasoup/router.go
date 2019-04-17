@@ -169,7 +169,7 @@ func (router *Router) CreateWebRtcTransport(
 	resp := router.channel.Request("router.createWebRtcTransport", internal, reqData)
 
 	var data WebRtcTransportData
-	if err = resp.Result(&data); err != nil {
+	if err = resp.Unmarshal(&data); err != nil {
 		return
 	}
 
@@ -229,7 +229,7 @@ func (router *Router) CreatePlainRtpTransport(
 	resp := router.channel.Request("router.createPlainRtpTransport", internal, reqData)
 
 	var data PlainTransportData
-	if err = resp.Result(&data); err != nil {
+	if err = resp.Unmarshal(&data); err != nil {
 		return
 	}
 
@@ -282,7 +282,7 @@ func (router *Router) CreatePipeTransport(
 	resp := router.channel.Request("router.createPipeTransport", internal, reqData)
 
 	var data PipeTransportData
-	if err = resp.Result(&data); err != nil {
+	if err = resp.Unmarshal(&data); err != nil {
 		return
 	}
 

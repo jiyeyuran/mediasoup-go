@@ -10,7 +10,7 @@ type Response struct {
 	err  error
 }
 
-func (r Response) Result(v interface{}) error {
+func (r Response) Unmarshal(v interface{}) error {
 	if r.err != nil {
 		return r.err
 	}

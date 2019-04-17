@@ -49,7 +49,7 @@ func (t *PlainRtpTransport) Connect(params transportConnectParams) (err error) {
 	resp := t.channel.Request("transport.connect", t.internal, params)
 
 	// Update data.
-	return resp.Result(&t.data)
+	return resp.Unmarshal(&t.data)
 }
 
 /**

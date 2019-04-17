@@ -130,7 +130,7 @@ func (t *WebRtcTransport) Connect(params transportConnectParams) (err error) {
 		DtlsLocalRole string
 	}
 
-	if err = resp.Result(&data); err != nil {
+	if err = resp.Unmarshal(&data); err != nil {
 		return
 	}
 
@@ -171,7 +171,7 @@ func (t *WebRtcTransport) RestartIce() (iceParameters IceParameters, err error) 
 	var data struct {
 		IceParameters IceParameters
 	}
-	if err = resp.Result(&data); err != nil {
+	if err = resp.Unmarshal(&data); err != nil {
 		return
 	}
 

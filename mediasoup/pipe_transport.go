@@ -44,7 +44,7 @@ func (t *PipeTransport) Connect(params transportConnectParams) (err error) {
 
 	resp := t.channel.Request("transport.connect", t.internal, params)
 
-	return resp.Result(&t.data)
+	return resp.Unmarshal(&t.data)
 }
 
 /**
@@ -85,7 +85,7 @@ func (t *PipeTransport) Consume(params transportConsumeParams) (consumer *Consum
 		Paused         bool
 		ProducerPaused bool
 	}
-	if err = resp.Result(&status); err != nil {
+	if err = resp.Unmarshal(&status); err != nil {
 		return
 	}
 

@@ -51,7 +51,7 @@ func TestCreatePlainRtpTransport_Succeeds(t *testing.T) {
 		TransportIds []string
 	}
 	var data Dump
-	router.Dump().Result(&data)
+	router.Dump().Unmarshal(&data)
 
 	assertJSONEq(t, Dump{TransportIds: []string{transport.Id()}}, data)
 
@@ -80,7 +80,7 @@ func TestCreatePlainRtpTransport_Succeeds(t *testing.T) {
 	assert.Empty(t, transport1.RtcpTuple())
 
 	var data1 map[string]interface{}
-	transport1.Dump().Result(&data1)
+	transport1.Dump().Unmarshal(&data1)
 
 	assert.Equal(t, data1["id"], transport1.Id())
 	assert.Empty(t, data1["producerIds"])
@@ -119,7 +119,7 @@ func TestCreatePlainRtpTransport_Succeeds(t *testing.T) {
 	assert.Equal(t, transport2.RtcpTuple().Protocol, "udp")
 
 	var data2 map[string]interface{}
-	transport2.Dump().Result(&data2)
+	transport2.Dump().Unmarshal(&data2)
 
 	assert.Equal(t, data2["id"], transport2.Id())
 	assertJSONEq(t, data2["tuple"], transport2.Tuple())
@@ -164,7 +164,7 @@ func TestPlaintRtpTransport_GetStats_Succeeds(t *testing.T) {
 		Tuple         *TransportTuple
 		RtcpTuple     *TransportTuple
 	}
-	transport.GetStats().Result(&data)
+	transport.GetStats().Unmarshal(&data)
 
 	assert.Len(t, data, 1)
 	assert.Equal(t, data[0].Type, "transport")

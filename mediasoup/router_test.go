@@ -58,7 +58,7 @@ func TestCreateRouter_Succeeds(t *testing.T) {
 		RouterIds []string
 	}
 	var result Result
-	assert.NoError(t, dump.Result(&result))
+	assert.NoError(t, dump.Unmarshal(&result))
 
 	result1 := Result{
 		Pid:       worker.Pid(),
@@ -76,7 +76,7 @@ func TestCreateRouter_Succeeds(t *testing.T) {
 	}
 	var routerDumpResult1 RouterDumpResult
 	dump = router.Dump()
-	assert.NoError(t, dump.Result(&routerDumpResult1))
+	assert.NoError(t, dump.Unmarshal(&routerDumpResult1))
 	routerDumpResult2 := RouterDumpResult{
 		Id:                       router.Id(),
 		TransportIds:             []string{},

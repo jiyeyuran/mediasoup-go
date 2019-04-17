@@ -269,7 +269,7 @@ func (transport *baseTransport) Produce(params transportProduceParams) (producer
 	var status struct {
 		Type string
 	}
-	if err = resp.Result(&status); err != nil {
+	if err = resp.Unmarshal(&status); err != nil {
 		return
 	}
 
@@ -343,7 +343,7 @@ func (transport *baseTransport) Consume(params transportConsumeParams) (consumer
 		ProducerPaused bool
 		Score          *ConsumerScore
 	}
-	if err = resp.Result(&status); err != nil {
+	if err = resp.Unmarshal(&status); err != nil {
 		return
 	}
 
