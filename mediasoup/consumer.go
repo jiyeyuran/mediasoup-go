@@ -9,7 +9,7 @@ import (
 type Consumer struct {
 	EventEmitter
 	logger         logrus.FieldLogger
-	internal      internalData
+	internal       internalData
 	data           consumerData
 	channel        *Channel
 	appData        interface{}
@@ -53,7 +53,7 @@ func NewConsumer(
 		// - .routerId
 		// - .transportId
 		// - .consumerId
-		// - .consumerId
+		// - .producerId
 		internal:       internal,
 		data:           data,
 		channel:        channel,
@@ -77,6 +77,11 @@ func (consumer *Consumer) Id() string {
 // Associated Consumer id.
 func (consumer *Consumer) ConsumerId() string {
 	return consumer.internal.ConsumerId
+}
+
+// Associated Producer id.
+func (consumer *Consumer) ProducerId() string {
+	return consumer.internal.ProducerId
 }
 
 // Whether the Consumer is closed.
@@ -148,7 +153,7 @@ func (consumer *Consumer) Close() (err error) {
 
 	consumer.logger.Debug("close()")
 
-	consumer.RemoveAllListeners(consumer.internal.ConsumerId)
+	consumer.channel.RemoveAllListeners(consumer.internal.ConsumerId)
 
 	response := consumer.channel.Request("consumer.close", consumer.internal, nil)
 
@@ -264,7 +269,7 @@ func (consumer *Consumer) RequestKeyFrame() error {
 }
 
 func (consumer *Consumer) handleWorkerNotifications() {
-	consumer.On(consumer.internal.ConsumerId, func(event string, data json.RawMessage) {
+	consumer.channel.On(consumer.internal.ConsumerId, func(event string, data json.RawMessage) {
 		switch event {
 		case "producerclose":
 			if consumer.closed {
@@ -309,7 +314,7 @@ func (consumer *Consumer) handleWorkerNotifications() {
 			consumer.SafeEmit("producerresume")
 
 			// Emit observer event.
-			if !wasPaused && !consumer.paused {
+			if wasPaused && !consumer.paused {
 				consumer.observer.SafeEmit("resume")
 			}
 

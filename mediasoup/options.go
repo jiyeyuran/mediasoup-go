@@ -40,7 +40,7 @@ func (o *Options) WorkerArgs() []string {
 
 	for _, logTag := range o.LogTags {
 		if len(logTag) > 0 {
-			workerArgs = append(workerArgs, "--logTag="+logTag)
+			workerArgs = append(workerArgs, "--logTags="+logTag)
 		}
 	}
 

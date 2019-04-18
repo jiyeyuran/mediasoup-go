@@ -20,7 +20,7 @@ type Transport interface {
 	Close() error
 	routerClosed()
 	Dump() Response
-	GetStats() Response
+	GetStats() ([]TransportStat, error)
 	Connect(transportConnectParams) error
 	Produce(transportProduceParams) (*Producer, error)
 	Consume(transportConsumeParams) (*Consumer, error)
@@ -29,7 +29,7 @@ type Transport interface {
 type baseTransport struct {
 	EventEmitter
 	logger                   logrus.FieldLogger
-	internal                internalData
+	internal                 internalData
 	channel                  *Channel
 	appData                  interface{}
 	closed                   bool
@@ -179,10 +179,14 @@ func (transport *baseTransport) Dump() Response {
 }
 
 // Get Transport stats.
-func (transport *baseTransport) GetStats() Response {
+func (transport *baseTransport) GetStats() (stat []TransportStat, err error) {
 	transport.logger.Debug("getStats()")
 
-	return transport.channel.Request("transport.getStats", transport.internal, nil)
+	resp := transport.channel.Request("transport.getStats", transport.internal)
+
+	err = resp.Unmarshal(&stat)
+
+	return
 }
 
 func (transport *baseTransport) Connect(transportConnectParams) error {
@@ -207,6 +211,14 @@ func (transport *baseTransport) Produce(params transportProduceParams) (producer
 	paused := params.Paused
 	appData := params.AppData
 
+	if appData == nil {
+		appData = H{}
+	}
+	if !isObject(appData) {
+		err = NewTypeError("if given, appData must be an object")
+		return
+	}
+
 	if len(id) > 0 && transport.producers[id] != nil {
 		err = NewTypeError(`a Producer with same id "%s" already exists`, id)
 		return
@@ -221,7 +233,7 @@ func (transport *baseTransport) Produce(params transportProduceParams) (producer
 	// Don"t do this in PipeTransports since there we must keep CNAME value in
 	// each Producer.
 	if details := runtime.FuncForPC(pc); ok && details != nil &&
-		!strings.Contains(details.Name(), "PipeTransport") {
+		!strings.Contains(details.Name(), "(*PipeTransport)") {
 		// If CNAME is given and we don"t have yet a CNAME for Producers in this
 		// Transport, take it.
 		if len(transport.cnameForProducers) == 0 && len(rtpParameters.Rtcp.Cname) > 0 {
@@ -285,6 +297,7 @@ func (transport *baseTransport) Produce(params transportProduceParams) (producer
 	transport.producers[producer.Id()] = producer
 	producer.On("@close", func() {
 		delete(transport.producers, producer.Id())
+		transport.Emit("@producerclose", producer)
 	})
 
 	transport.Emit("@newproducer", producer)
@@ -310,6 +323,14 @@ func (transport *baseTransport) Consume(params transportConsumeParams) (consumer
 	rtpCapabilities := params.RtpCapabilities
 	paused := params.Paused
 	appData := params.AppData
+
+	if appData == nil {
+		appData = H{}
+	}
+	if !isObject(appData) {
+		err = NewTypeError("if given, appData must be an object")
+		return
+	}
 
 	producer := transport.getProducerById(producerId)
 
@@ -372,7 +393,7 @@ func (transport *baseTransport) Consume(params transportConsumeParams) (consumer
 	})
 
 	// Emit observer event.
-	transport.observer.SafeEmit("newconsumer", producer)
+	transport.observer.SafeEmit("newconsumer", consumer)
 
 	return
 }

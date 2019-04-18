@@ -1,8 +1,6 @@
 package mediasoup
 
 import (
-	"errors"
-
 	uuid "github.com/satori/go.uuid"
 	"github.com/sirupsen/logrus"
 )
@@ -16,7 +14,7 @@ type Router struct {
 	transports              map[string]Transport
 	producers               map[string]*Producer
 	rtpObservers            map[string]RtpObserver
-	mapRouterPipeTransports map[*Router][]Transport
+	mapRouterPipeTransports map[*Router][]*PipeTransport
 	observer                EventEmitter
 	closed                  bool
 }
@@ -35,7 +33,7 @@ func NewRouter(internal internalData, data routerData, channel *Channel) *Router
 		transports:              make(map[string]Transport),
 		producers:               make(map[string]*Producer),
 		rtpObservers:            make(map[string]RtpObserver),
-		mapRouterPipeTransports: make(map[*Router][]Transport),
+		mapRouterPipeTransports: make(map[*Router][]*PipeTransport),
 		observer:                NewEventEmitter(AppLogger()),
 	}
 }
@@ -91,7 +89,7 @@ func (router *Router) Close() (err error) {
 	router.rtpObservers = make(map[string]RtpObserver)
 
 	// Clear map of Router/PipeTransports.
-	router.mapRouterPipeTransports = make(map[*Router][]Transport)
+	router.mapRouterPipeTransports = make(map[*Router][]*PipeTransport)
 
 	router.Emit("@close")
 
@@ -127,7 +125,7 @@ func (router *Router) workerClosed() {
 	router.rtpObservers = make(map[string]RtpObserver)
 
 	// Clear map of Router/PipeTransports.
-	router.mapRouterPipeTransports = make(map[*Router][]Transport)
+	router.mapRouterPipeTransports = make(map[*Router][]*PipeTransport)
 
 	router.SafeEmit("workerclose")
 
@@ -160,6 +158,14 @@ func (router *Router) CreateWebRtcTransport(
 	params CreateWebRtcTransportParams,
 ) (transport *WebRtcTransport, err error) {
 	router.logger.Debug("createWebRtcTransport()")
+
+	if params.AppData == nil {
+		params.AppData = H{}
+	}
+	if !isObject(params.AppData) {
+		err = NewTypeError("if given, appData must be an object")
+		return
+	}
 
 	internal := router.internal
 	internal.TransportId = uuid.NewV4().String()
@@ -220,6 +226,14 @@ func (router *Router) CreatePlainRtpTransport(
 	params CreatePlainRtpTransportParams,
 ) (transport *PlainRtpTransport, err error) {
 	router.logger.Debug("createPlainRtpTransport()")
+
+	if params.AppData == nil {
+		params.AppData = H{}
+	}
+	if !isObject(params.AppData) {
+		err = NewTypeError("if given, appData must be an object")
+		return
+	}
 
 	internal := router.internal
 	internal.TransportId = uuid.NewV4().String()
@@ -333,15 +347,27 @@ func (router *Router) PipeToRouter(
 		params.ListenIp.Ip = "127.0.0.1"
 	}
 
-	producer := router.producers[params.ProducerId]
-
-	if producer == nil {
-		err = errors.New("Producer not found")
+	if len(params.ProducerId) == 0 {
+		err = NewTypeError("missing producerId")
+		return
+	}
+	if params.Router == nil {
+		err = NewTypeError("Router not found")
+		return
+	}
+	if params.Router == router {
+		err = NewTypeError("cannot use this Router as destination'")
 		return
 	}
 
-	pipeTransportPair := router.mapRouterPipeTransports[router]
-	var localPipeTransport, remotePipeTransport Transport
+	producer, ok := router.producers[params.ProducerId]
+
+	if !ok {
+		err = NewTypeError("Producer not found")
+		return
+	}
+
+	var localPipeTransport, remotePipeTransport *PipeTransport
 
 	defer func() {
 		if err != nil {
@@ -353,6 +379,8 @@ func (router *Router) PipeToRouter(
 			}
 		}
 	}()
+
+	pipeTransportPair := router.mapRouterPipeTransports[params.Router]
 
 	if pipeTransportPair != nil {
 		localPipeTransport = pipeTransportPair[0]
@@ -371,19 +399,16 @@ func (router *Router) PipeToRouter(
 			return
 		}
 
-		localTuple := localPipeTransport.(*PipeTransport).Tuple()
-		remoteTuple := remotePipeTransport.(*PipeTransport).Tuple()
-
 		err = localPipeTransport.Connect(transportConnectParams{
-			Ip:   remoteTuple.LocalIp,
-			Port: remoteTuple.LocalPort,
+			Ip:   remotePipeTransport.Tuple().LocalIp,
+			Port: remotePipeTransport.Tuple().LocalPort,
 		})
 		if err != nil {
 			return
 		}
 		err = remotePipeTransport.Connect(transportConnectParams{
-			Ip:   localTuple.LocalIp,
-			Port: localTuple.LocalPort,
+			Ip:   localPipeTransport.Tuple().LocalIp,
+			Port: localPipeTransport.Tuple().LocalPort,
 		})
 		if err != nil {
 			return
@@ -391,15 +416,16 @@ func (router *Router) PipeToRouter(
 
 		localPipeTransport.Observer().On("close", func() {
 			remotePipeTransport.Close()
-			delete(router.mapRouterPipeTransports, router)
-		})
-		remotePipeTransport.Observer().On("close", func() {
-			localPipeTransport.Close()
-			delete(router.mapRouterPipeTransports, router)
+			delete(router.mapRouterPipeTransports, params.Router)
 		})
 
-		router.mapRouterPipeTransports[router] =
-			[]Transport{localPipeTransport, remotePipeTransport}
+		remotePipeTransport.Observer().On("close", func() {
+			localPipeTransport.Close()
+			delete(router.mapRouterPipeTransports, params.Router)
+		})
+
+		router.mapRouterPipeTransports[params.Router] =
+			[]*PipeTransport{localPipeTransport, remotePipeTransport}
 	}
 
 	defer func() {
@@ -420,7 +446,8 @@ func (router *Router) PipeToRouter(
 	if err != nil {
 		return
 	}
-	pipeProducer, err = localPipeTransport.Produce(transportProduceParams{
+
+	pipeProducer, err = remotePipeTransport.Produce(transportProduceParams{
 		Id:            producer.Id(),
 		Kind:          pipeConsumer.Kind(),
 		RtpParameters: pipeConsumer.RtpParameters(),

@@ -166,7 +166,7 @@ func (t *WebRtcTransport) SetMaxIncomingBitrate(bitrate int) error {
 func (t *WebRtcTransport) RestartIce() (iceParameters IceParameters, err error) {
 	t.logger.Debug("restartIce()")
 
-	resp := t.channel.Request("transport.RestartIce", t.internal, nil)
+	resp := t.channel.Request("transport.restartIce", t.internal, nil)
 
 	var data struct {
 		IceParameters IceParameters
@@ -177,7 +177,7 @@ func (t *WebRtcTransport) RestartIce() (iceParameters IceParameters, err error) 
 
 	t.data.IceParameters = data.IceParameters
 
-	return iceParameters, nil
+	return data.IceParameters, nil
 }
 
 /**

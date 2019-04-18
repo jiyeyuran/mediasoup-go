@@ -2,6 +2,7 @@ package mediasoup
 
 import (
 	"math/rand"
+	"reflect"
 	"time"
 )
 
@@ -15,4 +16,10 @@ func generateRandomNumber() uint32 {
 
 func newBool(b bool) *bool {
 	return &b
+}
+
+func isObject(appData interface{}) bool {
+	appDataKind := reflect.Indirect(reflect.ValueOf(appData)).Type().Kind()
+
+	return appDataKind == reflect.Struct || appDataKind == reflect.Map
 }

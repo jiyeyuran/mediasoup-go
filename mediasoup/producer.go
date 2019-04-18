@@ -2,12 +2,14 @@ package mediasoup
 
 import (
 	"encoding/json"
+	"sync"
 
 	"github.com/sirupsen/logrus"
 )
 
 type Producer struct {
 	EventEmitter
+	locker   sync.Mutex
 	logger   logrus.FieldLogger
 	internal internalData
 	data     producerData
@@ -126,7 +128,7 @@ func (producer *Producer) Close() (err error) {
 
 	producer.logger.Debug("close()")
 
-	producer.RemoveAllListeners(producer.internal.ProducerId)
+	producer.channel.RemoveAllListeners(producer.internal.ProducerId)
 
 	response := producer.channel.Request("producer.close", producer.internal, nil)
 
@@ -174,6 +176,9 @@ func (producer *Producer) GetStats() Response {
 
 // Pause the Producer.
 func (producer *Producer) Pause() (err error) {
+	// producer.locker.Lock()
+	// defer producer.locker.Unlock()
+
 	producer.logger.Debug("pause()")
 
 	wasPaused := producer.paused
@@ -217,7 +222,7 @@ func (producer *Producer) Resume() (err error) {
 }
 
 func (producer *Producer) handleWorkerNotifications() {
-	producer.On(producer.internal.ProducerId, func(event string, data json.RawMessage) {
+	producer.channel.On(producer.internal.ProducerId, func(event string, data json.RawMessage) {
 		switch event {
 		case "score":
 			producer.score = []ProducerScore{}

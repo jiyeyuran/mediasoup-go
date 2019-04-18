@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"net"
 	"time"
 
@@ -227,7 +228,9 @@ func (c *Channel) processMessage(nsPayload []byte) {
 		}
 		json.Unmarshal(nsPayload, &notification)
 
-		c.SafeEmit(notification.TargetId, notification.Event, notification.Data)
+		log.Println(notification.TargetId, notification.Event, string(notification.Data))
+
+		go c.SafeEmit(notification.TargetId, notification.Event, notification.Data)
 	} else {
 		c.logger.Errorln("received message is not a response nor a notification")
 	}

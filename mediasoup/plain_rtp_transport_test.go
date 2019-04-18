@@ -155,16 +155,7 @@ func TestPlaintRtpTransport_GetStats_Succeeds(t *testing.T) {
 		RtcpMux:  false,
 	})
 
-	var data []struct {
-		Type          string
-		TransportId   string
-		Timestamp     uint32
-		BytesReceived uint32
-		BytesSent     uint32
-		Tuple         *TransportTuple
-		RtcpTuple     *TransportTuple
-	}
-	transport.GetStats().Unmarshal(&data)
+	data, _ := transport.GetStats()
 
 	assert.Len(t, data, 1)
 	assert.Equal(t, data[0].Type, "transport")
@@ -246,7 +237,10 @@ func TestPlainRtpTransport_Reject_If_Closed(t *testing.T) {
 	assert.True(t, transport.Closed())
 
 	assert.Error(t, transport.Dump().Err())
-	assert.Error(t, transport.GetStats().Err())
+
+	_, err := transport.GetStats()
+	assert.Error(t, err)
+
 	assert.Error(t, transport.Connect(transportConnectParams{}))
 }
 

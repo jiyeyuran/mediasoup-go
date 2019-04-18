@@ -149,3 +149,24 @@ type CreateAudioLevelObserverParams struct {
 	Threshold  int    `json:"threshold,omitempty"`
 	Interval   uint32 `json:"interval,omitempty"`
 }
+
+type TransportStat struct {
+	Type                     string `json:"type,omitempty"`
+	TransportId              string `json:"transportId,omitempty"`
+	Timestamp                uint32 `json:"timestamp,omitempty"`
+	BytesReceived            uint32 `json:"bytesReceived,omitempty"`
+	BytesSent                uint32 `json:"bytesSent,omitempty"`
+	AvailableIncomingBitrate uint32 `json:"availableIncomingBitrate,omitempty"`
+	AvailableOutgoingBitrate uint32 `json:"availableOutgoingBitrate,omitempty"`
+	MaxIncomingBitrate       uint32 `json:"maxIncomingBitrate,omitempty"`
+
+	// webrtc transport
+	IceRole          string          `json:"iceRole,omitempty"`
+	IceState         string          `json:"iceState,omitempty"`
+	DtlsState        string          `json:"dtlsState,omitempty"`
+	IceSelectedTuple *TransportTuple `json:"iceSelectedTuple,omitempty"`
+
+	// plain transport
+	Tuple     *TransportTuple `json:"tuple,omitempty"`
+	RtcpTuple *TransportTuple `json:"rtcpTuple,omitempty"`
+}

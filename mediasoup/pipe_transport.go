@@ -78,6 +78,10 @@ func (t *PipeTransport) Consume(params transportConsumeParams) (consumer *Consum
 	if appData == nil {
 		appData = H{}
 	}
+	if !isObject(appData) {
+		err = NewTypeError("if given, appData must be an object")
+		return
+	}
 
 	producer := t.getProducerById(producerId)
 
@@ -133,7 +137,7 @@ func (t *PipeTransport) Consume(params transportConsumeParams) (consumer *Consum
 	})
 
 	// Emit observer event.
-	t.observer.SafeEmit("newconsumer", producer)
+	t.observer.SafeEmit("newconsumer", consumer)
 
 	return
 }

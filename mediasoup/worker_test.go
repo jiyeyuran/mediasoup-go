@@ -29,7 +29,7 @@ func TestMain(m *testing.M) {
 }
 
 func CreateTestWorker(options ...Option) *Worker {
-	options = append([]Option{WithLogLevel("warn")}, options...)
+	options = append([]Option{WithLogLevel("debug"), WithLogTags([]string{"info"})}, options...)
 
 	worker, err := CreateWorker("", options...)
 	if err != nil {

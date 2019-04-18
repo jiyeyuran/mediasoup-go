@@ -98,7 +98,7 @@ func newWorker(workerBin string, options ...Option) (worker *Worker, err error) 
 			if err != nil {
 				break
 			}
-			workerLogger.Errorf(`(stdout) %s`, line)
+			workerLogger.Debugf(`(stdout) %s`, line)
 		}
 	}()
 
