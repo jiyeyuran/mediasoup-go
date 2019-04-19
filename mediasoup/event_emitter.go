@@ -25,7 +25,6 @@ type (
 	intervalListener struct {
 		Value reflect.Value
 		Argv  []reflect.Type
-		Fired bool
 		Once  bool
 	}
 
@@ -105,7 +104,7 @@ func (e *eventEmitter) Emit(evt string, argv ...interface{}) (err error) {
 		return // has no listeners to emit yet
 	}
 
-	listeners := e.evtListeners[evt]
+	listeners := e.evtListeners[evt][:]
 
 	e.mu.Unlock()
 
@@ -116,10 +115,6 @@ func (e *eventEmitter) Emit(evt string, argv ...interface{}) (err error) {
 	}
 
 	for _, listener := range listeners {
-		if listener.Once && listener.Fired {
-			continue
-		}
-
 		// delete unwanted arguments
 		if len(callArgv) > len(listener.Argv) {
 			callArgv = callArgv[0:len(listener.Argv)]
@@ -134,8 +129,8 @@ func (e *eventEmitter) Emit(evt string, argv ...interface{}) (err error) {
 
 		listener.Value.Call(callArgv)
 
-		if !listener.Fired {
-			listener.Fired = true
+		if listener.Once {
+			e.RemoveListener(evt, listener)
 		}
 	}
 
