@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
 	"net"
 	"time"
 
@@ -227,8 +226,6 @@ func (c *Channel) processMessage(nsPayload []byte) {
 			Data     json.RawMessage
 		}
 		json.Unmarshal(nsPayload, &notification)
-
-		log.Println(notification.TargetId, notification.Event, string(notification.Data))
 
 		go c.SafeEmit(notification.TargetId, notification.Event, notification.Data)
 	} else {
