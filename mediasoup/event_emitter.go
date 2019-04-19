@@ -45,6 +45,7 @@ func (e *eventEmitter) AddListener(evt string, listeners ...interface{}) {
 	if len(listeners) == 0 {
 		return
 	}
+
 	var listenerValues []*intervalListener
 
 	for _, listener := range listeners {
@@ -141,8 +142,7 @@ func (e *eventEmitter) Emit(evt string, argv ...interface{}) (err error) {
 func (e *eventEmitter) SafeEmit(evt string, argv ...interface{}) {
 	defer func() {
 		if r := recover(); r != nil {
-			debug.PrintStack()
-			e.logger.WithField("event", evt).Errorln(r)
+			e.logger.WithField("event", evt).Errorln(debug.Stack())
 		}
 	}()
 
@@ -166,7 +166,7 @@ func (e *eventEmitter) RemoveListener(evt string, listener interface{}) (ok bool
 	listeners := e.evtListeners[evt]
 
 	for index, item := range listeners {
-		if item.Value.Pointer() == listenerPointer {
+		if listener == item || item.Value.Pointer() == listenerPointer {
 			idx = index
 			break
 		}
