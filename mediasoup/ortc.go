@@ -371,7 +371,7 @@ func GetConsumableRtpParameters(
  * Check whether the given RTP capabilities can consume the given Producer.
  *
  */
-func CanConsume(consumableParams, caps RtpParameters) bool {
+func CanConsume(consumableParams RtpParameters, caps RtpCapabilities) bool {
 	capCodecs := []RtpCodecCapability{}
 
 	for _, capCodec := range caps.Codecs {

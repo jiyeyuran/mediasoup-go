@@ -59,16 +59,20 @@ type RtcpFeedback struct {
 
 type RtpCodecParameter struct {
 	h264.RtpH264Parameter     // used by h264 codec
-	Apt                   int `json:"apt,omitempty"`                    // used by rtx codec
-	Useinbandfec          int `json:"useinbandfec,omitempty"`           // used by opus
-	Minptime              int `json:"minptime,omitempty"`               // used by opus
-	XGoogleStartBitrate   int `json:"x-google-start-bitrate,omitempty"` // used by video
+	Apt                   int `json:"apt,omitempty"` // used by rtx codec
+
+	Useinbandfec        int `json:"useinbandfec,omitempty"`           // used by audio
+	Minptime            int `json:"minptime,omitempty"`               // used by audio
+	Usedtx              int `json:"usedtx,omitempty"`                 // used by audio
+	XGoogleStartBitrate int `json:"x-google-start-bitrate,omitempty"` // used by video
 }
 
 type RtpHeaderExtension struct {
 	Id               int    `json:"id,omitempty"`
 	Kind             string `json:"kind,omitempty"`
 	Uri              string `json:"uri,omitempty"`
+	Encrypt          *bool  `json:"encrypt,omitempty"`
+	Parameters       *H     `json:"parameters,omitempty"`
 	PreferredId      int    `json:"preferredId,omitempty"`
 	PreferredEncrypt bool   `json:"preferredEncrypt,omitempty"`
 }

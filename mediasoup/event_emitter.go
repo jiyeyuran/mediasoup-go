@@ -23,9 +23,9 @@ type EventEmitter interface {
 
 type (
 	intervalListener struct {
-		Value reflect.Value
-		Argv  []reflect.Type
-		Once  bool
+		FuncValue reflect.Value
+		ArgTypes  []reflect.Type
+		Once      bool
 	}
 
 	eventEmitter struct {
@@ -55,15 +55,15 @@ func (e *eventEmitter) AddListener(evt string, listeners ...interface{}) {
 		if listenerType.Kind() != reflect.Func {
 			continue
 		}
-		var argv []reflect.Type
+		var argTypes []reflect.Type
 
 		for i := 0; i < listenerType.NumIn(); i++ {
-			argv = append(argv, listenerType.In(i))
+			argTypes = append(argTypes, listenerType.In(i))
 		}
 
 		listenerValues = append(listenerValues, &intervalListener{
-			Value: listenerValue,
-			Argv:  argv,
+			FuncValue: listenerValue,
+			ArgTypes:  argTypes,
 		})
 	}
 
@@ -89,7 +89,7 @@ func (e *eventEmitter) Once(evt string, listener interface{}) {
 	for i := len(listeners) - 1; i >= 0; i-- {
 		item := listeners[i]
 
-		if item.Value.Pointer() == listenerPointer {
+		if item.FuncValue.Pointer() == listenerPointer {
 			item.Once = true
 			break
 		}
@@ -109,26 +109,43 @@ func (e *eventEmitter) Emit(evt string, argv ...interface{}) (err error) {
 
 	e.mu.Unlock()
 
-	var callArgv []reflect.Value
+	var callArgs []reflect.Value
 
 	for _, a := range argv {
-		callArgv = append(callArgv, reflect.ValueOf(a))
+		callArgs = append(callArgs, reflect.ValueOf(a))
 	}
 
 	for _, listener := range listeners {
-		// delete unwanted arguments
-		if len(callArgv) > len(listener.Argv) {
-			callArgv = callArgv[0:len(listener.Argv)]
-		}
+		var actualCallArgs []reflect.Value
 
-		// append missing arguments with zero value
-		if len(callArgv) < len(listener.Argv) {
-			for _, a := range listener.Argv[len(callArgv):] {
-				callArgv = append(callArgv, reflect.Zero(a))
+		isVariadic := listener.FuncValue.Type().IsVariadic()
+
+		// delete unwanted arguments
+		if argc := len(listener.ArgTypes); len(callArgs) >= argc {
+			if isVariadic {
+				if argc > 1 {
+					actualCallArgs = append(
+						callArgs[0:argc-1], reflect.ValueOf(argv[argc-1:]))
+				} else {
+					actualCallArgs = []reflect.Value{reflect.ValueOf(argv)}
+				}
+			} else {
+				actualCallArgs = callArgs[0:argc]
+			}
+		} else {
+			actualCallArgs = callArgs[:]
+
+			// append missing arguments with zero value
+			for i, a := range listener.ArgTypes[len(callArgs):] {
+				// ignore the last variadic argument
+				if isVariadic && len(callArgs)+i == argc-1 {
+					break
+				}
+				actualCallArgs = append(actualCallArgs, reflect.Zero(a))
 			}
 		}
 
-		listener.Value.Call(callArgv)
+		listener.FuncValue.Call(actualCallArgs)
 
 		if listener.Once {
 			e.RemoveListener(evt, listener)
@@ -142,7 +159,11 @@ func (e *eventEmitter) Emit(evt string, argv ...interface{}) (err error) {
 func (e *eventEmitter) SafeEmit(evt string, argv ...interface{}) {
 	defer func() {
 		if r := recover(); r != nil {
-			e.logger.WithField("event", evt).Errorln(debug.Stack())
+			if logger, ok := e.logger.(*logrus.Logger); ok &&
+				logger.IsLevelEnabled(logrus.DebugLevel) {
+				debug.PrintStack()
+			}
+			e.logger.WithField("event", evt).Errorln(r)
 		}
 	}()
 
@@ -166,7 +187,8 @@ func (e *eventEmitter) RemoveListener(evt string, listener interface{}) (ok bool
 	listeners := e.evtListeners[evt]
 
 	for index, item := range listeners {
-		if listener == item || item.Value.Pointer() == listenerPointer {
+		if listener == item ||
+			item.FuncValue.Pointer() == listenerPointer {
 			idx = index
 			break
 		}
