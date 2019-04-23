@@ -293,11 +293,9 @@ func (suite *ConsumerTestSuite) SetupTest() {
 func (suite *ConsumerTestSuite) TestTransportConsume_Succeeds() {
 	router, transport2 := suite.router, suite.transport2
 
-	var called int
-	var newConsumer *Consumer
-	transport2.Observer().Once("newconsumer", func(c *Consumer) {
-		called, newConsumer = called+1, c
-	})
+	onObserverNewConsumer1 := NewMockFunc(suite.T())
+
+	transport2.Observer().Once("newconsumer", onObserverNewConsumer1.Fn())
 
 	suite.True(router.CanConsume(suite.audioProducer.Id(), suite.consumerDeviceCapabilities))
 
@@ -308,8 +306,8 @@ func (suite *ConsumerTestSuite) TestTransportConsume_Succeeds() {
 	})
 
 	suite.NoError(err)
-	suite.Equal(1, called)
-	suite.Equal(audioConsumer, newConsumer)
+	onObserverNewConsumer1.ExpectCalledTimes(1)
+	onObserverNewConsumer1.ExpectCalledWith(audioConsumer)
 	suite.NotEmpty(audioConsumer.Id())
 	suite.Equal(suite.audioProducer.Id(), audioConsumer.ProducerId())
 	suite.False(audioConsumer.Closed())
@@ -361,10 +359,8 @@ func (suite *ConsumerTestSuite) TestTransportConsume_Succeeds() {
 	suite.Equal([]string{}, transportDump.ProducerIds)
 	suite.Equal([]string{audioConsumer.Id()}, transportDump.ConsumerIds)
 
-	called, newConsumer = 0, nil
-	transport2.Observer().Once("newconsumer", func(c *Consumer) {
-		called, newConsumer = called+1, c
-	})
+	onObserverNewConsumer2 := NewMockFunc(suite.T())
+	transport2.Observer().Once("newconsumer", onObserverNewConsumer2.Fn())
 
 	suite.True(router.CanConsume(suite.videoProducer.Id(), suite.consumerDeviceCapabilities))
 
@@ -376,9 +372,8 @@ func (suite *ConsumerTestSuite) TestTransportConsume_Succeeds() {
 	})
 
 	suite.NoError(err)
-	suite.Equal(transport2.ListenerCount("newconsumer"), 0)
-	suite.Equal(1, called)
-	suite.Equal(videoConsumer, newConsumer)
+	onObserverNewConsumer2.ExpectCalledTimes(1)
+	onObserverNewConsumer2.ExpectCalledWith(videoConsumer)
 	suite.NotEmpty(videoConsumer.Id())
 	suite.Equal(suite.videoProducer.Id(), videoConsumer.ProducerId())
 	suite.False(videoConsumer.Closed())
@@ -678,7 +673,7 @@ func (suite *ConsumerTestSuite) TestConsumerEmitsProducerpauseAndProducerresume(
 func (suite *ConsumerTestSuite) TestConsumerEmitsScore() {
 	audioConsumer := suite.audioConsumer()
 
-	onScore := NewMockFunc()
+	onScore := NewMockFunc(suite.T())
 	audioConsumer.On("score", onScore.Fn())
 
 	channel := audioConsumer.channel
@@ -687,7 +682,7 @@ func (suite *ConsumerTestSuite) TestConsumerEmitsScore() {
 	channel.Emit(audioConsumer.Id(), "score", json.RawMessage(`{"producer": 9, "consumer": 9}`))
 	channel.Emit(audioConsumer.Id(), "score", json.RawMessage(`{"producer": 8, "consumer": 8}`))
 
-	suite.Equal(3, onScore.CalledTimes())
+	onScore.ExpectCalledTimes(3)
 	suite.Equal(&ConsumerScore{Producer: 8, Consumer: 8}, audioConsumer.Score())
 }
 
@@ -695,12 +690,12 @@ func (suite *ConsumerTestSuite) TestConsumerClose() {
 	audioConsumer := suite.audioConsumer()
 	videoConsumer := suite.videoConsumer(true)
 
-	onObserverClose := NewMockFunc()
+	onObserverClose := NewMockFunc(suite.T())
 
 	audioConsumer.Observer().Once("close", onObserverClose.Fn())
 	audioConsumer.Close()
 
-	suite.Equal(1, onObserverClose.CalledTimes())
+	onObserverClose.ExpectCalledTimes(1)
 	suite.True(audioConsumer.Closed())
 
 	var routerDump struct {
@@ -739,7 +734,7 @@ func (suite *ConsumerTestSuite) TestConsumerRejectIfClosed() {
 func (suite *ConsumerTestSuite) TestConsumerEmitsProducerClosed() {
 	audioConsumer := suite.audioConsumer()
 
-	onObserverClose := NewMockFunc()
+	onObserverClose := NewMockFunc(suite.T())
 	audioConsumer.Observer().Once("close", onObserverClose.Fn())
 
 	wf := NewWaitFunc(suite.T())
@@ -750,14 +745,14 @@ func (suite *ConsumerTestSuite) TestConsumerEmitsProducerClosed() {
 
 	wf.Wait()
 
-	suite.Equal(1, onObserverClose.CalledTimes())
+	onObserverClose.ExpectCalledTimes(1)
 	suite.True(audioConsumer.Closed())
 }
 
 func (suite *ConsumerTestSuite) TestConsumerEmitsTransportClosed() {
 	videoConsumer := suite.videoConsumer(false)
 
-	onObserverClose := NewMockFunc()
+	onObserverClose := NewMockFunc(suite.T())
 	videoConsumer.Observer().Once("close", onObserverClose.Fn())
 
 	wf := NewWaitFunc(suite.T())
@@ -766,7 +761,7 @@ func (suite *ConsumerTestSuite) TestConsumerEmitsTransportClosed() {
 
 	suite.transport2.Close()
 
-	suite.Equal(1, onObserverClose.CalledTimes())
+	onObserverClose.ExpectCalledTimes(1)
 	suite.True(videoConsumer.Closed())
 
 	var routerDump struct {

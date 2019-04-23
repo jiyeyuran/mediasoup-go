@@ -118,22 +118,12 @@ func (e *eventEmitter) Emit(evt string, argv ...interface{}) (err error) {
 	for _, listener := range listeners {
 		var actualCallArgs []reflect.Value
 
-		isVariadic := listener.FuncValue.Type().IsVariadic()
-
 		// delete unwanted arguments
 		if argc := len(listener.ArgTypes); len(callArgs) >= argc {
-			if isVariadic {
-				if argc > 1 {
-					actualCallArgs = append(
-						callArgs[0:argc-1], reflect.ValueOf(argv[argc-1:]))
-				} else {
-					actualCallArgs = []reflect.Value{reflect.ValueOf(argv)}
-				}
-			} else {
-				actualCallArgs = callArgs[0:argc]
-			}
+			actualCallArgs = callArgs[0:argc]
 		} else {
 			actualCallArgs = callArgs[:]
+			isVariadic := listener.FuncValue.Type().IsVariadic()
 
 			// append missing arguments with zero value
 			for i, a := range listener.ArgTypes[len(callArgs):] {
