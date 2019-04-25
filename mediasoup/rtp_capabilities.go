@@ -62,7 +62,6 @@ type RtpCodecParameter struct {
 	Apt                   int `json:"apt,omitempty"` // used by rtx codec
 
 	Useinbandfec        int `json:"useinbandfec,omitempty"`           // used by audio
-	Minptime            int `json:"minptime,omitempty"`               // used by audio
 	Usedtx              int `json:"usedtx,omitempty"`                 // used by audio
 	XGoogleStartBitrate int `json:"x-google-start-bitrate,omitempty"` // used by video
 }
