@@ -290,6 +290,10 @@ func (suite *ConsumerTestSuite) SetupTest() {
 	suite.videoProducer.Pause()
 }
 
+func (suite *ConsumerTestSuite) TearDownTest() {
+	suite.worker.Close()
+}
+
 func (suite *ConsumerTestSuite) TestTransportConsume_Succeeds() {
 	router, transport2 := suite.router, suite.transport2
 
