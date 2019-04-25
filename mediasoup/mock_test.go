@@ -29,6 +29,14 @@ func (w *MockFunc) Fn() func(argv ...interface{}) {
 	}
 }
 
+func (w *MockFunc) CalledWith() []interface{} {
+	return w.argv
+}
+
+func (w *MockFunc) CalledTimes() int {
+	return w.times
+}
+
 func (w *MockFunc) ExpectCalledWith(argv ...interface{}) {
 	w.assertions.Equal(argv, w.argv)
 }

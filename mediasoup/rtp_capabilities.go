@@ -80,9 +80,10 @@ type RtpHeaderExtension struct {
 type RtpEncoding struct {
 	Rid              string       `json:"rid,omitempty"`
 	Ssrc             uint32       `json:"ssrc,omitempty"`
+	Rtx              *RtpEncoding `json:"rtx,omitempty"`
 	MaxBitrate       uint32       `json:"maxBitrate,omitempty"`
 	CodecPayloadType uint32       `json:"codecPayloadType,omitempty"`
-	Rtx              *RtpEncoding `json:"rtx,omitempty"`
+	Dtx              bool         `json:"dtx,omitempty"`
 }
 
 type RtcpConfiguation struct {
