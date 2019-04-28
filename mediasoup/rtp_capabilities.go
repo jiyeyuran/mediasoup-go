@@ -61,9 +61,13 @@ type RtpCodecParameter struct {
 	h264.RtpH264Parameter     // used by h264 codec
 	Apt                   int `json:"apt,omitempty"` // used by rtx codec
 
-	Useinbandfec        int `json:"useinbandfec,omitempty"`           // used by audio
-	Usedtx              int `json:"usedtx,omitempty"`                 // used by audio
-	XGoogleStartBitrate int `json:"x-google-start-bitrate,omitempty"` // used by video
+	SpropStereo         uint8  `json:"sprop-stereo,omitempty"` // used by audio, 1 or 0
+	Useinbandfec        uint8  `json:"useinbandfec,omitempty"` // used by audio, 1 or 0
+	Usedtx              uint8  `json:"usedtx,omitempty"`       // used by audio, 1 or 0
+	Maxplaybackrate     uint32 `json:"maxplaybackrate,omitempty"`
+	XGoogleMinBitrate   uint32 `json:"x-google-min-bitrate,omitempty"`
+	XGoogleMaxBitrate   uint32 `json:"x-google-max-bitrate,omitempty"`
+	XGoogleStartBitrate uint32 `json:"x-google-start-bitrate,omitempty"`
 }
 
 type RtpHeaderExtension struct {
