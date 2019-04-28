@@ -403,6 +403,7 @@ func TestWebRtcTransport_MethodsRejectIfClosed(t *testing.T) {
 }
 
 func TestWebRtcTransport_EmitsIfRouterIsClosed(t *testing.T) {
+	worker := CreateTestWorker()
 	router2, _ := worker.CreateRouter(testWebRtcMediaCodecs)
 	transport2, _ := router2.CreateWebRtcTransport(CreateWebRtcTransportParams{
 		ListenIps: []ListenIp{

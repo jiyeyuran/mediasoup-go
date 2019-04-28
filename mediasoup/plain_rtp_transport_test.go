@@ -263,6 +263,7 @@ func TestPlaintRtpTransport_Emits_Routerclose_If_RouterClosed(t *testing.T) {
 }
 
 func TestPlaintRtpTransport_Emits_Routerclose_If_WorkerClosed(t *testing.T) {
+	worker := CreateTestWorker()
 	router, _ := worker.CreateRouter(testPlainMediaCodecs)
 	transport, _ := router.CreatePlainRtpTransport(CreatePlainRtpTransportParams{
 		ListenIp: ListenIp{Ip: "127.0.0.1", AnnouncedIp: "4.4.4.4"},
