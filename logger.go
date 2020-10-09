@@ -1,14 +1,15 @@
 package mediasoup
 
 import (
+	"io"
 	"os"
+	"strconv"
+	"strings"
 	"time"
 
+	"github.com/gobwas/glob"
 	"github.com/rs/zerolog"
 )
-
-// Level defines log levels.
-type Level = zerolog.Level
 
 const (
 	// DebugLevel defines debug log level.
@@ -17,11 +18,41 @@ const (
 	WarnLevel = zerolog.WarnLevel
 	// ErrorLevel defines error log level.
 	ErrorLevel = zerolog.ErrorLevel
-	// NoLevel defines an absent log level.
-	NoLevel = zerolog.NoLevel
+	// Disabled disables the logger.
+	Disabled = zerolog.Disabled
 )
 
-var DefaultLevel = DebugLevel
+var (
+	// DefaultLevel defines default log level.
+	DefaultLevel = DebugLevel
+	// NewLogger defines function to create logger instance.
+	NewLogger = newDefaultLogger
+	// NewLoggerWriter defines function to create logger writer.
+	NewLoggerWriter = func() io.Writer {
+		writer := zerolog.ConsoleWriter{
+			Out:        os.Stdout,
+			TimeFormat: time.RFC3339,
+		}
+
+		if hideDate := os.Getenv("DEBUG_HIDE_DATE"); len(hideDate) > 0 {
+			val, err := strconv.ParseBool(hideDate)
+			if err == nil && val {
+				writer.FormatTimestamp = func(interface{}) string {
+					return ""
+				}
+			}
+		}
+
+		if color := os.Getenv("DEBUG_COLORS"); len(color) > 0 {
+			val, err := strconv.ParseBool(color)
+			if err == nil {
+				writer.NoColor = !val
+			}
+		}
+
+		return writer
+	}
+)
 
 type Logger interface {
 	Debug(format string, v ...interface{})
@@ -29,52 +60,56 @@ type Logger interface {
 	Error(format string, v ...interface{})
 }
 
-var NewLogger = func(prefix string) Logger {
-	return NewDefaultLogger(prefix)
-}
-
-func NewNopLogger(prefix string) Logger {
-	return &DefaultLogger{
-		logger: zerolog.Nop(),
-	}
-}
-
-type DefaultLogger struct {
+type defaultLogger struct {
 	logger zerolog.Logger
+	debug  bool
 }
 
-func NewDefaultLogger(prefix string) *DefaultLogger {
-	writer := zerolog.ConsoleWriter{
-		Out:        os.Stdout,
-		TimeFormat: time.RFC3339,
+func newDefaultLogger(prefix string) Logger {
+	shouldDebug := false
+
+	if debug := os.Getenv("DEBUG"); len(debug) > 0 {
+		for _, part := range strings.Split(debug, ",") {
+			part := strings.TrimSpace(part)
+			if len(part) == 0 {
+				continue
+			}
+
+			shouldMatch := true
+			if part[0] == '-' {
+				shouldMatch = false
+				part = part[1:]
+			}
+			if g := glob.MustCompile(part); g.Match(prefix) {
+				shouldDebug = shouldMatch
+			}
+		}
+	} else {
+		shouldDebug = true
 	}
-	context := zerolog.New(writer).With().Timestamp()
+
+	context := zerolog.New(NewLoggerWriter()).With().Timestamp()
 
 	if len(prefix) > 0 {
 		context = context.Str(zerolog.CallerFieldName, prefix)
 	}
 
-	return &DefaultLogger{
+	return &defaultLogger{
 		logger: context.Logger().Level(DefaultLevel),
+		debug:  shouldDebug,
 	}
 }
 
-func (l DefaultLogger) GetLogger() zerolog.Logger {
-	return l.logger
+func (l defaultLogger) Debug(format string, v ...interface{}) {
+	if l.debug {
+		l.logger.Debug().Msgf(format, v...)
+	}
 }
 
-func (l *DefaultLogger) SetLogger(logger zerolog.Logger) {
-	l.logger = logger
-}
-
-func (l DefaultLogger) Debug(format string, v ...interface{}) {
-	l.logger.Debug().Msgf(format, v...)
-}
-
-func (l DefaultLogger) Warn(format string, v ...interface{}) {
+func (l defaultLogger) Warn(format string, v ...interface{}) {
 	l.logger.Warn().Msgf(format, v...)
 }
 
-func (l DefaultLogger) Error(format string, v ...interface{}) {
+func (l defaultLogger) Error(format string, v ...interface{}) {
 	l.logger.Error().Msgf(format, v...)
 }

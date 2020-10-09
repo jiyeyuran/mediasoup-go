@@ -3,6 +3,7 @@ module github.com/jiyeyuran/mediasoup
 go 1.15
 
 require (
+	github.com/gobwas/glob v0.2.3
 	github.com/imdario/mergo v0.3.8-0.20190313170249-367dccd03f18
 	github.com/jinzhu/copier v0.0.0-20180308034124-7e38e58719c3
 	github.com/jiyeyuran/mediasoup-go v0.0.0-20190428033853-aee6cd19f58c
