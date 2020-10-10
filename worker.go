@@ -326,7 +326,7 @@ func NewWorker(options ...Option) (worker *Worker, err error) {
 
 	pid := child.Process.Pid
 	channel := newChannel(producerSocket, consumerSocket, pid)
-	payloadChannel := newPayloadChannel(payloadProducerSocket, payloadConsumerSocket, pid)
+	payloadChannel := newPayloadChannel(payloadProducerSocket, payloadConsumerSocket)
 	workerLogger := NewLogger(fmt.Sprintf("worker[pid:%d]", pid))
 
 	go func() {

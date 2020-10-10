@@ -3,6 +3,7 @@ package mediasoup
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net"
 	"sync"
 	"sync/atomic"
@@ -29,6 +30,7 @@ type Channel struct {
 	closed         int32
 	producerSocket net.Conn
 	consumerSocket net.Conn
+	pid            int
 	nextId         int64
 	sents          sync.Map
 	sentsLen       int64
@@ -44,6 +46,7 @@ func newChannel(producerSocket, consumerSocket net.Conn, pid int) *Channel {
 		logger:         logger,
 		producerSocket: producerSocket,
 		consumerSocket: consumerSocket,
+		pid:            pid,
 		closeCh:        make(chan struct{}),
 	}
 
@@ -63,7 +66,15 @@ func (c *Channel) Close() {
 	}
 }
 
+func (c *Channel) Closed() bool {
+	return atomic.LoadInt32(&c.closed) > 0
+}
+
 func (c *Channel) Request(method string, internal interface{}, data ...interface{}) (rsp Response) {
+	if c.Closed() {
+		rsp.err = NewInvalidStateError("PayloadChannel closed")
+		return
+	}
 	id := int64(1)
 
 	if atomic.LoadInt64(&c.nextId) < 4294967295 {
@@ -74,11 +85,6 @@ func (c *Channel) Request(method string, internal interface{}, data ...interface
 
 	c.logger.Debug("request() [method:%s, id:%d]", method, id)
 
-	if atomic.LoadInt32(&c.closed) > 0 {
-		rsp.err = NewInvalidStateError("Channel closed")
-		return
-	}
-
 	sent := sentInfo{
 		id:     id,
 		method: method,
@@ -86,25 +92,20 @@ func (c *Channel) Request(method string, internal interface{}, data ...interface
 	}
 	c.sents.Store(id, sent)
 
-	count := atomic.AddInt64(&c.sentsLen, 1)
+	size := atomic.AddInt64(&c.sentsLen, 1)
 
 	defer func() {
 		c.sents.Delete(id)
 		atomic.AddInt64(&c.sentsLen, -1)
 	}()
 
-	req := struct {
-		Id       int64       `json:"id"`
-		Method   string      `json:"method,omitempty"`
-		Internal interface{} `json:"internal,omitempty"`
-		Data     interface{} `json:"data,omitempty"`
-	}{
-		Id:       id,
-		Method:   method,
-		Internal: internal,
+	req := H{
+		"id":       id,
+		"method":   method,
+		"internal": internal,
 	}
 	if len(data) > 0 {
-		req.Data = data[0]
+		req["data"] = data[0]
 	}
 	rawData, _ := json.Marshal(req)
 
@@ -119,7 +120,7 @@ func (c *Channel) Request(method string, internal interface{}, data ...interface
 		return
 	}
 
-	timeout := 1000 * (15 + (0.1 * float64(count)))
+	timeout := 1000 * (15 + (0.1 * float64(size)))
 	timer := time.NewTimer(time.Duration(timeout) * time.Millisecond)
 	defer timer.Stop()
 
@@ -175,13 +176,15 @@ func (c *Channel) processNSPayload(nsPayload []byte) {
 	case '{':
 		c.processMessage(nsPayload)
 	case 'D':
-		c.logger.Debug("%s", nsPayload)
+		c.logger.Debug("[pid:%d] %s", c.pid, nsPayload)
 	case 'W':
-		c.logger.Warn("%s", nsPayload)
+		c.logger.Warn("[pid:%d] %s", c.pid, nsPayload)
 	case 'E':
-		c.logger.Error("%s", nsPayload)
+		c.logger.Error("[pid:%d] %s", c.pid, nsPayload)
+	case 'X':
+		fmt.Printf("%s\n", nsPayload)
 	default:
-		c.logger.Error("unexpected data: %s", nsPayload)
+		c.logger.Warn("[pid:%d] unexpected data: %s", nsPayload)
 	}
 }
 
