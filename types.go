@@ -4,27 +4,6 @@ import "encoding/json"
 
 type H map[string]interface{}
 
-// Response from worker
-type Response struct {
-	data json.RawMessage
-	err  error
-}
-
-func (r Response) Unmarshal(v interface{}) error {
-	if r.err != nil {
-		return r.err
-	}
-	return json.Unmarshal([]byte(r.data), v)
-}
-
-func (r Response) Data() []byte {
-	return []byte(r.data)
-}
-
-func (r Response) Err() error {
-	return r.err
-}
-
 // []VolumeInfo is the parameter of event "volumes" emitted by AudioLevelObserver
 type VolumeInfo struct {
 	// Producer *Producer
@@ -169,6 +148,27 @@ type TransportStat struct {
 	// plain transport
 	Tuple     *TransportTuple `json:"tuple,omitempty"`
 	RtcpTuple *TransportTuple `json:"rtcpTuple,omitempty"`
+}
+
+// Response from worker
+type Response struct {
+	data json.RawMessage
+	err  error
+}
+
+func (r Response) Unmarshal(v interface{}) error {
+	if r.err != nil {
+		return r.err
+	}
+	return json.Unmarshal([]byte(r.data), v)
+}
+
+func (r Response) Data() []byte {
+	return []byte(r.data)
+}
+
+func (r Response) Err() error {
+	return r.err
 }
 
 type internalData struct {

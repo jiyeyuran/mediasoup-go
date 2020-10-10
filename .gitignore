@@ -11,6 +11,4 @@
 *.out
 
 vendor/
-mediasoup-worker
-main.go
-mediasoup-go
+app

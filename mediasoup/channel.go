@@ -12,8 +12,9 @@ import (
 )
 
 const (
-	NS_MESSAGE_MAX_LEN = 65543
-	NS_PAYLOAD_MAX_LEN = 65536
+	// netstring length for a 4194304 bytes payload.
+	NS_MESSAGE_MAX_LEN = 4194313
+	NS_PAYLOAD_MAX_LEN = 4194304
 )
 
 type sentInfo struct {
