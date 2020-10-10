@@ -10,9 +10,9 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 
-	"github.com/jiyeyuran/mediasoup/internal/types"
 	uuid "github.com/satori/go.uuid"
 )
 
@@ -249,7 +249,7 @@ type Worker struct {
 	// Custom app data.
 	appData H
 	// Routers map.
-	routers map[string]*Router
+	routers sync.Map
 	// Observer instance.
 	observer *EventEmitter
 
@@ -358,7 +358,6 @@ func NewWorker(options ...Option) (worker *Worker, err error) {
 		channel:        channel,
 		payloadChannel: payloadChannel,
 		appData:        settings.AppData,
-		routers:        make(map[string]*Router),
 		observer:       &EventEmitter{},
 	}
 
@@ -447,10 +446,12 @@ func (w *Worker) Close() {
 	w.payloadChannel.Close()
 
 	// Close every Router.
-	for _, router := range w.routers {
+	w.routers.Range(func(key, value interface{}) bool {
+		router := value.(*Router)
 		router.workerClosed()
-	}
-	w.routers = make(map[string]*Router)
+		return true
+	})
+	w.routers = sync.Map{}
 
 	// Emit observer event.
 	w.observer.SafeEmit("close")
@@ -471,16 +472,33 @@ func (w *Worker) UpdateSettings(settings WorkerUpdateableSettings) Response {
 }
 
 // CreateRouter creates a router.
-func (w *Worker) CreateRouter(mediaCodecs []RtpCodecCapability) (router *Router, err error) {
+func (w *Worker) CreateRouter(options RouterOptions) (router *Router, err error) {
 	w.logger.Debug("createRouter()")
 
-	internal := types.InternalData{RouterId: uuid.NewV4().String()}
+	internal := internalData{RouterId: uuid.NewV4().String()}
 
 	rsp := w.channel.Request("worker.createRouter", internal, nil)
 	if err = rsp.Err(); err != nil {
 		return
 	}
 
+	rtpCapabilities, err := generateRouterRtpCapabilities(options.MediaCodecs)
+	if err != nil {
+		return
+	}
+	data := routerData{RtpCapabilities: rtpCapabilities}
+	router = newRouter(routerOptions{
+		internal:       internal,
+		data:           data,
+		channel:        w.channel,
+		payloadChannel: w.payloadChannel,
+		appData:        options.AppData,
+	})
+
+	w.routers.Store(internal.RouterId, router)
+	router.On("@close", func() {
+		w.routers.Delete(internal.RouterId)
+	})
 	// Emit observer event.
 	w.observer.SafeEmit("newrouter", router)
 

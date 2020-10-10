@@ -1,8 +1,6 @@
 package mediasoup
 
-import (
-	"github.com/jiyeyuran/mediasoup/h264profile"
-)
+import "github.com/jiyeyuran/mediasoup/h264"
 
 /**
  * The RTP capabilities define what mediasoup or an endpoint can receive at
@@ -250,16 +248,16 @@ type RtpCodecParameters struct {
  * VP9) are critical for codec matching.
  */
 type RtpCodecSpecificParameters struct {
-	h264profile.RtpParameter        // used by h264 codec
-	ProfileId                string `json:"profile-id,omitempty"`   // used by vp9
-	Apt                      uint8  `json:"apt,omitempty"`          // used by rtx codec
-	SpropStereo              uint8  `json:"sprop-stereo,omitempty"` // used by audio, 1 or 0
-	Useinbandfec             uint8  `json:"useinbandfec,omitempty"` // used by audio, 1 or 0
-	Usedtx                   uint8  `json:"usedtx,omitempty"`       // used by audio, 1 or 0
-	Maxplaybackrate          uint32 `json:"maxplaybackrate,omitempty"`
-	XGoogleMinBitrate        uint32 `json:"x-google-min-bitrate,omitempty"`
-	XGoogleMaxBitrate        uint32 `json:"x-google-max-bitrate,omitempty"`
-	XGoogleStartBitrate      uint32 `json:"x-google-start-bitrate,omitempty"`
+	h264.RtpParameter          // used by h264 codec
+	ProfileId           string `json:"profile-id,omitempty"`   // used by vp9
+	Apt                 int    `json:"apt,omitempty"`          // used by rtx codec
+	SpropStereo         uint8  `json:"sprop-stereo,omitempty"` // used by audio, 1 or 0
+	Useinbandfec        uint8  `json:"useinbandfec,omitempty"` // used by audio, 1 or 0
+	Usedtx              uint8  `json:"usedtx,omitempty"`       // used by audio, 1 or 0
+	Maxplaybackrate     uint32 `json:"maxplaybackrate,omitempty"`
+	XGoogleMinBitrate   uint32 `json:"x-google-min-bitrate,omitempty"`
+	XGoogleMaxBitrate   uint32 `json:"x-google-max-bitrate,omitempty"`
+	XGoogleStartBitrate uint32 `json:"x-google-start-bitrate,omitempty"`
 }
 
 /**
@@ -288,7 +286,7 @@ type RtpEncodingParameters struct {
 	/**
 	 * The media SSRC.
 	 */
-	Ssrc int `json:"ssrc,omitempty"`
+	Ssrc uint32 `json:"ssrc,omitempty"`
 
 	/**
 	 * The RID RTP extension value. Must be unique.
@@ -330,7 +328,7 @@ type RtpEncodingParameters struct {
 
 // RtpEncodingRtx represents the associated RTX stream for RTP stream.
 type RtpEncodingRtx struct {
-	Ssrc int `json:"ssrc"`
+	Ssrc uint32 `json:"ssrc"`
 }
 
 /**

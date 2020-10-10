@@ -1,4 +1,4 @@
-package h264profile
+package h264
 
 import (
 	"errors"

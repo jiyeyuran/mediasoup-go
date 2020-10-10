@@ -1,7 +1,7 @@
 package mediasoup
 
 import (
-	h264 "github.com/jiyeyuran/mediasoup/h264profile"
+	"github.com/jiyeyuran/mediasoup/h264"
 )
 
 var supportedRtpCapabilities = RtpCapabilities{
