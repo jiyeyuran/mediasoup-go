@@ -412,18 +412,28 @@ func (w *Worker) wait() {
 	}
 }
 
+/**
+ * Worker process identifier (PID).
+ */
 func (w *Worker) Pid() int {
 	return w.pid
 }
 
+/**
+ * Whether the Worker is closed.
+ */
 func (w *Worker) Closed() bool {
 	return w.closed
 }
 
+// Observer
 func (w *Worker) Observer() *EventEmitter {
 	return w.observer
 }
 
+/**
+ * Close the Worker.
+ */
 func (w *Worker) Close() {
 	if w.closed {
 		return
@@ -458,17 +468,31 @@ func (w *Worker) Close() {
 }
 
 // Dump Worker.
-func (w *Worker) Dump() Response {
+func (w *Worker) Dump() (data []byte, err error) {
 	w.logger.Debug("dump()")
 
-	return w.channel.Request("worker.dump", nil)
+	resp := w.channel.Request("worker.dump", nil)
+
+	return resp.Data(), resp.Err()
+}
+
+/**
+ * Get mediasoup-worker process resource usage.
+ */
+func (w *Worker) GetResourceUsage() (usage WorkerResourceUsage, err error) {
+	w.logger.Debug("getResourceUsage()")
+
+	resp := w.channel.Request("worker.getResourceUsage", nil)
+	err = resp.Unmarshal(&usage)
+
+	return
 }
 
 // UpdateSettings Update settings.
-func (w *Worker) UpdateSettings(settings WorkerUpdateableSettings) Response {
+func (w *Worker) UpdateSettings(settings WorkerUpdateableSettings) error {
 	w.logger.Debug("updateSettings()")
 
-	return w.channel.Request("worker.updateSettings", nil, settings)
+	return w.channel.Request("worker.updateSettings", nil, settings).Err()
 }
 
 // CreateRouter creates a router.
