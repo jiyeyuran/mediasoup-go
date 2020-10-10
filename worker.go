@@ -233,7 +233,7 @@ func init() {
 type Option func(w *WorkerSettings)
 
 type Worker struct {
-	EventEmitter
+	IEventEmitter
 	// Worker logger.
 	logger Logger
 	// mediasoup-worker child process.
@@ -251,7 +251,7 @@ type Worker struct {
 	// Routers map.
 	routers sync.Map
 	// Observer instance.
-	observer *EventEmitter
+	observer IEventEmitter
 
 	// spawnDone indices child is started
 	spawnDone bool
@@ -352,13 +352,14 @@ func NewWorker(options ...Option) (worker *Worker, err error) {
 	}()
 
 	worker = &Worker{
+		IEventEmitter:  NewEventEmitter(),
 		logger:         logger,
 		child:          child,
 		pid:            pid,
 		channel:        channel,
 		payloadChannel: payloadChannel,
 		appData:        settings.AppData,
-		observer:       &EventEmitter{},
+		observer:       NewEventEmitter(),
 	}
 
 	channel.Once(strconv.Itoa(pid), func(event string) {
@@ -427,7 +428,7 @@ func (w *Worker) Closed() bool {
 }
 
 // Observer
-func (w *Worker) Observer() *EventEmitter {
+func (w *Worker) Observer() IEventEmitter {
 	return w.observer
 }
 

@@ -25,11 +25,13 @@ type routerOptions struct {
 }
 
 type Router struct {
-	EventEmitter
+	IEventEmitter
 }
 
 func newRouter(options routerOptions) *Router {
-	return &Router{}
+	return &Router{
+		IEventEmitter: NewEventEmitter(),
+	}
 }
 
 func (r *Router) workerClosed() {

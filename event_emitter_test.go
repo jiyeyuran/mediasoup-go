@@ -1,6 +1,7 @@
 package mediasoup
 
 import (
+	"encoding/json"
 	"sync"
 	"testing"
 	"time"
@@ -10,7 +11,7 @@ import (
 
 func TestEventEmitter_AddListener(t *testing.T) {
 	evName := "test"
-	emitter := EventEmitter{}
+	emitter := NewEventEmitter()
 
 	emitter.AddListener(evName, func() {})
 	emitter.AddListener(evName, func() {})
@@ -19,7 +20,7 @@ func TestEventEmitter_AddListener(t *testing.T) {
 
 func TestEventEmitter_Once(t *testing.T) {
 	evName := "test"
-	emitter := EventEmitter{}
+	emitter := NewEventEmitter()
 
 	onceObserver := NewWaitFunc(t)
 	emitter.Once(evName, onceObserver.Fn())
@@ -42,9 +43,9 @@ func TestEventEmitter_Once(t *testing.T) {
 	assert.Equal(t, 0, emitter.ListenerCount(evName))
 }
 
-func TestEventEmitter_Emit(t *testing.T) {
+func TestEventEmitter_Emit1(t *testing.T) {
 	evName := "test"
-	emitter := EventEmitter{}
+	emitter := NewEventEmitter()
 
 	onObserver := NewMockFunc(t)
 	emitter.On(evName, onObserver.Fn())
@@ -59,9 +60,62 @@ func TestEventEmitter_Emit(t *testing.T) {
 	assert.Equal(t, 4, onObserver.CalledTimes())
 }
 
+func TestEventEmitter_Emit2(t *testing.T) {
+	evName := "test"
+	emitter := NewEventEmitter()
+
+	type struct1 struct {
+		A int
+	}
+
+	s := struct1{A: 1}
+	data, _ := json.Marshal(s)
+
+	called := 0
+
+	emitter.On(evName, func(s struct1) {
+		called++
+	})
+	emitter.On(evName, func(s *struct1) {
+		called++
+	})
+	emitter.On(evName, func(s []byte) {
+		called++
+	})
+	emitter.On(evName, func(s json.RawMessage) {
+		called++
+	})
+	emitter.Emit(evName, data)
+	emitter.Emit(evName, json.RawMessage(data))
+
+	time.Sleep(time.Millisecond)
+
+	assert.Equal(t, 4*2, called)
+
+	called = 0
+	evName2 := "test2"
+	ss := []struct1{{A: 1}}
+	data, _ = json.Marshal(ss)
+
+	emitter.On(evName2, func(s []struct1) {
+		called++
+	})
+	emitter.On(evName2, func(s []byte) {
+		called++
+	})
+	emitter.On(evName2, func(s json.RawMessage) {
+		called++
+	})
+	emitter.Emit(evName2, data)
+	emitter.Emit(evName2, json.RawMessage(data))
+
+	time.Sleep(time.Millisecond)
+	assert.Equal(t, 3*2, called)
+}
+
 func TestEventEmitter_SafeEmit(t *testing.T) {
 	evName := "test"
-	emitter := EventEmitter{}
+	emitter := NewEventEmitter()
 
 	called := false
 	emitter.On(evName, func(int) { called = true })
@@ -72,7 +126,7 @@ func TestEventEmitter_SafeEmit(t *testing.T) {
 
 func TestEventEmitter_RemoveListener(t *testing.T) {
 	evName := "test"
-	emitter := EventEmitter{}
+	emitter := NewEventEmitter()
 
 	onObserver := NewMockFunc(t)
 	fn := onObserver.Fn()
@@ -86,7 +140,7 @@ func TestEventEmitter_RemoveListener(t *testing.T) {
 
 func TestEventEmitter_RemoveAllListeners(t *testing.T) {
 	evName := "test"
-	emitter := EventEmitter{}
+	emitter := NewEventEmitter()
 
 	onObserver := NewMockFunc(t)
 	fn := onObserver.Fn()

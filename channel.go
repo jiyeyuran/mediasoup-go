@@ -25,7 +25,7 @@ type sentInfo struct {
 }
 
 type Channel struct {
-	EventEmitter
+	IEventEmitter
 	logger         Logger
 	closed         int32
 	producerSocket net.Conn
@@ -43,6 +43,7 @@ func newChannel(producerSocket, consumerSocket net.Conn, pid int) *Channel {
 	logger.Debug("constructor()")
 
 	channel := &Channel{
+		IEventEmitter:  NewEventEmitter(),
 		logger:         logger,
 		producerSocket: producerSocket,
 		consumerSocket: consumerSocket,

@@ -18,7 +18,7 @@ type notification struct {
 }
 
 type PayloadChannel struct {
-	EventEmitter
+	IEventEmitter
 	logger              Logger
 	closed              int32
 	producerSocket      net.Conn
@@ -36,6 +36,7 @@ func newPayloadChannel(producerSocket, consumerSocket net.Conn) *PayloadChannel 
 	logger.Debug("constructor()")
 
 	channel := &PayloadChannel{
+		IEventEmitter:  NewEventEmitter(),
 		logger:         logger,
 		producerSocket: producerSocket,
 		consumerSocket: consumerSocket,

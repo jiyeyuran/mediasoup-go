@@ -1,17 +1,26 @@
 package mediasoup
 
 import (
+	"encoding/json"
 	"fmt"
 	"reflect"
 	"runtime/debug"
 	"sync"
 )
 
-var EventEmitterQueueSize = 128
+const EventEmitterQueueSize = 128
 
-type EventEmitter struct {
-	evtListeners map[string][]*intervalListener
-	mu           sync.Mutex
+type IEventEmitter interface {
+	AddListener(evt string, listener interface{})
+	Once(evt string, listener interface{})
+	Emit(evt string, argv ...interface{}) (err error)
+	SafeEmit(evt string, argv ...interface{})
+	RemoveListener(evt string, listener interface{}) (ok bool)
+	RemoveAllListeners(evt string)
+	On(evt string, listener interface{})
+	Off(evt string, listener interface{})
+	ListenerCount(evt string) int
+	Len() int
 }
 
 type intervalListener struct {
@@ -41,17 +50,44 @@ func newInternalListener(listener interface{}, once bool) *intervalListener {
 		var syncOnce sync.Once
 
 		for args := range l.ArgValues {
+			actualArgs := make([]reflect.Value, len(args))
+
+			for i, arg := range args {
+				actualArgs[i] = args[i]
+
+				if typeIsBytes(arg.Type()) && !typeIsBytes(argTypes[i]) {
+					b, ok := arg.Interface().(json.RawMessage)
+					if !ok {
+						b, ok = arg.Interface().([]byte)
+					}
+					if ok {
+						val := reflect.New(argTypes[i]).Interface()
+						if err := json.Unmarshal(b, val); err == nil {
+							actualArgs[i] = reflect.ValueOf(val).Elem()
+						}
+					}
+				}
+			}
 			if once {
 				syncOnce.Do(func() {
-					l.FuncValue.Call(args)
+					l.FuncValue.Call(actualArgs)
 				})
 			} else {
-				l.FuncValue.Call(args)
+				l.FuncValue.Call(actualArgs)
 			}
 		}
 	}()
 
 	return l
+}
+
+type EventEmitter struct {
+	evtListeners map[string][]*intervalListener
+	mu           sync.Mutex
+}
+
+func NewEventEmitter() IEventEmitter {
+	return &EventEmitter{}
 }
 
 func (e *EventEmitter) AddListener(evt string, listener interface{}) {
@@ -204,4 +240,8 @@ func buildActualArgs(argTypes []reflect.Type, callArgs []reflect.Value) (reflect
 	}
 
 	return reflectedArgs
+}
+
+func typeIsBytes(tp reflect.Type) bool {
+	return tp.Kind() == reflect.Slice && tp.Elem().Kind() == reflect.Uint8
 }
