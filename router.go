@@ -9,7 +9,7 @@ type RouterOptions struct {
 	/**
 	 * Custom application data.
 	 */
-	AppData H `json:"appData,omitempty"`
+	AppData interface{} `json:"appData,omitempty"`
 }
 
 type routerData struct {
@@ -21,7 +21,7 @@ type routerOptions struct {
 	data           routerData
 	channel        *Channel
 	payloadChannel *PayloadChannel
-	appData        H
+	appData        interface{}
 }
 
 type Router struct {

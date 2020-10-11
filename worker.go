@@ -84,7 +84,7 @@ type WorkerSettings struct {
 	/**
 	 * Custom application data.
 	 */
-	AppData H
+	AppData interface{}
 }
 
 func (w WorkerSettings) Args() []string {
@@ -247,7 +247,7 @@ type Worker struct {
 	// Closed flag.
 	closed bool
 	// Custom app data.
-	appData H
+	appData interface{}
 	// Routers map.
 	routers sync.Map
 	// Observer instance.
