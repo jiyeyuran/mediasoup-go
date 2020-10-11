@@ -114,6 +114,8 @@ type ConsumerLayers struct {
 	TemporalLayer uint8 `json:"temporalLayer,omitempty"`
 }
 
+type ConsumerStat = ProducerStat
+
 /**
  * Consumer type.
  */
@@ -349,7 +351,7 @@ func (consumer *Consumer) Dump() ([]byte, error) {
 }
 
 // Get Consumer stats.
-func (consumer *Consumer) GetStats() (stats []ConsumerOrProducerStat, err error) {
+func (consumer *Consumer) GetStats() (stats []ConsumerStat, err error) {
 	consumer.logger.Debug("getStats()")
 
 	resp := consumer.channel.Request("consumer.getStats", consumer.internal, nil)

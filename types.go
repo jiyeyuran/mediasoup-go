@@ -10,19 +10,6 @@ type VolumeInfo struct {
 	Volume uint8
 }
 
-// VideoOrientation is the parameter of event "videoorientationchange" emitted by Producer
-type VideoOrientation struct {
-	Camera   bool  `json:"camera,omitempty"`
-	Flip     bool  `json:"flip,omitempty"`
-	Rotation uint8 `json:"rotation,omitempty"`
-}
-
-type ProducerScore struct {
-	Score uint8  `json:"score"`
-	Ssrc  uint32 `json:"ssrc"`
-	Rid   uint32 `json:"rid,omitempty"`
-}
-
 type PipeTransportData struct {
 	Tuple TransportTuple `json:"tuple,omitempty"`
 }
@@ -138,36 +125,6 @@ type TransportStat struct {
 	// plain transport
 	Tuple     *TransportTuple `json:"tuple,omitempty"`
 	RtcpTuple *TransportTuple `json:"rtcpTuple,omitempty"`
-}
-
-type ConsumerOrProducerStat struct {
-	// Common to all RtpStreams.
-	Type                 string `json:"type"`
-	Timestamp            uint32 `json:"timestamp"`
-	Ssrc                 uint32 `json:"ssrc"`
-	RtxSsrc              uint32 `json:"rtxSsrc,omitempty"`
-	Kind                 string `json:"kind"`
-	MimeType             string `json:"mimeType"`
-	PacketsLost          uint32 `json:"packetsLost"`
-	FractionLost         uint32 `json:"fractionLost"`
-	PacketsDiscarded     uint32 `json:"packetsDiscarded"`
-	PacketsRetransmitted uint32 `json:"packetsRetransmitted"`
-	PacketsRepaired      uint32 `json:"packetsRepaired"`
-	NackCount            uint32 `json:"nackCount"`
-	NackPacketCount      uint32 `json:"nackPacketCount"`
-	PliCount             uint32 `json:"pliCount"`
-	FirCount             uint32 `json:"firCount"`
-	Score                uint32 `json:"score"`
-	PacketCount          uint32 `json:"packetCount"`
-	ByteCount            uint32 `json:"byteCount"`
-	Bitrate              uint32 `json:"bitrate"`
-	RoundTripTime        uint32 `json:"roundTripTime,omitempty"`
-
-	// Producer specific.
-	Rid string `json:"rid,omitempty"`
-	// RtpStreamRecv specific.
-	Jitter         uint32 `json:"jitter,omitempty"`
-	BitrateByLayer H      `json:"bitrateByLayer,omitempty"`
 }
 
 // Response from worker
