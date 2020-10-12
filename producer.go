@@ -306,7 +306,7 @@ func (producer *Producer) Close() (err error) {
 }
 
 // Transport was closed.
-func (producer *Producer) TransportClosed() {
+func (producer *Producer) transportClosed() {
 	if atomic.CompareAndSwapUint32(&producer.closed, 0, 1) {
 		producer.logger.Debug("transportClosed()")
 
@@ -349,7 +349,7 @@ func (producer *Producer) Pause() (err error) {
 
 	wasPaused := producer.paused
 
-	response := producer.channel.Request("producer.pause", producer.internal, nil)
+	response := producer.channel.Request("producer.pause", producer.internal)
 
 	if err = response.Err(); err != nil {
 		return
@@ -374,7 +374,7 @@ func (producer *Producer) Resume() (err error) {
 
 	wasPaused := producer.paused
 
-	result := producer.channel.Request("producer.resume", producer.internal, nil)
+	result := producer.channel.Request("producer.resume", producer.internal)
 
 	if err = result.Err(); err != nil {
 		return
