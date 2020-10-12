@@ -121,14 +121,14 @@ func TestIsNotSameProfile(t *testing.T) {
 }
 
 func TestGenerateProfileLevelIdForAnswerEmpty(t *testing.T) {
-	answer, _ := GenerateProfileLevelIdForAnswer(RtpH264Parameter{}, RtpH264Parameter{})
+	answer, _ := GenerateProfileLevelIdForAnswer(RtpParameter{}, RtpParameter{})
 
 	assert.Empty(t, answer)
 }
 
 func TestGenerateProfileLevelIdForAnswerLevelSymmetryCapped(t *testing.T) {
-	lowLevel := RtpH264Parameter{ProfileLevelId: "42e015"}
-	highLevel := RtpH264Parameter{ProfileLevelId: "42e01f"}
+	lowLevel := RtpParameter{ProfileLevelId: "42e015"}
+	highLevel := RtpParameter{ProfileLevelId: "42e01f"}
 
 	answer1, _ := GenerateProfileLevelIdForAnswer(lowLevel, highLevel)
 	answer2, _ := GenerateProfileLevelIdForAnswer(highLevel, lowLevel)
@@ -138,8 +138,8 @@ func TestGenerateProfileLevelIdForAnswerLevelSymmetryCapped(t *testing.T) {
 }
 
 func TestGenerateProfileLevelIdForAnswerConstrainedBaselineLevelAsymmetry(t *testing.T) {
-	localParams := RtpH264Parameter{ProfileLevelId: "42e01f", LevelAsymmetryAllowed: 1}
-	remoteParams := RtpH264Parameter{ProfileLevelId: "42e015", LevelAsymmetryAllowed: 1}
+	localParams := RtpParameter{ProfileLevelId: "42e01f", LevelAsymmetryAllowed: 1}
+	remoteParams := RtpParameter{ProfileLevelId: "42e015", LevelAsymmetryAllowed: 1}
 
 	answer, _ := GenerateProfileLevelIdForAnswer(localParams, remoteParams)
 
