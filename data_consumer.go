@@ -1,0 +1,371 @@
+package mediasoup
+
+import (
+	"encoding/json"
+	"sync/atomic"
+)
+
+type DataConsumerOptions struct {
+	/**
+	 * The id of the DataProducer to consume.
+	 */
+	DataProducerId string
+
+	/**
+	 * Just if consuming over SCTP.
+	 * Whether data messages must be received in order. If true the messages will
+	 * be sent reliably. Defaults to the value in the DataProducer if it has type
+	 * 'sctp' or to true if it has type 'direct'.
+	 */
+	Ordered bool
+
+	/**
+	 * Just if consuming over SCTP.
+	 * When ordered is false indicates the time (in milliseconds) after which a
+	 * SCTP packet will stop being retransmitted. Defaults to the value in the
+	 * DataProducer if it has type 'sctp' or unset if it has type 'direct'.
+	 */
+	MaxPacketLifeTime uint32
+
+	/**
+	 * Just if consuming over SCTP.
+	 * When ordered is false indicates the maximum uint32 of times a packet will
+	 * be retransmitted. Defaults to the value in the DataProducer if it has type
+	 * 'sctp' or unset if it has type 'direct'.
+	 */
+	MaxRetransmits uint32
+
+	/**
+	 * Custom application data.
+	 */
+	AppData interface{}
+}
+
+type DataConsumerStat struct {
+	Type         string `json:"type,omitempty"`
+	Timestamp    uint32 `json:"timestamp,omitempty"`
+	Label        string `json:"label,omitempty"`
+	Protocol     string `json:"protocol,omitempty"`
+	MessagesSent uint32 `json:"messagesSent,omitempty"`
+	BytesSent    uint32 `json:"bytesSent,omitempty"`
+}
+
+/**
+ * DataConsumer type.
+ */
+type DataConsumerType string
+
+const (
+	DataConsumerType_Sctp   DataConsumerType = "stcp"
+	DataConsumerType_Direct                  = "direct"
+)
+
+type newDataConsumerOptions struct {
+	internal       internalData
+	data           dataConsumerData
+	channel        *Channel
+	payloadChannel *PayloadChannel
+	appData        interface{}
+}
+
+type dataConsumerData struct {
+	Type                 DataConsumerType
+	SctpStreamParameters SctpStreamParameters
+	Label                string
+	Protocol             string
+}
+
+type DataConsumer struct {
+	IEventEmitter
+	logger Logger
+	// {
+	// 	routerId: string;
+	// 	transportId: string;
+	// 	dataProducerId: string;
+	// 	dataConsumerId: string;
+	// };
+	internal       internalData
+	data           dataConsumerData
+	channel        *Channel
+	payloadChannel *PayloadChannel
+	appData        interface{}
+	closed         uint32
+	observer       IEventEmitter
+}
+
+/**
+ * newDataConsumer
+ * @emits transportclose
+ * @emits dataproducerclose
+ * @emits message - (message: Buffer, ppid: number)
+ * @emits sctpsendbufferfull
+ * @emits bufferedamountlow - (bufferedAmount: number)
+ * @emits @close
+ * @emits @dataproducerclose
+ */
+func newDataConsumer(options newDataConsumerOptions) *DataConsumer {
+	logger := NewLogger("DataConsumer")
+
+	logger.Debug("constructor()")
+
+	consumer := &DataConsumer{
+		IEventEmitter:  NewEventEmitter(),
+		logger:         logger,
+		internal:       options.internal,
+		data:           options.data,
+		channel:        options.channel,
+		payloadChannel: options.payloadChannel,
+		appData:        options.appData,
+		observer:       NewEventEmitter(),
+	}
+
+	consumer.handleWorkerNotifications()
+
+	return consumer
+}
+
+// DataConsumer id
+func (c *DataConsumer) Id() string {
+	return c.Id()
+}
+
+// Associated DataProducer id.
+func (c *DataConsumer) DataProducerId() string {
+	return c.internal.DataProducerId
+}
+
+// Whether the DataConsumer is closed.
+func (c *DataConsumer) Closed() bool {
+	return atomic.LoadUint32(&c.closed) > 0
+}
+
+// DataConsumer type.
+func (c *DataConsumer) Type() DataConsumerType {
+	return c.data.Type
+}
+
+/**
+ * SCTP stream parameters.
+ */
+func (c *DataConsumer) SctpStreamParameters() SctpStreamParameters {
+	return c.data.SctpStreamParameters
+}
+
+/**
+ * DataChannel label.
+ */
+func (c *DataConsumer) Label() string {
+	return c.data.Label
+}
+
+/**
+ * DataChannel protocol.
+ */
+func (c *DataConsumer) Protocol() string {
+	return c.data.Protocol
+}
+
+/**
+ * App custom data.
+ */
+func (c *DataConsumer) AppData() interface{} {
+	return c.appData
+}
+
+/**
+ * Observer.
+ *
+ * @emits close
+ */
+func (c *DataConsumer) Observer() IEventEmitter {
+	return c.observer
+}
+
+// Close the DataConsumer.
+func (c *DataConsumer) Close() (err error) {
+	if atomic.CompareAndSwapUint32(&c.closed, 0, 1) {
+		c.logger.Debug("close()")
+
+		// Remove notification subscriptions.
+		c.channel.RemoveAllListeners(c.Id())
+		c.payloadChannel.RemoveAllListeners(c.Id())
+
+		response := c.channel.Request("dataConsumer.close", c.internal)
+
+		if err = response.Err(); err != nil {
+			return
+		}
+
+		c.Emit("@close")
+
+		// Emit observer event.
+		c.observer.SafeEmit("close")
+	}
+	return
+}
+
+// Transport was closed.
+func (c *DataConsumer) transportClosed() {
+	if atomic.CompareAndSwapUint32(&c.closed, 0, 1) {
+		c.logger.Debug("transportClosed()")
+
+		// Remove notification subscriptions.
+		c.channel.RemoveAllListeners(c.Id())
+		c.payloadChannel.RemoveAllListeners(c.Id())
+
+		c.SafeEmit("transportclose")
+
+		// Emit observer event.
+		c.observer.SafeEmit("close")
+	}
+}
+
+// Dump DataConsumer.
+func (c *DataConsumer) Dump() ([]byte, error) {
+	c.logger.Debug("dump()")
+
+	resp := c.channel.Request("dataConsumer.dump", c.internal)
+
+	return resp.Data(), resp.Err()
+}
+
+// Get DataConsumer stats.
+func (c *DataConsumer) GetStats() (stats []DataConsumerStat, err error) {
+	c.logger.Debug("getStats()")
+
+	resp := c.channel.Request("dataConsumer.getStats", c.internal)
+	err = resp.Unmarshal(&stats)
+
+	return
+}
+
+/**
+ * Set buffered amount low threshold.
+ */
+func (c *DataConsumer) SetBufferedAmountLowThreshold(threshold int) error {
+	c.logger.Debug("setBufferedAmountLowThreshold() [threshold:%s]", threshold)
+
+	resp := c.channel.Request("dataConsumer.setBufferedAmountLowThreshold", c.internal, H{
+		"threshold": threshold,
+	})
+
+	return resp.Err()
+}
+
+/**
+ * Send data.
+ */
+func (c *DataConsumer) Send(data []byte, ppid ...int) (err error) {
+	/*
+	 * +-------------------------------+----------+
+	 * | Value                         | SCTP     |
+	 * |                               | PPID     |
+	 * +-------------------------------+----------+
+	 * | WebRTC String                 | 51       |
+	 * | WebRTC Binary Partial         | 52       |
+	 * | (Deprecated)                  |          |
+	 * | WebRTC Binary                 | 53       |
+	 * | WebRTC String Partial         | 54       |
+	 * | (Deprecated)                  |          |
+	 * | WebRTC String Empty           | 56       |
+	 * | WebRTC Binary Empty           | 57       |
+	 * +-------------------------------+----------+
+	 */
+	ppidVal := 0
+
+	if len(ppid) == 0 {
+		if len(data) > 0 {
+			ppidVal = 53
+		} else {
+			ppidVal = 57
+		}
+	} else {
+		ppidVal = ppid[0]
+	}
+
+	if ppidVal == 56 || ppidVal == 57 {
+		data = make([]byte, 1)
+	}
+
+	resp := c.payloadChannel.Request("dataConsumer.send", c.internal, H{"ppid": ppid}, data)
+
+	return resp.Err()
+}
+
+/**
+ * Send string.
+ */
+func (c *DataConsumer) SendString(message string) error {
+	ppid := 51
+
+	if len(message) == 0 {
+		ppid = 56
+	}
+
+	return c.Send([]byte(message), ppid)
+}
+
+/**
+ * Get buffered amount size.
+ */
+func (c *DataConsumer) GetBufferedAmount(message string) (bufferedAmount int64, err error) {
+	c.logger.Debug("getBufferedAmount()")
+
+	resp := c.channel.Request("dataConsumer.getBufferedAmount", c.internal)
+
+	var result struct {
+		BufferAmount int64
+	}
+	err = resp.Unmarshal(&result)
+
+	return result.BufferAmount, err
+}
+
+func (c *DataConsumer) handleWorkerNotifications() {
+	c.channel.On(c.Id(), func(event string, data []byte) {
+		switch event {
+		case "dataproducerclose":
+			if atomic.CompareAndSwapUint32(&c.closed, 0, 1) {
+				c.channel.RemoveAllListeners(c.internal.DataConsumerId)
+
+				c.Emit("@dataproducerclose")
+				c.SafeEmit("dataproducerclose")
+
+				// Emit observer event.
+				c.observer.SafeEmit("close")
+			}
+		case "sctpsendbufferfull":
+
+			c.SafeEmit("sctpsendbufferfull")
+
+		case "bufferedamountlow":
+			var result struct {
+				BufferAmount int64
+			}
+			json.Unmarshal(data, &result)
+
+			c.SafeEmit("bufferedamountlow", result.BufferAmount)
+
+		default:
+			c.logger.Error(`ignoring unknown event "%s" in channel listener`, event)
+		}
+	})
+
+	c.payloadChannel.On(c.Id(), func(event string, data, payload []byte) {
+		switch event {
+		case "message":
+			if c.Closed() {
+				return
+			}
+			var result struct {
+				Ppid int
+			}
+			json.Unmarshal(data, &result)
+
+			c.SafeEmit("message", payload, result.Ppid)
+
+		default:
+			c.logger.Error(`ignoring unknown event "%s" in payload channel listener`, event)
+		}
+	})
+}

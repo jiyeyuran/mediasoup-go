@@ -311,7 +311,7 @@ func (consumer *Consumer) Close() (err error) {
 		consumer.channel.RemoveAllListeners(consumer.internal.ConsumerId)
 		consumer.payloadChannel.RemoveAllListeners(consumer.internal.ConsumerId)
 
-		response := consumer.channel.Request("consumer.close", consumer.internal, nil)
+		response := consumer.channel.Request("consumer.close", consumer.internal)
 
 		if err = response.Err(); err != nil {
 			return
@@ -326,7 +326,7 @@ func (consumer *Consumer) Close() (err error) {
 }
 
 // Transport was closed.
-func (consumer *Consumer) TransportClosed() {
+func (consumer *Consumer) transportClosed() {
 	if atomic.CompareAndSwapUint32(&consumer.closed, 0, 1) {
 		consumer.logger.Debug("transportClosed()")
 
@@ -345,7 +345,7 @@ func (consumer *Consumer) TransportClosed() {
 func (consumer *Consumer) Dump() ([]byte, error) {
 	consumer.logger.Debug("dump()")
 
-	resp := consumer.channel.Request("consumer.dump", consumer.internal, nil)
+	resp := consumer.channel.Request("consumer.dump", consumer.internal)
 
 	return resp.Data(), resp.Err()
 }
@@ -354,7 +354,7 @@ func (consumer *Consumer) Dump() ([]byte, error) {
 func (consumer *Consumer) GetStats() (stats []ConsumerStat, err error) {
 	consumer.logger.Debug("getStats()")
 
-	resp := consumer.channel.Request("consumer.getStats", consumer.internal, nil)
+	resp := consumer.channel.Request("consumer.getStats", consumer.internal)
 	err = resp.Unmarshal(&stats)
 
 	return
@@ -369,7 +369,7 @@ func (consumer *Consumer) Pause() (err error) {
 
 	wasPaused := consumer.paused || consumer.producerPaused
 
-	response := consumer.channel.Request("consumer.pause", consumer.internal, nil)
+	response := consumer.channel.Request("consumer.pause", consumer.internal)
 
 	if err = response.Err(); err != nil {
 		return
@@ -394,7 +394,7 @@ func (consumer *Consumer) Resume() (err error) {
 
 	wasPaused := consumer.paused || consumer.producerPaused
 
-	response := consumer.channel.Request("consumer.resume", consumer.internal, nil)
+	response := consumer.channel.Request("consumer.resume", consumer.internal)
 
 	if err = response.Err(); err != nil {
 		return
@@ -552,20 +552,20 @@ func (consumer *Consumer) handleWorkerNotifications() {
 			consumer.observer.SafeEmit("trace", trace)
 
 		default:
-			consumer.logger.Error(`ignoring unknown event "%s"`, event)
+			consumer.logger.Error(`ignoring unknown event "%s" in channel listener`, event)
 		}
 	})
 
-	consumer.payloadChannel.On(consumer.Id(), func(event string, data []byte) {
+	consumer.payloadChannel.On(consumer.Id(), func(event string, data, payload []byte) {
 		switch event {
 		case "rtp":
 			if consumer.Closed() {
 				return
 			}
-			consumer.SafeEmit("rtp", data)
+			consumer.SafeEmit("rtp", payload)
 
 		default:
-			consumer.logger.Error(`ignoring unknown event "%s"`, event)
+			consumer.logger.Error(`ignoring unknown event "%s" in payload channel listener`, event)
 		}
 	})
 }
