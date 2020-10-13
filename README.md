@@ -1,2 +1,2 @@
-# golang library for mediasoup v3
+# mediasoup library in golang
 

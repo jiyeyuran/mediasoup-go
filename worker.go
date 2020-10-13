@@ -132,82 +132,82 @@ type WorkerResourceUsage struct {
 	/**
 	 * User CPU time used (in ms).
 	 */
-	RU_Utime float32 `json:"ru_utime,omitempty"`
+	RU_Utime int64 `json:"ru_utime,omitempty"`
 
 	/**
 	 * System CPU time used (in ms).
 	 */
-	RU_Stime float32 `json:"ru_stime,omitempty"`
+	RU_Stime int64 `json:"ru_stime,omitempty"`
 
 	/**
 	 * Maximum resident set size.
 	 */
-	RU_Maxrss int `json:"ru_maxrss,omitempty"`
+	RU_Maxrss int64 `json:"ru_maxrss,omitempty"`
 
 	/**
 	 * Integral shared memory size.
 	 */
-	RU_Ixrss int `json:"ru_ixrss,omitempty"`
+	RU_Ixrss int64 `json:"ru_ixrss,omitempty"`
 
 	/**
 	 * Integral unshared data size.
 	 */
-	RU_Idrss int `json:"ru_idrss,omitempty"`
+	RU_Idrss int64 `json:"ru_idrss,omitempty"`
 
 	/**
 	 * Integral unshared stack size.
 	 */
-	RU_Isrss int `json:"ru_isrss,omitempty"`
+	RU_Isrss int64 `json:"ru_isrss,omitempty"`
 
 	/**
 	 * Page reclaims (soft page faults).
 	 */
-	RU_Minflt int `json:"ru_minflt,omitempty"`
+	RU_Minflt int64 `json:"ru_minflt,omitempty"`
 
 	/**
 	 * Page faults (hard page faults).
 	 */
-	RU_Majflt int `json:"ru_majflt,omitempty"`
+	RU_Majflt int64 `json:"ru_majflt,omitempty"`
 
 	/**
 	 * Swaps.
 	 */
-	RU_Nswap int `json:"ru_nswap,omitempty"`
+	RU_Nswap int64 `json:"ru_nswap,omitempty"`
 
 	/**
 	 * Block input operations.
 	 */
-	RU_Inblock int `json:"ru_inblock,omitempty"`
+	RU_Inblock int64 `json:"ru_inblock,omitempty"`
 
 	/**
 	 * Block output operations.
 	 */
-	RU_Oublock int `json:"ru_oublock,omitempty"`
+	RU_Oublock int64 `json:"ru_oublock,omitempty"`
 
 	/**
 	 * IPC messages sent.
 	 */
-	RU_Msgsnd int `json:"ru_msgsnd,omitempty"`
+	RU_Msgsnd int64 `json:"ru_msgsnd,omitempty"`
 
 	/**
 	 * IPC messages received.
 	 */
-	RU_Msgrcv int `json:"ru_msgrcv,omitempty"`
+	RU_Msgrcv int64 `json:"ru_msgrcv,omitempty"`
 
 	/**
 	 * Signals received.
 	 */
-	RU_Nsignals int `json:"ru_nsignals,omitempty"`
+	RU_Nsignals int64 `json:"ru_nsignals,omitempty"`
 
 	/**
 	 * Voluntary context switches.
 	 */
-	RU_Nvcsw int `json:"ru_nvcsw,omitempty"`
+	RU_Nvcsw int64 `json:"ru_nvcsw,omitempty"`
 
 	/**
 	 * Involuntary context switches.
 	 */
-	RU_Nivcsw int `json:"ru_nivcsw,omitempty"`
+	RU_Nivcsw int64 `json:"ru_nivcsw,omitempty"`
 }
 
 var WorkerBin string = os.Getenv("MEDIASOUP_WORKER_BIN")

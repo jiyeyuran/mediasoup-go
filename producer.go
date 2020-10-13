@@ -37,6 +37,9 @@ type ProducerOptions struct {
 	 * Custom application data.
 	 */
 	AppData interface{}
+
+	// detect PipeTransport
+	isPipeTransport bool
 }
 
 /**
@@ -143,12 +146,12 @@ type ProducerStat struct {
 /**
  * Producer type.
  */
-type ProducerType string
+type ProducerType = ConsumerType
 
 const (
-	ProducerType_Simple    ProducerType = "simple"
-	ProducerType_Simulcast              = "simulcast"
-	ProducerType_Svc                    = "svc"
+	ProducerType_Simple    ProducerType = ConsumerType_Simple
+	ProducerType_Simulcast              = ConsumerType_Simulcast
+	ProducerType_Svc                    = ConsumerType_Svc
 )
 
 type producerData struct {
@@ -158,7 +161,7 @@ type producerData struct {
 	ConsumableRtpParameters RtpParameters `json:"consumableRtpParameters,omitempty"`
 }
 
-type newProducerOptions struct {
+type producerParams struct {
 	// Internal data.
 	// {
 	// 	 routerId: string;
@@ -197,7 +200,7 @@ type Producer struct {
  * @emits trace - (trace: ProducerTraceEventData)
  * @emits @close
  */
-func newProducer(options newProducerOptions) *Producer {
+func newProducer(params producerParams) *Producer {
 	logger := NewLogger("Producer")
 
 	logger.Debug("constructor()")
@@ -205,12 +208,12 @@ func newProducer(options newProducerOptions) *Producer {
 	producer := &Producer{
 		IEventEmitter:  NewEventEmitter(),
 		logger:         logger,
-		internal:       options.internal,
-		data:           options.data,
-		channel:        options.channel,
-		payloadChannel: options.payloadChannel,
-		appData:        options.appData,
-		paused:         options.paused,
+		internal:       params.internal,
+		data:           params.data,
+		channel:        params.channel,
+		payloadChannel: params.payloadChannel,
+		appData:        params.appData,
+		paused:         params.paused,
 		observer:       NewEventEmitter(),
 	}
 

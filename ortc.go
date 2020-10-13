@@ -40,6 +40,10 @@ type RtpMappingEncoding struct {
 	MappedSsrc      uint32 `json:"mappedSsrc"`
 }
 
+func validateSctpStreamParameters(params SctpStreamParameters) (err error) {
+	return
+}
+
 /**
  * Generate RTP capabilities for the Router based on the given media codecs and
  * mediasoup supported RTP capabilities.

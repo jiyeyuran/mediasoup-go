@@ -28,6 +28,9 @@ type DataProducerOptions struct {
 	 * Custom application data.
 	 */
 	AppData interface{}
+
+	// detect DirectTransport
+	isDirectTransport bool
 }
 
 type DataProducerStat struct {
@@ -49,7 +52,7 @@ const (
 	DataProducerType_Direct                  = DataConsumerType_Direct
 )
 
-type newDataProducerOptions struct {
+type dataProducerParams struct {
 	internal       internalData
 	data           dataProducerData
 	channel        *Channel
@@ -86,7 +89,7 @@ type DataProducer struct {
  * @emits transportclose
  * @emits @close
  */
-func newDataProducer(options newDataProducerOptions) *DataProducer {
+func newDataProducer(params dataProducerParams) *DataProducer {
 	logger := NewLogger("DataProducer")
 
 	logger.Debug("constructor()")
@@ -94,11 +97,11 @@ func newDataProducer(options newDataProducerOptions) *DataProducer {
 	p := &DataProducer{
 		IEventEmitter:  NewEventEmitter(),
 		logger:         logger,
-		internal:       options.internal,
-		data:           options.data,
-		channel:        options.channel,
-		payloadChannel: options.payloadChannel,
-		appData:        options.appData,
+		internal:       params.internal,
+		data:           params.data,
+		channel:        params.channel,
+		payloadChannel: params.payloadChannel,
+		appData:        params.appData,
 		observer:       NewEventEmitter(),
 	}
 

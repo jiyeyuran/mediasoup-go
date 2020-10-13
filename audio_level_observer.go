@@ -45,13 +45,13 @@ type AudioLevelObserver struct {
  * @emits volumes - (volumes: AudioLevelObserverVolume[])
  * @emits silence
  */
-func newAudioLevelObserver(options rtpObserverOptions) *AudioLevelObserver {
+func newAudioLevelObserver(params rtpObserverParams) *AudioLevelObserver {
 	o := &AudioLevelObserver{
-		IRtpObserver: newRtpObserver(options),
+		IRtpObserver: newRtpObserver(params),
 		logger:       NewLogger("AudioLevelObserver"),
 	}
 
-	o.handleWorkerNotifications(options)
+	o.handleWorkerNotifications(params)
 
 	return o
 }
@@ -71,16 +71,16 @@ func (o *AudioLevelObserver) Observer() IEventEmitter {
 	return o.IRtpObserver.Observer()
 }
 
-func (o *AudioLevelObserver) handleWorkerNotifications(options rtpObserverOptions) {
-	rtpObserverId := options.internal.RtpObserverId
-	getProducerById := options.getProducerById
+func (o *AudioLevelObserver) handleWorkerNotifications(params rtpObserverParams) {
+	rtpObserverId := params.internal.RtpObserverId
+	getProducerById := params.getProducerById
 
 	type eventInfo struct {
 		ProducerId string `json:"producerId,omitempty"`
 		Volume     int    `json:"volume,omitempty"`
 	}
 
-	options.channel.On(rtpObserverId, func(event string, data []eventInfo) {
+	params.channel.On(rtpObserverId, func(event string, data []eventInfo) {
 		switch event {
 		case "volumes":
 			// Get the corresponding Producer instance and remove entries with

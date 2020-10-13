@@ -128,7 +128,7 @@ const (
 	ConsumerType_Pipe                   = "pipe"
 )
 
-type newConsumerOptions struct {
+type consumerParams struct {
 	// Internal data.
 	// {
 	// 	 routerId: string;
@@ -185,13 +185,13 @@ type Consumer struct {
  * @emits @close
  * @emits @producerclose
  */
-func newConsumer(options newConsumerOptions) *Consumer {
+func newConsumer(params consumerParams) *Consumer {
 	logger := NewLogger("Consumer")
 
 	logger.Debug("constructor()")
 
-	if reflect.DeepEqual(options.score, ConsumerScore{}) {
-		options.score = ConsumerScore{
+	if reflect.DeepEqual(params.score, ConsumerScore{}) {
+		params.score = ConsumerScore{
 			Score:          10,
 			ProducerScore:  10,
 			ProducerScores: []uint32{},
@@ -201,15 +201,15 @@ func newConsumer(options newConsumerOptions) *Consumer {
 	consumer := &Consumer{
 		IEventEmitter:   NewEventEmitter(),
 		logger:          logger,
-		internal:        options.internal,
-		data:            options.data,
-		channel:         options.channel,
-		payloadChannel:  options.payloadChannel,
-		appData:         options.appData,
-		paused:          options.paused,
-		producerPaused:  options.producerPaused,
-		score:           options.score,
-		preferredLayers: options.preferredLayers,
+		internal:        params.internal,
+		data:            params.data,
+		channel:         params.channel,
+		payloadChannel:  params.payloadChannel,
+		appData:         params.appData,
+		paused:          params.paused,
+		producerPaused:  params.producerPaused,
+		score:           params.score,
+		preferredLayers: params.preferredLayers,
 		observer:        NewEventEmitter(),
 	}
 
@@ -311,11 +311,7 @@ func (consumer *Consumer) Close() (err error) {
 		consumer.channel.RemoveAllListeners(consumer.internal.ConsumerId)
 		consumer.payloadChannel.RemoveAllListeners(consumer.internal.ConsumerId)
 
-		response := consumer.channel.Request("consumer.close", consumer.internal)
-
-		if err = response.Err(); err != nil {
-			return
-		}
+		consumer.channel.Request("consumer.close", consumer.internal)
 
 		consumer.Emit("@close")
 

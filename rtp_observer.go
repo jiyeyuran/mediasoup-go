@@ -33,7 +33,7 @@ type RtpObserver struct {
 	locker          sync.Mutex
 }
 
-type rtpObserverOptions struct {
+type rtpObserverParams struct {
 	internal        internalData
 	channel         *Channel
 	payloadChannel  *PayloadChannel
@@ -41,7 +41,7 @@ type rtpObserverOptions struct {
 	getProducerById func(string) *Producer
 }
 
-func newRtpObserver(options rtpObserverOptions) IRtpObserver {
+func newRtpObserver(params rtpObserverParams) IRtpObserver {
 	logger := NewLogger("RtpObserver")
 
 	logger.Debug("constructor()")
@@ -51,11 +51,11 @@ func newRtpObserver(options rtpObserverOptions) IRtpObserver {
 		logger:        logger,
 		// - .RouterId
 		// - .RtpObserverId
-		internal:        options.internal,
-		channel:         options.channel,
-		payloadChannel:  options.payloadChannel,
-		appData:         options.appData,
-		getProducerById: options.getProducerById,
+		internal:        params.internal,
+		channel:         params.channel,
+		payloadChannel:  params.payloadChannel,
+		appData:         params.appData,
+		getProducerById: params.getProducerById,
 		observer:        NewEventEmitter(),
 	}
 }

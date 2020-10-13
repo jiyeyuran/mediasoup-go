@@ -25,7 +25,7 @@ type DataConsumerOptions struct {
 	 * SCTP packet will stop being retransmitted. Defaults to the value in the
 	 * DataProducer if it has type 'sctp' or unset if it has type 'direct'.
 	 */
-	MaxPacketLifeTime uint32
+	MaxPacketLifeTime int
 
 	/**
 	 * Just if consuming over SCTP.
@@ -33,12 +33,15 @@ type DataConsumerOptions struct {
 	 * be retransmitted. Defaults to the value in the DataProducer if it has type
 	 * 'sctp' or unset if it has type 'direct'.
 	 */
-	MaxRetransmits uint32
+	MaxRetransmits int
 
 	/**
 	 * Custom application data.
 	 */
 	AppData interface{}
+
+	// detect DirectTransport
+	isDirectTransport bool
 }
 
 type DataConsumerStat struct {
@@ -60,7 +63,7 @@ const (
 	DataConsumerType_Direct                  = "direct"
 )
 
-type newDataConsumerOptions struct {
+type dataConsumerParams struct {
 	internal       internalData
 	data           dataConsumerData
 	channel        *Channel
@@ -103,7 +106,7 @@ type DataConsumer struct {
  * @emits @close
  * @emits @dataproducerclose
  */
-func newDataConsumer(options newDataConsumerOptions) *DataConsumer {
+func newDataConsumer(params dataConsumerParams) *DataConsumer {
 	logger := NewLogger("DataConsumer")
 
 	logger.Debug("constructor()")
@@ -111,11 +114,11 @@ func newDataConsumer(options newDataConsumerOptions) *DataConsumer {
 	consumer := &DataConsumer{
 		IEventEmitter:  NewEventEmitter(),
 		logger:         logger,
-		internal:       options.internal,
-		data:           options.data,
-		channel:        options.channel,
-		payloadChannel: options.payloadChannel,
-		appData:        options.appData,
+		internal:       params.internal,
+		data:           params.data,
+		channel:        params.channel,
+		payloadChannel: params.payloadChannel,
+		appData:        params.appData,
 		observer:       NewEventEmitter(),
 	}
 
