@@ -71,7 +71,7 @@ type ConsumerTraceEventData struct {
 	/**
 	 * Event timestamp.
 	 */
-	Timestamp uint32 `json:"timestamp,omitempty"`
+	Timestamp int64 `json:"timestamp,omitempty"`
 
 	/**
 	 * Event direction, "in" | "out".

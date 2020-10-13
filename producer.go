@@ -117,7 +117,7 @@ type ProducerVideoOrientation struct {
 type ProducerStat struct {
 	// Common to all RtpStreams.
 	Type                 string `json:"type"`
-	Timestamp            uint32 `json:"timestamp"`
+	Timestamp            int64  `json:"timestamp"`
 	Ssrc                 uint32 `json:"ssrc"`
 	RtxSsrc              uint32 `json:"rtxSsrc,omitempty"`
 	Rid                  string `json:"rid,omitempty"`
@@ -133,8 +133,8 @@ type ProducerStat struct {
 	PliCount             uint32 `json:"pliCount"`
 	FirCount             uint32 `json:"firCount"`
 	Score                uint32 `json:"score"`
-	PacketCount          uint32 `json:"packetCount"`
-	ByteCount            uint32 `json:"byteCount"`
+	PacketCount          int64  `json:"packetCount"`
+	ByteCount            int64  `json:"byteCount"`
 	Bitrate              uint32 `json:"bitrate"`
 	RoundTripTime        uint32 `json:"roundTripTime,omitempty"`
 

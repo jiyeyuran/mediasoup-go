@@ -35,11 +35,11 @@ type DataProducerOptions struct {
 
 type DataProducerStat struct {
 	Type             string
-	Timestamp        uint32
+	Timestamp        int64
 	Label            string
 	Protocol         string
-	MessagesReceived uint32
-	BytesReceived    uint32
+	MessagesReceived int64
+	BytesReceived    int64
 }
 
 /**
