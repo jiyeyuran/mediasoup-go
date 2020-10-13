@@ -4,8 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
-	"runtime"
-	"strings"
 	"sync"
 	"sync/atomic"
 
@@ -13,6 +11,7 @@ import (
 )
 
 type ITransport interface {
+	IEventEmitter
 	Id() string
 	Closed() bool
 	AppData() interface{}
@@ -424,11 +423,8 @@ func (transport *Transport) Produce(options ProducerOptions) (producer *Producer
 		id = uuid.NewV4().String()
 	}
 
-	pc, _, _, ok := runtime.Caller(1)
-
 	// Don"t do this in PipeTransports since there we must keep CNAME value in each Producer.
-	if details := runtime.FuncForPC(pc); ok && details != nil &&
-		!strings.Contains(details.Name(), "(*PipeTransport)") {
+	if !options.isPipeTransport {
 		// If CNAME is given and we don"t have yet a CNAME for Producers in this
 		// Transport, take it.
 		if len(transport.cnameForProducers) == 0 &&

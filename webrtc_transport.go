@@ -128,3 +128,13 @@ type WebRtcTransportSpecificStat struct {
 	DtlsState        DtlsRole        `json:"dtlsState"`
 	IceSelectedTuple *TransportTuple `json:"iceSelectedTuple,omitempty"`
 }
+
+type WebRtcTransport struct {
+	ITransport
+}
+
+func newWebRtcTransport(params transportParams) *WebRtcTransport {
+	return &WebRtcTransport{
+		ITransport: newTransport(params),
+	}
+}
