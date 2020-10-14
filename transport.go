@@ -423,6 +423,16 @@ func (transport *Transport) Produce(options ProducerOptions) (producer *Producer
 		id = uuid.NewV4().String()
 	}
 
+	// This may throw.
+	if err = validateRtpParameters(rtpParameters); err != nil {
+		return
+	}
+
+	// If missing or empty encodings, add one.
+	if len(rtpParameters.Encodings) == 0 {
+		rtpParameters.Encodings = []RtpEncodingParameters{{}}
+	}
+
 	// Don"t do this in PipeTransports since there we must keep CNAME value in each Producer.
 	if !options.isPipeTransport {
 		// If CNAME is given and we don"t have yet a CNAME for Producers in this
@@ -533,14 +543,20 @@ func (transport *Transport) Consume(options ConsumerOptions) (consumer *Consumer
 	}
 
 	// We use up to 8 bytes for MID (string).
-	if maxMid := uint32(100000000); atomic.CompareAndSwapUint32(&transport.nextMidForConsumers, maxMid, 0) {
+	if maxMid := uint32(100000000); atomic.AddUint32(&transport.nextMidForConsumers, 1) >= maxMid {
 		transport.logger.Error(`consume() | reaching max MID value "%d"`, maxMid)
-		// Set MID.
-		rtpParameters.Mid = "0"
-	} else {
-		// Set MID.
-		rtpParameters.Mid = fmt.Sprintf("%d", atomic.AddUint32(&transport.nextMidForConsumers, 1))
+
+		transport.locker.Lock()
+
+		if transport.nextMidForConsumers >= maxMid {
+			transport.nextMidForConsumers -= maxMid
+		}
+
+		transport.locker.Unlock()
 	}
+
+	// Set MID.
+	rtpParameters.Mid = fmt.Sprintf("%d", atomic.LoadUint32(&transport.nextMidForConsumers))
 
 	internal := transport.internal
 	internal.ConsumerId = uuid.NewV4().String()

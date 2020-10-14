@@ -40,6 +40,15 @@ type RtpMappingEncoding struct {
 	MappedSsrc      uint32 `json:"mappedSsrc"`
 }
 
+/**
+ * Validates RtpParameters. It may modify given data by adding missing
+ * fields with default values.
+ * It throws if invalid.
+ */
+func validateRtpParameters(params RtpParameters) (err error) {
+	return
+}
+
 func validateSctpStreamParameters(params SctpStreamParameters) (err error) {
 	return
 }
