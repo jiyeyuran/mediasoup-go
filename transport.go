@@ -16,7 +16,7 @@ type ITransport interface {
 	Closed() bool
 	AppData() interface{}
 	Observer() IEventEmitter
-	Close() error
+	Close()
 	routerClosed()
 	Dump() ([]byte, error)
 	GetStats() ([]TransportStat, error)
@@ -129,17 +129,18 @@ type TransportConnectOptions struct {
 	// pipe and plain transport
 	Ip   string `json:"ip,omitempty"`
 	Port uint16 `json:"port,omitempty"`
+
 	// plain transport
-	RtcpPort uint16 `json:"rtcpPort,omitempty"`
+	RtcpPort       uint16         `json:"rtcpPort,omitempty"`
+	SrtpParameters SrtpParameters `json:"srtpParameters,omitempty"`
+
 	// webrtc transport
 	DtlsParameters *DtlsParameters `json:"dtlsParameters,omitempty"`
 }
 
 type transportData struct {
-	SctpParameters SctpParameters
-	SctpState      SctpState
-
-	// internal
+	sctpParameters    SctpParameters
+	sctpState         SctpState
 	isDirectTransport bool
 	isPipeTransport   bool
 }
@@ -261,7 +262,7 @@ func (transport *Transport) Observer() IEventEmitter {
 }
 
 // Close the Transport.
-func (transport *Transport) Close() (err error) {
+func (transport *Transport) Close() {
 	if atomic.CompareAndSwapUint32(&transport.closed, 0, 1) {
 		transport.logger.Debug("close()")
 
@@ -809,12 +810,12 @@ func (transport *Transport) EnableTraceEvent(types ...TransportTraceEventType) e
 }
 
 func (transport *Transport) getNextSctpStreamId() (sctpStreamId int, err error) {
-	if transport.data.SctpParameters.MIS == 0 {
+	if transport.data.sctpParameters.MIS == 0 {
 		err = NewTypeError("missing data.sctpParameters.MIS")
 		return
 	}
 
-	numStreams := transport.data.SctpParameters.MIS
+	numStreams := transport.data.sctpParameters.MIS
 
 	if len(transport.sctpStreamIds) == 0 {
 		transport.sctpStreamIds = make([]byte, numStreams)

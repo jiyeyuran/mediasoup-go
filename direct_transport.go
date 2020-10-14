@@ -85,10 +85,10 @@ func (transport *DirectTransport) handleWorkerNotifications() {
 	transport.channel.On(transport.Id(), func(event string, data TransportTraceEventData) {
 		switch event {
 		case "trace":
-			transport.SafeEmit("rtcp", data)
+			transport.SafeEmit("trace", data)
 
 			// Emit observer event.
-			transport.Observer().SafeEmit("rtcp", data)
+			transport.Observer().SafeEmit("trace", data)
 
 		default:
 			transport.logger.Error(`ignoring unknown event "%s" in channel listener`, event)
