@@ -88,11 +88,10 @@ type plainTransportData struct {
  */
 type PlainTransport struct {
 	ITransport
-	logger         Logger
-	internal       internalData
-	data           plainTransportData
-	channel        *Channel
-	payloadChannel *PayloadChannel
+	logger   Logger
+	internal internalData
+	data     plainTransportData
+	channel  *Channel
 }
 
 func newPlainTransport(params transportParams, data plainTransportData) *PlainTransport {
@@ -103,11 +102,10 @@ func newPlainTransport(params transportParams, data plainTransportData) *PlainTr
 	}
 
 	transport := &PlainTransport{
-		ITransport:     newTransport(params),
-		logger:         params.logger,
-		internal:       params.internal,
-		data:           data,
-		payloadChannel: params.payloadChannel,
+		ITransport: newTransport(params),
+		logger:     params.logger,
+		internal:   params.internal,
+		data:       data,
 	}
 
 	return transport

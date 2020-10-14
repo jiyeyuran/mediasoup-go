@@ -470,7 +470,7 @@ func getConsumerRtpParameters(consumableParams RtpParameters, caps RtpCapabiliti
  * @returns {RTCRtpParameters}
  * @throws {TypeError} if wrong arguments.
  */
-func getPipeConsumerRtpParameters(consumableParams RtpParameters) (consumerParams RtpParameters) {
+func getPipeConsumerRtpParameters(consumableParams RtpParameters, enableRtx bool) (consumerParams RtpParameters) {
 	consumerParams.Rtcp = consumableParams.Rtcp
 
 	consumableCodecs := []RtpCodecParameters{}

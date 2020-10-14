@@ -127,12 +127,12 @@ type TransportStat struct {
 
 type TransportConnectOptions struct {
 	// pipe and plain transport
-	Ip   string `json:"ip,omitempty"`
-	Port uint16 `json:"port,omitempty"`
+	Ip             string         `json:"ip,omitempty"`
+	Port           uint16         `json:"port,omitempty"`
+	SrtpParameters SrtpParameters `json:"srtpParameters,omitempty"`
 
 	// plain transport
-	RtcpPort       uint16         `json:"rtcpPort,omitempty"`
-	SrtpParameters SrtpParameters `json:"srtpParameters,omitempty"`
+	RtcpPort uint16 `json:"rtcpPort,omitempty"`
 
 	// webrtc transport
 	DtlsParameters *DtlsParameters `json:"dtlsParameters,omitempty"`
