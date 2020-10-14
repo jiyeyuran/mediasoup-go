@@ -48,13 +48,13 @@ type WebRtcTransportOptions struct {
 	 * Maximum allowed size for SCTP messages sent by DataProducers.
 	 * Default 262144.
 	 */
-	MaxSctpMessageSize uint32
+	MaxSctpMessageSize int
 
 	/**
 	 * Maximum SCTP send buffer used by DataConsumers.
 	 * Default 262144.
 	 */
-	SctpSendBufferSize uint32
+	SctpSendBufferSize int
 
 	/**
 	 * Custom application data.
