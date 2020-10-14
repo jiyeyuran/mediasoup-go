@@ -9,7 +9,7 @@ type DataConsumerOptions struct {
 	/**
 	 * The id of the DataProducer to consume.
 	 */
-	DataProducerId string
+	DataProducerId string `json:"dataProducerId,omitempty"`
 
 	/**
 	 * Just if consuming over SCTP.
@@ -17,7 +17,7 @@ type DataConsumerOptions struct {
 	 * be sent reliably. Defaults to the value in the DataProducer if it has type
 	 * 'sctp' or to true if it has type 'direct'.
 	 */
-	Ordered *bool
+	Ordered *bool `json:"ordered,omitempty"`
 
 	/**
 	 * Just if consuming over SCTP.
@@ -25,7 +25,7 @@ type DataConsumerOptions struct {
 	 * SCTP packet will stop being retransmitted. Defaults to the value in the
 	 * DataProducer if it has type 'sctp' or unset if it has type 'direct'.
 	 */
-	MaxPacketLifeTime int
+	MaxPacketLifeTime int `json:"maxPacketLifeTime,omitempty"`
 
 	/**
 	 * Just if consuming over SCTP.
@@ -33,12 +33,12 @@ type DataConsumerOptions struct {
 	 * be retransmitted. Defaults to the value in the DataProducer if it has type
 	 * 'sctp' or unset if it has type 'direct'.
 	 */
-	MaxRetransmits int
+	MaxRetransmits int `json:"maxRetransmits,omitempty"`
 
 	/**
 	 * Custom application data.
 	 */
-	AppData interface{}
+	AppData interface{} `json:"appData,omitempty"`
 }
 
 type DataConsumerStat struct {
@@ -75,6 +75,16 @@ type dataConsumerData struct {
 	Protocol             string
 }
 
+/**
+ * DataConsumer
+ * @emits transportclose
+ * @emits dataproducerclose
+ * @emits message - (message: Buffer, ppid: number)
+ * @emits sctpsendbufferfull
+ * @emits bufferedamountlow - (bufferedAmount: number)
+ * @emits @close
+ * @emits @dataproducerclose
+ */
 type DataConsumer struct {
 	IEventEmitter
 	logger Logger
@@ -93,16 +103,6 @@ type DataConsumer struct {
 	observer       IEventEmitter
 }
 
-/**
- * newDataConsumer
- * @emits transportclose
- * @emits dataproducerclose
- * @emits message - (message: Buffer, ppid: number)
- * @emits sctpsendbufferfull
- * @emits bufferedamountlow - (bufferedAmount: number)
- * @emits @close
- * @emits @dataproducerclose
- */
 func newDataConsumer(params dataConsumerParams) *DataConsumer {
 	logger := NewLogger("DataConsumer")
 

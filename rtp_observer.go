@@ -19,6 +19,12 @@ type IRtpObserver interface {
 	RemoveProducer(producerId string)
 }
 
+/**
+ * RtpObserver
+ * @interface
+ * @emits routerclose
+ * @emits @close
+ */
 type RtpObserver struct {
 	IEventEmitter
 	logger          Logger

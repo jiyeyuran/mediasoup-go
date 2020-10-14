@@ -80,7 +80,6 @@ type plainTransportData struct {
 
 /**
  * PlainTransport
- * @private
  * @emits tuple - (tuple: TransportTuple)
  * @emits rtcptuple - (rtcpTuple: TransportTuple)
  * @emits sctpstatechange - (sctpState: SctpState)

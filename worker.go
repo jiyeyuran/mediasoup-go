@@ -51,40 +51,40 @@ type WorkerSettings struct {
 	 * the Debugging documentation). Valid values are 'debug', 'warn', 'error' and
 	 * 'none'. Default 'error'.
 	 */
-	LogLevel WorkerLogLevel
+	LogLevel WorkerLogLevel `json:"logLevel,omitempty"`
 
 	/**
 	 * Log tags for debugging. Check the meaning of each available tag in the
 	 * Debugging documentation.
 	 */
-	LogTags []WorkerLogTag
+	LogTags []WorkerLogTag `json:"logTags,omitempty"`
 
 	/**
 	 * Minimun RTC port for ICE, DTLS, RTP, etc. Default 10000.
 	 */
-	RTCMinPort uint16
+	RtcMinPort uint16 `json:"rtcMinPort,omitempty"`
 
 	/**
 	 * Maximum RTC port for ICE, DTLS, RTP, etc. Default 59999.
 	 */
-	RTCMaxPort uint16
+	RtcMaxPort uint16 `json:"rtcMaxPort,omitempty"`
 
 	/**
 	 * Path to the DTLS public certificate file in PEM format. If unset, a
 	 * certificate is dynamically created.
 	 */
-	DTLSCertificateFile string
+	DtlsCertificateFile string `json:"dtlsCertificateFile,omitempty"`
 
 	/**
 	 * Path to the DTLS certificate private key file in PEM format. If unset, a
 	 * certificate is dynamically created.
 	 */
-	DTLSPrivateKeyFile string
+	DtlsPrivateKeyFile string `json:"dtlsPrivateKeyFile,omitempty"`
 
 	/**
 	 * Custom application data.
 	 */
-	AppData interface{}
+	AppData interface{} `json:"appData,omitempty"`
 }
 
 func (w WorkerSettings) Args() []string {
@@ -94,13 +94,13 @@ func (w WorkerSettings) Args() []string {
 		args = append(args, fmt.Sprintf("--logTags=%s", logTag))
 	}
 
-	args = append(args, fmt.Sprintf("--rtcMinPort=%d", w.RTCMinPort))
-	args = append(args, fmt.Sprintf("--rtcMaxPort=%d", w.RTCMaxPort))
+	args = append(args, fmt.Sprintf("--rtcMinPort=%d", w.RtcMinPort))
+	args = append(args, fmt.Sprintf("--rtcMaxPort=%d", w.RtcMaxPort))
 
-	if len(w.DTLSCertificateFile) > 0 && len(w.DTLSPrivateKeyFile) > 0 {
+	if len(w.DtlsCertificateFile) > 0 && len(w.DtlsPrivateKeyFile) > 0 {
 		args = append(args,
-			"--dtlsCertificateFile="+w.DTLSCertificateFile,
-			"--dtlsPrivateKeyFile="+w.DTLSPrivateKeyFile,
+			"--dtlsCertificateFile="+w.DtlsCertificateFile,
+			"--dtlsPrivateKeyFile="+w.DtlsPrivateKeyFile,
 		)
 	}
 
@@ -232,6 +232,12 @@ func init() {
 
 type Option func(w *WorkerSettings)
 
+/**
+ * Worker
+ * @emits died - (error: Error)
+ * @emits @success
+ * @emits @failure - (error: Error)
+ */
 type Worker struct {
 	IEventEmitter
 	// Worker logger.
@@ -261,8 +267,8 @@ func NewWorker(options ...Option) (worker *Worker, err error) {
 	logger := NewLogger("Worker")
 	settings := &WorkerSettings{
 		LogLevel:   WorkerLogLevel_Error,
-		RTCMinPort: 10000,
-		RTCMaxPort: 59999,
+		RtcMinPort: 10000,
+		RtcMaxPort: 59999,
 		AppData:    H{},
 	}
 

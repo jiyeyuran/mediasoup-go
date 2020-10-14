@@ -6,28 +6,28 @@ type DataProducerOptions struct {
 	/**
 	 * DataProducer id (just for Router.pipeToRouter() method).
 	 */
-	Id string
+	Id string `json:"id,omitempty"`
 
 	/**
 	 * SCTP parameters defining how the endpoint is sending the data.
 	 * Just if messages are sent over SCTP.
 	 */
-	SctpStreamParameters SctpStreamParameters
+	SctpStreamParameters SctpStreamParameters `json:"sctpStreamParameters,omitempty"`
 
 	/**
 	 * A label which can be used to distinguish this DataChannel from others.
 	 */
-	Label string
+	Label string `json:"label,omitempty"`
 
 	/**
 	 * Name of the sub-protocol used by this DataChannel.
 	 */
-	Protocol string
+	Protocol string `json:"protocol,omitempty"`
 
 	/**
 	 * Custom application data.
 	 */
-	AppData interface{}
+	AppData interface{} `json:"app_data,omitempty"`
 }
 
 type DataProducerStat struct {
@@ -50,6 +50,11 @@ const (
 )
 
 type dataProducerParams struct {
+	// {
+	// 	routerId: string;
+	// 	transportId: string;
+	// 	dataProducerId: string;
+	// };
 	internal       internalData
 	data           dataProducerData
 	channel        *Channel
@@ -64,14 +69,14 @@ type dataProducerData struct {
 	Protocol             string
 }
 
+/**
+ * DataProducer
+ * @emits transportclose
+ * @emits @close
+ */
 type DataProducer struct {
 	IEventEmitter
-	logger Logger
-	// {
-	// 	routerId: string;
-	// 	transportId: string;
-	// 	dataProducerId: string;
-	// };
+	logger         Logger
 	internal       internalData
 	data           dataProducerData
 	channel        *Channel
@@ -81,11 +86,6 @@ type DataProducer struct {
 	observer       IEventEmitter
 }
 
-/**
- * newDataProducer
- * @emits transportclose
- * @emits @close
- */
 func newDataProducer(params dataProducerParams) *DataProducer {
 	logger := NewLogger("DataProducer")
 

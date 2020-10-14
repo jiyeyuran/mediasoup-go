@@ -25,42 +25,42 @@ type PipeToRouterOptions struct {
 	/**
 	 * The id of the Producer to consume.
 	 */
-	ProducerId string
+	ProducerId string `json:"producerId,omitempty"`
 
 	/**
 	 * The id of the DataProducer to consume.
 	 */
-	DataProducerId string
+	DataProducerId string `json:"dataProducerId,omitempty"`
 
 	/**
 	 * Target Router instance.
 	 */
-	Router *Router
+	Router *Router `json:"router,omitempty"`
 
 	/**
 	 * IP used in the PipeTransport pair. Default '127.0.0.1'.
 	 */
-	ListenIp TransportListenIp
+	ListenIp TransportListenIp `json:"listenIp,omitempty"`
 
 	/**
 	 * Create a SCTP association. Default false.
 	 */
-	EnableSctp bool
+	EnableSctp bool `json:"enableSctp,omitempty"`
 
 	/**
 	 * SCTP streams number.
 	 */
-	NumSctpStreams NumSctpStreams
+	NumSctpStreams NumSctpStreams `json:"numSctpStreams,omitempty"`
 
 	/**
 	 * Enable RTX and NACK for RTP retransmission.
 	 */
-	EnableRtx bool
+	EnableRtx bool `json:"enableRtx,omitempty"`
 
 	/**
 	 * Enable SRTP.
 	 */
-	EnableSrtp bool
+	EnableSrtp bool `json:"enableSrtp,omitempty"`
 }
 
 type PipeToRouterResult struct {
@@ -100,6 +100,11 @@ type routerParams struct {
 	appData        interface{}
 }
 
+/**
+ * Router
+ * @emits workerclose
+ * @emits @close
+ */
 type Router struct {
 	IEventEmitter
 	logger                  Logger
@@ -296,7 +301,7 @@ func (router *Router) CreatePlainTransport(options PlainTransportOptions) (trans
 		options.SctpSendBufferSize = 262144
 	}
 	if len(options.SrtpCryptoSuite) == 0 {
-		options.SrtpCryptoSuite = "AES_CM_128_HMAC_SHA1_80"
+		options.SrtpCryptoSuite = AES_CM_128_HMAC_SHA1_80
 	}
 
 	router.logger.Debug("createPlainTransport()")

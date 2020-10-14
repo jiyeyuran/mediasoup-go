@@ -348,7 +348,7 @@ func getConsumableRtpParameters(
 	consumableParams.Rtcp = &RtcpParameters{
 		Cname:       params.Rtcp.Cname,
 		ReducedSize: true,
-		Mux:         newBool(true),
+		Mux:         Bool(true),
 	}
 
 	return

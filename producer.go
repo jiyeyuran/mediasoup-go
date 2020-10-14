@@ -10,33 +10,33 @@ type ProducerOptions struct {
 	/**
 	 * Producer id (just for Router.pipeToRouter() method).
 	 */
-	Id string
+	Id string `json:"id,omitempty"`
 
 	/**
 	 * Media kind ('audio' or 'video').
 	 */
-	Kind MediaKind
+	Kind MediaKind `json:"kind,omitempty"`
 
 	/**
 	 * RTP parameters defining what the endpoint is sending.
 	 */
-	RtpParameters RtpParameters
+	RtpParameters RtpParameters `json:"rtpParameters,omitempty"`
 
 	/**
 	 * Whether the producer must start in paused mode. Default false.
 	 */
-	Paused bool
+	Paused bool `json:"paused,omitempty"`
 
 	/**
 	 * Just for video. Time (in ms) before asking the sender for a new key frame
 	 * after having asked a previous one. Default 0.
 	 */
-	KeyFrameRequestDelay uint32
+	KeyFrameRequestDelay uint32 `json:"keyFrameRequestDelay,omitempty"`
 
 	/**
 	 * Custom application data.
 	 */
-	AppData interface{}
+	AppData interface{} `json:"appData,omitempty"`
 }
 
 /**
@@ -173,6 +173,14 @@ type producerParams struct {
 	paused         bool
 }
 
+/**
+ * Producer
+ * @emits transportclose
+ * @emits score - (score: ProducerScore[])
+ * @emits videoorientationchange - (videoOrientation: ProducerVideoOrientation)
+ * @emits trace - (trace: ProducerTraceEventData)
+ * @emits @close
+ */
 type Producer struct {
 	IEventEmitter
 	locker         sync.Mutex
@@ -188,15 +196,6 @@ type Producer struct {
 	observer       IEventEmitter
 }
 
-/**
- * newProducer
- *
- * @emits transportclose
- * @emits score - (score: ProducerScore[])
- * @emits videoorientationchange - (videoOrientation: ProducerVideoOrientation)
- * @emits trace - (trace: ProducerTraceEventData)
- * @emits @close
- */
 func newProducer(params producerParams) *Producer {
 	logger := NewLogger("Producer")
 

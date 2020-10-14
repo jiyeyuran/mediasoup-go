@@ -11,12 +11,12 @@ type ConsumerOptions struct {
 	/**
 	 * The id of the Producer to consume.
 	 */
-	ProducerId string
+	ProducerId string `json:"producerId,omitempty"`
 
 	/**
 	 * RTP capabilities of the consuming endpoint.
 	 */
-	RtpCapabilities RtpCapabilities
+	RtpCapabilities RtpCapabilities `json:"rtpCapabilities,omitempty"`
 
 	/**
 	 * Whether the Consumer must start in paused mode. Default false.
@@ -32,18 +32,18 @@ type ConsumerOptions struct {
 	 * to consume it, generating “black” video until the device requests a keyframe
 	 * by itself.
 	 */
-	Paused bool
+	Paused bool `json:"paused,omitempty"`
 
 	/**
 	 * Preferred spatial and temporal layer for simulcast or SVC media sources.
 	 * If unset, the highest ones are selected.
 	 */
-	PreferredLayers ConsumerLayers
+	PreferredLayers ConsumerLayers `json:"preferredLayers,omitempty"`
 
 	/**
 	 * Custom application data.
 	 */
-	AppData interface{}
+	AppData interface{} `json:"appData,omitempty"`
 }
 
 /**
@@ -129,7 +129,6 @@ const (
 )
 
 type consumerParams struct {
-	// Internal data.
 	// {
 	// 	 routerId: string;
 	// 	 transportId: string;
@@ -153,6 +152,19 @@ type consumerData struct {
 	RtpParameters RtpParameters
 }
 
+/**
+ * Consumer
+ * @emits transportclose
+ * @emits producerclose
+ * @emits producerpause
+ * @emits producerresume
+ * @emits score - (score: ConsumerScore)
+ * @emits layerschange - (layers: ConsumerLayers | undefined)
+ * @emits rtp - (packet: Buffer)
+ * @emits trace - (trace: ConsumerTraceEventData)
+ * @emits @close
+ * @emits @producerclose
+ */
 type Consumer struct {
 	IEventEmitter
 	locker          sync.Mutex
@@ -172,19 +184,6 @@ type Consumer struct {
 	observer        IEventEmitter
 }
 
-/**
- * newConsumer
- * @emits transportclose
- * @emits producerclose
- * @emits producerpause
- * @emits producerresume
- * @emits score - (score: ConsumerScore)
- * @emits layerschange - (layers: ConsumerLayers | undefined)
- * @emits rtp - (packet: Buffer)
- * @emits trace - (trace: ConsumerTraceEventData)
- * @emits @close
- * @emits @producerclose
- */
 func newConsumer(params consumerParams) *Consumer {
 	logger := NewLogger("Consumer")
 

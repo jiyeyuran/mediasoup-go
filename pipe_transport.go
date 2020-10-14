@@ -67,6 +67,11 @@ type pipeTransortData struct {
 	SrtpParameters SrtpParameters `json:"srtpParameters,omitempty"`
 }
 
+/**
+ * PipeTransport
+ * @emits sctpstatechange - (sctpState: SctpState)
+ * @emits trace - (trace: TransportTraceEventData)
+ */
 type PipeTransport struct {
 	ITransport
 	logger          Logger

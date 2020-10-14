@@ -145,6 +145,14 @@ type webrtcTransportData struct {
 	SctpState        SctpState       `json:"sctpState,omitempty"`
 }
 
+/**
+ * WebRtcTransport
+ * @emits icestatechange - (iceState: IceState)
+ * @emits iceselectedtuplechange - (iceSelectedTuple: TransportTuple)
+ * @emits dtlsstatechange - (dtlsState: DtlsState)
+ * @emits sctpstatechange - (sctpState: SctpState)
+ * @emits trace - (trace: TransportTraceEventData)
+ */
 type WebRtcTransport struct {
 	ITransport
 	logger         Logger

@@ -169,6 +169,15 @@ type transportParams struct {
 	logger                   Logger
 }
 
+/**
+ * Transport
+ * @emits routerclose
+ * @emits @close
+ * @emits @newproducer - (producer: Producer)
+ * @emits @producerclose - (producer: Producer)
+ * @emits @newdataproducer - (dataProducer: DataProducer)
+ * @emits @dataproducerclose - (dataProducer: DataProducer)
+ */
 type Transport struct {
 	IEventEmitter
 	logger Logger
@@ -212,15 +221,6 @@ type Transport struct {
 	locker sync.Mutex
 }
 
-/**
- * newTransport
- * @emits routerclose
- * @emits @close
- * @emits @newproducer - (producer: Producer)
- * @emits @producerclose - (producer: Producer)
- * @emits @newdataproducer - (dataProducer: DataProducer)
- * @emits @dataproducerclose - (dataProducer: DataProducer)
- */
 func newTransport(params transportParams) ITransport {
 	params.logger.Debug("constructor()")
 
