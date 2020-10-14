@@ -13,24 +13,102 @@ type DirectTransportOptions struct {
 	AppData interface{}
 }
 
+/**
+ * DirectTransport
+ * @emits rtcp - (packet: []byte)
+ * @emits trace - (trace: TransportTraceEventData)
+ */
 type DirectTransport struct {
 	ITransport
+	logger         Logger
+	internal       internalData
+	channel        *Channel
+	payloadChannel *PayloadChannel
 }
 
 func newDirectTransport(params transportParams) *DirectTransport {
-	return &DirectTransport{
-		ITransport: newTransport(params),
+	params.logger = NewLogger("DirectTransport")
+	params.data.isDirectTransport = true
+
+	transport := &DirectTransport{
+		ITransport:     newTransport(params),
+		logger:         params.logger,
+		internal:       params.internal,
+		channel:        params.channel,
+		payloadChannel: params.payloadChannel,
 	}
+
+	transport.handleWorkerNotifications()
+
+	return transport
 }
 
-func (transport *DirectTransport) ConsumeData(options DataConsumerOptions) (dataConsumer *DataConsumer, err error) {
-	options.isDirectTransport = true
-
-	return transport.ITransport.ConsumeData(options)
+/**
+ * Observer.
+ *
+ * @override
+ * @emits close
+ * @emits newdataproducer - (dataProducer: DataProducer)
+ * @emits newdataconsumer - (dataProducer: DataProducer)
+ * @emits trace - (trace: TransportTraceEventData)
+ */
+func (transport *DirectTransport) Observer() IEventEmitter {
+	return transport.ITransport.Observer()
 }
 
-func (transport *DirectTransport) ProduceData(options DataProducerOptions) (dataProducer *DataProducer, err error) {
-	options.isDirectTransport = true
+/**
+ * NO-OP method in DirectTransport.
+ *
+ * @override
+ */
+func (transport *DirectTransport) Connect(TransportConnectOptions) error {
+	transport.logger.Debug("connect()")
 
-	return transport.ITransport.ProduceData(options)
+	return nil
+}
+
+/**
+ * @override
+ */
+func (transport *DirectTransport) setMaxIncomingBitrate(bitrate int) error {
+	return NewUnsupportedError("setMaxIncomingBitrate() not implemented in DirectTransport")
+}
+
+/**
+ * Send RTCP packet.
+ */
+func (transport *DirectTransport) SendRtcp(rtcpPacket []byte) error {
+	return transport.payloadChannel.Notify("transport.sendRtcp", transport.internal, nil, rtcpPacket)
+}
+
+func (transport *DirectTransport) handleWorkerNotifications() {
+	transport.channel.On(transport.Id(), func(event string, data TransportTraceEventData) {
+		switch event {
+		case "trace":
+			transport.SafeEmit("rtcp", data)
+
+			// Emit observer event.
+			transport.Observer().SafeEmit("rtcp", data)
+
+		default:
+			transport.logger.Error(`ignoring unknown event "%s" in channel listener`, event)
+		}
+	})
+
+	transport.payloadChannel.On(transport.Id(), func(event string, data, payload []byte) {
+		switch event {
+		case "rtcp":
+			if transport.Closed() {
+				return
+			}
+
+			transport.SafeEmit("rtcp", payload)
+
+			// Emit observer event.
+			transport.Observer().SafeEmit("rtcp", payload)
+
+		default:
+			transport.logger.Error(`ignoring unknown event "%s" in payload channel listener`, event)
+		}
+	})
 }

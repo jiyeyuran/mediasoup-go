@@ -6,16 +6,17 @@ type PipeTransportSpecificStat struct {
 
 type PipeTransport struct {
 	ITransport
+	logger Logger
 }
 
 func newPipeTransport(params transportParams) *PipeTransport {
-	return &PipeTransport{
+	params.logger = NewLogger("PipeTransport")
+	params.data.isPipeTransport = true
+
+	transport := &PipeTransport{
 		ITransport: newTransport(params),
+		logger:     params.logger,
 	}
-}
 
-func (transport *PipeTransport) Produce(options ProducerOptions) (producer *Producer, err error) {
-	options.isPipeTransport = true
-
-	return transport.ITransport.Produce(options)
+	return transport
 }

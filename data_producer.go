@@ -28,9 +28,6 @@ type DataProducerOptions struct {
 	 * Custom application data.
 	 */
 	AppData interface{}
-
-	// detect DirectTransport
-	isDirectTransport bool
 }
 
 type DataProducerStat struct {

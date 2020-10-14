@@ -125,19 +125,45 @@ type TransportStat struct {
 	*PipeTransportSpecificStat
 }
 
+type TransportConnectOptions struct {
+	// pipe and plain transport
+	Ip   string `json:"ip,omitempty"`
+	Port uint16 `json:"port,omitempty"`
+	// plain transport
+	RtcpPort uint16 `json:"rtcpPort,omitempty"`
+	// webrtc transport
+	DtlsParameters *DtlsParameters `json:"dtlsParameters,omitempty"`
+}
+
 type transportData struct {
 	SctpParameters SctpParameters
 	SctpState      SctpState
+
+	// internal
+	isDirectTransport bool
+	isPipeTransport   bool
+}
+
+type transportParams struct {
+	// {
+	// 	routerId: string;
+	// 	transportId: string;
+	// };
+	internal                 internalData
+	data                     transportData
+	channel                  *Channel
+	payloadChannel           *PayloadChannel
+	appData                  interface{}
+	getRouterRtpCapabilities func() RtpCapabilities
+	getProducerById          func(string) *Producer
+	getDataProducerById      func(string) *DataProducer
+	logger                   Logger
 }
 
 type Transport struct {
 	IEventEmitter
 	logger Logger
 	// Internal data.
-	// {
-	// 	routerId: string;
-	// 	transportId: string;
-	// };
 	internal internalData
 	// Transport data. This is set by the subclass.
 	data transportData
@@ -177,27 +203,6 @@ type Transport struct {
 	locker sync.Mutex
 }
 
-type TransportConnectOptions struct {
-	// pipe and plain transport
-	Ip   string `json:"ip,omitempty"`
-	Port uint16 `json:"port,omitempty"`
-	// plain transport
-	RtcpPort uint16 `json:"rtcpPort,omitempty"`
-	// webrtc transport
-	DtlsParameters *DtlsParameters `json:"dtlsParameters,omitempty"`
-}
-
-type transportParams struct {
-	internal                 internalData
-	data                     transportData
-	channel                  *Channel
-	payloadChannel           *PayloadChannel
-	appData                  interface{}
-	getRouterRtpCapabilities func() RtpCapabilities
-	getProducerById          func(string) *Producer
-	getDataProducerById      func(string) *DataProducer
-}
-
 /**
  * newTransport
  * @emits routerclose
@@ -208,14 +213,13 @@ type transportParams struct {
  * @emits @dataproducerclose - (dataProducer: DataProducer)
  */
 func newTransport(params transportParams) ITransport {
-	logger := NewLogger("Transport")
-
-	logger.Debug("constructor()")
+	params.logger.Debug("constructor()")
 
 	transport := &Transport{
 		IEventEmitter:            NewEventEmitter(),
-		logger:                   logger,
+		logger:                   params.logger,
 		internal:                 params.internal,
+		data:                     params.data,
 		channel:                  params.channel,
 		payloadChannel:           params.payloadChannel,
 		appData:                  params.appData,
@@ -434,7 +438,7 @@ func (transport *Transport) Produce(options ProducerOptions) (producer *Producer
 	}
 
 	// Don"t do this in PipeTransports since there we must keep CNAME value in each Producer.
-	if !options.isPipeTransport {
+	if !transport.data.isPipeTransport {
 		// If CNAME is given and we don"t have yet a CNAME for Producers in this
 		// Transport, take it.
 		if len(transport.cnameForProducers) == 0 &&
@@ -635,7 +639,7 @@ func (transport *Transport) ProduceData(options DataProducerOptions) (dataProduc
 
 	var typ DataProducerType
 
-	if options.isDirectTransport {
+	if transport.data.isDirectTransport {
 		typ = DataProducerType_Direct
 
 		if !reflect.DeepEqual(sctpStreamParameters, SctpStreamParameters{}) {

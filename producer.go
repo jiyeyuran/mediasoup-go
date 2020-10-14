@@ -37,9 +37,6 @@ type ProducerOptions struct {
 	 * Custom application data.
 	 */
 	AppData interface{}
-
-	// detect PipeTransport
-	isPipeTransport bool
 }
 
 /**
