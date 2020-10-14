@@ -476,14 +476,14 @@ func (transport *Transport) Produce(options ProducerOptions) (producer *Producer
 	internal := transport.internal
 	internal.ProducerId = id
 
-	data := H{
+	reqData := H{
 		"kind":                 kind,
 		"rtpParameters":        rtpParameters,
 		"rtpMapping":           rtpMapping,
 		"keyFrameRequestDelay": keyFrameRequestDelay,
 		"paused":               paused,
 	}
-	resp := transport.channel.Request("transport.produce", internal, data)
+	resp := transport.channel.Request("transport.produce", internal, reqData)
 
 	var status struct {
 		Type ProducerType
@@ -567,7 +567,7 @@ func (transport *Transport) Consume(options ConsumerOptions) (consumer *Consumer
 	internal.ConsumerId = uuid.NewV4().String()
 	internal.ProducerId = producerId
 
-	data := H{
+	reqData := H{
 		"kind":                   producer.Kind(),
 		"rtpParameters":          rtpParameters,
 		"type":                   producer.Type(),
@@ -575,7 +575,7 @@ func (transport *Transport) Consume(options ConsumerOptions) (consumer *Consumer
 		"paused":                 paused,
 		"preferredLayers":        preferredLayers,
 	}
-	resp := transport.channel.Request("transport.consume", internal, data)
+	resp := transport.channel.Request("transport.consume", internal, reqData)
 
 	var status struct {
 		Paused         bool
