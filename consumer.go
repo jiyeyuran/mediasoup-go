@@ -190,6 +190,10 @@ func newConsumer(params consumerParams) *Consumer {
 
 	logger.Debug("constructor()")
 
+	if params.appData == nil {
+		params.appData = H{}
+	}
+
 	if reflect.DeepEqual(params.score, ConsumerScore{}) {
 		params.score = ConsumerScore{
 			Score:          10,

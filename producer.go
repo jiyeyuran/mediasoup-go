@@ -202,6 +202,10 @@ func newProducer(params producerParams) *Producer {
 
 	logger.Debug("constructor()")
 
+	if params.appData == nil {
+		params.appData = H{}
+	}
+
 	producer := &Producer{
 		IEventEmitter:  NewEventEmitter(),
 		logger:         logger,

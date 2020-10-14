@@ -6,12 +6,12 @@ type PlainTransportOptions struct {
 	/**
 	 * Listening IP address.
 	 */
-	ListenIp TransportListenIp
+	ListenIp TransportListenIp `json:"listenIp,omitempty"`
 
 	/**
 	 * Use RTCP-mux (RTP and RTCP in the same port). Default true.
 	 */
-	RtcpMux bool
+	RtcpMux *bool `json:"rtcpMux,omitempty"`
 
 	/**
 	 * Whether remote IP:port should be auto-detected based on first RTP/RTCP
@@ -19,46 +19,46 @@ type PlainTransportOptions struct {
 	 * SRTP is enabled. If so, it must be called with just remote SRTP parameters.
 	 * Default false.
 	 */
-	Comedia bool
+	Comedia bool `json:"comedia,omitempty"`
 
 	/**
 	 * Create a SCTP association. Default false.
 	 */
-	EnableSctp bool
+	EnableSctp bool `json:"enableSctp,omitempty"`
 
 	/**
 	 * SCTP streams number.
 	 */
-	NumSctpStreams NumSctpStreams
+	NumSctpStreams NumSctpStreams `json:"numSctpStreams,omitempty"`
 
 	/**
 	 * Maximum allowed size for SCTP messages sent by DataProducers.
 	 * Default 262144.
 	 */
-	MaxSctpMessageSize int
+	MaxSctpMessageSize int `json:"maxSctpMessageSize,omitempty"`
 
 	/**
 	 * Maximum SCTP send buffer used by DataConsumers.
 	 * Default 262144.
 	 */
-	SctpSendBufferSize int
+	SctpSendBufferSize int `json:"sctpSendBufferSize,omitempty"`
 
 	/**
 	 * Enable SRTP. For this to work, connect() must be called
 	 * with remote SRTP parameters. Default false.
 	 */
-	EnableSrtp bool
+	EnableSrtp bool `json:"enableSrtp,omitempty"`
 
 	/**
 	 * The SRTP crypto suite to be used if enableSrtp is set. Default
 	 * 'AES_CM_128_HMAC_SHA1_80'.
 	 */
-	SrtpCryptoSuite SrtpCryptoSuite
+	SrtpCryptoSuite SrtpCryptoSuite `json:"srtpCryptoSuite,omitempty"`
 
 	/**
 	 * Custom application data.
 	 */
-	AppData interface{}
+	AppData interface{} `json:"appData,omitempty"`
 }
 
 type PlainTransportSpecificStat struct {
@@ -69,13 +69,13 @@ type PlainTransportSpecificStat struct {
 }
 
 type plainTransportData struct {
-	rtcpMux        bool
-	comedia        bool
-	tuple          TransportTuple
-	rtcpTuple      TransportTuple
-	sctpParameters SctpParameters
-	sctpState      SctpState
-	srtpParameters SrtpParameters
+	RtcpMux        bool           `json:"rtcp_mux,omitempty"`
+	Comedia        bool           `json:"comedia,omitempty"`
+	Tuple          TransportTuple `json:"tuple,omitempty"`
+	RtcpTuple      TransportTuple `json:"rtcpTuple,omitempty"`
+	SctpParameters SctpParameters `json:"sctpParameters,omitempty"`
+	SctpState      SctpState      `json:"sctpState,omitempty"`
+	SrtpParameters SrtpParameters `json:"srtpParameters,omitempty"`
 }
 
 /**
@@ -94,11 +94,12 @@ type PlainTransport struct {
 	channel  *Channel
 }
 
-func newPlainTransport(params transportParams, data plainTransportData) *PlainTransport {
-	params.logger = NewLogger("PlainTransport")
+func newPlainTransport(params transportParams) ITransport {
+	data := params.data.(plainTransportData)
 	params.data = transportData{
-		sctpParameters: data.sctpParameters,
-		sctpState:      data.sctpState,
+		sctpParameters: data.SctpParameters,
+		sctpState:      data.SctpState,
+		transportType:  TransportType_Plain,
 	}
 
 	transport := &PlainTransport{
@@ -117,35 +118,35 @@ func newPlainTransport(params transportParams, data plainTransportData) *PlainTr
  * Transport tuple.
  */
 func (t PlainTransport) Tuple() TransportTuple {
-	return t.data.tuple
+	return t.data.Tuple
 }
 
 /**
  * Transport RTCP tuple.
  */
 func (t PlainTransport) RtcpTuple() TransportTuple {
-	return t.data.rtcpTuple
+	return t.data.RtcpTuple
 }
 
 /**
  * SCTP parameters.
  */
 func (t PlainTransport) SctpParameters() SctpParameters {
-	return t.data.sctpParameters
+	return t.data.SctpParameters
 }
 
 /**
  * SCTP state.
  */
 func (t PlainTransport) SctpState() SctpState {
-	return t.data.sctpState
+	return t.data.SctpState
 }
 
 /**
  * SRTP parameters.
  */
 func (t PlainTransport) SrtpParameters() SrtpParameters {
-	return t.data.srtpParameters
+	return t.data.SrtpParameters
 }
 
 /**
@@ -176,8 +177,8 @@ func (transport *PlainTransport) Close() {
 		return
 	}
 
-	if len(transport.data.sctpState) > 0 {
-		transport.data.sctpState = SctpState_Closed
+	if len(transport.data.SctpState) > 0 {
+		transport.data.SctpState = SctpState_Closed
 	}
 
 	transport.ITransport.Close()
@@ -193,8 +194,8 @@ func (transport *PlainTransport) routerClosed() {
 		return
 	}
 
-	if len(transport.data.sctpState) > 0 {
-		transport.data.sctpState = SctpState_Closed
+	if len(transport.data.SctpState) > 0 {
+		transport.data.SctpState = SctpState_Closed
 	}
 
 	transport.ITransport.routerClosed()
@@ -227,13 +228,13 @@ func (transport *PlainTransport) Connect(options TransportConnectOptions) (err e
 
 	// Update data.
 	if data.Tuple != nil {
-		transport.data.tuple = *data.Tuple
+		transport.data.Tuple = *data.Tuple
 	}
 	if data.RtcpTuple != nil {
-		transport.data.rtcpTuple = *data.RtcpTuple
+		transport.data.RtcpTuple = *data.RtcpTuple
 	}
 
-	transport.data.srtpParameters = data.SrtpParameters
+	transport.data.SrtpParameters = data.SrtpParameters
 
 	return nil
 }
@@ -247,7 +248,7 @@ func (transport *PlainTransport) handleWorkerNotifications() {
 			}
 			json.Unmarshal(data, &result)
 
-			transport.data.tuple = result.Tuple
+			transport.data.Tuple = result.Tuple
 
 			transport.SafeEmit("tuple", result.Tuple)
 
@@ -260,7 +261,7 @@ func (transport *PlainTransport) handleWorkerNotifications() {
 			}
 			json.Unmarshal(data, &result)
 
-			transport.data.rtcpTuple = result.RtcpTuple
+			transport.data.RtcpTuple = result.RtcpTuple
 
 			transport.SafeEmit("rtcptuple", result.RtcpTuple)
 
@@ -273,7 +274,7 @@ func (transport *PlainTransport) handleWorkerNotifications() {
 			}
 			json.Unmarshal(data, &result)
 
-			transport.data.sctpState = result.SctpState
+			transport.data.SctpState = result.SctpState
 
 			transport.SafeEmit("sctpstatechange", result.SctpState)
 

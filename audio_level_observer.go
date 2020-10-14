@@ -23,6 +23,15 @@ type AudioLevelObserverOptions struct {
 	AppData interface{} `json:"appData,omitempty"`
 }
 
+func NewAudioLevelObserverOptions() AudioLevelObserverOptions {
+	return AudioLevelObserverOptions{
+		MaxEntries: 1,
+		Threshold:  -80,
+		Interval:   1000,
+		AppData:    H{},
+	}
+}
+
 type AudioLevelObserverVolume struct {
 	/**
 	 * The audio producer instance.

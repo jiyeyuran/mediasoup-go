@@ -17,7 +17,7 @@ type DataConsumerOptions struct {
 	 * be sent reliably. Defaults to the value in the DataProducer if it has type
 	 * 'sctp' or to true if it has type 'direct'.
 	 */
-	Ordered bool
+	Ordered *bool
 
 	/**
 	 * Just if consuming over SCTP.
@@ -39,9 +39,6 @@ type DataConsumerOptions struct {
 	 * Custom application data.
 	 */
 	AppData interface{}
-
-	// detect DirectTransport
-	isDirectTransport bool
 }
 
 type DataConsumerStat struct {
@@ -110,6 +107,10 @@ func newDataConsumer(params dataConsumerParams) *DataConsumer {
 	logger := NewLogger("DataConsumer")
 
 	logger.Debug("constructor()")
+
+	if params.appData == nil {
+		params.appData = H{}
+	}
 
 	consumer := &DataConsumer{
 		IEventEmitter:  NewEventEmitter(),

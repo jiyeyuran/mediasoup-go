@@ -11,48 +11,48 @@ type PipeTransportOptions struct {
 	/**
 	 * Listening IP address.
 	 */
-	ListenIp TransportListenIp
+	ListenIp TransportListenIp `json:"listenIp,omitempty"`
 
 	/**
 	 * Create a SCTP association. Default false.
 	 */
-	EnableSctp bool
+	EnableSctp bool `json:"enableSctp,omitempty"`
 
 	/**
 	 * SCTP streams number.
 	 */
-	numSctpStreams NumSctpStreams
+	NumSctpStreams NumSctpStreams `json:"numSctpStreams,omitempty"`
 
 	/**
 	 * Maximum allowed size for SCTP messages sent by DataProducers.
 	 * Default 268435456.
 	 */
-	MaxSctpMessageSize int
+	MaxSctpMessageSize int `json:"maxSctpMessageSize,omitempty"`
 
 	/**
 	 * Maximum SCTP send buffer used by DataConsumers.
 	 * Default 268435456.
 	 */
-	SctpSendBufferSize int
+	SctpSendBufferSize int `json:"sctpSendBufferSize,omitempty"`
 
 	/**
 	 * Enable RTX and NACK for RTP retransmission. Useful if both Routers are
 	 * located in different hosts and there is packet lost in the link. For this
 	 * to work, both PipeTransports must enable this setting. Default false.
 	 */
-	EnableRtx bool
+	EnableRtx bool `json:"enableRtx,omitempty"`
 
 	/**
 	 * Enable SRTP. Useful to protect the RTP and RTCP traffic if both Routers
 	 * are located in different hosts. For this to work, connect() must be called
 	 * with remote SRTP parameters. Default false.
 	 */
-	EnableSrtp bool
+	EnableSrtp bool `json:"enableSrtp,omitempty"`
 
 	/**
 	 * Custom application data.
 	 */
-	AppData interface{}
+	AppData interface{} `json:"appData,omitempty"`
 }
 
 type PipeTransportSpecificStat struct {
@@ -60,11 +60,11 @@ type PipeTransportSpecificStat struct {
 }
 
 type pipeTransortData struct {
-	tuple          TransportTuple
-	sctpParameters SctpParameters
-	sctpState      SctpState
-	rtx            bool
-	srtpParameters SrtpParameters
+	Tuple          TransportTuple `json:"tuple,omitempty"`
+	SctpParameters SctpParameters `json:"sctpParameters,omitempty"`
+	SctpState      SctpState      `json:"sctpState,omitempty"`
+	Rtx            bool           `json:"rtx,omitempty"`
+	SrtpParameters SrtpParameters `json:"srtpParameters,omitempty"`
 }
 
 type PipeTransport struct {
@@ -77,12 +77,12 @@ type PipeTransport struct {
 	getProducerById func(string) *Producer
 }
 
-func newPipeTransport(params transportParams, data pipeTransortData) *PipeTransport {
-	params.logger = NewLogger("PipeTransport")
+func newPipeTransport(params transportParams) ITransport {
+	data := params.data.(pipeTransortData)
 	params.data = transportData{
-		sctpParameters:  data.sctpParameters,
-		sctpState:       data.sctpState,
-		isPipeTransport: true,
+		sctpParameters: data.SctpParameters,
+		sctpState:      data.SctpState,
+		transportType:  TransportType_Pipe,
 	}
 
 	transport := &PipeTransport{
@@ -104,28 +104,28 @@ func newPipeTransport(params transportParams, data pipeTransortData) *PipeTransp
  * Transport tuple.
  */
 func (t PipeTransport) Tuple() TransportTuple {
-	return t.data.tuple
+	return t.data.Tuple
 }
 
 /**
  * SCTP parameters.
  */
 func (t PipeTransport) SctpParameters() SctpParameters {
-	return t.data.sctpParameters
+	return t.data.SctpParameters
 }
 
 /**
  * SCTP state.
  */
 func (t PipeTransport) SctpState() SctpState {
-	return t.data.sctpState
+	return t.data.SctpState
 }
 
 /**
  * SRTP parameters.
  */
 func (t PipeTransport) SrtpParameters() SrtpParameters {
-	return t.data.srtpParameters
+	return t.data.SrtpParameters
 }
 
 /**
@@ -154,8 +154,8 @@ func (transport *PipeTransport) Close() {
 		return
 	}
 
-	if len(transport.data.sctpState) > 0 {
-		transport.data.sctpState = SctpState_Closed
+	if len(transport.data.SctpState) > 0 {
+		transport.data.SctpState = SctpState_Closed
 	}
 
 	transport.ITransport.Close()
@@ -171,8 +171,8 @@ func (transport *PipeTransport) routerClosed() {
 		return
 	}
 
-	if len(transport.data.sctpState) > 0 {
-		transport.data.sctpState = SctpState_Closed
+	if len(transport.data.SctpState) > 0 {
+		transport.data.SctpState = SctpState_Closed
 	}
 
 	transport.ITransport.routerClosed()
@@ -201,7 +201,7 @@ func (transport *PipeTransport) Connect(options TransportConnectOptions) (err er
 	}
 
 	// Update data.
-	transport.data.tuple = data.Tuple
+	transport.data.Tuple = data.Tuple
 
 	return nil
 }
@@ -224,7 +224,7 @@ func (transport *PipeTransport) Consume(options ConsumerOptions) (consumer *Cons
 		return
 	}
 
-	rtpParameters := getPipeConsumerRtpParameters(producer.ConsumableRtpParameters(), transport.data.rtx)
+	rtpParameters := getPipeConsumerRtpParameters(producer.ConsumableRtpParameters(), transport.data.Rtx)
 	internal := transport.internal
 	internal.ConsumerId = uuid.NewV4().String()
 	internal.ProducerId = producerId
@@ -285,7 +285,7 @@ func (transport *PipeTransport) handleWorkerNotifications() {
 			}
 			json.Unmarshal(data, &result)
 
-			transport.data.sctpState = result.SctpState
+			transport.data.SctpState = result.SctpState
 
 			transport.SafeEmit("sctpstatechange", result.SctpState)
 

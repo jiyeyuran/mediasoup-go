@@ -512,7 +512,7 @@ func (w *Worker) CreateRouter(options RouterOptions) (router *Router, err error)
 		return
 	}
 	data := routerData{RtpCapabilities: rtpCapabilities}
-	router = newRouter(routerOptions{
+	router = newRouter(routerParams{
 		internal:       internal,
 		data:           data,
 		channel:        w.channel,

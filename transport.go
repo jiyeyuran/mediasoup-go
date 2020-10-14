@@ -33,13 +33,13 @@ type TransportListenIp struct {
 	/**
 	 * Listening IPv4 or IPv6.
 	 */
-	Ip string
+	Ip string `json:"ip,omitempty"`
 
 	/**
 	 * Announced IPv4 or IPv6 (useful when running mediasoup behind NAT with
 	 * private IP).
 	 */
-	AnnouncedIp string
+	AnnouncedIp string `json:"announcedIp,omitempty"`
 }
 
 /**
@@ -138,11 +138,19 @@ type TransportConnectOptions struct {
 	DtlsParameters *DtlsParameters `json:"dtlsParameters,omitempty"`
 }
 
+type TransportType string
+
+const (
+	TransportType_Direct TransportType = "DirectTransport"
+	TransportType_Plain                = "PlainTransport"
+	TransportType_Pipe                 = "PipeTransport"
+	TransportType_Webrtc               = "WebrtcTransport"
+)
+
 type transportData struct {
-	sctpParameters    SctpParameters
-	sctpState         SctpState
-	isDirectTransport bool
-	isPipeTransport   bool
+	sctpParameters SctpParameters
+	sctpState      SctpState
+	transportType  TransportType
 }
 
 type transportParams struct {
@@ -151,7 +159,7 @@ type transportParams struct {
 	// 	transportId: string;
 	// };
 	internal                 internalData
-	data                     transportData
+	data                     interface{}
 	channel                  *Channel
 	payloadChannel           *PayloadChannel
 	appData                  interface{}
@@ -220,7 +228,7 @@ func newTransport(params transportParams) ITransport {
 		IEventEmitter:            NewEventEmitter(),
 		logger:                   params.logger,
 		internal:                 params.internal,
-		data:                     params.data,
+		data:                     params.data.(transportData),
 		channel:                  params.channel,
 		payloadChannel:           params.payloadChannel,
 		appData:                  params.appData,
@@ -439,7 +447,7 @@ func (transport *Transport) Produce(options ProducerOptions) (producer *Producer
 	}
 
 	// Don"t do this in PipeTransports since there we must keep CNAME value in each Producer.
-	if !transport.data.isPipeTransport {
+	if transport.data.transportType != TransportType_Pipe {
 		// If CNAME is given and we don"t have yet a CNAME for Producers in this
 		// Transport, take it.
 		if len(transport.cnameForProducers) == 0 &&
@@ -640,7 +648,7 @@ func (transport *Transport) ProduceData(options DataProducerOptions) (dataProduc
 
 	var typ DataProducerType
 
-	if transport.data.isDirectTransport {
+	if transport.data.transportType == TransportType_Direct {
 		typ = DataProducerType_Direct
 
 		if !reflect.DeepEqual(sctpStreamParameters, SctpStreamParameters{}) {
@@ -716,10 +724,10 @@ func (transport *Transport) ConsumeData(options DataConsumerOptions) (dataConsum
 	var sctpStreamParameters SctpStreamParameters
 	var sctpStreamId int = -1
 
-	if options.isDirectTransport {
+	if transport.data.transportType == TransportType_Direct {
 		typ = DataProducerType_Direct
 
-		if ordered || maxPacketLifeTime > 0 || maxRetransmits > 0 {
+		if ordered != nil || maxPacketLifeTime > 0 || maxRetransmits > 0 {
 			transport.logger.Warn(
 				"consumeData() | ordered, maxPacketLifeTime and maxRetransmits are ignored when consuming data on a DirectTransport")
 		}
@@ -727,7 +735,10 @@ func (transport *Transport) ConsumeData(options DataConsumerOptions) (dataConsum
 		typ = DataProducerType_Sctp
 
 		sctpStreamParameters = dataProducer.SctpStreamParameters()
-		sctpStreamParameters.Ordered = ordered
+		// Override if given.
+		if ordered != nil {
+			sctpStreamParameters.Ordered = ordered
+		}
 		if maxPacketLifeTime > 0 {
 			sctpStreamParameters.MaxPacketLifeTime = maxPacketLifeTime
 		}

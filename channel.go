@@ -18,10 +18,31 @@ const (
 	NS_PAYLOAD_MAX_LEN = 4194304
 )
 
+// Response from worker
+type workerResponse struct {
+	data json.RawMessage
+	err  error
+}
+
+func (r workerResponse) Unmarshal(v interface{}) error {
+	if r.err != nil {
+		return r.err
+	}
+	return json.Unmarshal([]byte(r.data), v)
+}
+
+func (r workerResponse) Data() []byte {
+	return []byte(r.data)
+}
+
+func (r workerResponse) Err() error {
+	return r.err
+}
+
 type sentInfo struct {
 	id     int64
 	method string
-	respCh chan Response
+	respCh chan workerResponse
 }
 
 type Channel struct {
@@ -71,7 +92,7 @@ func (c *Channel) Closed() bool {
 	return atomic.LoadInt32(&c.closed) > 0
 }
 
-func (c *Channel) Request(method string, internal interface{}, data ...interface{}) (rsp Response) {
+func (c *Channel) Request(method string, internal interface{}, data ...interface{}) (rsp workerResponse) {
 	if c.Closed() {
 		rsp.err = NewInvalidStateError("PayloadChannel closed")
 		return
@@ -89,7 +110,7 @@ func (c *Channel) Request(method string, internal interface{}, data ...interface
 	sent := sentInfo{
 		id:     id,
 		method: method,
-		respCh: make(chan Response),
+		respCh: make(chan workerResponse),
 	}
 	c.sents.Store(id, sent)
 
@@ -215,14 +236,14 @@ func (c *Channel) processMessage(nsPayload []byte) {
 		if msg.Accepted {
 			c.logger.Debug("request succeeded [method:%s, id:%d]", sent.method, sent.id)
 
-			sent.respCh <- Response{data: msg.Data}
+			sent.respCh <- workerResponse{data: msg.Data}
 		} else if len(msg.Error) > 0 {
 			c.logger.Warn("request failed [method:%s, id:%d]: %s", sent.method, sent.id, msg.Reason)
 
 			if msg.Error == "TypeError" {
-				sent.respCh <- Response{err: NewTypeError(msg.Reason)}
+				sent.respCh <- workerResponse{err: NewTypeError(msg.Reason)}
 			} else {
-				sent.respCh <- Response{err: errors.New(msg.Reason)}
+				sent.respCh <- workerResponse{err: errors.New(msg.Reason)}
 			}
 		} else {
 			c.logger.Error("received response is not accepted nor rejected [method:%s, id:%s]", sent.method, sent.id)

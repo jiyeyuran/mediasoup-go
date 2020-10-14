@@ -96,7 +96,7 @@ func (c *PayloadChannel) Notify(event string, internal interface{}, data interfa
 	return
 }
 
-func (c *PayloadChannel) Request(method string, internal interface{}, data interface{}, payload []byte) (rsp Response) {
+func (c *PayloadChannel) Request(method string, internal interface{}, data interface{}, payload []byte) (rsp workerResponse) {
 	if c.Closed() {
 		rsp.err = NewInvalidStateError("PayloadChannel closed")
 		return
@@ -115,7 +115,7 @@ func (c *PayloadChannel) Request(method string, internal interface{}, data inter
 	sent := sentInfo{
 		id:     id,
 		method: method,
-		respCh: make(chan Response),
+		respCh: make(chan workerResponse),
 	}
 	c.sents.Store(id, sent)
 
@@ -235,14 +235,14 @@ func (c *PayloadChannel) processData(payload []byte) {
 		if msg.Accepted {
 			c.logger.Debug("request succeeded [method:%s, id:%d]", sent.method, sent.id)
 
-			sent.respCh <- Response{data: msg.Data}
+			sent.respCh <- workerResponse{data: msg.Data}
 		} else if len(msg.Error) > 0 {
 			c.logger.Warn("request failed [method:%s, id:%d]: %s", sent.method, sent.id, msg.Reason)
 
 			if msg.Error == "TypeError" {
-				sent.respCh <- Response{err: NewTypeError(msg.Reason)}
+				sent.respCh <- workerResponse{err: NewTypeError(msg.Reason)}
 			} else {
-				sent.respCh <- Response{err: errors.New(msg.Reason)}
+				sent.respCh <- workerResponse{err: errors.New(msg.Reason)}
 			}
 		} else {
 			c.logger.Error("received response is not accepted nor rejected [method:%s, id:%s]", sent.method, sent.id)

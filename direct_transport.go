@@ -5,13 +5,15 @@ type DirectTransportOptions struct {
 	 * Maximum allowed size for direct messages sent from DataProducers.
 	 * Default 262144.
 	 */
-	MaxMessageSize int
+	MaxMessageSize int `json:"maxMessageSize,omitempty"`
 
 	/**
 	 * Custom application data.
 	 */
-	AppData interface{}
+	AppData interface{} `json:"appData,omitempty"`
 }
+
+type directTransportData struct{}
 
 /**
  * DirectTransport
@@ -26,9 +28,10 @@ type DirectTransport struct {
 	payloadChannel *PayloadChannel
 }
 
-func newDirectTransport(params transportParams) *DirectTransport {
-	params.logger = NewLogger("DirectTransport")
-	params.data.isDirectTransport = true
+func newDirectTransport(params transportParams) ITransport {
+	params.data = transportData{
+		transportType: TransportType_Direct,
+	}
 
 	transport := &DirectTransport{
 		ITransport:     newTransport(params),

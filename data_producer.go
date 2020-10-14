@@ -91,6 +91,10 @@ func newDataProducer(params dataProducerParams) *DataProducer {
 
 	logger.Debug("constructor()")
 
+	if params.appData == nil {
+		params.appData = H{}
+	}
+
 	p := &DataProducer{
 		IEventEmitter:  NewEventEmitter(),
 		logger:         logger,
