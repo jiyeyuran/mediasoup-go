@@ -1,5 +1,7 @@
 package mediasoup
 
+import "encoding/json"
+
 type WebRtcTransportOptions struct {
 	/**
 	 * Listening IP address or addresses in order of preference (first one is the
@@ -129,12 +131,291 @@ type WebRtcTransportSpecificStat struct {
 	IceSelectedTuple *TransportTuple `json:"iceSelectedTuple,omitempty"`
 }
 
-type WebRtcTransport struct {
-	ITransport
+type webrtcTransportData struct {
+	// alway controlled
+	iceRole          string
+	iceParameters    IceParameters
+	iceCandidates    []IceCandidate
+	iceState         IceState
+	iceSelectedTuple *TransportTuple
+	dtlsParameters   DtlsParameters
+	dtlsState        DtlsState
+	dtlsRemoteCert   string
+	sctpParameters   SctpParameters
+	sctpState        SctpState
 }
 
-func newWebRtcTransport(params transportParams) *WebRtcTransport {
-	return &WebRtcTransport{
-		ITransport: newTransport(params),
+type WebRtcTransport struct {
+	ITransport
+	logger         Logger
+	internal       internalData
+	data           webrtcTransportData
+	channel        *Channel
+	payloadChannel *PayloadChannel
+}
+
+func newWebRtcTransport(params transportParams, data webrtcTransportData) *WebRtcTransport {
+	params.logger = NewLogger("WebRtcTransport")
+	params.data = transportData{
+		sctpParameters: data.sctpParameters,
+		sctpState:      data.sctpState,
 	}
+
+	transport := &WebRtcTransport{
+		ITransport:     newTransport(params),
+		logger:         params.logger,
+		internal:       params.internal,
+		data:           data,
+		channel:        params.channel,
+		payloadChannel: params.payloadChannel,
+	}
+
+	transport.handleWorkerNotifications()
+
+	return transport
+
+}
+
+/**
+ * ICE role.
+ */
+func (t WebRtcTransport) IceRole() string {
+	return t.data.iceRole
+}
+
+/**
+ * ICE parameters.
+ */
+func (t WebRtcTransport) IceParameters() IceParameters {
+	return t.data.iceParameters
+}
+
+/**
+ * ICE candidates.
+ */
+func (t WebRtcTransport) IceCandidates() []IceCandidate {
+	return t.data.iceCandidates
+}
+
+/**
+ * ICE state.
+ */
+func (t WebRtcTransport) IceState() IceState {
+	return t.data.iceState
+}
+
+/**
+ * ICE selected tuple.
+ */
+func (t WebRtcTransport) IceSelectedTuple() *TransportTuple {
+	return t.data.iceSelectedTuple
+}
+
+/**
+ * DTLS parameters.
+ */
+func (t WebRtcTransport) DtlsParameters() DtlsParameters {
+	return t.data.dtlsParameters
+}
+
+/**
+ * DTLS state.
+ */
+func (t WebRtcTransport) DtlsState() DtlsState {
+	return t.data.dtlsState
+}
+
+/**
+ * Remote certificate in PEM format.
+ */
+func (t WebRtcTransport) DtlsRemoteCert() string {
+	return t.data.dtlsRemoteCert
+}
+
+/**
+ * SCTP parameters.
+ */
+func (t WebRtcTransport) SctpParameters() SctpParameters {
+	return t.data.sctpParameters
+}
+
+/**
+ * SRTP parameters.
+ */
+func (t WebRtcTransport) SctpState() SctpState {
+	return t.data.sctpState
+}
+
+/**
+ * Observer.
+ *
+ * @override
+ * @emits close
+ * @emits newproducer - (producer: Producer)
+ * @emits newconsumer - (consumer: Consumer)
+ * @emits newdataproducer - (dataProducer: DataProducer)
+ * @emits newdataconsumer - (dataConsumer: DataConsumer)
+ * @emits icestatechange - (iceState: IceState)
+ * @emits iceselectedtuplechange - (iceSelectedTuple: TransportTuple)
+ * @emits dtlsstatechange - (dtlsState: DtlsState)
+ * @emits sctpstatechange - (sctpState: SctpState)
+ * @emits trace - (trace: TransportTraceEventData)
+ */
+func (transport *WebRtcTransport) Observer() IEventEmitter {
+	return transport.ITransport.Observer()
+}
+
+/**
+ * Close the WebRtcTransport.
+ *
+ * @override
+ */
+func (transport *WebRtcTransport) Close() {
+	if transport.Closed() {
+		return
+	}
+
+	transport.data.iceSelectedTuple = nil
+	transport.data.iceState = IceState_Closed
+	transport.data.dtlsState = DtlsState_Closed
+
+	if len(transport.data.sctpState) > 0 {
+		transport.data.sctpState = SctpState_Closed
+	}
+
+	transport.ITransport.Close()
+}
+
+/**
+ * Router was closed.
+ *
+ * @override
+ */
+func (transport *WebRtcTransport) routerClosed() {
+	if transport.Closed() {
+		return
+	}
+
+	transport.data.iceSelectedTuple = nil
+	transport.data.iceState = IceState_Closed
+	transport.data.dtlsState = DtlsState_Closed
+
+	if len(transport.data.sctpState) > 0 {
+		transport.data.sctpState = SctpState_Closed
+	}
+
+	transport.ITransport.routerClosed()
+}
+
+/**
+ * Provide the PlainTransport remote parameters.
+ *
+ * @override
+ */
+func (transport *WebRtcTransport) Connect(options TransportConnectOptions) (err error) {
+	transport.logger.Debug("connect()")
+
+	reqData := TransportConnectOptions{DtlsParameters: options.DtlsParameters}
+	resp := transport.channel.Request("transport.connect", transport.internal, reqData)
+
+	var data struct {
+		DtlsLocalRole DtlsRole
+	}
+	if err = resp.Unmarshal(&data); err != nil {
+		return
+	}
+
+	// Update data.
+	transport.data.dtlsParameters.Role = data.DtlsLocalRole
+
+	return
+}
+
+/**
+ * Restart ICE.
+ */
+func (transport *WebRtcTransport) RestartIce() (iceParameters IceParameters, err error) {
+	transport.logger.Debug("restartIce()")
+
+	resp := transport.channel.Request("transport.restartIce", transport.internal)
+
+	var data struct {
+		IceParameters IceParameters
+	}
+	err = resp.Unmarshal(&data)
+
+	return data.IceParameters, err
+}
+
+func (transport *WebRtcTransport) handleWorkerNotifications() {
+	transport.channel.On(transport.Id(), func(event string, data []byte) {
+		switch event {
+		case "icestatechange":
+			var result struct {
+				IceState IceState
+			}
+			json.Unmarshal(data, &result)
+
+			transport.SafeEmit("icestatechange", result.IceState)
+
+			// Emit observer event.
+			transport.Observer().SafeEmit("icestatechange", result.IceState)
+
+		case "iceselectedtuplechange":
+			var result struct {
+				IceSelectedTuple TransportTuple
+			}
+			json.Unmarshal(data, &result)
+
+			transport.data.iceSelectedTuple = &result.IceSelectedTuple
+
+			transport.SafeEmit("iceselectedtuplechange", result.IceSelectedTuple)
+
+			// Emit observer event.
+			transport.Observer().SafeEmit("iceselectedtuplechange", result.IceSelectedTuple)
+
+		case "dtlsstatechange":
+			var result struct {
+				DtlsState      DtlsState
+				DtlsRemoteCert string
+			}
+			json.Unmarshal(data, &result)
+
+			transport.data.dtlsState = result.DtlsState
+
+			if result.DtlsState == "connected" {
+				transport.data.dtlsRemoteCert = result.DtlsRemoteCert
+			}
+
+			transport.SafeEmit("dtlsstatechange", result.DtlsState)
+
+			// Emit observer event.
+			transport.Observer().SafeEmit("dtlsstatechange", result.DtlsState)
+
+		case "sctpstatechange":
+			var result struct {
+				SctpState SctpState
+			}
+			json.Unmarshal(data, &result)
+
+			transport.data.sctpState = result.SctpState
+
+			transport.SafeEmit("sctpstatechange", result.SctpState)
+
+			// Emit observer event.
+			transport.Observer().SafeEmit("sctpstatechange", result.SctpState)
+
+		case "trace":
+			var result TransportTraceEventData
+			json.Unmarshal(data, &result)
+
+			transport.SafeEmit("trace", result)
+
+			// Emit observer event.
+			transport.Observer().SafeEmit("trace", result)
+
+		default:
+			transport.logger.Error(`ignoring unknown event "%s"`, event)
+		}
+	})
 }

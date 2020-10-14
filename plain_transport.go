@@ -108,6 +108,8 @@ func newPlainTransport(params transportParams, data plainTransportData) *PlainTr
 		data:       data,
 	}
 
+	transport.handleWorkerNotifications()
+
 	return transport
 }
 
@@ -206,7 +208,13 @@ func (transport *PlainTransport) routerClosed() {
 func (transport *PlainTransport) Connect(options TransportConnectOptions) (err error) {
 	transport.logger.Debug("connect()")
 
-	resp := transport.channel.Request("transport.connect", transport.internal, options)
+	reqData := TransportConnectOptions{
+		Ip:             options.Ip,
+		Port:           options.Port,
+		RtcpPort:       options.RtcpPort,
+		SrtpParameters: options.SrtpParameters,
+	}
+	resp := transport.channel.Request("transport.connect", transport.internal, reqData)
 
 	var data struct {
 		Tuple          *TransportTuple
@@ -231,16 +239,12 @@ func (transport *PlainTransport) Connect(options TransportConnectOptions) (err e
 }
 
 func (transport *PlainTransport) handleWorkerNotifications() {
-	type eventInfo struct {
-		Tuple     TransportTuple
-		RtcpTuple TransportTuple
-		SctpState SctpState
-	}
-
 	transport.channel.On(transport.Id(), func(event string, data []byte) {
 		switch event {
 		case "tuple":
-			var result eventInfo
+			var result struct {
+				Tuple TransportTuple
+			}
 			json.Unmarshal(data, &result)
 
 			transport.data.tuple = result.Tuple
@@ -251,7 +255,9 @@ func (transport *PlainTransport) handleWorkerNotifications() {
 			transport.Observer().SafeEmit("tuple", result.Tuple)
 
 		case "rtcptuple":
-			var result eventInfo
+			var result struct {
+				RtcpTuple TransportTuple
+			}
 			json.Unmarshal(data, &result)
 
 			transport.data.rtcpTuple = result.RtcpTuple
@@ -262,7 +268,9 @@ func (transport *PlainTransport) handleWorkerNotifications() {
 			transport.Observer().SafeEmit("rtcptuple", result.RtcpTuple)
 
 		case "sctpstatechange":
-			var result eventInfo
+			var result struct {
+				SctpState SctpState
+			}
 			json.Unmarshal(data, &result)
 
 			transport.data.sctpState = result.SctpState

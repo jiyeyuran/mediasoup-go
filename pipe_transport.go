@@ -95,6 +95,8 @@ func newPipeTransport(params transportParams, data pipeTransortData) *PipeTransp
 		getProducerById: params.getProducerById,
 	}
 
+	transport.handleWorkerNotifications()
+
 	return transport
 }
 
@@ -184,7 +186,12 @@ func (transport *PipeTransport) routerClosed() {
 func (transport *PipeTransport) Connect(options TransportConnectOptions) (err error) {
 	transport.logger.Debug("connect()")
 
-	resp := transport.channel.Request("transport.connect", transport.internal, options)
+	reqData := TransportConnectOptions{
+		Ip:             options.Ip,
+		Port:           options.Port,
+		SrtpParameters: options.SrtpParameters,
+	}
+	resp := transport.channel.Request("transport.connect", transport.internal, reqData)
 
 	var data struct {
 		Tuple TransportTuple
