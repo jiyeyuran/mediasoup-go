@@ -3,7 +3,7 @@ package main
 import (
 	"encoding/json"
 
-	"github.com/jiyeyuran/mediasoup"
+	"github.com/jiyeyuran/mediasoup-go"
 )
 
 var logger = mediasoup.NewLogger("ExampleApp")

@@ -8,7 +8,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/jiyeyuran/mediasoup/netstring"
+	"github.com/jiyeyuran/mediasoup-go/netstring"
 )
 
 type notification struct {

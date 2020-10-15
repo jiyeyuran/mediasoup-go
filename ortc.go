@@ -9,7 +9,7 @@ import (
 
 	"github.com/imdario/mergo"
 	"github.com/jinzhu/copier"
-	"github.com/jiyeyuran/mediasoup/h264"
+	"github.com/jiyeyuran/mediasoup-go/h264"
 )
 
 var DYNAMIC_PAYLOAD_TYPES = [...]byte{
