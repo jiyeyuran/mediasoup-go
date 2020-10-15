@@ -165,7 +165,7 @@ var supportedRtpCapabilities = RtpCapabilities{
 			Kind:      "video",
 			MimeType:  "video/H264",
 			ClockRate: 90000,
-			Parameters: &RtpCodecSpecificParameters{
+			Parameters: RtpCodecSpecificParameters{
 				RtpParameter: h264.RtpParameter{
 					PacketizationMode:     1,
 					LevelAsymmetryAllowed: 1,
@@ -183,7 +183,7 @@ var supportedRtpCapabilities = RtpCapabilities{
 			Kind:      "video",
 			MimeType:  "video/H264",
 			ClockRate: 90000,
-			Parameters: &RtpCodecSpecificParameters{
+			Parameters: RtpCodecSpecificParameters{
 				RtpParameter: h264.RtpParameter{
 					PacketizationMode:     0,
 					LevelAsymmetryAllowed: 1,
@@ -201,7 +201,7 @@ var supportedRtpCapabilities = RtpCapabilities{
 			Kind:      "video",
 			MimeType:  "video/H265",
 			ClockRate: 90000,
-			Parameters: &RtpCodecSpecificParameters{
+			Parameters: RtpCodecSpecificParameters{
 				RtpParameter: h264.RtpParameter{
 					PacketizationMode:     1,
 					LevelAsymmetryAllowed: 1,
@@ -219,7 +219,7 @@ var supportedRtpCapabilities = RtpCapabilities{
 			Kind:      "video",
 			MimeType:  "video/H265",
 			ClockRate: 90000,
-			Parameters: &RtpCodecSpecificParameters{
+			Parameters: RtpCodecSpecificParameters{
 				RtpParameter: h264.RtpParameter{
 					PacketizationMode:     0,
 					LevelAsymmetryAllowed: 1,
@@ -329,6 +329,12 @@ var supportedRtpCapabilities = RtpCapabilities{
 			Direction:        Direction_Sendrecv,
 		},
 	},
+}
+
+func init() {
+	if err := validateRtpCapabilities(&supportedRtpCapabilities); err != nil {
+		panic(err)
+	}
 }
 
 func GetSupportedRtpCapabilities() (rtpCapabilities RtpCapabilities) {

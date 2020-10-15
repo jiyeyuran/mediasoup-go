@@ -16,7 +16,7 @@ func generateRandomNumber() uint32 {
 }
 
 func clone(from, to interface{}) (err error) {
-	copier.Copy(&to, from)
+	copier.Copy(to, from)
 
 	return
 }

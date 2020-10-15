@@ -1,6 +1,10 @@
 package mediasoup
 
-import "github.com/jiyeyuran/mediasoup/h264"
+import (
+	"strings"
+
+	"github.com/jiyeyuran/mediasoup/h264"
+)
 
 /**
  * The RTP capabilities define what mediasoup or an endpoint can receive at
@@ -64,7 +68,7 @@ type RtpCodecCapability struct {
 	/**
 	 * The preferred RTP payload type.
 	 */
-	PreferredPayloadType int `json:"preferredPayloadType,omitempty"`
+	PreferredPayloadType byte `json:"preferredPayloadType,omitempty"`
 
 	/**
 	 * Codec clock rate expressed in Hertz.
@@ -82,12 +86,16 @@ type RtpCodecCapability struct {
 	 * and 'profile-level-id' in H264 or 'profile-id' in VP9) are critical for
 	 * codec matching.
 	 */
-	Parameters *RtpCodecSpecificParameters `json:"parameters,omitempty"`
+	Parameters RtpCodecSpecificParameters `json:"parameters,omitempty"`
 
 	/**
 	 * Transport layer and codec-specific feedback messages for this codec.
 	 */
 	RtcpFeedback []RtcpFeedback `json:"rtcpFeedback,omitempty"`
+}
+
+func (r RtpCodecCapability) isRtxCodec() bool {
+	return strings.HasSuffix(strings.ToLower(r.MimeType), "/rtx")
 }
 
 /**
@@ -199,7 +207,7 @@ type RtpParameters struct {
 	/**
 	 * Parameters used for RTCP.
 	 */
-	Rtcp *RtcpParameters `json:"rtcp,omitempty"`
+	Rtcp RtcpParameters `json:"rtcp,omitempty"`
 }
 
 /**
@@ -216,7 +224,7 @@ type RtpCodecParameters struct {
 	/**
 	 * The value that goes in the RTP Payload Type Field. Must be unique.
 	 */
-	PayloadType int `json:"payloadType"`
+	PayloadType byte `json:"payloadType"`
 
 	/**
 	 * Codec clock rate expressed in Hertz.
@@ -234,12 +242,16 @@ type RtpCodecParameters struct {
 	 * as 'packetization-mode' and 'profile-level-id' in H264 or 'profile-id' in
 	 * VP9) are critical for codec matching.
 	 */
-	Parameters *RtpCodecSpecificParameters `json:"parameters,omitempty"`
+	Parameters RtpCodecSpecificParameters `json:"parameters,omitempty"`
 
 	/**
 	 * Transport layer and codec-specific feedback messages for this codec.
 	 */
 	RtcpFeedback []RtcpFeedback `json:"rtcpFeedback,omitempty"`
+}
+
+func (r RtpCodecParameters) isRtxCodec() bool {
+	return strings.HasSuffix(strings.ToLower(r.MimeType), "/rtx")
 }
 
 /**
@@ -250,7 +262,7 @@ type RtpCodecParameters struct {
 type RtpCodecSpecificParameters struct {
 	h264.RtpParameter          // used by h264 codec
 	ProfileId           string `json:"profile-id,omitempty"`   // used by vp9
-	Apt                 int    `json:"apt,omitempty"`          // used by rtx codec
+	Apt                 byte   `json:"apt,omitempty"`          // used by rtx codec
 	SpropStereo         uint8  `json:"sprop-stereo,omitempty"` // used by audio, 1 or 0
 	Useinbandfec        uint8  `json:"useinbandfec,omitempty"` // used by audio, 1 or 0
 	Usedtx              uint8  `json:"usedtx,omitempty"`       // used by audio, 1 or 0
@@ -297,7 +309,7 @@ type RtpEncodingParameters struct {
 	 * Codec payload type this encoding affects. If unset, first media codec is
 	 * chosen.
 	 */
-	CodecPayloadType int `json:"codecPayloadType,omitempty"`
+	CodecPayloadType byte `json:"codecPayloadType,omitempty"`
 
 	/**
 	 * RTX stream information. It must contain a numeric ssrc field indicating
@@ -380,7 +392,7 @@ type RtcpParameters struct {
 	 * Whether reduced size RTCP RFC 5506 is configured (if true) or compound RTCP
 	 * as specified in RFC 3550 (if false). Default true.
 	 */
-	ReducedSize bool `json:"reducedSize,omitempty"`
+	ReducedSize *bool `json:"reducedSize,omitempty"`
 
 	/**
 	 * Whether RTCP-mux is used. Default true.

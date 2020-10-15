@@ -450,9 +450,7 @@ func (transport *Transport) Produce(options ProducerOptions) (producer *Producer
 	if transport.data.transportType != TransportType_Pipe {
 		// If CNAME is given and we don"t have yet a CNAME for Producers in this
 		// Transport, take it.
-		if len(transport.cnameForProducers) == 0 &&
-			rtpParameters.Rtcp != nil &&
-			len(rtpParameters.Rtcp.Cname) > 0 {
+		if len(transport.cnameForProducers) == 0 && len(rtpParameters.Rtcp.Cname) > 0 {
 			transport.cnameForProducers = rtpParameters.Rtcp.Cname
 		} else if len(transport.cnameForProducers) == 0 {
 			// Otherwise if we don"t have yet a CNAME for Producers and the RTP parameters
@@ -461,9 +459,6 @@ func (transport *Transport) Produce(options ProducerOptions) (producer *Producer
 		}
 
 		// Override Producer"s CNAME.
-		if rtpParameters.Rtcp == nil {
-			rtpParameters.Rtcp = &RtcpParameters{}
-		}
 		rtpParameters.Rtcp.Cname = transport.cnameForProducers
 	}
 
@@ -658,7 +653,7 @@ func (transport *Transport) ProduceData(options DataProducerOptions) (dataProduc
 	} else {
 		typ = DataProducerType_Sctp
 
-		if err = validateSctpStreamParameters(sctpStreamParameters); err != nil {
+		if err = validateSctpStreamParameters(&sctpStreamParameters); err != nil {
 			return
 		}
 	}

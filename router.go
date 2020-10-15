@@ -686,8 +686,13 @@ func (router *Router) CanConsume(producerId string, rtpCapabilities RtpCapabilit
 	}
 
 	producer := value.(*Producer)
+	ok, err := canConsume(producer.ConsumableRtpParameters(), rtpCapabilities)
 
-	return canConsume(producer.ConsumableRtpParameters(), rtpCapabilities)
+	if err != nil {
+		router.logger.Error("canConsume() | unexpected error: %s", err)
+	}
+
+	return ok
 }
 
 /**
