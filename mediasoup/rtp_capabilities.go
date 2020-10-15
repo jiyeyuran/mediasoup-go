@@ -26,8 +26,8 @@ type RtpMappingParameters struct {
 }
 
 type RtpMappingCodec struct {
-	PayloadType       int  `json:"payloadType,omitempty"`
-	MappedPayloadType byte `json:"mappedPayloadType,omitempty"`
+	PayloadType       int `json:"payloadType,omitempty"`
+	MappedPayloadType int `json:"mappedPayloadType,omitempty"`
 }
 
 type RtpMappingHeaderExt struct {
@@ -47,7 +47,7 @@ type RtpCodecCapability struct {
 	ClockRate            int                `json:"clockRate,omitempty"`
 	Channels             int                `json:"channels,omitempty"`
 	PayloadType          int                `json:"payloadType,omitempty"`
-	PreferredPayloadType byte               `json:"preferredPayloadType,omitempty"`
+	PreferredPayloadType int                `json:"preferredPayloadType,omitempty"`
 	Parameters           *RtpCodecParameter `json:"parameters,omitempty"`
 	RtcpFeedback         []RtcpFeedback     `json:"rtcpFeedback,omitempty"`
 }
