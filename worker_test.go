@@ -1,12 +1,14 @@
 package mediasoup
 
 import (
+	"encoding/json"
 	"os"
 	"time"
 )
 
 func init() {
 	os.Setenv("DEBUG_COLORS", "false")
+	DefaultLevel = WarnLevel
 }
 
 func CreateTestWorker(options ...Option) *Worker {
@@ -21,4 +23,10 @@ func CreateTestWorker(options ...Option) *Worker {
 
 func Wait(d time.Duration) {
 	time.Sleep(d)
+}
+
+func MarshalString(v interface{}) string {
+	data, _ := json.Marshal(v)
+
+	return string(data)
 }
