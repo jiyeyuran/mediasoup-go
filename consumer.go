@@ -38,7 +38,7 @@ type ConsumerOptions struct {
 	 * Preferred spatial and temporal layer for simulcast or SVC media sources.
 	 * If unset, the highest ones are selected.
 	 */
-	PreferredLayers ConsumerLayers `json:"preferredLayers,omitempty"`
+	PreferredLayers *ConsumerLayers `json:"preferredLayers,omitempty"`
 
 	/**
 	 * Custom application data.
@@ -143,7 +143,7 @@ type consumerParams struct {
 	paused          bool
 	producerPaused  bool
 	score           ConsumerScore
-	preferredLayers ConsumerLayers
+	preferredLayers *ConsumerLayers
 }
 
 type consumerData struct {
@@ -179,8 +179,8 @@ type Consumer struct {
 	producerPaused  bool
 	priority        uint32
 	score           ConsumerScore
-	preferredLayers ConsumerLayers
-	currentLayers   ConsumerLayers // Current video layers (just for video with simulcast or SVC).
+	preferredLayers *ConsumerLayers
+	currentLayers   *ConsumerLayers // Current video layers (just for video with simulcast or SVC).
 	observer        IEventEmitter
 }
 
@@ -277,12 +277,12 @@ func (consumer *Consumer) Score() ConsumerScore {
 }
 
 // Preferred video layers.
-func (consumer *Consumer) PreferredLayers() ConsumerLayers {
+func (consumer *Consumer) PreferredLayers() *ConsumerLayers {
 	return consumer.preferredLayers
 }
 
 // Current video layers.
-func (consumer *Consumer) CurrentLayers() ConsumerLayers {
+func (consumer *Consumer) CurrentLayers() *ConsumerLayers {
 	return consumer.currentLayers
 }
 
@@ -533,7 +533,7 @@ func (consumer *Consumer) handleWorkerNotifications() {
 
 			json.Unmarshal(data, &layers)
 
-			consumer.currentLayers = layers
+			consumer.currentLayers = &layers
 
 			consumer.SafeEmit("layerschange", layers)
 

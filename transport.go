@@ -550,21 +550,19 @@ func (transport *Transport) Consume(options ConsumerOptions) (consumer *Consumer
 		return
 	}
 
-	// We use up to 8 bytes for MID (string).
-	if maxMid := uint32(100000000); atomic.AddUint32(&transport.nextMidForConsumers, 1) >= maxMid {
-		transport.logger.Error(`consume() | reaching max MID value "%d"`, maxMid)
-
-		transport.locker.Lock()
-
-		if transport.nextMidForConsumers >= maxMid {
-			transport.nextMidForConsumers -= maxMid
-		}
-
-		transport.locker.Unlock()
-	}
+	transport.locker.Lock()
 
 	// Set MID.
-	rtpParameters.Mid = fmt.Sprintf("%d", atomic.LoadUint32(&transport.nextMidForConsumers))
+	rtpParameters.Mid = fmt.Sprintf("%d", transport.nextMidForConsumers)
+
+	// We use up to 8 bytes for MID (string).
+	if maxMid := uint32(100000000); transport.nextMidForConsumers == maxMid {
+		transport.logger.Error(`consume() | reaching max MID value "%d"`, maxMid)
+
+		transport.nextMidForConsumers = 0
+	}
+
+	transport.locker.Unlock()
 
 	internal := transport.internal
 	internal.ConsumerId = uuid.NewV4().String()
