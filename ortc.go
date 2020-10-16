@@ -666,6 +666,8 @@ func getConsumerRtpParameters(consumableParams RtpParameters, caps RtpCapabiliti
 					break
 				}
 			}
+		} else {
+			codecs = append(codecs, codec)
 		}
 	}
 

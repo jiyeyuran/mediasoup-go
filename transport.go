@@ -243,7 +243,7 @@ func newTransport(params transportParams) ITransport {
 
 // Transport id
 func (transport *Transport) Id() string {
-	return transport.Id()
+	return transport.internal.TransportId
 }
 
 // Whether the Transport is closed.

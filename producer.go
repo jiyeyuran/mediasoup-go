@@ -224,7 +224,7 @@ func newProducer(params producerParams) *Producer {
 
 // Producer id
 func (producer *Producer) Id() string {
-	return producer.Id()
+	return producer.internal.ProducerId
 }
 
 // Whether the Producer is closed.
