@@ -18,7 +18,7 @@ type ITransport interface {
 	Observer() IEventEmitter
 	Close()
 	routerClosed()
-	Dump() ([]byte, error)
+	Dump() DumpResult
 	GetStats() ([]TransportStat, error)
 	Connect(TransportConnectOptions) error
 	setMaxIncomingBitrate(bitrate int) error
@@ -377,12 +377,12 @@ func (transport *Transport) routerClosed() {
 }
 
 // Dump Transport.
-func (transport *Transport) Dump() ([]byte, error) {
+func (transport *Transport) Dump() DumpResult {
 	transport.logger.Debug("dump()")
 
 	resp := transport.channel.Request("transport.dump", transport.internal)
 
-	return resp.Data(), resp.Err()
+	return NewDumpResult(resp.Data(), resp.Err())
 }
 
 // Get Transport stats.

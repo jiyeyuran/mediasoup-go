@@ -32,12 +32,10 @@ func TestCreateAudioLevelObserver_Succeeds(t *testing.T) {
 	assert.False(t, audioLevelObserver.Closed())
 	assert.False(t, audioLevelObserver.Paused())
 
-	dump, _ := router.Dump()
-
 	var result struct {
 		RtpObserverIds []string
 	}
-	JSONUnmarshal(dump, &result)
+	router.Dump().Unmarshal(&result)
 
 	assert.Equal(t, []string{audioLevelObserver.Id()}, result.RtpObserverIds)
 }
@@ -81,19 +79,18 @@ func TestCreateAudioLevelObserver_Close(t *testing.T) {
 	audioLevelObserver2, err := router.CreateAudioLevelObserver()
 	assert.NoError(t, err)
 
-	dump, _ := router.Dump()
 	var result struct {
 		RtpObserverIds []string
 	}
-	JSONUnmarshal(dump, &result)
+	router.Dump().Unmarshal(&result)
 	assert.Equal(t, 2, len(result.RtpObserverIds))
 
 	audioLevelObserver2.Close()
 
 	assert.True(t, audioLevelObserver2.Closed())
 
-	dump, _ = router.Dump()
-	JSONUnmarshal(dump, &result)
+	_ = router.Dump()
+	router.Dump().Unmarshal(&result)
 
 	assert.Equal(t, 1, len(result.RtpObserverIds))
 }

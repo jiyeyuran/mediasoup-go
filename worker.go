@@ -398,12 +398,12 @@ func (w *Worker) Close() {
 }
 
 // Dump Worker.
-func (w *Worker) Dump() (data []byte, err error) {
+func (w *Worker) Dump() DumpResult {
 	w.logger.Debug("dump()")
 
 	resp := w.channel.Request("worker.dump", nil)
 
-	return resp.Data(), resp.Err()
+	return NewDumpResult(resp.Data(), resp.Err())
 }
 
 /**

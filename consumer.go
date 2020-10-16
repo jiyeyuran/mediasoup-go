@@ -341,12 +341,12 @@ func (consumer *Consumer) transportClosed() {
 }
 
 // Dump Consumer.
-func (consumer *Consumer) Dump() ([]byte, error) {
+func (consumer *Consumer) Dump() DumpResult {
 	consumer.logger.Debug("dump()")
 
 	resp := consumer.channel.Request("consumer.dump", consumer.internal)
 
-	return resp.Data(), resp.Err()
+	return NewDumpResult(resp.Data(), resp.Err())
 }
 
 // Get Consumer stats.

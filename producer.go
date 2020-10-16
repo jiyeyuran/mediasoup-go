@@ -325,12 +325,12 @@ func (producer *Producer) transportClosed() {
 }
 
 // Dump Producer.
-func (producer *Producer) Dump() ([]byte, error) {
+func (producer *Producer) Dump() DumpResult {
 	producer.logger.Debug("dump()")
 
 	resp := producer.channel.Request("producer.dump", producer.internal)
 
-	return resp.Data(), resp.Err()
+	return NewDumpResult(resp.Data(), resp.Err())
 }
 
 // Get Producer stats.

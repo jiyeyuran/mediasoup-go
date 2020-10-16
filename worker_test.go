@@ -1,7 +1,6 @@
 package mediasoup
 
 import (
-	"encoding/json"
 	"os"
 	"time"
 )
@@ -18,10 +17,6 @@ func CreateTestWorker(options ...Option) *Worker {
 		panic(err)
 	}
 	return worker
-}
-
-func JSONUnmarshal(data []byte, v interface{}) error {
-	return json.Unmarshal(data, v)
 }
 
 func Wait(d time.Duration) {

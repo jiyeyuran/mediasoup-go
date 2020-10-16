@@ -199,12 +199,12 @@ func (p *DataProducer) transportClosed() {
 }
 
 // Dump DataConsumer.
-func (p *DataProducer) Dump() ([]byte, error) {
+func (p *DataProducer) Dump() DumpResult {
 	p.logger.Debug("dump()")
 
 	resp := p.channel.Request("dataProducer.dump", p.internal)
 
-	return resp.Data(), resp.Err()
+	return NewDumpResult(resp.Data(), resp.Err())
 }
 
 // Get DataConsumer stats.
