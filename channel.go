@@ -198,15 +198,15 @@ func (c *Channel) processNSPayload(nsPayload []byte) {
 	case '{':
 		c.processMessage(nsPayload)
 	case 'D':
-		c.logger.Debug("[pid:%d] %s", c.pid, nsPayload)
+		c.logger.Debug("[pid:%d] %s", c.pid, nsPayload[1:])
 	case 'W':
-		c.logger.Warn("[pid:%d] %s", c.pid, nsPayload)
+		c.logger.Warn("[pid:%d] %s", c.pid, nsPayload[1:])
 	case 'E':
-		c.logger.Error("[pid:%d] %s", c.pid, nsPayload)
+		c.logger.Error("[pid:%d] %s", c.pid, nsPayload[1:])
 	case 'X':
-		fmt.Printf("%s\n", nsPayload)
+		fmt.Printf("%s\n", nsPayload[1:])
 	default:
-		c.logger.Warn("[pid:%d] unexpected data: %s", nsPayload)
+		c.logger.Warn("[pid:%d] unexpected data: %s", nsPayload[1:])
 	}
 }
 

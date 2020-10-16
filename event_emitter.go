@@ -55,6 +55,7 @@ func newInternalListener(listener interface{}, once bool) *intervalListener {
 			for i, arg := range args {
 				actualArgs[i] = args[i]
 
+				// auto unmarshal json data to golang type
 				if typeIsBytes(arg.Type()) && !typeIsBytes(argTypes[i]) {
 					b, ok := arg.Interface().(json.RawMessage)
 					if !ok {
