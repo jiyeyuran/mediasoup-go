@@ -61,11 +61,9 @@ func TestCreateAudioLevelObserver_Pause_Resume(t *testing.T) {
 	assert.NoError(t, err)
 
 	audioLevelObserver.Pause()
-
 	assert.True(t, audioLevelObserver.Paused())
 
 	audioLevelObserver.Resume()
-
 	assert.False(t, audioLevelObserver.Paused())
 }
 
@@ -89,7 +87,6 @@ func TestCreateAudioLevelObserver_Close(t *testing.T) {
 
 	assert.True(t, audioLevelObserver2.Closed())
 
-	_ = router.Dump()
 	router.Dump().Unmarshal(&result)
 
 	assert.Equal(t, 1, len(result.RtpObserverIds))

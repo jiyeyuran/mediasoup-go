@@ -38,8 +38,7 @@ func TestEventEmitter_Once(t *testing.T) {
 	wg.Wait()
 
 	onceObserver.Wait()
-
-	assert.Equal(t, 1, onceObserver.CalledTimes())
+	onceObserver.ExpectCalledTimes(1)
 	assert.Equal(t, 0, emitter.ListenerCount(evName))
 }
 
@@ -57,7 +56,7 @@ func TestEventEmitter_Emit1(t *testing.T) {
 
 	time.Sleep(time.Millisecond)
 
-	assert.Equal(t, 4, onObserver.CalledTimes())
+	onObserver.ExpectCalledTimes(4)
 }
 
 func TestEventEmitter_Emit2(t *testing.T) {
@@ -113,6 +112,23 @@ func TestEventEmitter_Emit2(t *testing.T) {
 	assert.Equal(t, 3*2, called)
 }
 
+func TestEventEmitter_Emit3(t *testing.T) {
+	evName := "test"
+	emitter := NewEventEmitter()
+	observer := NewWaitFunc(t)
+
+	emitter.On(evName, func(args ...int) {
+		assert.Equal(t, 1, args[0])
+		assert.Equal(t, 2, args[1])
+	})
+	emitter.On(evName, observer.Fn())
+	emitter.Emit(evName, 1, 2)
+
+	observer.Wait()
+
+	observer.ExpectCalledWith(1, 2)
+}
+
 func TestEventEmitter_SafeEmit(t *testing.T) {
 	evName := "test"
 	emitter := NewEventEmitter()
@@ -134,7 +150,8 @@ func TestEventEmitter_RemoveListener(t *testing.T) {
 	emitter.On(evName, fn)
 	emitter.Off(evName, fn)
 
-	assert.Equal(t, 0, onObserver.CalledTimes())
+	onObserver.ExpectCalledTimes(0)
+
 	assert.Equal(t, 0, emitter.ListenerCount(evName))
 }
 
@@ -149,6 +166,7 @@ func TestEventEmitter_RemoveAllListeners(t *testing.T) {
 	emitter.RemoveAllListeners(evName)
 	emitter.Emit(evName)
 
-	assert.Equal(t, 0, onObserver.CalledTimes())
+	onObserver.ExpectCalledTimes(0)
+
 	assert.Equal(t, 0, emitter.ListenerCount(evName))
 }

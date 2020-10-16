@@ -53,7 +53,7 @@ func newInternalListener(listener interface{}, once bool) *intervalListener {
 			actualArgs := make([]reflect.Value, len(args))
 
 			for i, arg := range args {
-				actualArgs[i] = args[i]
+				actualArgs[i] = arg
 
 				// auto unmarshal json data to golang type
 				if typeIsBytes(arg.Type()) && !typeIsBytes(argTypes[i]) {
@@ -69,12 +69,13 @@ func newInternalListener(listener interface{}, once bool) *intervalListener {
 					}
 				}
 			}
+
 			if once {
 				syncOnce.Do(func() {
-					l.FuncValue.Call(actualArgs)
+					listenerValue.Call(actualArgs)
 				})
 			} else {
-				l.FuncValue.Call(actualArgs)
+				listenerValue.Call(actualArgs)
 			}
 		}
 	}()

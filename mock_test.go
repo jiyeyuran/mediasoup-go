@@ -10,7 +10,7 @@ import (
 type MockFunc struct {
 	assertions *assert.Assertions
 	times      int
-	argv       []interface{}
+	argv       interface{}
 }
 
 func NewMockFunc(t *testing.T) *MockFunc {
@@ -19,22 +19,14 @@ func NewMockFunc(t *testing.T) *MockFunc {
 	}
 }
 
-func (w *MockFunc) Fn() func(argv ...interface{}) {
+func (w *MockFunc) Fn() func(argv interface{}) {
 	// reset
 	w.times, w.argv = 0, nil
 
-	return func(argv ...interface{}) {
+	return func(argv interface{}) {
 		w.argv = argv
 		w.times++
 	}
-}
-
-func (w *MockFunc) CalledWith() []interface{} {
-	return w.argv
-}
-
-func (w *MockFunc) CalledTimes() int {
-	return w.times
 }
 
 func (w *MockFunc) ExpectCalledWith(argv ...interface{}) {
