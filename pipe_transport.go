@@ -89,6 +89,7 @@ func newPipeTransport(params transportParams) ITransport {
 		sctpState:      data.SctpState,
 		transportType:  TransportType_Pipe,
 	}
+	params.logger = NewLogger("PipeTransport")
 
 	transport := &PipeTransport{
 		ITransport:      newTransport(params),

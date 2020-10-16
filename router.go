@@ -123,17 +123,19 @@ type Router struct {
 	locker                  sync.Mutex
 }
 
-func newRouter(options routerParams) *Router {
+func newRouter(params routerParams) *Router {
 	logger := NewLogger("Router")
 	logger.Debug("constructor()")
 
 	return &Router{
 		IEventEmitter:  NewEventEmitter(),
 		logger:         logger,
-		data:           options.data,
-		channel:        options.channel,
-		payloadChannel: options.payloadChannel,
-		appData:        options.appData,
+		internal:       params.internal,
+		data:           params.data,
+		channel:        params.channel,
+		payloadChannel: params.payloadChannel,
+		appData:        params.appData,
+		observer:       NewEventEmitter(),
 	}
 }
 
@@ -279,7 +281,7 @@ func (router *Router) CreateWebRtcTransport(options WebRtcTransportOptions) (tra
 		return
 	}
 
-	iTransport := router.createTransport(TransportType_Webrtc, data, options.AppData)
+	iTransport := router.createTransport(internal, data, options.AppData)
 
 	return iTransport.(*WebRtcTransport), nil
 }
@@ -328,7 +330,7 @@ func (router *Router) CreatePlainTransport(options PlainTransportOptions) (trans
 		return
 	}
 
-	iTransport := router.createTransport(TransportType_Plain, data, options.AppData)
+	iTransport := router.createTransport(internal, data, options.AppData)
 
 	return iTransport.(*PlainTransport), nil
 }
@@ -369,7 +371,7 @@ func (router *Router) CreatePipeTransport(options PipeTransportOptions) (transpo
 		return
 	}
 
-	iTransport := router.createTransport(TransportType_Pipe, data, options.AppData)
+	iTransport := router.createTransport(internal, data, options.AppData)
 
 	return iTransport.(*PipeTransport), nil
 }
@@ -395,7 +397,7 @@ func (router *Router) CreateDirectTransport(options DirectTransportOptions) (tra
 		return
 	}
 
-	iTransport := router.createTransport(TransportType_Pipe, data, options.AppData)
+	iTransport := router.createTransport(internal, data, options.AppData)
 
 	return iTransport.(*DirectTransport), nil
 }
@@ -652,7 +654,7 @@ func (router *Router) CreateAudioLevelObserver(options ...func(o *AudioLevelObse
 	}
 
 	rtpObserver = newAudioLevelObserver(rtpObserverParams{
-		internal:       router.internal,
+		internal:       internal,
 		channel:        router.channel,
 		payloadChannel: router.payloadChannel,
 		appData:        router.appData,
@@ -698,29 +700,29 @@ func (router *Router) CanConsume(producerId string, rtpCapabilities RtpCapabilit
 /**
  * Create a Transport interface.
  */
-func (router *Router) createTransport(transportType TransportType, data, appData interface{}) (transport ITransport) {
+func (router *Router) createTransport(internal internalData, data, appData interface{}) (transport ITransport) {
 	if appData == nil {
 		appData = H{}
 	}
 
 	var newTransport func(transportParams) ITransport
 
-	switch transportType {
-	case TransportType_Direct:
+	switch data.(type) {
+	case directTransportData:
 		newTransport = newDirectTransport
 
-	case TransportType_Plain:
+	case plainTransportData:
 		newTransport = newPlainTransport
 
-	case TransportType_Pipe:
+	case pipeTransortData:
 		newTransport = newPipeTransport
 
-	case TransportType_Webrtc:
+	case webrtcTransportData:
 		newTransport = newWebRtcTransport
 	}
 
 	transport = newTransport(transportParams{
-		internal:       router.internal,
+		internal:       internal,
 		channel:        router.channel,
 		payloadChannel: router.payloadChannel,
 		data:           data,
@@ -740,7 +742,6 @@ func (router *Router) createTransport(transportType TransportType, data, appData
 			}
 			return nil
 		},
-		logger: NewLogger(string(transportType)),
 	})
 
 	router.transports.Store(transport.Id(), transport)

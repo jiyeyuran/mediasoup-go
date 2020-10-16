@@ -32,6 +32,7 @@ func newDirectTransport(params transportParams) ITransport {
 	params.data = transportData{
 		transportType: TransportType_Direct,
 	}
+	params.logger = NewLogger("DirectTransport")
 
 	transport := &DirectTransport{
 		ITransport:     newTransport(params),

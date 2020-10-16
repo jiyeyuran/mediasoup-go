@@ -169,6 +169,7 @@ func newWebRtcTransport(params transportParams) ITransport {
 		sctpState:      data.SctpState,
 		transportType:  TransportType_Webrtc,
 	}
+	params.logger = NewLogger("WebRtcTransport")
 
 	transport := &WebRtcTransport{
 		ITransport:     newTransport(params),

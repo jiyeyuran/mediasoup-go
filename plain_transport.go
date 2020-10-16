@@ -100,6 +100,7 @@ func newPlainTransport(params transportParams) ITransport {
 		sctpState:      data.SctpState,
 		transportType:  TransportType_Plain,
 	}
+	params.logger = NewLogger("PlainTransport")
 
 	transport := &PlainTransport{
 		ITransport: newTransport(params),
