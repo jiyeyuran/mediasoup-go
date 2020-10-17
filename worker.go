@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"syscall"
 
 	uuid "github.com/satori/go.uuid"
@@ -174,7 +175,7 @@ type Worker struct {
 	// PayloadChannel instance.
 	payloadChannel *PayloadChannel
 	// Closed flag.
-	closed bool
+	closed uint32
 	// Custom app data.
 	appData interface{}
 	// Routers map.
@@ -353,7 +354,7 @@ func (w *Worker) Pid() int {
  * Whether the Worker is closed.
  */
 func (w *Worker) Closed() bool {
-	return w.closed
+	return atomic.LoadUint32(&w.closed) > 0
 }
 
 // Observer
@@ -365,13 +366,11 @@ func (w *Worker) Observer() IEventEmitter {
  * Close the Worker.
  */
 func (w *Worker) Close() {
-	if w.closed {
+	if !atomic.CompareAndSwapUint32(&w.closed, 0, 1) {
 		return
 	}
 
 	w.logger.Debug("close()")
-
-	w.closed = true
 
 	// Kill the worker process.
 	if w.child != nil {
