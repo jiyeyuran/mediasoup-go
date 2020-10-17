@@ -682,8 +682,7 @@ func getConsumerRtpParameters(consumableParams RtpParameters, caps RtpCapabiliti
 	for _, ext := range consumableParams.HeaderExtensions {
 		for _, capExt := range caps.HeaderExtensions {
 			if capExt.PreferredId == ext.Id && capExt.Uri == ext.Uri {
-				consumerParams.HeaderExtensions =
-					append(consumerParams.HeaderExtensions, ext)
+				consumerParams.HeaderExtensions = append(consumerParams.HeaderExtensions, ext)
 				break
 			}
 		}
@@ -745,8 +744,7 @@ func getConsumerRtpParameters(consumableParams RtpParameters, caps RtpCapabiliti
 	// If there is simulast, mangle spatial layers in scalabilityMode.
 	if len(consumableParams.Encodings) > 1 {
 		temporalLayers := ParseScalabilityMode(scalabilityMode).TemporalLayers
-
-		scalabilityMode = fmt.Sprintf("S%dT%d", len(consumableParams.Codecs), temporalLayers)
+		scalabilityMode = fmt.Sprintf("S%dT%d", len(consumableParams.Encodings), temporalLayers)
 	}
 
 	consumerEncoding.ScalabilityMode = scalabilityMode
