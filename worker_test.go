@@ -1,7 +1,6 @@
 package mediasoup
 
 import (
-	"encoding/json"
 	"os"
 	"time"
 )
@@ -23,10 +22,4 @@ func CreateTestWorker(options ...Option) *Worker {
 
 func Wait(d time.Duration) {
 	time.Sleep(d)
-}
-
-func MarshalString(v interface{}) string {
-	data, _ := json.Marshal(v)
-
-	return string(data)
 }

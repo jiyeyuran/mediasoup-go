@@ -27,15 +27,11 @@ func TestCreateAudioLevelObserver_Succeeds(t *testing.T) {
 		MediaCodecs: audioLevelMediaCodecs,
 	})
 	audioLevelObserver, err := router.CreateAudioLevelObserver()
-
 	assert.NoError(t, err)
 	assert.False(t, audioLevelObserver.Closed())
 	assert.False(t, audioLevelObserver.Paused())
 
-	var result struct {
-		RtpObserverIds []string
-	}
-	router.Dump().Unmarshal(&result)
+	result, _ := router.Dump()
 
 	assert.Equal(t, []string{audioLevelObserver.Id()}, result.RtpObserverIds)
 }
@@ -57,7 +53,6 @@ func TestCreateAudioLevelObserver_Pause_Resume(t *testing.T) {
 		MediaCodecs: audioLevelMediaCodecs,
 	})
 	audioLevelObserver, err := router.CreateAudioLevelObserver()
-
 	assert.NoError(t, err)
 
 	audioLevelObserver.Pause()
@@ -77,18 +72,13 @@ func TestCreateAudioLevelObserver_Close(t *testing.T) {
 	audioLevelObserver2, err := router.CreateAudioLevelObserver()
 	assert.NoError(t, err)
 
-	var result struct {
-		RtpObserverIds []string
-	}
-	router.Dump().Unmarshal(&result)
+	result, _ := router.Dump()
 	assert.Equal(t, 2, len(result.RtpObserverIds))
 
 	audioLevelObserver2.Close()
-
 	assert.True(t, audioLevelObserver2.Closed())
 
-	router.Dump().Unmarshal(&result)
-
+	result, _ = router.Dump()
 	assert.Equal(t, 1, len(result.RtpObserverIds))
 }
 

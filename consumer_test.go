@@ -191,54 +191,54 @@ func (suite *ConsumerTestSuite) SetupTest() {
 	  }
 	],
 	"headerExtensions" : [
-	  {
-		"kind" : "audio",
-		"uri" : "urn:ietf:params:rtp-hdrext:ssrc-audio-level",
-		"preferredId" : 1,
-		"preferredEncrypt" : false
-	  },
-	  {
-		"kind" : "video",
-		"uri" : "urn:ietf:params:rtp-hdrext:toffset",
-		"preferredId" : 2,
-		"preferredEncrypt" : false
-	  },
-	  {
-		"kind" : "audio",
-		"uri" : "http://www.webrtc.org/experiments/rtp-hdrext/abs-send-time",
-		"preferredId" : 3,
-		"preferredEncrypt" : false
-	  },
-	  {
-		"kind" : "video",
-		"uri" : "http://www.webrtc.org/experiments/rtp-hdrext/abs-send-time",
-		"preferredId" : 3,
-		"preferredEncrypt" : false
-	  },
-	  {
-		"kind" : "video",
-		"uri" : "urn:3gpp:video-orientation",
-		"preferredId" : 4,
-		"preferredEncrypt" : false
-	  },
-	  {
-		"kind" : "audio",
-		"uri" : "urn:ietf:params:rtp-hdrext:sdes:mid",
-		"preferredId" : 5,
-		"preferredEncrypt" : false
-	  },
-	  {
-		"kind" : "video",
-		"uri" : "urn:ietf:params:rtp-hdrext:sdes:mid",
-		"preferredId" : 5,
-		"preferredEncrypt" : false
-	  },
-	  {
-		"kind" : "video",
-		"uri" : "urn:ietf:params:rtp-hdrext:sdes:rtp-stream-id",
-		"preferredId" : 6,
-		"preferredEncrypt" : false
-	  }
+		{
+			"kind":"audio",
+			"uri":"urn:ietf:params:rtp-hdrext:sdes:mid",
+			"preferredId":1,
+			"preferredEncrypt":false
+		},
+		{
+			"kind":"video",
+			"uri":"urn:ietf:params:rtp-hdrext:sdes:mid",
+			"preferredId":1,
+			"preferredEncrypt":false
+		},
+		{
+			"kind":"video",
+			"uri":"urn:ietf:params:rtp-hdrext:sdes:rtp-stream-id",
+			"preferredId":2,
+			"preferredEncrypt":false
+		},
+		{
+			"kind":"audio",
+			"uri":"http://www.webrtc.org/experiments/rtp-hdrext/abs-send-time",
+			"preferredId":4,
+			"preferredEncrypt":false
+		},
+		{
+			"kind":"video",
+			"uri":"http://www.webrtc.org/experiments/rtp-hdrext/abs-send-time",
+			"preferredId":4,
+			"preferredEncrypt":false
+		},
+		{
+			"kind":"audio",
+			"uri":"urn:ietf:params:rtp-hdrext:ssrc-audio-level",
+			"preferredId":10,
+			"preferredEncrypt":false
+		},
+		{
+			"kind":"video",
+			"uri":"urn:3gpp:video-orientation",
+			"preferredId":11,
+			"preferredEncrypt":false
+		},
+		{
+			"kind":"video",
+			"uri":"urn:ietf:params:rtp-hdrext:toffset",
+			"preferredId":12,
+			"preferredEncrypt":false
+		}
 	]
   }
 `
@@ -342,14 +342,12 @@ func (suite *ConsumerTestSuite) TestTransportConsume_Succeeds() {
 	suite.Nil(audioConsumer.PreferredLayers())
 	suite.Equal(H{"baz": "LOL"}, audioConsumer.AppData())
 
-	routerDump := RouterDump{}
-	router.Dump().Unmarshal(&routerDump)
+	routerDump, _ := router.Dump()
 
 	suite.Equal([]string{audioConsumer.Id()}, routerDump.MapProducerIdConsumerIds[suite.audioProducer.Id()])
 	suite.Equal(suite.audioProducer.Id(), routerDump.MapConsumerIdProducerId[audioConsumer.Id()])
 
-	transportDump := TransportDump{}
-	transport2.Dump().Unmarshal(&transportDump)
+	transportDump, _ := transport2.Dump()
 
 	suite.Equal(transport2.Id(), transportDump.Id)
 	suite.Equal([]string{audioConsumer.Id()}, transportDump.ConsumerIds)
@@ -375,7 +373,7 @@ func (suite *ConsumerTestSuite) TestTransportConsume_Succeeds() {
 	suite.NotEmpty(videoConsumer.Id())
 	suite.Equal(suite.videoProducer.Id(), videoConsumer.ProducerId())
 	suite.False(videoConsumer.Closed())
-	suite.Equal(MediaKind_Video, videoConsumer.Kind())
+	suite.EqualValues(MediaKind_Video, videoConsumer.Kind())
 	suite.Equal("1", videoConsumer.RtpParameters().Mid)
 	suite.Len(videoConsumer.RtpParameters().Codecs, 2)
 	data, _ = json.Marshal(videoConsumer.RtpParameters().Codecs[0])
@@ -408,14 +406,16 @@ func (suite *ConsumerTestSuite) TestTransportConsume_Succeeds() {
 		"parameters" : { "apt":103 }
 	  }
 	`, string(data))
-	suite.Equal(ConsumerType_Simulcast, videoConsumer.Type())
+	suite.EqualValues(ConsumerType_Simulcast, videoConsumer.Type())
 	suite.True(videoConsumer.Paused())
 	suite.True(videoConsumer.ProducerPaused())
 	suite.Equal(ConsumerScore{Score: 10, ProducerScore: 0, ProducerScores: []uint32{0, 0, 0, 0}}, videoConsumer.Score())
 	suite.Nil(videoConsumer.CurrentLayers())
 	suite.Equal(H{"baz": "LOL"}, videoConsumer.AppData())
 
-	routerDump = RouterDump{
+	routerDump, _ = router.Dump()
+
+	expectedRouterDump := RouterDump{
 		MapProducerIdConsumerIds: map[string][]string{
 			suite.audioProducer.Id(): {audioConsumer.Id()},
 			suite.videoProducer.Id(): {videoConsumer.Id()},
@@ -426,13 +426,17 @@ func (suite *ConsumerTestSuite) TestTransportConsume_Succeeds() {
 		},
 	}
 
-	suite.JSONEq(MarshalString(routerDump), string(router.Dump().Data))
+	suite.Equal(expectedRouterDump.MapProducerIdConsumerIds, routerDump.MapProducerIdConsumerIds)
+	suite.Equal(expectedRouterDump.MapConsumerIdProducerId, routerDump.MapConsumerIdProducerId)
 
-	transportDump = TransportDump{
+	transportDump, _ = transport2.Dump()
+	expectedTransportDump := TransportDump{
 		Id:          transport2.Id(),
-		ConsumerIds: []string{audioConsumer.Id(), videoConsumer.Id()},
+		ConsumerIds: []string{videoConsumer.Id(), audioConsumer.Id()},
 	}
-	suite.JSONEq(MarshalString(transportDump), string(transport2.Dump().Data))
+
+	suite.Equal(expectedTransportDump.Id, transportDump.Id)
+	suite.Equal(expectedTransportDump.ConsumerIds, transportDump.ConsumerIds)
 }
 
 func (suite *ConsumerTestSuite) TestTransportConsume_UnsupportedError() {
@@ -691,21 +695,12 @@ func (suite *ConsumerTestSuite) TestConsumerClose() {
 	onObserverClose.ExpectCalledTimes(1)
 	suite.True(audioConsumer.Closed())
 
-	var routerDump struct {
-		MapProducerIdConsumerIds map[string][]string
-		MapConsumerIdProducerId  map[string]string
-	}
-	suite.router.Dump().Unmarshal(&routerDump)
+	routerDump, _ := suite.router.Dump()
 
 	suite.Empty(routerDump.MapProducerIdConsumerIds[suite.audioProducer.Id()])
 	suite.Equal(suite.videoProducer.Id(), routerDump.MapConsumerIdProducerId[videoConsumer.Id()])
 
-	var transportDump struct {
-		Id          string
-		ProducerIds []string
-		ConsumerIds []string
-	}
-	suite.transport2.Dump().Unmarshal(&transportDump)
+	transportDump, _ := suite.transport2.Dump()
 
 	suite.Equal(suite.transport2.Id(), transportDump.Id)
 	suite.Empty(transportDump.ProducerIds)
@@ -760,11 +755,7 @@ func (suite *ConsumerTestSuite) TestConsumerEmitsTransportClosed() {
 	onObserverClose.ExpectCalledTimes(1)
 	suite.True(videoConsumer.Closed())
 
-	var routerDump struct {
-		MapProducerIdConsumerIds map[string][]string
-		MapConsumerIdProducerId  map[string]string
-	}
-	suite.router.Dump().Unmarshal(&routerDump)
+	routerDump, _ := suite.router.Dump()
 
 	suite.Empty(routerDump.MapProducerIdConsumerIds[suite.audioProducer.Id()])
 	suite.Empty(routerDump.MapConsumerIdProducerId)
