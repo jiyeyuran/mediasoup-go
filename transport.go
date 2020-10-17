@@ -18,7 +18,7 @@ type ITransport interface {
 	Observer() IEventEmitter
 	Close()
 	routerClosed()
-	Dump() DumpResult
+	Dump() (TransportDump, error)
 	GetStats() ([]TransportStat, error)
 	Connect(TransportConnectOptions) error
 	setMaxIncomingBitrate(bitrate int) error
@@ -377,12 +377,13 @@ func (transport *Transport) routerClosed() {
 }
 
 // Dump Transport.
-func (transport *Transport) Dump() DumpResult {
+func (transport *Transport) Dump() (data TransportDump, err error) {
 	transport.logger.Debug("dump()")
 
 	resp := transport.channel.Request("transport.dump", transport.internal)
+	err = resp.Unmarshal(&data)
 
-	return NewDumpResult(resp.Data(), resp.Err())
+	return
 }
 
 // Get Transport stats.
@@ -554,6 +555,8 @@ func (transport *Transport) Consume(options ConsumerOptions) (consumer *Consumer
 
 	// Set MID.
 	rtpParameters.Mid = fmt.Sprintf("%d", transport.nextMidForConsumers)
+
+	transport.nextMidForConsumers++
 
 	// We use up to 8 bytes for MID (string).
 	if maxMid := uint32(100000000); transport.nextMidForConsumers == maxMid {
