@@ -570,7 +570,7 @@ func (suite *ProducerTestSuite) TestProducerEmitsTransportclose() {
 	videoProducer := suite.videoProducer()
 	videoProducer.Observer().Once("close", onObserverClose.Fn())
 
-	wf := NewWaitFunc(suite.T())
+	wf := NewMockFunc(suite.T())
 
 	videoProducer.On("transportclose", wf.Fn())
 	suite.plainRtpTransport.Close()

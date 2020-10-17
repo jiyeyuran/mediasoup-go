@@ -22,7 +22,7 @@ func TestEventEmitter_Once(t *testing.T) {
 	evName := "test"
 	emitter := NewEventEmitter()
 
-	onceObserver := NewWaitFunc(t)
+	onceObserver := NewMockFunc(t)
 	emitter.Once(evName, onceObserver.Fn())
 
 	wg := sync.WaitGroup{}
@@ -115,7 +115,7 @@ func TestEventEmitter_Emit2(t *testing.T) {
 func TestEventEmitter_Emit3(t *testing.T) {
 	evName := "test"
 	emitter := NewEventEmitter()
-	observer := NewWaitFunc(t)
+	observer := NewMockFunc(t)
 
 	emitter.On(evName, func(args ...int) {
 		assert.Equal(t, 1, args[0])

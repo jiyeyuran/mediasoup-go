@@ -654,7 +654,7 @@ func (suite *ConsumerTestSuite) TestConsumerPauseAndResume() {
 func (suite *ConsumerTestSuite) TestConsumerEmitsProducerpauseAndProducerresume() {
 	audioConsumer := suite.audioConsumer()
 
-	wf := NewWaitFunc(suite.T())
+	wf := NewMockFunc(suite.T())
 
 	audioConsumer.On("producerpause", wf.Fn())
 	suite.audioProducer.Pause()
@@ -741,7 +741,7 @@ func (suite *ConsumerTestSuite) TestConsumerEmitsProducerClosed() {
 	onObserverClose := NewMockFunc(suite.T())
 	audioConsumer.Observer().Once("close", onObserverClose.Fn())
 
-	wf := NewWaitFunc(suite.T())
+	wf := NewMockFunc(suite.T())
 
 	audioConsumer.On("producerclose", wf.Fn())
 
@@ -759,7 +759,7 @@ func (suite *ConsumerTestSuite) TestConsumerEmitsTransportClosed() {
 	onObserverClose := NewMockFunc(suite.T())
 	videoConsumer.Observer().Once("close", onObserverClose.Fn())
 
-	wf := NewWaitFunc(suite.T())
+	wf := NewMockFunc(suite.T())
 
 	videoConsumer.Observer().On("transportclose", wf.Fn())
 
