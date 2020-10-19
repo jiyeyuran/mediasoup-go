@@ -234,7 +234,7 @@ func (c *DataConsumer) Dump() DumpResult {
 }
 
 // Get DataConsumer stats.
-func (c *DataConsumer) GetStats() (stats []DataConsumerStat, err error) {
+func (c *DataConsumer) GetStats() (stats []*DataConsumerStat, err error) {
 	c.logger.Debug("getStats()")
 
 	resp := c.channel.Request("dataConsumer.getStats", c.internal)

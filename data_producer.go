@@ -208,7 +208,7 @@ func (p *DataProducer) Dump() DumpResult {
 }
 
 // Get DataConsumer stats.
-func (p *DataProducer) GetStats() (stats []DataProducerStat, err error) {
+func (p *DataProducer) GetStats() (stats []*DataProducerStat, err error) {
 	p.logger.Debug("getStats()")
 
 	resp := p.channel.Request("dataProducer.getStats", p.internal)

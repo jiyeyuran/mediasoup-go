@@ -350,7 +350,7 @@ func (consumer *Consumer) Dump() DumpResult {
 }
 
 // Get Consumer stats.
-func (consumer *Consumer) GetStats() (stats []ConsumerStat, err error) {
+func (consumer *Consumer) GetStats() (stats []*ConsumerStat, err error) {
 	consumer.logger.Debug("getStats()")
 
 	resp := consumer.channel.Request("consumer.getStats", consumer.internal)

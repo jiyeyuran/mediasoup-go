@@ -334,7 +334,7 @@ func (producer *Producer) Dump() DumpResult {
 }
 
 // Get Producer stats.
-func (producer *Producer) GetStats() (stats []ProducerStat, err error) {
+func (producer *Producer) GetStats() (stats []*ProducerStat, err error) {
 	producer.logger.Debug("getStats()")
 
 	resp := producer.channel.Request("producer.getStats", producer.internal)

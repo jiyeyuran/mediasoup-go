@@ -18,8 +18,8 @@ type ITransport interface {
 	Observer() IEventEmitter
 	Close()
 	routerClosed()
-	Dump() (TransportDump, error)
-	GetStats() ([]TransportStat, error)
+	Dump() (*TransportDump, error)
+	GetStats() ([]*TransportStat, error)
 	Connect(TransportConnectOptions) error
 	setMaxIncomingBitrate(bitrate int) error
 	Produce(ProducerOptions) (*Producer, error)
@@ -377,7 +377,7 @@ func (transport *Transport) routerClosed() {
 }
 
 // Dump Transport.
-func (transport *Transport) Dump() (data TransportDump, err error) {
+func (transport *Transport) Dump() (data *TransportDump, err error) {
 	transport.logger.Debug("dump()")
 
 	resp := transport.channel.Request("transport.dump", transport.internal)
@@ -387,7 +387,7 @@ func (transport *Transport) Dump() (data TransportDump, err error) {
 }
 
 // Get Transport stats.
-func (transport *Transport) GetStats() (stat []TransportStat, err error) {
+func (transport *Transport) GetStats() (stat []*TransportStat, err error) {
 	transport.logger.Debug("getStats()")
 
 	resp := transport.channel.Request("transport.getStats", transport.internal)

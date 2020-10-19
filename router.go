@@ -228,7 +228,7 @@ func (router *Router) workerClosed() {
 }
 
 // Dump Router.
-func (router *Router) Dump() (data RouterDump, err error) {
+func (router *Router) Dump() (data *RouterDump, err error) {
 	router.logger.Debug("dump()")
 
 	resp := router.channel.Request("router.dump", router.internal)
