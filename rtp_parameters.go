@@ -14,7 +14,7 @@ type RtpCapabilities struct {
 	/**
 	 * Supported media and RTX codecs.
 	 */
-	Codecs []RtpCodecCapability `json:"codecs,omitempty"`
+	Codecs []*RtpCodecCapability `json:"codecs,omitempty"`
 
 	/**
 	 * Supported RTP header extensions.

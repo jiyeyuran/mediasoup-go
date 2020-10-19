@@ -13,7 +13,7 @@ type RouterOptions struct {
 	/**
 	 * Router media codecs.
 	 */
-	MediaCodecs []RtpCodecCapability `json:"mediaCodecs,omitempty"`
+	MediaCodecs []*RtpCodecCapability `json:"mediaCodecs,omitempty"`
 
 	/**
 	 * Custom application data.

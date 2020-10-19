@@ -5,7 +5,7 @@ import (
 )
 
 var supportedRtpCapabilities = RtpCapabilities{
-	Codecs: []RtpCodecCapability{
+	Codecs: []*RtpCodecCapability{
 		{
 			Kind:      "audio",
 			MimeType:  "audio/opus",

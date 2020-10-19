@@ -8,13 +8,13 @@ import (
 )
 
 var (
-	audioLevelMediaCodecs = []RtpCodecCapability{
+	audioLevelMediaCodecs = []*RtpCodecCapability{
 		{
 			Kind:      MediaKind_Audio,
 			MimeType:  "audio/opus",
 			ClockRate: 48000,
 			Channels:  2,
-			Parameters: RtpCodecSpecificParameters{
+			Parameters: &RtpCodecSpecificParameters{
 				Useinbandfec: 1,
 			},
 		},
