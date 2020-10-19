@@ -20,251 +20,205 @@ type ConsumerTestSuite struct {
 }
 
 func (suite *ConsumerTestSuite) SetupTest() {
-	const (
-		mediaCodecsJSON = `
-[
-  {
-    "kind" : "audio",
-    "mimeType" : "audio/opus",
-    "clockRate" : 48000,
-    "channels" : 2,
-    "parameters" : { "foo":"bar" }
-  },
-  {
-    "kind" : "video",
-    "mimeType" : "video/VP8",
-    "clockRate" : 90000
-  },
-  {
-    "kind" : "video",
-    "mimeType" : "video/H264",
-    "clockRate" : 90000,
-    "parameters" : {
-      "level-asymmetry-allowed" : 1,
-      "packetization-mode" : 1,
-      "profile-level-id" : "4d0032",
-      "foo" : "bar"
-    }
-  }
-]
-`
-		audioProducerParametersJSON = `
-{
-	"kind" : "audio",
-	"rtpParameters" : {
-	  "mid" : "AUDIO",
-	  "codecs" : [
+	mediaCodecs := []RtpCodecCapability{
 		{
-		  "mimeType" : "audio/opus",
-		  "payloadType" : 111,
-		  "clockRate" : 48000,
-		  "channels" : 2,
-		  "parameters" : {
-			"useinbandfec" : 1,
-			"usedtx" : 1,
-			"foo" : 222.222,
-			"bar" : "333"
-		  }
-		}
-	  ],
-	  "headerExtensions" : [
-		{
-		  "uri" : "urn:ietf:params:rtp-hdrext:sdes:mid",
-		  "id" : 10
+			Kind:      "audio",
+			MimeType:  "audio/opus",
+			ClockRate: 48000,
+			Channels:  2,
 		},
 		{
-		  "uri" : "urn:ietf:params:rtp-hdrext:ssrc-audio-level",
-		  "id" : 12
-		}
-	  ],
-	  "encodings" : [ { "ssrc":11111111 } ],
-	  "rtcp" : { "cname":"FOOBAR" }
-	},
-	"appData" : { "foo":1, "bar":"2" }
-  }
-`
-
-		videoProducerParametersJSON = `
-{
-	"kind" : "video",
-	"rtpParameters" : {
-	  "mid" : "VIDEO",
-	  "codecs" : [
+			Kind:      "video",
+			MimeType:  "video/VP8",
+			ClockRate: 90000,
+		},
 		{
-		  "mimeType" : "video/h264",
-		  "payloadType" : 112,
-		  "clockRate" : 90000,
-		  "parameters" : {
-			"packetization-mode" : 1,
-			"profile-level-id" : "4d0032"
-		  },
-		  "rtcpFeedback" : [
-			{ "type":"nack" },
-			{
-			  "type" : "nack",
-			  "parameter" : "pli"
+			Kind:      "video",
+			MimeType:  "video/H264",
+			ClockRate: 90000,
+			Parameters: RtpCodecSpecificParameters{
+				RtpParameter: h264.RtpParameter{
+					LevelAsymmetryAllowed: 1,
+					PacketizationMode:     1,
+					ProfileLevelId:        "4d0032",
+				},
 			},
-			{ "type":"goog-remb" }
-		  ]
 		},
-		{
-		  "mimeType" : "video/rtx",
-		  "payloadType" : 113,
-		  "clockRate" : 90000,
-		  "parameters" : { "apt":112 }
-		}
-	  ],
-	  "headerExtensions" : [
-		{
-		  "uri" : "urn:ietf:params:rtp-hdrext:sdes:mid",
-		  "id" : 10
-		},
-		{
-		  "uri" : "urn:3gpp:video-orientation",
-		  "id" : 13
-		}
-	  ],
-	  "encodings" : [
-		{
-		  "ssrc" : 22222222,
-		  "rtx" : { "ssrc":22222223 }
-		},
-		{
-		  "ssrc" : 22222224,
-		  "rtx" : { "ssrc":22222225 }
-		},
-		{
-		  "ssrc" : 22222226,
-		  "rtx" : { "ssrc":22222227 }
-		},
-		{
-		  "ssrc" : 22222228,
-		  "rtx" : { "ssrc":22222229 }
-		}
-	  ],
-	  "rtcp" : { "cname":"FOOBAR" }
-	},
-	"appData" : { "foo":1, "bar":"2" }
-  }
-`
-
-		consumerDeviceCapabilitiesJSON = `
-{
-	"codecs" : [
-	  {
-		"mimeType" : "audio/opus",
-		"kind" : "audio",
-		"clockRate" : 48000,
-		"preferredPayloadType" : 100,
-		"channels" : 2
-	  },
-	  {
-		"mimeType" : "video/H264",
-		"kind" : "video",
-		"clockRate" : 90000,
-		"preferredPayloadType" : 101,
-		"rtcpFeedback" : [
-		  { "type":"nack" },
-		  {
-			"type" : "nack",
-			"parameter" : "pli"
-		  },
-		  {
-			"type" : "ccm",
-			"parameter" : "fir"
-		  },
-		  { "type":"goog-remb" }
-		],
-		"parameters" : {
-		  "level-asymmetry-allowed" : 1,
-		  "packetization-mode" : 1,
-		  "profile-level-id" : "4d0032"
-		}
-	  },
-	  {
-		"mimeType" : "video/rtx",
-		"kind" : "video",
-		"clockRate" : 90000,
-		"preferredPayloadType" : 102,
-		"rtcpFeedback" : [],
-		"parameters" : { "apt":101 }
-	  }
-	],
-	"headerExtensions" : [
-		{
-			"kind":"audio",
-			"uri":"urn:ietf:params:rtp-hdrext:sdes:mid",
-			"preferredId":1,
-			"preferredEncrypt":false
-		},
-		{
-			"kind":"video",
-			"uri":"urn:ietf:params:rtp-hdrext:sdes:mid",
-			"preferredId":1,
-			"preferredEncrypt":false
-		},
-		{
-			"kind":"video",
-			"uri":"urn:ietf:params:rtp-hdrext:sdes:rtp-stream-id",
-			"preferredId":2,
-			"preferredEncrypt":false
-		},
-		{
-			"kind":"audio",
-			"uri":"http://www.webrtc.org/experiments/rtp-hdrext/abs-send-time",
-			"preferredId":4,
-			"preferredEncrypt":false
-		},
-		{
-			"kind":"video",
-			"uri":"http://www.webrtc.org/experiments/rtp-hdrext/abs-send-time",
-			"preferredId":4,
-			"preferredEncrypt":false
-		},
-		{
-			"kind":"audio",
-			"uri":"urn:ietf:params:rtp-hdrext:ssrc-audio-level",
-			"preferredId":10,
-			"preferredEncrypt":false
-		},
-		{
-			"kind":"video",
-			"uri":"urn:3gpp:video-orientation",
-			"preferredId":11,
-			"preferredEncrypt":false
-		},
-		{
-			"kind":"video",
-			"uri":"urn:ietf:params:rtp-hdrext:toffset",
-			"preferredId":12,
-			"preferredEncrypt":false
-		}
-	]
-  }
-`
-	)
-
-	var (
-		mediaCodecs             []RtpCodecCapability
-		audioProducerParameters ProducerOptions
-		videoProducerParameters ProducerOptions
-	)
-
-	err := json.Unmarshal([]byte(mediaCodecsJSON), &mediaCodecs)
-	if err != nil {
-		panic(err)
 	}
-	err = json.Unmarshal([]byte(audioProducerParametersJSON), &audioProducerParameters)
-	if err != nil {
-		panic(err)
+
+	audioProducerParameters := ProducerOptions{
+		Kind: MediaKind_Audio,
+		RtpParameters: RtpParameters{
+			Mid: "AUDIO",
+			Codecs: []RtpCodecParameters{
+				{
+					MimeType:    "audio/opus",
+					PayloadType: 111,
+					ClockRate:   48000,
+					Channels:    2,
+					Parameters: RtpCodecSpecificParameters{
+						Useinbandfec: 1,
+						Usedtx:       1,
+					},
+				},
+			},
+			HeaderExtensions: []RtpHeaderExtensionParameters{
+				{
+					Uri: "urn:ietf:params:rtp-hdrext:sdes:mid",
+					Id:  10,
+				},
+				{
+					Uri: "urn:ietf:params:rtp-hdrext:ssrc-audio-level",
+					Id:  12,
+				},
+			},
+			Encodings: []RtpEncodingParameters{{Ssrc: 11111111}},
+			Rtcp: RtcpParameters{
+				Cname: "FOOBAR",
+			},
+		},
+		AppData: H{"foo": 1, "bar": "2"},
 	}
-	err = json.Unmarshal([]byte(videoProducerParametersJSON), &videoProducerParameters)
-	if err != nil {
-		panic(err)
+
+	videoProducerParameters := ProducerOptions{
+		Kind: MediaKind_Video,
+		RtpParameters: RtpParameters{
+			Mid: "VIDEO",
+			Codecs: []RtpCodecParameters{
+				{
+					MimeType:    "video/h264",
+					PayloadType: 112,
+					ClockRate:   90000,
+					Parameters: RtpCodecSpecificParameters{
+						RtpParameter: h264.RtpParameter{
+							PacketizationMode: 1,
+							ProfileLevelId:    "4d0032",
+						},
+					},
+					RtcpFeedback: []RtcpFeedback{
+						{Type: "nack", Parameter: ""},
+						{Type: "nack", Parameter: "pli"},
+						{Type: "goog-remb", Parameter: ""},
+					},
+				},
+				{
+					MimeType:    "video/rtx",
+					PayloadType: 113,
+					ClockRate:   90000,
+					Parameters:  RtpCodecSpecificParameters{Apt: 112},
+				},
+			},
+			HeaderExtensions: []RtpHeaderExtensionParameters{
+				{
+					Uri: "urn:ietf:params:rtp-hdrext:sdes:mid",
+					Id:  10,
+				},
+				{
+					Uri: "urn:3gpp:video-orientation",
+					Id:  13,
+				},
+			},
+			Encodings: []RtpEncodingParameters{
+				{Ssrc: 22222222, Rtx: &RtpEncodingRtx{Ssrc: 22222223}},
+				{Ssrc: 22222224, Rtx: &RtpEncodingRtx{Ssrc: 22222225}},
+				{Ssrc: 22222226, Rtx: &RtpEncodingRtx{Ssrc: 22222227}},
+				{Ssrc: 22222228, Rtx: &RtpEncodingRtx{Ssrc: 22222229}},
+			},
+			Rtcp: RtcpParameters{
+				Cname: "FOOBAR",
+			},
+		},
+		AppData: H{"foo": 1, "bar": "2"},
 	}
-	err = json.Unmarshal([]byte(consumerDeviceCapabilitiesJSON), &suite.consumerDeviceCapabilities)
-	if err != nil {
-		panic(err)
+
+	suite.consumerDeviceCapabilities = RtpCapabilities{
+		Codecs: []RtpCodecCapability{
+			{
+				MimeType:             "audio/opus",
+				Kind:                 "audio",
+				PreferredPayloadType: 100,
+				ClockRate:            48000,
+				Channels:             2,
+			},
+			{
+				MimeType:             "video/H264",
+				Kind:                 "video",
+				PreferredPayloadType: 101,
+				ClockRate:            90000,
+				Parameters: RtpCodecSpecificParameters{
+					RtpParameter: h264.RtpParameter{
+						LevelAsymmetryAllowed: 1,
+						PacketizationMode:     1,
+						ProfileLevelId:        "4d0032",
+					},
+				},
+				RtcpFeedback: []RtcpFeedback{
+					{Type: "nack", Parameter: ""},
+					{Type: "nack", Parameter: "pli"},
+					{Type: "ccm", Parameter: "fir"},
+					{Type: "goog-remb", Parameter: ""},
+				},
+			},
+			{
+				MimeType:             "video/rtx",
+				Kind:                 "video",
+				PreferredPayloadType: 102,
+				ClockRate:            90000,
+				Parameters: RtpCodecSpecificParameters{
+					Apt: 101,
+				},
+			},
+		},
+		HeaderExtensions: []RtpHeaderExtension{
+			{
+				Kind:             "audio",
+				Uri:              "urn:ietf:params:rtp-hdrext:sdes:mid",
+				PreferredId:      1,
+				PreferredEncrypt: false,
+			},
+			{
+				Kind:             "video",
+				Uri:              "urn:ietf:params:rtp-hdrext:sdes:mid",
+				PreferredId:      1,
+				PreferredEncrypt: false,
+			},
+			{
+				Kind:             "video",
+				Uri:              "urn:ietf:params:rtp-hdrext:sdes:rtp-stream-id",
+				PreferredId:      2,
+				PreferredEncrypt: false,
+			},
+			{
+				Kind:             "audio",
+				Uri:              "http://www.webrtc.org/experiments/rtp-hdrext/abs-send-time", // eslint-disable-line max-len
+				PreferredId:      4,
+				PreferredEncrypt: false,
+			},
+			{
+				Kind:             "video",
+				Uri:              "http://www.webrtc.org/experiments/rtp-hdrext/abs-send-time", // eslint-disable-line max-len
+				PreferredId:      4,
+				PreferredEncrypt: false,
+			},
+			{
+				Kind:             "audio",
+				Uri:              "urn:ietf:params:rtp-hdrext:ssrc-audio-level",
+				PreferredId:      10,
+				PreferredEncrypt: false,
+			},
+			{
+				Kind:             "video",
+				Uri:              "urn:3gpp:video-orientation",
+				PreferredId:      11,
+				PreferredEncrypt: false,
+			},
+			{
+				Kind:             "video",
+				Uri:              "urn:ietf:params:rtp-hdrext:toffset",
+				PreferredId:      12,
+				PreferredEncrypt: false,
+			},
+		},
 	}
 
 	suite.worker = CreateTestWorker()
@@ -284,7 +238,7 @@ func (suite *ConsumerTestSuite) SetupTest() {
 	suite.audioProducer, _ = suite.transport1.Produce(audioProducerParameters)
 	suite.videoProducer, _ = suite.transport1.Produce(videoProducerParameters)
 
-	// // Pause the videoProducer.
+	// Pause the videoProducer.
 	suite.videoProducer.Pause()
 }
 
