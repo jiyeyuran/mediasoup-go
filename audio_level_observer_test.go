@@ -14,7 +14,7 @@ var (
 			MimeType:  "audio/opus",
 			ClockRate: 48000,
 			Channels:  2,
-			Parameters: &RtpCodecSpecificParameters{
+			Parameters: RtpCodecSpecificParameters{
 				Useinbandfec: 1,
 			},
 		},

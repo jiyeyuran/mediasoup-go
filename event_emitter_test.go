@@ -37,7 +37,6 @@ func TestEventEmitter_Once(t *testing.T) {
 
 	wg.Wait()
 
-	onceObserver.Wait()
 	onceObserver.ExpectCalledTimes(1)
 	assert.Equal(t, 0, emitter.ListenerCount(evName))
 }
@@ -123,8 +122,6 @@ func TestEventEmitter_Emit3(t *testing.T) {
 	})
 	emitter.On(evName, observer.Fn())
 	emitter.Emit(evName, 1, 2)
-
-	observer.Wait()
 
 	observer.ExpectCalledWith(1, 2)
 }
