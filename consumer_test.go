@@ -20,7 +20,7 @@ type ConsumerTestSuite struct {
 }
 
 func (suite *ConsumerTestSuite) SetupTest() {
-	mediaCodecs := []RtpCodecCapability{
+	mediaCodecs := []*RtpCodecCapability{
 		{
 			Kind:      "audio",
 			MimeType:  "audio/opus",
@@ -50,7 +50,7 @@ func (suite *ConsumerTestSuite) SetupTest() {
 		Kind: MediaKind_Audio,
 		RtpParameters: RtpParameters{
 			Mid: "AUDIO",
-			Codecs: []RtpCodecParameters{
+			Codecs: []*RtpCodecParameters{
 				{
 					MimeType:    "audio/opus",
 					PayloadType: 111,
@@ -84,7 +84,7 @@ func (suite *ConsumerTestSuite) SetupTest() {
 		Kind: MediaKind_Video,
 		RtpParameters: RtpParameters{
 			Mid: "VIDEO",
-			Codecs: []RtpCodecParameters{
+			Codecs: []*RtpCodecParameters{
 				{
 					MimeType:    "video/h264",
 					PayloadType: 112,
@@ -132,7 +132,7 @@ func (suite *ConsumerTestSuite) SetupTest() {
 	}
 
 	suite.consumerDeviceCapabilities = RtpCapabilities{
-		Codecs: []RtpCodecCapability{
+		Codecs: []*RtpCodecCapability{
 			{
 				MimeType:             "audio/opus",
 				Kind:                 "audio",
@@ -169,7 +169,7 @@ func (suite *ConsumerTestSuite) SetupTest() {
 				},
 			},
 		},
-		HeaderExtensions: []RtpHeaderExtension{
+		HeaderExtensions: []*RtpHeaderExtension{
 			{
 				Kind:             "audio",
 				Uri:              "urn:ietf:params:rtp-hdrext:sdes:mid",
@@ -249,9 +249,9 @@ func (suite *ConsumerTestSuite) TearDownTest() {
 func (suite *ConsumerTestSuite) TestTransportConsume_Succeeds() {
 	router, transport2 := suite.router, suite.transport2
 
-	onObserverNewConsumer1 := NewMockFunc(suite.T())
+	observer := NewMockFunc(suite.T())
 
-	transport2.Observer().Once("newconsumer", onObserverNewConsumer1.Fn())
+	transport2.Observer().Once("newconsumer", observer.Fn())
 
 	suite.True(router.CanConsume(suite.audioProducer.Id(), suite.consumerDeviceCapabilities))
 
@@ -261,11 +261,9 @@ func (suite *ConsumerTestSuite) TestTransportConsume_Succeeds() {
 		AppData:         H{"baz": "LOL"},
 	})
 
-	onObserverNewConsumer1.Wait()
-
 	suite.NoError(err)
-	onObserverNewConsumer1.ExpectCalledTimes(1)
-	onObserverNewConsumer1.ExpectCalledWith(audioConsumer)
+	observer.ExpectCalledTimes(1)
+	observer.ExpectCalledWith(audioConsumer)
 	suite.NotEmpty(audioConsumer.Id())
 	suite.Equal(suite.audioProducer.Id(), audioConsumer.ProducerId())
 	suite.False(audioConsumer.Closed())
@@ -273,20 +271,16 @@ func (suite *ConsumerTestSuite) TestTransportConsume_Succeeds() {
 	suite.NotEmpty(audioConsumer.RtpParameters())
 	suite.Equal("0", audioConsumer.RtpParameters().Mid)
 	suite.Len(audioConsumer.RtpParameters().Codecs, 1)
-
-	data, _ := json.Marshal(audioConsumer.RtpParameters().Codecs[0])
-	suite.JSONEq(`
-	{
-		"mimeType" : "audio/opus",
-		"clockRate" : 48000,
-		"payloadType" : 100,
-		"channels" : 2,
-		"parameters" : {
-		  "useinbandfec" : 1,
-		  "usedtx" : 1
-		}
-	  }
-	`, string(data))
+	suite.Equal(&RtpCodecParameters{
+		MimeType:    "audio/opus",
+		ClockRate:   48000,
+		PayloadType: 100,
+		Channels:    2,
+		Parameters: RtpCodecSpecificParameters{
+			Useinbandfec: 1,
+			Usedtx:       1,
+		},
+	}, audioConsumer.RtpParameters().Codecs[0])
 
 	suite.Equal(ConsumerType_Simple, audioConsumer.Type())
 	suite.False(audioConsumer.Paused())
@@ -306,8 +300,8 @@ func (suite *ConsumerTestSuite) TestTransportConsume_Succeeds() {
 	suite.Equal(transport2.Id(), transportDump.Id)
 	suite.Equal([]string{audioConsumer.Id()}, transportDump.ConsumerIds)
 
-	onObserverNewConsumer2 := NewMockFunc(suite.T())
-	transport2.Observer().Once("newconsumer", onObserverNewConsumer2.Fn())
+	observer = NewMockFunc(suite.T())
+	transport2.Observer().Once("newconsumer", observer.Fn())
 
 	suite.True(router.CanConsume(suite.videoProducer.Id(), suite.consumerDeviceCapabilities))
 
@@ -320,46 +314,40 @@ func (suite *ConsumerTestSuite) TestTransportConsume_Succeeds() {
 	})
 	suite.NoError(err)
 
-	onObserverNewConsumer2.Wait()
-
-	onObserverNewConsumer2.ExpectCalledTimes(1)
-	onObserverNewConsumer2.ExpectCalledWith(videoConsumer)
+	observer.ExpectCalledTimes(1)
+	observer.ExpectCalledWith(videoConsumer)
 	suite.NotEmpty(videoConsumer.Id())
 	suite.Equal(suite.videoProducer.Id(), videoConsumer.ProducerId())
 	suite.False(videoConsumer.Closed())
 	suite.EqualValues(MediaKind_Video, videoConsumer.Kind())
 	suite.Equal("1", videoConsumer.RtpParameters().Mid)
 	suite.Len(videoConsumer.RtpParameters().Codecs, 2)
-	data, _ = json.Marshal(videoConsumer.RtpParameters().Codecs[0])
-	suite.JSONEq(`
-	{
-		"mimeType" : "video/H264",
-		"clockRate" : 90000,
-		"payloadType" : 103,
-		"parameters" : {
-		  "packetization-mode" : 1,
-		  "profile-level-id" : "4d0032"
+	suite.Equal(&RtpCodecParameters{
+		MimeType:    "video/H264",
+		ClockRate:   90000,
+		PayloadType: 103,
+		Parameters: RtpCodecSpecificParameters{
+			RtpParameter: h264.RtpParameter{
+				PacketizationMode: 1,
+				ProfileLevelId:    "4d0032",
+			},
 		},
-		"rtcpFeedback" : [
-		  { "type":"nack" },
-		  {
-			"type" : "nack",
-			"parameter" : "pli"
-		  },
-		  { "type":"ccm", "parameter":"fir" },
-		  { "type":"goog-remb" }
-		]
-	  }
-	`, string(data))
-	data, _ = json.Marshal(videoConsumer.RtpParameters().Codecs[1])
-	suite.JSONEq(`
-	{
-		"mimeType" : "video/rtx",
-		"clockRate" : 90000,
-		"payloadType" : 104,
-		"parameters" : { "apt":103 }
-	  }
-	`, string(data))
+		RtcpFeedback: []RtcpFeedback{
+			{Type: "nack"},
+			{Type: "nack", Parameter: "pli"},
+			{Type: "ccm", Parameter: "fir"},
+			{Type: "goog-remb"},
+		},
+	}, videoConsumer.RtpParameters().Codecs[0])
+	suite.Equal(&RtpCodecParameters{
+		MimeType:    "video/rtx",
+		ClockRate:   90000,
+		PayloadType: 104,
+		Parameters: RtpCodecSpecificParameters{
+			Apt: 103,
+		},
+	}, videoConsumer.RtpParameters().Codecs[1])
+
 	suite.EqualValues(ConsumerType_Simulcast, videoConsumer.Type())
 	suite.True(videoConsumer.Paused())
 	suite.True(videoConsumer.ProducerPaused())
@@ -626,15 +614,11 @@ func (suite *ConsumerTestSuite) TestConsumerEmitsProducerpauseAndProducerresume(
 	audioConsumer.On("producerpause", wf.Fn())
 	suite.audioProducer.Pause()
 
-	wf.Wait()
-
 	suite.False(audioConsumer.Paused())
 	suite.True(audioConsumer.ProducerPaused())
 
 	audioConsumer.On("producerresume", wf.Fn())
 	suite.audioProducer.Resume()
-
-	wf.Wait()
 
 	suite.False(audioConsumer.Paused())
 	suite.False(audioConsumer.ProducerPaused())
@@ -652,7 +636,6 @@ func (suite *ConsumerTestSuite) TestConsumerEmitsScore() {
 	channel.Emit(audioConsumer.Id(), "score", json.RawMessage(`{"producerScore": 9, "score": 9}`))
 	channel.Emit(audioConsumer.Id(), "score", json.RawMessage(`{"producerScore": 8, "score": 8}`))
 
-	onScore.Wait()
 	onScore.ExpectCalledTimes(3)
 	suite.Equal(ConsumerScore{ProducerScore: 8, Score: 8}, audioConsumer.Score())
 }
@@ -666,7 +649,6 @@ func (suite *ConsumerTestSuite) TestConsumerClose() {
 	audioConsumer.Observer().Once("close", onObserverClose.Fn())
 	audioConsumer.Close()
 
-	onObserverClose.Wait()
 	onObserverClose.ExpectCalledTimes(1)
 	suite.True(audioConsumer.Closed())
 
@@ -709,9 +691,6 @@ func (suite *ConsumerTestSuite) TestConsumerEmitsProducerClosed() {
 
 	suite.audioProducer.Close()
 
-	wf.Wait()
-
-	onObserverClose.Wait()
 	onObserverClose.ExpectCalledTimes(1)
 	suite.True(audioConsumer.Closed())
 }
@@ -728,7 +707,6 @@ func (suite *ConsumerTestSuite) TestConsumerEmitsTransportClosed() {
 
 	suite.transport2.Close()
 
-	onObserverClose.Wait()
 	onObserverClose.ExpectCalledTimes(1)
 	suite.True(videoConsumer.Closed())
 

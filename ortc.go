@@ -321,14 +321,12 @@ func generateRouterRtpCapabilities(mediaCodecs []*RtpCodecCapability) (caps RtpC
 		if err = validateRtpCodecCapability(mediaCodec); err != nil {
 			return
 		}
-
 		matchedSupportedCodec, matched := findMatchedCodec(mediaCodec, supportedCodecs, matchOptions{})
 
 		if !matched {
 			err = NewUnsupportedError(`media codec not supported [mimeType:%s]`, mediaCodec.MimeType)
 			return
 		}
-
 		codec := &RtpCodecCapability{}
 
 		if err = clone(matchedSupportedCodec, codec); err != nil {
@@ -406,7 +404,6 @@ func getProducerRtpParametersMapping(params RtpParameters, caps RtpCapabilities)
 		if codec.isRtxCodec() {
 			continue
 		}
-
 		matchedCapCodec, matched := findMatchedCodec(codec, caps.Codecs, matchOptions{strict: true, modify: true})
 
 		if !matched {
@@ -420,13 +417,12 @@ func getProducerRtpParametersMapping(params RtpParameters, caps RtpCapabilities)
 		if !codec.isRtxCodec() {
 			continue
 		}
-
 		var associatedMediaCodec *RtpCodecParameters
 
 		// Search for the associated media codec.
 		for _, mediaCodec := range params.Codecs {
 			if mediaCodec.PayloadType == codec.Parameters.Apt {
-				associatedMediaCodec = codec
+				associatedMediaCodec = mediaCodec
 				break
 			}
 		}
@@ -435,7 +431,6 @@ func getProducerRtpParametersMapping(params RtpParameters, caps RtpCapabilities)
 			err = NewTypeError(`missing media codec found for RTX PT %d`, codec.PayloadType)
 			return
 		}
-
 		capMediaCodec := codecToCapCodec[associatedMediaCodec]
 
 		var associatedCapRtxCodec *RtpCodecCapability
@@ -477,7 +472,6 @@ func getProducerRtpParametersMapping(params RtpParameters, caps RtpCapabilities)
 			MappedSsrc:      mappedSsrc,
 			ScalabilityMode: encoding.ScalabilityMode,
 		}
-
 		mappedSsrc++
 
 		rtpMapping.Encodings = append(rtpMapping.Encodings, mappedEncoding)
@@ -501,7 +495,6 @@ func getConsumableRtpParameters(
 		if codec.isRtxCodec() {
 			continue
 		}
-
 		var consumableCodecPt byte
 
 		for _, entry := range rtpMapping.Codecs {
@@ -510,7 +503,6 @@ func getConsumableRtpParameters(
 				break
 			}
 		}
-
 		var matchedCapCodec *RtpCodecCapability
 
 		for _, capCodec := range caps.Codecs {
@@ -560,7 +552,6 @@ func getConsumableRtpParameters(
 			(capExt.Direction != Direction_Sendrecv && capExt.Direction != Direction_Sendonly) {
 			continue
 		}
-
 		consumableExt := RtpHeaderExtensionParameters{
 			Uri:     capExt.Uri,
 			Id:      capExt.PreferredId,
