@@ -86,7 +86,7 @@ type RtpCodecCapability struct {
 	 * and 'profile-level-id' in H264 or 'profile-id' in VP9) are critical for
 	 * codec matching.
 	 */
-	Parameters RtpCodecSpecificParameters `json:"parameters,omitempty"`
+	Parameters *RtpCodecSpecificParameters `json:"parameters,omitempty"`
 
 	/**
 	 * Transport layer and codec-specific feedback messages for this codec.
@@ -242,7 +242,7 @@ type RtpCodecParameters struct {
 	 * as 'packetization-mode' and 'profile-level-id' in H264 or 'profile-id' in
 	 * VP9) are critical for codec matching.
 	 */
-	Parameters RtpCodecSpecificParameters `json:"parameters,omitempty"`
+	Parameters *RtpCodecSpecificParameters `json:"parameters,omitempty"`
 
 	/**
 	 * Transport layer and codec-specific feedback messages for this codec.

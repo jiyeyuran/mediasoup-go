@@ -379,7 +379,7 @@ func generateRouterRtpCapabilities(mediaCodecs []RtpCodecCapability) (caps RtpCa
 				MimeType:             fmt.Sprintf("%s/rtx", codec.Kind),
 				PreferredPayloadType: pt,
 				ClockRate:            codec.ClockRate,
-				Parameters: RtpCodecSpecificParameters{
+				Parameters: &RtpCodecSpecificParameters{
 					Apt: codec.PreferredPayloadType,
 				},
 				RtcpFeedback: []RtcpFeedback{},
