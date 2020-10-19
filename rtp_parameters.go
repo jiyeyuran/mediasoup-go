@@ -192,7 +192,7 @@ type RtpParameters struct {
 	/**
 	 * Media and RTX codecs in use.
 	 */
-	Codecs []RtpCodecParameters `json:"codecs"`
+	Codecs []*RtpCodecParameters `json:"codecs"`
 
 	/**
 	 * RTP header extensions in use.

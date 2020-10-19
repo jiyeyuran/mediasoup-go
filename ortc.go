@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"github.com/imdario/mergo"
-	"github.com/jinzhu/copier"
 	"github.com/jiyeyuran/mediasoup-go/h264"
 )
 
@@ -138,8 +137,8 @@ func validateRtpHeaderExtension(ext *RtpHeaderExtension) (err error) {
  * fields with default values.
  */
 func validateRtpParameters(params *RtpParameters) (err error) {
-	for i := range params.Codecs {
-		if err = validateRtpCodecParameters(&params.Codecs[i]); err != nil {
+	for _, codec := range params.Codecs {
+		if err = validateRtpCodecParameters(codec); err != nil {
 			return
 		}
 	}
@@ -403,21 +402,21 @@ func getProducerRtpParametersMapping(params RtpParameters, caps RtpCapabilities)
 	// Match parameters media codecs to capabilities media codecs.
 	codecToCapCodec := map[*RtpCodecParameters]*RtpCodecCapability{}
 
-	for i, codec := range params.Codecs {
+	for _, codec := range params.Codecs {
 		if codec.isRtxCodec() {
 			continue
 		}
 
-		matchedCapCodec, matched := findMatchedCodec(&codec, caps.Codecs, matchOptions{strict: true, modify: true})
+		matchedCapCodec, matched := findMatchedCodec(codec, caps.Codecs, matchOptions{strict: true, modify: true})
 
 		if !matched {
 			err = NewUnsupportedError("unsupported codec [mimeType:%s, payloadType:%d]", codec.MimeType, codec.PayloadType)
 		}
 
-		codecToCapCodec[&params.Codecs[i]] = matchedCapCodec
+		codecToCapCodec[codec] = matchedCapCodec
 	}
 
-	for i, codec := range params.Codecs {
+	for _, codec := range params.Codecs {
 		if !codec.isRtxCodec() {
 			continue
 		}
@@ -425,9 +424,9 @@ func getProducerRtpParametersMapping(params RtpParameters, caps RtpCapabilities)
 		var associatedMediaCodec *RtpCodecParameters
 
 		// Search for the associated media codec.
-		for i, mediaCodec := range params.Codecs {
+		for _, mediaCodec := range params.Codecs {
 			if mediaCodec.PayloadType == codec.Parameters.Apt {
-				associatedMediaCodec = &params.Codecs[i]
+				associatedMediaCodec = codec
 				break
 			}
 		}
@@ -457,7 +456,7 @@ func getProducerRtpParametersMapping(params RtpParameters, caps RtpCapabilities)
 			return
 		}
 
-		codecToCapCodec[&params.Codecs[i]] = associatedCapRtxCodec
+		codecToCapCodec[codec] = associatedCapRtxCodec
 	}
 
 	// Generate codecs mapping.
@@ -520,7 +519,7 @@ func getConsumableRtpParameters(
 				break
 			}
 		}
-		consumableCodec := RtpCodecParameters{
+		consumableCodec := &RtpCodecParameters{
 			MimeType:     matchedCapCodec.MimeType,
 			ClockRate:    matchedCapCodec.ClockRate,
 			Channels:     matchedCapCodec.Channels,
@@ -543,7 +542,7 @@ func getConsumableRtpParameters(
 		}
 
 		if consumableCapRtxCodec != nil {
-			consumableRtxCodec := RtpCodecParameters{
+			consumableRtxCodec := &RtpCodecParameters{
 				MimeType:     consumableCapRtxCodec.MimeType,
 				ClockRate:    consumableCapRtxCodec.ClockRate,
 				Channels:     consumableCapRtxCodec.Channels,
@@ -604,7 +603,7 @@ func canConsume(consumableParams RtpParameters, caps RtpCapabilities) (ok bool, 
 	var matchingCodecs []*RtpCodecCapability
 
 	for _, codec := range consumableParams.Codecs {
-		matchedCodec, matched := findMatchedCodec(&codec, caps.Codecs, matchOptions{strict: true})
+		matchedCodec, matched := findMatchedCodec(codec, caps.Codecs, matchOptions{strict: true})
 
 		if !matched {
 			continue
@@ -636,13 +635,13 @@ func getConsumerRtpParameters(consumableParams RtpParameters, caps RtpCapabiliti
 		}
 	}
 
-	consumableCodecs := []RtpCodecParameters{}
+	consumableCodecs := []*RtpCodecParameters{}
 	rtxSupported := false
 
 	clone(consumableParams.Codecs, &consumableCodecs)
 
 	for _, codec := range consumableCodecs {
-		matchedCapCodec, matched := findMatchedCodec(&codec, caps.Codecs, matchOptions{strict: true})
+		matchedCapCodec, matched := findMatchedCodec(codec, caps.Codecs, matchOptions{strict: true})
 
 		if !matched {
 			continue
@@ -780,8 +779,8 @@ func getConsumerRtpParameters(consumableParams RtpParameters, caps RtpCapabiliti
 func getPipeConsumerRtpParameters(consumableParams RtpParameters, enableRtx bool) (consumerParams RtpParameters) {
 	consumerParams.Rtcp = consumableParams.Rtcp
 
-	consumableCodecs := []RtpCodecParameters{}
-	copier.Copy(&consumableCodecs, &consumableParams.Codecs)
+	consumableCodecs := []*RtpCodecParameters{}
+	clone(consumableParams.Codecs, &consumableCodecs)
 
 	for _, codec := range consumableCodecs {
 		if !enableRtx && codec.isRtxCodec() {
