@@ -19,7 +19,7 @@ type RtpCapabilities struct {
 	/**
 	 * Supported RTP header extensions.
 	 */
-	HeaderExtensions []RtpHeaderExtension `json:"headerExtensions,omitempty"`
+	HeaderExtensions []*RtpHeaderExtension `json:"headerExtensions,omitempty"`
 
 	/**
 	 * Supported FEC mechanisms.

@@ -110,7 +110,7 @@ func validateRtcpFeedback(fb RtcpFeedback) error {
  * Validates RtpHeaderExtension. It may modify given data by adding missing
  * fields with default values.
  */
-func validateRtpHeaderExtension(ext RtpHeaderExtension) (err error) {
+func validateRtpHeaderExtension(ext *RtpHeaderExtension) (err error) {
 	if len(ext.Kind) > 0 && ext.Kind != MediaKind_Audio && ext.Kind != MediaKind_Video {
 		return NewTypeError("invalid ext.kind")
 	}

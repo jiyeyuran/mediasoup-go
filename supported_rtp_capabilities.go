@@ -234,7 +234,7 @@ var supportedRtpCapabilities = RtpCapabilities{
 			},
 		},
 	},
-	HeaderExtensions: []RtpHeaderExtension{
+	HeaderExtensions: []*RtpHeaderExtension{
 		{
 			Kind:             "audio",
 			Uri:              "urn:ietf:params:rtp-hdrext:sdes:mid",
