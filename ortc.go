@@ -137,7 +137,7 @@ func validateRtpHeaderExtension(ext *RtpHeaderExtension) (err error) {
  * Validates RtpParameters. It may modify given data by adding missing
  * fields with default values.
  */
-func validateRtpParameters(params RtpParameters) (err error) {
+func validateRtpParameters(params *RtpParameters) (err error) {
 	for i := range params.Codecs {
 		if err = validateRtpCodecParameters(&params.Codecs[i]); err != nil {
 			return

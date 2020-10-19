@@ -438,7 +438,7 @@ func (transport *Transport) Produce(options ProducerOptions) (producer *Producer
 	}
 
 	// This may throw.
-	if err = validateRtpParameters(rtpParameters); err != nil {
+	if err = validateRtpParameters(&rtpParameters); err != nil {
 		return
 	}
 
