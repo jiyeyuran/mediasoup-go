@@ -810,8 +810,11 @@ func (transport *Transport) ConsumeData(options DataConsumerOptions) (dataConsum
 func (transport *Transport) EnableTraceEvent(types ...TransportTraceEventType) error {
 	transport.logger.Debug("pause()")
 
-	reqData := H{"types": types}
-	resp := transport.channel.Request("transport.enableTraceEvent", transport.internal, reqData)
+	if types == nil {
+		types = []TransportTraceEventType{}
+	}
+
+	resp := transport.channel.Request("transport.enableTraceEvent", transport.internal, H{"types": types})
 
 	return resp.Err()
 }

@@ -399,6 +399,10 @@ func (producer *Producer) Resume() (err error) {
 func (producer *Producer) EnableTraceEvent(types ...ProducerTraceEventType) error {
 	producer.logger.Debug("enableTraceEvent()")
 
+	if types == nil {
+		types = []ProducerTraceEventType{}
+	}
+
 	result := producer.channel.Request("producer.enableTraceEvent", producer.internal, H{"types": types})
 
 	return result.Err()

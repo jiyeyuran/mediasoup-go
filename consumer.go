@@ -462,7 +462,7 @@ func (consumer *Consumer) RequestKeyFrame() error {
 func (consumer *Consumer) EnableTraceEvent(types ...ConsumerTraceEventType) error {
 	consumer.logger.Debug("enableTraceEvent()")
 
-	if len(types) == 0 {
+	if types == nil {
 		types = []ConsumerTraceEventType{}
 	}
 
