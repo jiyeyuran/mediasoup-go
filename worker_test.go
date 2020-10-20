@@ -2,7 +2,6 @@ package mediasoup
 
 import (
 	"os"
-	"time"
 )
 
 func init() {
@@ -18,8 +17,4 @@ func CreateTestWorker(options ...Option) *Worker {
 		panic(err)
 	}
 	return worker
-}
-
-func Wait(d time.Duration) {
-	time.Sleep(d)
 }

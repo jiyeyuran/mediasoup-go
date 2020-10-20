@@ -4,10 +4,18 @@ import (
 	"fmt"
 )
 
-type TypeError error
+type TypeError struct {
+	err error
+}
 
 func NewTypeError(format string, args ...interface{}) error {
-	return TypeError(fmt.Errorf(format, args...))
+	return TypeError{
+		err: fmt.Errorf(format, args...),
+	}
+}
+
+func (e TypeError) Error() string {
+	return e.Error()
 }
 
 // UnsupportedError indicating not support for something.

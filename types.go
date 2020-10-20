@@ -27,6 +27,11 @@ func (r DumpResult) Unmarshal(v interface{}) error {
 	return json.Unmarshal(r.Data, v)
 }
 
+type WorkerDump struct {
+	Pid       string   `json:"pid,omitempty"`
+	RouterIds []string `json:"routerIds,omitempty"`
+}
+
 type RouterDump struct {
 	Id                               string              `json:"id,omitempty"`
 	MapProducerIdConsumerIds         map[string][]string `json:"mapProducerIdConsumerIds,omitempty"`
@@ -44,6 +49,18 @@ type TransportDump struct {
 	ConsumerIds     []string `json:"consumerIds,omitempty"`
 	DataProducerIds []string `json:"dataProducerIds,omitempty"`
 	DataConsumerIds []string `json:"dataConsumerIds,omitempty"`
+}
+
+type ConsumerDump struct {
+	Id                         string               `json:"id,omitempty"`
+	Kind                       string               `json:"kind,omitempty"`
+	Type                       string               `json:"type,omitempty"`
+	RtpParameters              RtpParameters        `json:"rtpParameters,omitempty"`
+	ConsumableRtpEncodings     []RtpMappingEncoding `json:"consumableRtpEncodings,omitempty"`
+	SupportedCodecPayloadTypes []uint32             `json:"supportedCodecPayloadTypes,omitempty"`
+	Paused                     bool                 `json:"paused,omitempty"`
+	ProducerPaused             bool                 `json:"producerPaused,omitempty"`
+	TraceEventTypes            string               `json:"traceEventTypes,omitempty"`
 }
 
 type internalData struct {

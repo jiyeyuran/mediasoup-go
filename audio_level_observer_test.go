@@ -2,7 +2,6 @@ package mediasoup
 
 import (
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -96,8 +95,6 @@ func TestCreateAudioLevelObserver_Router_Close(t *testing.T) {
 	})
 	router.Close()
 
-	Wait(time.Millisecond)
-
 	assert.True(t, audioLevelObserver.Closed())
 	assert.True(t, routerclose)
 }
@@ -116,8 +113,6 @@ func TestCreateAudioLevelObserver_Worker_Close(t *testing.T) {
 		routerclose = true
 	})
 	worker.Close()
-
-	Wait(time.Millisecond)
 
 	assert.True(t, audioLevelObserver.Closed())
 	assert.True(t, routerclose)

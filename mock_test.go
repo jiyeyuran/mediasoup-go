@@ -1,49 +1,48 @@
 package mediasoup
 
 import (
-	"sync"
-	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 )
 
 type MockFunc struct {
 	require *require.Assertions
-	wg      *sync.WaitGroup
 	called  int32
-	args    atomic.Value
+	args    interface{}
 }
 
 func NewMockFunc(t *testing.T) *MockFunc {
 	return &MockFunc{
 		require: require.New(t),
-		wg:      &sync.WaitGroup{},
 	}
 }
 
-func (w *MockFunc) Fn() func(args ...interface{}) {
-	w.wg.Add(1)
+func (w *MockFunc) Fn() func(...interface{}) {
+	w.Reset()
 
 	return func(args ...interface{}) {
-		w.args.Store(args)
-		atomic.AddInt32(&w.called, 1)
-		w.wg.Done()
+		w.args = args
+		w.called++
 	}
 }
 
 func (w *MockFunc) ExpectCalledWith(args ...interface{}) {
-	w.wg.Wait()
-	w.require.Equal(w.args.Load(), args)
+	wait(time.Millisecond)
+	w.require.Equal(w.args, args)
 }
 
 func (w *MockFunc) ExpectCalledTimes(called int32) {
-	w.wg.Wait()
+	wait(time.Millisecond)
 	w.require.Equal(called, w.called)
 }
 
 func (w *MockFunc) Reset() {
-	w.args.Store(nil)
-	atomic.StoreInt32(&w.called, 0)
-	w.wg = &sync.WaitGroup{}
+	w.args = nil
+	w.called = 0
+}
+
+func wait(d time.Duration) {
+	time.Sleep(d)
 }

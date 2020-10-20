@@ -2,6 +2,7 @@ package mediasoup
 
 import (
 	"encoding/json"
+	"fmt"
 	"reflect"
 	"sync"
 	"sync/atomic"
@@ -341,12 +342,13 @@ func (consumer *Consumer) transportClosed() {
 }
 
 // Dump Consumer.
-func (consumer *Consumer) Dump() DumpResult {
+func (consumer *Consumer) Dump() (dump *ConsumerDump, err error) {
 	consumer.logger.Debug("dump()")
 
 	resp := consumer.channel.Request("consumer.dump", consumer.internal)
+	err = resp.Unmarshal(&dump)
 
-	return NewDumpResult(resp.Data(), resp.Err())
+	return
 }
 
 // Get Consumer stats.
@@ -414,6 +416,7 @@ func (consumer *Consumer) SetPreferredLayers(layers ConsumerLayers) (err error) 
 	consumer.logger.Debug("setPreferredLayers()")
 
 	response := consumer.channel.Request("consumer.setPreferredLayers", consumer.internal, layers)
+	fmt.Printf("setPreferredLayers: %s\n", response.data)
 	err = response.Unmarshal(&consumer.preferredLayers)
 
 	return
@@ -458,6 +461,10 @@ func (consumer *Consumer) RequestKeyFrame() error {
  */
 func (consumer *Consumer) EnableTraceEvent(types ...ConsumerTraceEventType) error {
 	consumer.logger.Debug("enableTraceEvent()")
+
+	if len(types) == 0 {
+		types = []ConsumerTraceEventType{}
+	}
 
 	response := consumer.channel.Request("consumer.enableTraceEvent", consumer.internal, H{"types": types})
 

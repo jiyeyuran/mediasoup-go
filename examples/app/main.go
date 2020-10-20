@@ -20,11 +20,8 @@ func main() {
 		logger.Error("%s", err)
 	})
 	worker.On("@success", func() {
-		dump, err := worker.Dump()
-		if err != nil {
-			panic(err)
-		}
-		logger.Debug("dump: %s", dump)
+		dump, _ := worker.Dump()
+		logger.Debug("dump: %+v", dump)
 
 		usage, err := worker.GetResourceUsage()
 		if err != nil {

@@ -28,6 +28,9 @@ func (r workerResponse) Unmarshal(v interface{}) error {
 	if r.err != nil {
 		return r.err
 	}
+	if len(r.data) == 0 {
+		return nil
+	}
 	return json.Unmarshal([]byte(r.data), v)
 }
 
