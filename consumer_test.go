@@ -8,7 +8,7 @@ import (
 )
 
 type ConsumerTestSuite struct {
-	suite.Suite
+	TestingSuite
 	consumerDeviceCapabilities RtpCapabilities
 	worker                     *Worker
 	router                     *Router
