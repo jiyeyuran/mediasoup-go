@@ -652,7 +652,7 @@ func (suite *ConsumerTestingSuite) TestEnableTraceEventSucceed() {
 	audioConsumer.EnableTraceEvent()
 
 	dump, _ = audioConsumer.Dump()
-	suite.Require().Equal("", dump.TraceEventTypes)
+	suite.Require().Empty(dump.TraceEventTypes)
 
 	audioConsumer.EnableTraceEvent("nack", "FOO", "fir")
 
@@ -662,7 +662,7 @@ func (suite *ConsumerTestingSuite) TestEnableTraceEventSucceed() {
 	audioConsumer.EnableTraceEvent()
 
 	dump, _ = audioConsumer.Dump()
-	suite.Require().Equal("", dump.TraceEventTypes)
+	suite.Require().Empty(dump.TraceEventTypes)
 
 }
 
