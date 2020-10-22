@@ -55,6 +55,8 @@ type PipeTransportOptions struct {
 	AppData interface{} `json:"appData,omitempty"`
 }
 
+type PipeTransportOption func(*PipeTransportOptions)
+
 type PipeTransportSpecificStat struct {
 	Tuple TransportTuple `json:"tuple"`
 }

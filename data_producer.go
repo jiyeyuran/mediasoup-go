@@ -12,7 +12,7 @@ type DataProducerOptions struct {
 	 * SCTP parameters defining how the endpoint is sending the data.
 	 * Just if messages are sent over SCTP.
 	 */
-	SctpStreamParameters SctpStreamParameters `json:"sctpStreamParameters,omitempty"`
+	SctpStreamParameters *SctpStreamParameters `json:"sctpStreamParameters,omitempty"`
 
 	/**
 	 * A label which can be used to distinguish this DataChannel from others.
@@ -113,7 +113,7 @@ func newDataProducer(params dataProducerParams) *DataProducer {
 
 // DataProducer id
 func (p *DataProducer) Id() string {
-	return p.Id()
+	return p.internal.DataProducerId
 }
 
 // Whether the DataProducer is closed.

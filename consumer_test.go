@@ -223,15 +223,15 @@ func (suite *ConsumerTestingSuite) SetupTest() {
 	suite.worker = CreateTestWorker()
 	suite.router, _ = suite.worker.CreateRouter(RouterOptions{MediaCodecs: mediaCodecs})
 
-	suite.transport1, _ = suite.router.CreateWebRtcTransport(WebRtcTransportOptions{
-		ListenIps: []TransportListenIp{
+	suite.transport1, _ = suite.router.CreateWebRtcTransport(func(o *WebRtcTransportOptions) {
+		o.ListenIps = []TransportListenIp{
 			{Ip: "127.0.0.1"},
-		},
+		}
 	})
-	suite.transport2, _ = suite.router.CreateWebRtcTransport(WebRtcTransportOptions{
-		ListenIps: []TransportListenIp{
+	suite.transport2, _ = suite.router.CreateWebRtcTransport(func(o *WebRtcTransportOptions) {
+		o.ListenIps = []TransportListenIp{
 			{Ip: "127.0.0.1"},
-		},
+		}
 	})
 
 	suite.audioProducer, _ = suite.transport1.Produce(audioProducerParameters)

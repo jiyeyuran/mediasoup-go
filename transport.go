@@ -3,7 +3,6 @@ package mediasoup
 import (
 	"errors"
 	"fmt"
-	"reflect"
 	"sync"
 	"sync/atomic"
 
@@ -647,14 +646,14 @@ func (transport *Transport) ProduceData(options DataProducerOptions) (dataProduc
 	if transport.data.transportType == TransportType_Direct {
 		typ = DataProducerType_Direct
 
-		if !reflect.DeepEqual(sctpStreamParameters, SctpStreamParameters{}) {
+		if sctpStreamParameters != nil {
 			transport.logger.Warn(
 				"produceData() | sctpStreamParameters are ignored when producing data on a DirectTransport")
 		}
 	} else {
 		typ = DataProducerType_Sctp
 
-		if err = validateSctpStreamParameters(&sctpStreamParameters); err != nil {
+		if err = validateSctpStreamParameters(sctpStreamParameters); err != nil {
 			return
 		}
 	}
@@ -663,10 +662,12 @@ func (transport *Transport) ProduceData(options DataProducerOptions) (dataProduc
 	internal.DataProducerId = id
 
 	reqData := H{
-		"type":                 typ,
-		"sctpStreamParameters": sctpStreamParameters,
-		"label":                label,
-		"protocol":             protocol,
+		"type":     typ,
+		"label":    label,
+		"protocol": protocol,
+	}
+	if sctpStreamParameters != nil {
+		reqData["sctpStreamParameters"] = sctpStreamParameters
 	}
 	resp := transport.channel.Request("transport.produceData", internal, reqData)
 

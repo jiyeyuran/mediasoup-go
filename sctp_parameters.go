@@ -30,12 +30,12 @@ type NumSctpStreams struct {
 	/**
 	 * Initially requested int of outgoing SCTP streams.
 	 */
-	OS int `json:"os"`
+	OS int `json:"OS"`
 
 	/**
 	 * Maximum int of incoming SCTP streams.
 	 */
-	MIS int `json:"mis"`
+	MIS int `json:"MIS"`
 }
 
 type SctpParameters struct {

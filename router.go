@@ -240,21 +240,17 @@ func (router *Router) Dump() (data *RouterDump, err error) {
 /**
  * Create a WebRtcTransport.
  */
-func (router *Router) CreateWebRtcTransport(options WebRtcTransportOptions) (transport *WebRtcTransport, err error) {
-	if options.EnableUdp == nil {
-		options.EnableUdp = Bool(true)
+func (router *Router) CreateWebRtcTransport(params ...WebRtcTransportOption) (transport *WebRtcTransport, err error) {
+	options := &WebRtcTransportOptions{
+		EnableUdp:                       Bool(true),
+		InitialAvailableOutgoingBitrate: 600000,
+		NumSctpStreams:                  NumSctpStreams{OS: 1024, MIS: 1024},
+		MaxSctpMessageSize:              262144,
+		SctpSendBufferSize:              262144,
 	}
-	if options.InitialAvailableOutgoingBitrate == 0 {
-		options.InitialAvailableOutgoingBitrate = 600000
-	}
-	if reflect.DeepEqual(options.NumSctpStreams, NumSctpStreams{}) {
-		options.NumSctpStreams = NumSctpStreams{OS: 1024, MIS: 1024}
-	}
-	if options.MaxSctpMessageSize == 0 {
-		options.MaxSctpMessageSize = 262144
-	}
-	if options.SctpSendBufferSize == 0 {
-		options.SctpSendBufferSize = 262144
+
+	for _, param := range params {
+		param(options)
 	}
 
 	router.logger.Debug("createWebRtcTransport()")
@@ -290,21 +286,17 @@ func (router *Router) CreateWebRtcTransport(options WebRtcTransportOptions) (tra
 /**
  * Create a PlainTransport.
  */
-func (router *Router) CreatePlainTransport(options PlainTransportOptions) (transport *PlainTransport, err error) {
-	if options.RtcpMux == nil {
-		options.RtcpMux = Bool(true)
+func (router *Router) CreatePlainTransport(params ...PlainTransportOption) (transport *PlainTransport, err error) {
+	options := &PlainTransportOptions{
+		RtcpMux:            Bool(true),
+		NumSctpStreams:     NumSctpStreams{OS: 1024, MIS: 1024},
+		MaxSctpMessageSize: 262144,
+		SctpSendBufferSize: 262144,
+		SrtpCryptoSuite:    AES_CM_128_HMAC_SHA1_80,
 	}
-	if reflect.DeepEqual(options.NumSctpStreams, NumSctpStreams{}) {
-		options.NumSctpStreams = NumSctpStreams{OS: 1024, MIS: 1024}
-	}
-	if options.MaxSctpMessageSize == 0 {
-		options.MaxSctpMessageSize = 262144
-	}
-	if options.SctpSendBufferSize == 0 {
-		options.SctpSendBufferSize = 262144
-	}
-	if len(options.SrtpCryptoSuite) == 0 {
-		options.SrtpCryptoSuite = AES_CM_128_HMAC_SHA1_80
+
+	for _, param := range params {
+		param(options)
 	}
 
 	router.logger.Debug("createPlainTransport()")
@@ -339,15 +331,15 @@ func (router *Router) CreatePlainTransport(options PlainTransportOptions) (trans
 /**
  * Create a PipeTransport.
  */
-func (router *Router) CreatePipeTransport(options PipeTransportOptions) (transport *PipeTransport, err error) {
-	if reflect.DeepEqual(options.NumSctpStreams, NumSctpStreams{}) {
-		options.NumSctpStreams = NumSctpStreams{OS: 1024, MIS: 1024}
+func (router *Router) CreatePipeTransport(params ...PipeTransportOption) (transport *PipeTransport, err error) {
+	options := &PipeTransportOptions{
+		NumSctpStreams:     NumSctpStreams{OS: 1024, MIS: 1024},
+		MaxSctpMessageSize: 268435456,
+		SctpSendBufferSize: 268435456,
 	}
-	if options.MaxSctpMessageSize == 0 {
-		options.MaxSctpMessageSize = 268435456
-	}
-	if options.SctpSendBufferSize == 0 {
-		options.SctpSendBufferSize = 268435456
+
+	for _, param := range params {
+		param(options)
 	}
 
 	router.logger.Debug("createPipeTransport()")
@@ -380,9 +372,13 @@ func (router *Router) CreatePipeTransport(options PipeTransportOptions) (transpo
 /**
  * Create a DirectTransport.
  */
-func (router *Router) CreateDirectTransport(options DirectTransportOptions) (transport *DirectTransport, err error) {
-	if options.MaxMessageSize == 0 {
-		options.MaxMessageSize = 262144
+func (router *Router) CreateDirectTransport(params ...DirectTransportOption) (transport *DirectTransport, err error) {
+	options := &DirectTransportOptions{
+		MaxMessageSize: 262144,
+	}
+
+	for _, param := range params {
+		param(options)
 	}
 
 	router.logger.Debug("createDirectTransport()")
@@ -483,18 +479,18 @@ func (router *Router) PipeToRouter(options PipeToRouterOptions) (result *PipeToR
 			}
 		}()
 
-		newOptions := PipeTransportOptions{
-			ListenIp:       options.ListenIp,
-			EnableSctp:     options.EnableSctp,
-			NumSctpStreams: options.NumSctpStreams,
-			EnableRtx:      options.EnableRtx,
-			EnableSrtp:     options.EnableSrtp,
+		option := func(o *PipeTransportOptions) {
+			o.ListenIp = options.ListenIp
+			o.EnableSctp = options.EnableSctp
+			o.NumSctpStreams = options.NumSctpStreams
+			o.EnableRtx = options.EnableRtx
+			o.EnableSrtp = options.EnableSrtp
 		}
-		localPipeTransport, err = router.CreatePipeTransport(newOptions)
+		localPipeTransport, err = router.CreatePipeTransport(option)
 		if err != nil {
 			return
 		}
-		remotePipeTransport, err = options.Router.CreatePipeTransport(newOptions)
+		remotePipeTransport, err = options.Router.CreatePipeTransport(option)
 		if err != nil {
 			return
 		}
@@ -756,10 +752,10 @@ func (router *Router) createTransport(internal internalData, data, appData inter
 		router.producers.Delete(producer.Id())
 	})
 	transport.On("@newdataproducer", func(dataProducer *DataProducer) {
-		router.producers.Store(dataProducer.Id(), dataProducer)
+		router.dataProducers.Store(dataProducer.Id(), dataProducer)
 	})
 	transport.On("@dataproducerclose", func(dataProducer *DataProducer) {
-		router.producers.Delete(dataProducer.Id())
+		router.dataProducers.Delete(dataProducer.Id())
 	})
 
 	// Emit observer event.

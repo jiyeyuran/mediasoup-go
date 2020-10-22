@@ -61,6 +61,8 @@ type PlainTransportOptions struct {
 	AppData interface{} `json:"appData,omitempty"`
 }
 
+type PlainTransportOption func(*PlainTransportOptions)
+
 type PlainTransportSpecificStat struct {
 	RtcpMux   bool            `json:"rtcp_mux"`
 	Comedia   bool            `json:"comedia"`
@@ -107,6 +109,7 @@ func newPlainTransport(params transportParams) ITransport {
 		logger:     params.logger,
 		internal:   params.internal,
 		data:       data,
+		channel:    params.channel,
 	}
 
 	transport.handleWorkerNotifications()

@@ -29,3 +29,7 @@ func (suite *TestingSuite) Require() *require.Assertions {
 func (suite *TestingSuite) Assert() *assert.Assertions {
 	return suite.proxy.Assert()
 }
+
+func (suite *TestingSuite) Fn() *MockFunc {
+	return NewMockFunc(suite.T())
+}

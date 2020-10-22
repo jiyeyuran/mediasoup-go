@@ -34,7 +34,7 @@ func (w *MockFunc) ExpectCalledWith(args ...interface{}) {
 }
 
 func (w *MockFunc) ExpectCalledTimes(called int32) {
-	wait(time.Millisecond)
+	wait(time.Millisecond * 10)
 	w.require.Equal(called, w.called)
 }
 

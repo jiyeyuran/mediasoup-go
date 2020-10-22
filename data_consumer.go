@@ -56,7 +56,7 @@ type DataConsumerStat struct {
 type DataConsumerType string
 
 const (
-	DataConsumerType_Sctp   DataConsumerType = "stcp"
+	DataConsumerType_Sctp   DataConsumerType = "sctp"
 	DataConsumerType_Direct                  = "direct"
 )
 
@@ -70,7 +70,7 @@ type dataConsumerParams struct {
 
 type dataConsumerData struct {
 	Type                 DataConsumerType
-	SctpStreamParameters SctpStreamParameters
+	SctpStreamParameters *SctpStreamParameters
 	Label                string
 	Protocol             string
 }
@@ -130,7 +130,7 @@ func newDataConsumer(params dataConsumerParams) *DataConsumer {
 
 // DataConsumer id
 func (c *DataConsumer) Id() string {
-	return c.Id()
+	return c.internal.DataConsumerId
 }
 
 // Associated DataProducer id.
@@ -151,7 +151,7 @@ func (c *DataConsumer) Type() DataConsumerType {
 /**
  * SCTP stream parameters.
  */
-func (c *DataConsumer) SctpStreamParameters() SctpStreamParameters {
+func (c *DataConsumer) SctpStreamParameters() *SctpStreamParameters {
 	return c.data.SctpStreamParameters
 }
 
@@ -225,12 +225,13 @@ func (c *DataConsumer) transportClosed() {
 }
 
 // Dump DataConsumer.
-func (c *DataConsumer) Dump() DumpResult {
+func (c *DataConsumer) Dump() (data DataConsumerDump, err error) {
 	c.logger.Debug("dump()")
 
 	resp := c.channel.Request("dataConsumer.dump", c.internal)
+	err = resp.Unmarshal(&data)
 
-	return NewDumpResult(resp.Data(), resp.Err())
+	return
 }
 
 // Get DataConsumer stats.

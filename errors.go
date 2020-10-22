@@ -15,7 +15,7 @@ func NewTypeError(format string, args ...interface{}) error {
 }
 
 func (e TypeError) Error() string {
-	return e.Error()
+	return e.err.Error()
 }
 
 // UnsupportedError indicating not support for something.
