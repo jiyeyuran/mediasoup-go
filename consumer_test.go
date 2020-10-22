@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
-type ConsumerTestSuite struct {
+type ConsumerTestingSuite struct {
 	TestingSuite
 	consumerDeviceCapabilities RtpCapabilities
 	worker                     *Worker
@@ -18,7 +18,7 @@ type ConsumerTestSuite struct {
 	videoProducer              *Producer
 }
 
-func (suite *ConsumerTestSuite) SetupTest() {
+func (suite *ConsumerTestingSuite) SetupTest() {
 	mediaCodecs := []*RtpCodecCapability{
 		{
 			Kind:      "audio",
@@ -241,11 +241,11 @@ func (suite *ConsumerTestSuite) SetupTest() {
 	suite.videoProducer.Pause()
 }
 
-func (suite *ConsumerTestSuite) TearDownTest() {
+func (suite *ConsumerTestingSuite) TearDownTest() {
 	suite.worker.Close()
 }
 
-func (suite *ConsumerTestSuite) TestTransportConsume_Succeeds() {
+func (suite *ConsumerTestingSuite) TestTransportConsume_Succeeds() {
 	router, transport2 := suite.router, suite.transport2
 
 	observer := NewMockFunc(suite.T())
@@ -380,7 +380,7 @@ func (suite *ConsumerTestSuite) TestTransportConsume_Succeeds() {
 	suite.Equal(expectedTransportDump.ConsumerIds, transportDump.ConsumerIds)
 }
 
-func (suite *ConsumerTestSuite) TestTransportConsume_UnsupportedError() {
+func (suite *ConsumerTestingSuite) TestTransportConsume_UnsupportedError() {
 	router, transport2, audioProducer := suite.router, suite.transport2, suite.audioProducer
 
 	invalidDeviceCapabilities := RtpCapabilities{
@@ -414,7 +414,7 @@ func (suite *ConsumerTestSuite) TestTransportConsume_UnsupportedError() {
 	suite.IsType(NewUnsupportedError(""), err)
 }
 
-func (suite *ConsumerTestSuite) TestConsumerDump() {
+func (suite *ConsumerTestingSuite) TestConsumerDump() {
 	audioConsumer := suite.audioConsumer()
 	data, _ := audioConsumer.Dump()
 
@@ -533,7 +533,7 @@ func (suite *ConsumerTestSuite) TestConsumerDump() {
 	suite.True(data.ProducerPaused)
 }
 
-func (suite *ConsumerTestSuite) TestConsumerGetStats() {
+func (suite *ConsumerTestingSuite) TestConsumerGetStats() {
 	audioConsumer := suite.audioConsumer()
 
 	consumerStats, err := audioConsumer.GetStats()
@@ -578,7 +578,7 @@ func (suite *ConsumerTestSuite) TestConsumerGetStats() {
 	})
 }
 
-func (suite *ConsumerTestSuite) TestConsumerPauseAndResume() {
+func (suite *ConsumerTestingSuite) TestConsumerPauseAndResume() {
 	audioConsumer := suite.audioConsumer()
 	audioConsumer.Pause()
 
@@ -595,7 +595,7 @@ func (suite *ConsumerTestSuite) TestConsumerPauseAndResume() {
 	suite.False(data.Paused)
 }
 
-func (suite *ConsumerTestSuite) TestConsumerSetPreferredLayersSucceed() {
+func (suite *ConsumerTestingSuite) TestConsumerSetPreferredLayersSucceed() {
 	audioConsumer := suite.audioConsumer()
 	videoConsumer := suite.videoConsumer(false)
 
@@ -608,7 +608,7 @@ func (suite *ConsumerTestSuite) TestConsumerSetPreferredLayersSucceed() {
 	suite.Require().Equal(&ConsumerLayers{SpatialLayer: 2, TemporalLayer: 0}, videoConsumer.PreferredLayers())
 }
 
-func (suite *ConsumerTestSuite) TestConsumerSetPreferredLayersRejectWithTypeError() {
+func (suite *ConsumerTestingSuite) TestConsumerSetPreferredLayersRejectWithTypeError() {
 	videoConsumer := suite.videoConsumer(false)
 
 	err := videoConsumer.SetPreferredLayers(ConsumerLayers{})
@@ -618,7 +618,7 @@ func (suite *ConsumerTestSuite) TestConsumerSetPreferredLayersRejectWithTypeErro
 	suite.Require().IsType(TypeError{}, err)
 }
 
-func (suite *ConsumerTestSuite) TestConsumerSetPrioritySucceed() {
+func (suite *ConsumerTestingSuite) TestConsumerSetPrioritySucceed() {
 	videoConsumer := suite.videoConsumer(false)
 
 	err := videoConsumer.SetPriority(2)
@@ -626,14 +626,14 @@ func (suite *ConsumerTestSuite) TestConsumerSetPrioritySucceed() {
 	suite.Require().EqualValues(2, videoConsumer.Priority())
 }
 
-func (suite *ConsumerTestSuite) TestConsumerSetPriorityRejectWithTypeError() {
+func (suite *ConsumerTestingSuite) TestConsumerSetPriorityRejectWithTypeError() {
 	videoConsumer := suite.videoConsumer(false)
 
 	err := videoConsumer.SetPriority(0)
 	suite.Require().IsType(TypeError{}, err)
 }
 
-func (suite *ConsumerTestSuite) TestConsumerUnsetPrioritySucceed() {
+func (suite *ConsumerTestingSuite) TestConsumerUnsetPrioritySucceed() {
 	videoConsumer := suite.videoConsumer(false)
 
 	err := videoConsumer.UnsetPriority()
@@ -641,7 +641,7 @@ func (suite *ConsumerTestSuite) TestConsumerUnsetPrioritySucceed() {
 	suite.Require().EqualValues(1, videoConsumer.Priority())
 }
 
-func (suite *ConsumerTestSuite) TestEnableTraceEventSucceed() {
+func (suite *ConsumerTestingSuite) TestEnableTraceEventSucceed() {
 	audioConsumer := suite.audioConsumer()
 
 	audioConsumer.EnableTraceEvent("rtp", "pli")
@@ -666,7 +666,7 @@ func (suite *ConsumerTestSuite) TestEnableTraceEventSucceed() {
 
 }
 
-func (suite *ConsumerTestSuite) TestConsumerEmitsProducerPauseAndProducerResume() {
+func (suite *ConsumerTestingSuite) TestConsumerEmitsProducerPauseAndProducerResume() {
 	audioConsumer := suite.audioConsumer()
 	observer := NewMockFunc(suite.T())
 
@@ -685,7 +685,7 @@ func (suite *ConsumerTestSuite) TestConsumerEmitsProducerPauseAndProducerResume(
 	suite.False(audioConsumer.ProducerPaused())
 }
 
-func (suite *ConsumerTestSuite) TestConsumerEmitsScore() {
+func (suite *ConsumerTestingSuite) TestConsumerEmitsScore() {
 	audioConsumer := suite.audioConsumer()
 
 	onScore := NewMockFunc(suite.T())
@@ -701,7 +701,7 @@ func (suite *ConsumerTestSuite) TestConsumerEmitsScore() {
 	suite.Equal(ConsumerScore{ProducerScore: 8, Score: 8}, audioConsumer.Score())
 }
 
-func (suite *ConsumerTestSuite) TestConsumerClose() {
+func (suite *ConsumerTestingSuite) TestConsumerClose() {
 	audioConsumer := suite.audioConsumer()
 	videoConsumer := suite.videoConsumer(true)
 
@@ -725,7 +725,7 @@ func (suite *ConsumerTestSuite) TestConsumerClose() {
 	suite.EqualValues([]string{videoConsumer.Id()}, transportDump.ConsumerIds)
 }
 
-func (suite *ConsumerTestSuite) TestConsumerRejectIfClosed() {
+func (suite *ConsumerTestingSuite) TestConsumerRejectIfClosed() {
 	audioConsumer := suite.audioConsumer()
 	audioConsumer.Close()
 
@@ -741,7 +741,7 @@ func (suite *ConsumerTestSuite) TestConsumerRejectIfClosed() {
 	suite.Error(audioConsumer.RequestKeyFrame())
 }
 
-func (suite *ConsumerTestSuite) TestConsumerEmitsProducerClosed() {
+func (suite *ConsumerTestingSuite) TestConsumerEmitsProducerClosed() {
 	audioConsumer := suite.audioConsumer()
 
 	onObserverClose := NewMockFunc(suite.T())
@@ -758,7 +758,7 @@ func (suite *ConsumerTestSuite) TestConsumerEmitsProducerClosed() {
 	suite.True(audioConsumer.Closed())
 }
 
-func (suite *ConsumerTestSuite) TestConsumerEmitsTransportClosed() {
+func (suite *ConsumerTestingSuite) TestConsumerEmitsTransportClosed() {
 	videoConsumer := suite.videoConsumer(false)
 
 	onObserverClose := NewMockFunc(suite.T())
@@ -779,7 +779,7 @@ func (suite *ConsumerTestSuite) TestConsumerEmitsTransportClosed() {
 	suite.Empty(routerDump.MapConsumerIdProducerId)
 }
 
-func (suite *ConsumerTestSuite) audioConsumer() *Consumer {
+func (suite *ConsumerTestingSuite) audioConsumer() *Consumer {
 	audioConsumer, err := suite.transport2.Consume(ConsumerOptions{
 		ProducerId:      suite.audioProducer.Id(),
 		RtpCapabilities: suite.consumerDeviceCapabilities,
@@ -790,7 +790,7 @@ func (suite *ConsumerTestSuite) audioConsumer() *Consumer {
 	return audioConsumer
 }
 
-func (suite *ConsumerTestSuite) videoConsumer(paused bool) *Consumer {
+func (suite *ConsumerTestingSuite) videoConsumer(paused bool) *Consumer {
 	videoConsumer, _ := suite.transport2.Consume(ConsumerOptions{
 		ProducerId:      suite.videoProducer.Id(),
 		RtpCapabilities: suite.consumerDeviceCapabilities,
@@ -801,6 +801,6 @@ func (suite *ConsumerTestSuite) videoConsumer(paused bool) *Consumer {
 	return videoConsumer
 }
 
-func TestConsumerTestSuite(t *testing.T) {
-	suite.Run(t, new(ConsumerTestSuite))
+func TestConsumerTestingSuite(t *testing.T) {
+	suite.Run(t, new(ConsumerTestingSuite))
 }
