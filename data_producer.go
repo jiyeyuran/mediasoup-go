@@ -258,9 +258,9 @@ func (p *DataProducer) Send(data []byte, ppid ...int) (err error) {
 }
 
 /**
- * Send string.
+ * Send text.
  */
-func (p *DataProducer) SendString(message string) error {
+func (p *DataProducer) SendText(message string) error {
 	ppid := PPID_WEBRTC_STRING
 
 	if len(message) == 0 {

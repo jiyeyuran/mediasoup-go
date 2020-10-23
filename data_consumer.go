@@ -298,9 +298,9 @@ func (c *DataConsumer) Send(data []byte, ppid ...int) (err error) {
 }
 
 /**
- * Send string.
+ * Send text.
  */
-func (c *DataConsumer) SendString(message string) error {
+func (c *DataConsumer) SendText(message string) error {
 	ppid := 51
 
 	if len(message) == 0 {
@@ -313,7 +313,7 @@ func (c *DataConsumer) SendString(message string) error {
 /**
  * Get buffered amount size.
  */
-func (c *DataConsumer) GetBufferedAmount(message string) (bufferedAmount int64, err error) {
+func (c *DataConsumer) GetBufferedAmount() (bufferedAmount int64, err error) {
 	c.logger.Debug("getBufferedAmount()")
 
 	resp := c.channel.Request("dataConsumer.getBufferedAmount", c.internal)
@@ -340,7 +340,6 @@ func (c *DataConsumer) handleWorkerNotifications() {
 				c.observer.SafeEmit("close")
 			}
 		case "sctpsendbufferfull":
-
 			c.SafeEmit("sctpsendbufferfull")
 
 		case "bufferedamountlow":
