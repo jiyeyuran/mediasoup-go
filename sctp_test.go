@@ -8,11 +8,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ishidawataru/sctp"
+	"github.com/pion/logging"
+	"github.com/pion/sctp"
 	"github.com/stretchr/testify/suite"
 )
 
-var sctpSendStreamId int
+var sctpSendStreamId uint16
 
 func TestSctpTestingSuite(t *testing.T) {
 	suite.Run(t, new(SctpTestingSuite))
@@ -24,7 +25,8 @@ type SctpTestingSuite struct {
 	router       *Router
 	dataProducer *DataProducer
 	dataConsumer *DataConsumer
-	stcpSocket   *sctp.SCTPConn
+	stcpAssoci   *sctp.Association
+	stcpStream   *sctp.Stream
 }
 
 func (suite *SctpTestingSuite) SetupTest() {
@@ -37,40 +39,36 @@ func (suite *SctpTestingSuite) SetupTest() {
 			Ip:          "0.0.0.0",
 			AnnouncedIp: "127.0.0.1",
 		}
-		o.EnableSctp = true
 		o.Comedia = true
+		o.EnableSctp = true
 		o.NumSctpStreams = NumSctpStreams{OS: 256, MIS: 256}
-	})
-
-	remoteUdpIp := transport.Tuple().LocalIp
-	remoteUdpPort := transport.Tuple().LocalPort
-	sctpParameters := transport.SctpParameters()
-	OS, MIS := sctpParameters.OS, sctpParameters.MIS
-
-	laddr := &sctp.SCTPAddr{
-		IPAddrs: []net.IPAddr{
-			{IP: net.ParseIP("127.0.0.1")},
-		},
-		Port: 12345,
-	}
-	raddr := &sctp.SCTPAddr{
-		IPAddrs: []net.IPAddr{
-			{IP: net.ParseIP(remoteUdpIp)},
-		},
-		Port: int(remoteUdpPort),
-	}
-
-	conn, err := sctp.DialSCTPExt("sctp", laddr, raddr, sctp.InitMsg{
-		NumOstreams:  uint16(OS),
-		MaxInstreams: uint16(MIS),
 	})
 	suite.NoError(err)
 
-	suite.stcpSocket = conn
+	remoteUdpIp := transport.Tuple().LocalIp
+	remoteUdpPort := transport.Tuple().LocalPort
+
+	conn, err := net.Dial("udp", fmt.Sprintf("%s:%d", remoteUdpIp, remoteUdpPort))
+	suite.NoError(err)
+
+	net.ListenUDP("udp", conn.LocalAddr().(*net.UDPAddr))
+
+	config := sctp.Config{
+		NetConn:       conn,
+		LoggerFactory: logging.NewDefaultLoggerFactory(),
+	}
+	association, err := sctp.Client(config)
+	suite.NoError(err)
 
 	// Create an explicit SCTP outgoing stream with id 123 (id 0 is already used
 	// by the implicit SCTP outgoing stream built-in the SCTP socket).
-	sctpSendStreamId = 123
+	sctpSendStreamId = uint16(123)
+
+	stream, err := association.OpenStream(sctpSendStreamId, sctp.PayloadTypeWebRTCBinary)
+	suite.NoError(err)
+
+	suite.stcpAssoci = association
+	suite.stcpStream = stream
 
 	// Create a DataProducer with the corresponding SCTP stream id.
 	dataProducer, err := transport.ProduceData(DataProducerOptions{
@@ -85,9 +83,14 @@ func (suite *SctpTestingSuite) SetupTest() {
 
 	suite.dataProducer = dataProducer
 
+	wait(time.Millisecond)
+
+	transport2, err := suite.router.CreateDirectTransport()
+	suite.NoError(err)
+
 	// Create a DataConsumer to receive messages from the DataProducer over the
-	// same transport.
-	dataConsumer, err := transport.ConsumeData(DataConsumerOptions{
+	// direct transport.
+	dataConsumer, err := transport2.ConsumeData(DataConsumerOptions{
 		DataProducerId: dataProducer.Id(),
 	})
 	suite.NoError(err)
@@ -96,21 +99,16 @@ func (suite *SctpTestingSuite) SetupTest() {
 }
 
 func (suite *SctpTestingSuite) TearDownTest() {
-	suite.stcpSocket.Close()
+	suite.stcpStream.Close()
 	suite.worker.Close()
 }
 
 func (suite *SctpTestingSuite) TestOrderedDataProducerDeliversAllSCTPMessagesToTheDataConsumer() {
-	onStream := NewMockFunc(suite.T())
-
 	numMessages := 200
 	sentMessageBytes := 0
 	recvMessageBytes := 0
 	lastSentMessageId := 0
 	lastRecvMessageId := 0
-
-	// It must be zero because it's the first DataConsumer on the transport.
-	suite.Zero(suite.dataConsumer.SctpStreamParameters().StreamId)
 
 	wg := sync.WaitGroup{}
 	wg.Add(2)
@@ -118,23 +116,21 @@ func (suite *SctpTestingSuite) TestOrderedDataProducerDeliversAllSCTPMessagesToT
 	go func() {
 		defer wg.Done()
 		for {
-			time.Sleep(10 * time.Millisecond)
+			time.Sleep(time.Millisecond)
 
 			lastSentMessageId++
-			ppid := PPID_WEBRTC_BINARY
-
-			if lastSentMessageId < numMessages/2 {
-				ppid = PPID_WEBRTC_STRING
-			}
 
 			data := fmt.Sprintf("%d", lastSentMessageId)
-			info := &sctp.SndRcvInfo{
-				Stream: uint16(sctpSendStreamId),
-				PPID:   uint32(ppid),
+			payloadType := sctp.PayloadTypeWebRTCBinary
+
+			if lastSentMessageId < numMessages/2 {
+				payloadType = sctp.PayloadTypeWebRTCString
 			}
 
-			suite.stcpSocket.SCTPWrite([]byte(data), info)
-			sentMessageBytes += len(data)
+			n, err := suite.stcpStream.WriteSCTP([]byte(data), payloadType)
+			suite.NoError(err)
+
+			sentMessageBytes += n
 
 			if lastSentMessageId == numMessages {
 				break
@@ -142,49 +138,36 @@ func (suite *SctpTestingSuite) TestOrderedDataProducerDeliversAllSCTPMessagesToT
 		}
 	}()
 
-	go func() {
-		defer wg.Done()
-		buf := make([]byte, 512)
-		for {
-			n, info, err := suite.stcpSocket.SCTPRead(buf)
-			suite.NoError(err)
+	suite.dataConsumer.On("message", func(payload []byte, ppid int) {
+		suite.T().Logf("payload: %s", payload)
+		recvMessageBytes += len(payload)
+		id, err := strconv.Atoi(string(payload))
+		suite.NoError(err)
 
-			recvMessageBytes += n
-
-			// It must be zero because it's the first SCTP incoming stream (so first
-			// DataConsumer).
-			suite.Equal(0, info.Stream)
-
-			data := buf[0:n]
-			id, err := strconv.Atoi(string(data))
-			suite.NoError(err)
-
-			if id == numMessages {
-				break
-			}
-
-			if id < numMessages/2 {
-				suite.EqualValues(PPID_WEBRTC_STRING, info.PPID)
-			} else {
-				suite.EqualValues(PPID_WEBRTC_BINARY, info.PPID)
-			}
-
-			lastRecvMessageId++
-
-			suite.Equal(lastRecvMessageId, id)
+		if id == numMessages {
+			wg.Done()
 		}
-	}()
+
+		if id < numMessages/2 {
+			suite.EqualValues(sctp.PayloadTypeWebRTCString, ppid)
+		} else {
+			suite.EqualValues(sctp.PayloadTypeWebRTCBinary, ppid)
+		}
+
+		lastRecvMessageId++
+
+		suite.Equal(lastRecvMessageId, id)
+	})
 
 	wg.Wait()
 
-	onStream.ExpectCalledTimes(1)
 	suite.EqualValues(lastSentMessageId, numMessages)
 	suite.EqualValues(lastRecvMessageId, numMessages)
 	suite.EqualValues(sentMessageBytes, recvMessageBytes)
 
 	dataProducerStats, err := suite.dataProducer.GetStats()
 	suite.NoError(err)
-	suite.Equal(DataProducerStat{
+	suite.Equal(&DataProducerStat{
 		Type:             "data-producer",
 		Timestamp:        dataProducerStats[0].Timestamp,
 		Label:            suite.dataProducer.Label(),
@@ -195,12 +178,12 @@ func (suite *SctpTestingSuite) TestOrderedDataProducerDeliversAllSCTPMessagesToT
 
 	dataConumserStats, err := suite.dataConsumer.GetStats()
 	suite.NoError(err)
-	suite.Equal(DataConsumerStat{
+	suite.Equal(&DataConsumerStat{
 		Type:         "data-consumer",
 		Timestamp:    dataConumserStats[0].Timestamp,
 		Label:        suite.dataConsumer.Label(),
 		Protocol:     suite.dataConsumer.Protocol(),
 		MessagesSent: int64(numMessages),
-		BytesSent:    int64(recvMessageBytes),
+		BytesSent:    int64(sentMessageBytes),
 	}, dataConumserStats[0])
 }
