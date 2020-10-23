@@ -2,6 +2,11 @@ package mediasoup
 
 import "encoding/json"
 
+const (
+	PPID_WEBRTC_STRING int = 51
+	PPID_WEBRTC_BINARY     = 53
+)
+
 type H map[string]interface{}
 
 func Bool(b bool) *bool {

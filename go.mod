@@ -5,6 +5,7 @@ go 1.15
 require (
 	github.com/gobwas/glob v0.2.3
 	github.com/imdario/mergo v0.3.11
+	github.com/ishidawataru/sctp v0.0.0-20191218070446-00ab2ac2db07
 	github.com/jinzhu/copier v0.0.0-20190924061706-b57f9002281a
 	github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e // indirect
 	github.com/rs/zerolog v1.20.0

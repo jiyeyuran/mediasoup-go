@@ -240,7 +240,7 @@ func (p *DataProducer) Send(data []byte, ppid ...int) (err error) {
 
 	if len(ppid) == 0 {
 		if len(data) > 0 {
-			ppidVal = 53
+			ppidVal = PPID_WEBRTC_BINARY
 		} else {
 			ppidVal = 57
 		}
@@ -261,7 +261,7 @@ func (p *DataProducer) Send(data []byte, ppid ...int) (err error) {
  * Send string.
  */
 func (p *DataProducer) SendString(message string) error {
-	ppid := 51
+	ppid := PPID_WEBRTC_STRING
 
 	if len(message) == 0 {
 		ppid = 56
