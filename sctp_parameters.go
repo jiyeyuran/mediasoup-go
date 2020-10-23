@@ -71,7 +71,7 @@ type SctpStreamParameters struct {
 	/**
 	 * SCTP stream id.
 	 */
-	StreamId int `json:"streamId"`
+	StreamId uint16 `json:"streamId"`
 
 	/**
 	 * Whether data messages must be received in order. If true the messages will

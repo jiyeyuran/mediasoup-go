@@ -749,7 +749,7 @@ func (transport *Transport) ConsumeData(options DataConsumerOptions) (dataConsum
 			return
 		}
 		transport.sctpStreamIds[sctpStreamId] = 1
-		sctpStreamParameters.StreamId = sctpStreamId
+		sctpStreamParameters.StreamId = uint16(sctpStreamId)
 
 		transport.locker.Unlock()
 	}
