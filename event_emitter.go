@@ -212,7 +212,7 @@ func (e *EventEmitter) emit(evt string, sync bool, args ...interface{}) {
 		callArgs = append(callArgs, reflect.ValueOf(arg))
 	}
 
-	for i, listener := range listeners {
+	for _, listener := range listeners {
 		if !listener.FuncValue.Type().IsVariadic() {
 			callArgs = buildActualArgs(listener.ArgTypes, callArgs)
 		}
@@ -228,9 +228,7 @@ func (e *EventEmitter) emit(evt string, sync bool, args ...interface{}) {
 			listener.ArgValues <- actualArgs
 		}
 		if listener.Once != nil {
-			e.mu.Lock()
-			e.evtListeners[evt] = append(listeners[:i], listeners[i+1:]...)
-			e.mu.Unlock()
+			e.RemoveListener(evt, listener)
 		}
 	}
 }
