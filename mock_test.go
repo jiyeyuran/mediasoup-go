@@ -11,6 +11,7 @@ type MockFunc struct {
 	require *require.Assertions
 	called  int32
 	args    interface{}
+	waited  bool
 }
 
 func NewMockFunc(t *testing.T) *MockFunc {
@@ -29,18 +30,25 @@ func (w *MockFunc) Fn() func(...interface{}) {
 }
 
 func (w *MockFunc) ExpectCalledWith(args ...interface{}) {
-	wait(time.Millisecond)
+	if !w.waited {
+		wait(time.Millisecond)
+		w.waited = true
+	}
 	w.require.Equal(w.args, args)
 }
 
 func (w *MockFunc) ExpectCalledTimes(called int32) {
-	wait(time.Millisecond * 10)
+	if !w.waited {
+		wait(time.Millisecond)
+		w.waited = true
+	}
 	w.require.Equal(called, w.called)
 }
 
 func (w *MockFunc) Reset() {
 	w.args = nil
 	w.called = 0
+	w.waited = false
 }
 
 func wait(d time.Duration) {

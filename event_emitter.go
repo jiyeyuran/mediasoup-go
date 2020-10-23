@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
-	"runtime/debug"
 	"sync"
 )
 
@@ -13,7 +12,7 @@ const EventEmitterQueueSize = 128
 type IEventEmitter interface {
 	AddListener(evt string, listener interface{})
 	Once(evt string, listener interface{})
-	Emit(evt string, argv ...interface{}) (err error)
+	Emit(evt string, argv ...interface{})
 	SafeEmit(evt string, argv ...interface{})
 	RemoveListener(evt string, listener interface{}) (ok bool)
 	RemoveAllListeners(evt string)
@@ -27,7 +26,7 @@ type intervalListener struct {
 	FuncValue reflect.Value
 	ArgTypes  []reflect.Type
 	ArgValues chan []reflect.Value
-	Once      bool
+	Once      *sync.Once
 }
 
 func newInternalListener(listener interface{}, once bool) *intervalListener {
@@ -43,44 +42,52 @@ func newInternalListener(listener interface{}, once bool) *intervalListener {
 		FuncValue: listenerValue,
 		ArgTypes:  argTypes,
 		ArgValues: make(chan []reflect.Value, EventEmitterQueueSize),
-		Once:      once,
+	}
+
+	if once {
+		l.Once = &sync.Once{}
 	}
 
 	go func() {
-		var syncOnce sync.Once
-
 		for args := range l.ArgValues {
-			actualArgs := make([]reflect.Value, len(args))
-
-			for i, arg := range args {
-				actualArgs[i] = arg
-
-				// auto unmarshal json data to golang type
-				if typeIsBytes(arg.Type()) && !typeIsBytes(argTypes[i]) {
-					b, ok := arg.Interface().(json.RawMessage)
-					if !ok {
-						b, ok = arg.Interface().([]byte)
-					}
-					if ok {
-						val := reflect.New(argTypes[i]).Interface()
-						if err := json.Unmarshal(b, val); err == nil {
-							actualArgs[i] = reflect.ValueOf(val).Elem()
-						}
-					}
-				}
+			if args == nil {
+				continue
 			}
-
-			if once {
-				syncOnce.Do(func() {
-					listenerValue.Call(actualArgs)
+			if l.Once != nil {
+				l.Once.Do(func() {
+					listenerValue.Call(args)
 				})
 			} else {
-				listenerValue.Call(actualArgs)
+				listenerValue.Call(args)
 			}
 		}
 	}()
 
 	return l
+}
+
+func (l intervalListener) convertArgs(args []reflect.Value) []reflect.Value {
+	actualArgs := make([]reflect.Value, len(args))
+
+	for i, arg := range args {
+		actualArgs[i] = arg
+
+		// auto unmarshal json data to golang type
+		if typeIsBytes(arg.Type()) && !typeIsBytes(l.ArgTypes[i]) {
+			b, ok := arg.Interface().(json.RawMessage)
+			if !ok {
+				b, ok = arg.Interface().([]byte)
+			}
+			if ok {
+				val := reflect.New(l.ArgTypes[i]).Interface()
+				if err := json.Unmarshal(b, val); err == nil {
+					actualArgs[i] = reflect.ValueOf(val).Elem()
+				}
+			}
+		}
+	}
+
+	return actualArgs
 }
 
 type EventEmitter struct {
@@ -119,44 +126,13 @@ func (e *EventEmitter) Once(evt string, listener interface{}) {
 }
 
 // Emit fires a particular event
-func (e *EventEmitter) Emit(evt string, args ...interface{}) (err error) {
-	e.mu.Lock()
-	if e.evtListeners == nil {
-		e.mu.Unlock()
-		return // has no listeners to emit yet
-	}
-	listeners := e.evtListeners[evt][:]
-	e.mu.Unlock()
-
-	var callArgs []reflect.Value
-
-	for _, arg := range args {
-		callArgs = append(callArgs, reflect.ValueOf(arg))
-	}
-
-	for _, listener := range listeners {
-		if listener.FuncValue.Type().IsVariadic() {
-			listener.ArgValues <- callArgs
-		} else {
-			listener.ArgValues <- buildActualArgs(listener.ArgTypes, callArgs)
-		}
-		if listener.Once {
-			e.RemoveListener(evt, listener)
-		}
-	}
-
-	return
+func (e *EventEmitter) Emit(evt string, args ...interface{}) {
+	e.emit(evt, true, args...)
 }
 
-// SafaEmit fires a particular event and ignore panic.
-func (e *EventEmitter) SafeEmit(evt string, argv ...interface{}) {
-	defer func() {
-		if r := recover(); r != nil {
-			debug.PrintStack()
-		}
-	}()
-
-	e.Emit(evt, argv...)
+// SafaEmit fires a particular event asynchronously.
+func (e *EventEmitter) SafeEmit(evt string, args ...interface{}) {
+	e.emit(evt, false, args...)
 }
 
 func (e *EventEmitter) RemoveListener(evt string, listener interface{}) (ok bool) {
@@ -218,6 +194,45 @@ func (e *EventEmitter) Len() int {
 	defer e.mu.Unlock()
 
 	return len(e.evtListeners)
+}
+
+func (e *EventEmitter) emit(evt string, sync bool, args ...interface{}) {
+	e.mu.Lock()
+
+	if e.evtListeners == nil {
+		e.mu.Unlock()
+		return // has no listeners to emit yet
+	}
+	listeners := e.evtListeners[evt][:]
+	e.mu.Unlock()
+
+	var callArgs []reflect.Value
+
+	for _, arg := range args {
+		callArgs = append(callArgs, reflect.ValueOf(arg))
+	}
+
+	for i, listener := range listeners {
+		if !listener.FuncValue.Type().IsVariadic() {
+			callArgs = buildActualArgs(listener.ArgTypes, callArgs)
+		}
+		if actualArgs := listener.convertArgs(callArgs); sync {
+			if listener.Once != nil {
+				listener.Once.Do(func() {
+					listener.FuncValue.Call(actualArgs)
+				})
+			} else {
+				listener.FuncValue.Call(actualArgs)
+			}
+		} else {
+			listener.ArgValues <- actualArgs
+		}
+		if listener.Once != nil {
+			e.mu.Lock()
+			e.evtListeners[evt] = append(listeners[:i], listeners[i+1:]...)
+			e.mu.Unlock()
+		}
+	}
 }
 
 func isValidListener(fn interface{}) error {

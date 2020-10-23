@@ -158,7 +158,7 @@ func (o *RtpObserver) routerClosed() {
 	// Remove notification subscriptions.
 	o.channel.RemoveAllListeners(o.internal.RtpObserverId)
 
-	o.SafeEmit("routerclose")
+	o.Emit("routerclose")
 
 	// Emit observer event.
 	o.observer.SafeEmit("close")

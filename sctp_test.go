@@ -83,8 +83,6 @@ func (suite *SctpTestingSuite) SetupTest() {
 
 	suite.dataProducer = dataProducer
 
-	wait(time.Millisecond)
-
 	transport2, err := suite.router.CreateDirectTransport()
 	suite.NoError(err)
 
