@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"net"
 	"strconv"
-	"sync"
 	"testing"
 	"time"
 
@@ -25,7 +24,6 @@ type SctpTestingSuite struct {
 	router       *Router
 	dataProducer *DataProducer
 	dataConsumer *DataConsumer
-	stcpAssoci   *sctp.Association
 	stcpStream   *sctp.Stream
 }
 
@@ -51,8 +49,6 @@ func (suite *SctpTestingSuite) SetupTest() {
 	conn, err := net.Dial("udp", fmt.Sprintf("%s:%d", remoteUdpIp, remoteUdpPort))
 	suite.NoError(err)
 
-	net.ListenUDP("udp", conn.LocalAddr().(*net.UDPAddr))
-
 	config := sctp.Config{
 		NetConn:       conn,
 		LoggerFactory: logging.NewDefaultLoggerFactory(),
@@ -67,7 +63,6 @@ func (suite *SctpTestingSuite) SetupTest() {
 	stream, err := association.OpenStream(sctpSendStreamId, sctp.PayloadTypeWebRTCBinary)
 	suite.NoError(err)
 
-	suite.stcpAssoci = association
 	suite.stcpStream = stream
 
 	// Create a DataProducer with the corresponding SCTP stream id.
@@ -108,24 +103,22 @@ func (suite *SctpTestingSuite) TestOrderedDataProducerDeliversAllSCTPMessagesToT
 	lastSentMessageId := 0
 	lastRecvMessageId := 0
 
-	wg := sync.WaitGroup{}
-	wg.Add(2)
+	done := make(chan struct{})
 
 	go func() {
-		defer wg.Done()
 		for {
 			time.Sleep(time.Millisecond)
 
 			lastSentMessageId++
 
-			data := fmt.Sprintf("%d", lastSentMessageId)
+			data := []byte(fmt.Sprintf("%d", lastSentMessageId))
 			payloadType := sctp.PayloadTypeWebRTCBinary
 
 			if lastSentMessageId < numMessages/2 {
 				payloadType = sctp.PayloadTypeWebRTCString
 			}
 
-			n, err := suite.stcpStream.WriteSCTP([]byte(data), payloadType)
+			n, err := suite.stcpStream.WriteSCTP(data, payloadType)
 			suite.NoError(err)
 
 			sentMessageBytes += n
@@ -137,13 +130,12 @@ func (suite *SctpTestingSuite) TestOrderedDataProducerDeliversAllSCTPMessagesToT
 	}()
 
 	suite.dataConsumer.On("message", func(payload []byte, ppid int) {
-		suite.T().Logf("payload: %s", payload)
 		recvMessageBytes += len(payload)
 		id, err := strconv.Atoi(string(payload))
 		suite.NoError(err)
 
 		if id == numMessages {
-			wg.Done()
+			close(done)
 		}
 
 		if id < numMessages/2 {
@@ -157,7 +149,11 @@ func (suite *SctpTestingSuite) TestOrderedDataProducerDeliversAllSCTPMessagesToT
 		suite.Equal(lastRecvMessageId, id)
 	})
 
-	wg.Wait()
+	select {
+	case <-done:
+	case <-time.NewTimer(2 * time.Duration(numMessages) * time.Millisecond).C:
+		suite.FailNow("timeout")
+	}
 
 	suite.EqualValues(lastSentMessageId, numMessages)
 	suite.EqualValues(lastRecvMessageId, numMessages)
