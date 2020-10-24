@@ -42,22 +42,22 @@ type SctpParameters struct {
 	/**
 	 * Must always equal 5000.
 	 */
-	Port int `json:"port"`
+	Port uint16 `json:"port"`
 
 	/**
 	 * Initially requested int of outgoing SCTP streams.
 	 */
-	OS int `json:"os"`
+	OS uint32 `json:"os"`
 
 	/**
 	 * Maximum int of incoming SCTP streams.
 	 */
-	MIS int `json:"mis"`
+	MIS uint32 `json:"mis"`
 
 	/**
 	 * Maximum allowed size for SCTP messages.
 	 */
-	MaxMessageSize int `json:"maxMessageSize"`
+	MaxMessageSize uint32 `json:"maxMessageSize"`
 }
 
 /**
@@ -83,11 +83,11 @@ type SctpStreamParameters struct {
 	 * When ordered is false indicates the time (in milliseconds) after which a
 	 * SCTP packet will stop being retransmitted.
 	 */
-	MaxPacketLifeTime int `json:"maxPacketLifeTime,omitempty"`
+	MaxPacketLifeTime uint32 `json:"maxPacketLifeTime,omitempty"`
 
 	/**
-	 * When ordered is false indicates the maximum int of times a packet will
+	 * When ordered is false indicates the maximum number of times a packet will
 	 * be retransmitted.
 	 */
-	MaxRetransmits int `json:"maxRetransmits,omitempty"`
+	MaxRetransmits uint32 `json:"maxRetransmits,omitempty"`
 }
