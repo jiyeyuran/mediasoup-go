@@ -66,14 +66,14 @@ func newInternalListener(listener interface{}, once bool) *intervalListener {
 	return l
 }
 
-func (l intervalListener) convertArgs(args []reflect.Value) []reflect.Value {
+func (l intervalListener) unmarshalArgs(args []reflect.Value) []reflect.Value {
 	actualArgs := make([]reflect.Value, len(args))
 
 	for i, arg := range args {
 		actualArgs[i] = arg
 
 		// auto unmarshal json data to golang type
-		if typeIsBytes(arg.Type()) && !typeIsBytes(l.ArgTypes[i]) {
+		if isBytesType(arg.Type()) && !isBytesType(l.ArgTypes[i]) {
 			b, ok := arg.Interface().(json.RawMessage)
 			if !ok {
 				b, ok = arg.Interface().([]byte)
@@ -84,6 +84,22 @@ func (l intervalListener) convertArgs(args []reflect.Value) []reflect.Value {
 					actualArgs[i] = reflect.ValueOf(val).Elem()
 				}
 			}
+		}
+	}
+
+	return actualArgs
+}
+
+func (l intervalListener) alignArgs(args []reflect.Value) (actualArgs []reflect.Value) {
+	// delete unwanted arguments
+	if argLen := len(l.ArgTypes); len(args) >= argLen {
+		actualArgs = args[0:argLen]
+	} else {
+		actualArgs = args[:]
+
+		// append missing arguments with zero value
+		for _, argType := range l.ArgTypes[len(args):] {
+			actualArgs = append(actualArgs, reflect.Zero(argType))
 		}
 	}
 
@@ -214,9 +230,9 @@ func (e *EventEmitter) emit(evt string, sync bool, args ...interface{}) {
 
 	for _, listener := range listeners {
 		if !listener.FuncValue.Type().IsVariadic() {
-			callArgs = buildActualArgs(listener.ArgTypes, callArgs)
+			callArgs = listener.alignArgs(callArgs)
 		}
-		if actualArgs := listener.convertArgs(callArgs); sync {
+		if actualArgs := listener.unmarshalArgs(callArgs); sync {
 			if listener.Once != nil {
 				listener.Once.Do(func() {
 					listener.FuncValue.Call(actualArgs)
@@ -241,22 +257,6 @@ func isValidListener(fn interface{}) error {
 	return nil
 }
 
-func buildActualArgs(argTypes []reflect.Type, callArgs []reflect.Value) (reflectedArgs []reflect.Value) {
-	// delete unwanted arguments
-	if argLen := len(argTypes); len(callArgs) >= argLen {
-		reflectedArgs = callArgs[0:argLen]
-	} else {
-		reflectedArgs = callArgs[:]
-
-		// append missing arguments with zero value
-		for _, argType := range argTypes[len(callArgs):] {
-			reflectedArgs = append(reflectedArgs, reflect.Zero(argType))
-		}
-	}
-
-	return reflectedArgs
-}
-
-func typeIsBytes(tp reflect.Type) bool {
+func isBytesType(tp reflect.Type) bool {
 	return tp.Kind() == reflect.Slice && tp.Elem().Kind() == reflect.Uint8
 }
