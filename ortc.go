@@ -279,6 +279,9 @@ func validateSctpParameters(params SctpParameters) (err error) {
  * fields with default values.
  */
 func validateSctpStreamParameters(params *SctpStreamParameters) (err error) {
+	if params == nil {
+		return NewTypeError("params is nil")
+	}
 	// streamId is mandatory.
 	if params.StreamId == 0 {
 		return NewTypeError("missing params.streamId")
