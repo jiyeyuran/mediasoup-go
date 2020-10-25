@@ -5,7 +5,7 @@ type DirectTransportOptions struct {
 	 * Maximum allowed size for direct messages sent from DataProducers.
 	 * Default 262144.
 	 */
-	MaxMessageSize int `json:"maxMessageSize,omitempty"`
+	MaxMessageSize uint32 `json:"maxMessageSize,omitempty"`
 
 	/**
 	 * Custom application data.

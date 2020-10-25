@@ -49,11 +49,20 @@ type RouterDump struct {
 }
 
 type TransportDump struct {
-	Id              string   `json:"id,omitempty"`
-	ProducerIds     []string `json:"producerIds,omitempty"`
-	ConsumerIds     []string `json:"consumerIds,omitempty"`
-	DataProducerIds []string `json:"dataProducerIds,omitempty"`
-	DataConsumerIds []string `json:"dataConsumerIds,omitempty"`
+	Id                      string                  `json:"id,omitempty"`
+	Direct                  bool                    `json:"direct,omitempty"`
+	ProducerIds             []string                `json:"producerIds,omitempty"`
+	ConsumerIds             []string                `json:"consumerIds,omitempty"`
+	MapSsrcConsumerId       map[uint32]uint32       `json:"mapSsrcConsumerId,omitempty"`
+	MapRtxSsrcConsumerId    map[uint32]uint32       `json:"mapRtxSsrcConsumerId,omitempty"`
+	DataProducerIds         []string                `json:"dataProducerIds,omitempty"`
+	DataConsumerIds         []string                `json:"dataConsumerIds,omitempty"`
+	RecvRtpHeaderExtensions RecvRtpHeaderExtensions `json:"recvRtpHeaderExtensions,omitempty"`
+	RtpListener             RtpListener             `json:"rtpListener,omitempty"`
+	SctpParameters          *SctpParametersDump     `json:"SctpParameters,omitempty"`
+	SctpState               SctpState               `json:"sctpState,omitempty"`
+	SctpListener            SctpListener            `json:"sctpListener,omitempty"`
+	TraceEventTypes         string                  `json:"traceEventTypes,omitempty"`
 }
 
 type ConsumerDump struct {
@@ -77,12 +86,26 @@ type DataConsumerDump struct {
 	Protocol             string                `json:"protocol,omitempty"`
 }
 
-type internalData struct {
-	RouterId       string `json:"routerId,omitempty"`
-	TransportId    string `json:"transportId,omitempty"`
-	ProducerId     string `json:"producerId,omitempty"`
-	ConsumerId     string `json:"consumerId,omitempty"`
-	DataProducerId string `json:"dataProducerId,omitempty"`
-	DataConsumerId string `json:"dataConsumerId,omitempty"`
-	RtpObserverId  string `json:"rtpObserverId,omitempty"`
+type RecvRtpHeaderExtensions struct {
+	Mid               uint8 `json:"mid,omitempty"`
+	Rid               uint8 `json:"rid,omitempty"`
+	Rrid              uint8 `json:"rrid,omitempty"`
+	AbsSendTime       uint8 `json:"absSendTime,omitempty"`
+	TransportWideCc01 uint8 `json:"transportWideCc01,omitempty"`
+}
+
+type RtpListener struct {
+	SsrcTable map[uint32]string `json:"ssrcTable,omitempty"`
+	MidTable  map[string]string `json:"midTable,omitempty"`
+	RidTable  map[string]string `json:"ridTable,omitempty"`
+}
+
+type SctpParametersDump struct {
+	SctpParameters
+	SctpBufferedAmount uint32 `json:"sctpBufferedAmount,omitempty"`
+	IsDataChannel      bool   `json:"isDataChannel,omitempty"`
+}
+
+type SctpListener struct {
+	StreamIdTable map[uint16]string `json:"streamIdTable,omitempty"`
 }

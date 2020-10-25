@@ -252,9 +252,9 @@ func (p *DataProducer) Send(data []byte, ppid ...int) (err error) {
 		data = make([]byte, 1)
 	}
 
-	resp := p.payloadChannel.Request("dataProducer.send", p.internal, H{"ppid": ppid}, data)
+	notifData := H{"ppid": ppidVal}
 
-	return resp.Err()
+	return p.payloadChannel.Notify("dataProducer.send", p.internal, notifData, data)
 }
 
 /**
