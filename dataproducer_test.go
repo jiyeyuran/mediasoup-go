@@ -12,12 +12,10 @@ func TestDataProducerTestingSuite(t *testing.T) {
 
 type DataProducerTestingSuite struct {
 	TestingSuite
-	worker        *Worker
-	router        *Router
-	transport1    ITransport
-	transport2    ITransport
-	dataProducer1 *DataProducer
-	dataProducer2 *DataProducer
+	worker     *Worker
+	router     *Router
+	transport1 ITransport
+	transport2 ITransport
 }
 
 func (suite *DataProducerTestingSuite) SetupTest() {
