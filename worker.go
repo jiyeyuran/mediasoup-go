@@ -144,13 +144,18 @@ func init() {
 			buildType = "Release"
 		}
 
-		if runtime.GOOS == "windows" {
-			homeDir, _ := os.UserHomeDir()
-			WorkerBin = filepath.Join(homeDir, "AppData", "Roaming", "npm", "node_modules",
-				"mediasoup", "worker", "out", buildType, "mediasoup-worker")
-		} else {
-			WorkerBin = filepath.Join("/usr/local/lib/node_modules/mediasoup/worker/out", buildType, "mediasoup-worker")
+		var mediasoupHome = os.Getenv("MEDIASOUP_HOME")
+
+		if len(mediasoupHome) == 0 {
+			if runtime.GOOS == "windows" {
+				homeDir, _ := os.UserHomeDir()
+				mediasoupHome = filepath.Join(homeDir, "AppData", "Roaming", "npm", "node_modules", "mediasoup")
+			} else {
+				mediasoupHome = "/usr/local/lib/node_modules/mediasoup"
+			}
 		}
+
+		WorkerBin = filepath.Join(mediasoupHome, "worker", "out", buildType, "mediasoup-worker")
 	}
 }
 
