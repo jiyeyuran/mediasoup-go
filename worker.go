@@ -292,15 +292,22 @@ func NewWorker(options ...Option) (worker *Worker, err error) {
 		observer:       NewEventEmitter(),
 	}
 
+	doneCh := make(chan error)
+
 	channel.Once(strconv.Itoa(pid), func(event string) {
 		if !worker.spawnDone && event == "running" {
 			worker.spawnDone = true
 			logger.Debug("worker process running [pid:%d]", pid)
 			worker.Emit("@success")
+			close(doneCh)
 		}
 	})
 
-	go worker.child.Wait()
+	go worker.wait()
+
+	worker.Once("@failure", func(err error) { doneCh <- err })
+
+	err = <-doneCh
 
 	return
 }
@@ -311,7 +318,8 @@ func (w *Worker) wait() {
 	w.child = nil
 	w.Close()
 
-	code, signal := 0, ""
+	var code int
+	var signal = os.Kill
 
 	if exiterr, ok := err.(*exec.ExitError); ok {
 		// The worker has exited with an exit code != 0
@@ -319,9 +327,9 @@ func (w *Worker) wait() {
 			code = status.ExitStatus()
 
 			if status.Signaled() {
-				signal = status.Signal().String()
-			} else if status.Stopped() {
-				signal = status.StopSignal().String()
+				signal = status.Signal()
+			} else {
+				signal = status.StopSignal()
 			}
 		}
 	}
@@ -355,6 +363,13 @@ func (w *Worker) Pid() int {
  */
 func (w *Worker) Closed() bool {
 	return atomic.LoadUint32(&w.closed) > 0
+}
+
+/**
+ * App custom data.
+ */
+func (w *Worker) AppData() interface{} {
+	return w.appData
 }
 
 // Observer

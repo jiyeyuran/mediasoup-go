@@ -1,6 +1,8 @@
 package mediasoup
 
-import "fmt"
+import (
+	"fmt"
+)
 
 type WorkerSettings struct {
 	/**

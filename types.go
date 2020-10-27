@@ -33,7 +33,7 @@ func (r DumpResult) Unmarshal(v interface{}) error {
 }
 
 type WorkerDump struct {
-	Pid       string   `json:"pid,omitempty"`
+	Pid       int      `json:"pid,omitempty"`
 	RouterIds []string `json:"routerIds,omitempty"`
 }
 
