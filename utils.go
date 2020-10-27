@@ -2,6 +2,7 @@ package mediasoup
 
 import (
 	"math/rand"
+	"sync"
 	"time"
 
 	"github.com/jinzhu/copier"
@@ -18,5 +19,13 @@ func generateRandomNumber() uint32 {
 func clone(from, to interface{}) (err error) {
 	copier.Copy(to, from)
 
+	return
+}
+
+func syncMapLen(m *sync.Map) (len int) {
+	m.Range(func(key, val interface{}) bool {
+		len++
+		return true
+	})
 	return
 }

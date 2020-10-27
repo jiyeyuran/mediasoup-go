@@ -312,6 +312,11 @@ func validateSctpStreamParameters(params *SctpStreamParameters) (err error) {
  * mediasoup supported RTP capabilities.
  */
 func generateRouterRtpCapabilities(mediaCodecs []*RtpCodecCapability) (caps RtpCapabilities, err error) {
+	if len(mediaCodecs) == 0 {
+		err = NewTypeError("mediaCodecs must be an Array")
+		return
+	}
+
 	clonedSupportedRtpCapabilities := GetSupportedRtpCapabilities()
 	supportedCodecs := clonedSupportedRtpCapabilities.Codecs
 

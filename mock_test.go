@@ -30,18 +30,17 @@ func (w *MockFunc) Fn() func(...interface{}) {
 }
 
 func (w *MockFunc) ExpectCalledWith(args ...interface{}) {
-	if !w.waited {
-		wait(time.Millisecond)
-		w.waited = true
-	}
+	w.wait()
 	w.require.Equal(w.args, args)
 }
 
+func (w *MockFunc) ExpectCalled() {
+	w.wait()
+	w.require.NotZero(w.called)
+}
+
 func (w *MockFunc) ExpectCalledTimes(called int32) {
-	if !w.waited {
-		wait(time.Millisecond)
-		w.waited = true
-	}
+	w.wait()
 	w.require.Equal(called, w.called)
 }
 
@@ -49,6 +48,13 @@ func (w *MockFunc) Reset() {
 	w.args = nil
 	w.called = 0
 	w.waited = false
+}
+
+func (w *MockFunc) wait() {
+	if !w.waited {
+		wait(time.Millisecond)
+		w.waited = true
+	}
 }
 
 func wait(d time.Duration) {
