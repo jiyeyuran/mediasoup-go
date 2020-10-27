@@ -13,23 +13,19 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	worker.On("@failure", func(err error) {
-		logger.Error("%s", err)
-	})
 	worker.On("died", func(err error) {
 		logger.Error("%s", err)
 	})
-	worker.On("@success", func() {
-		dump, _ := worker.Dump()
-		logger.Debug("dump: %+v", dump)
 
-		usage, err := worker.GetResourceUsage()
-		if err != nil {
-			panic(err)
-		}
-		data, _ := json.Marshal(usage)
-		logger.Debug("usage: %s", data)
-	})
+	dump, _ := worker.Dump()
+	logger.Debug("dump: %+v", dump)
+
+	usage, err := worker.GetResourceUsage()
+	if err != nil {
+		panic(err)
+	}
+	data, _ := json.Marshal(usage)
+	logger.Debug("usage: %s", data)
 
 	wait := make(chan struct{})
 	<-wait
