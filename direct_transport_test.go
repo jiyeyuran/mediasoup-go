@@ -23,7 +23,7 @@ type DirectTransportTestingSuite struct {
 func (suite *DirectTransportTestingSuite) SetupTest() {
 	var err error
 	suite.worker = CreateTestWorker()
-	suite.router, err = suite.worker.CreateRouter(RouterOptions{})
+	suite.router = CreateRouter(suite.worker)
 	suite.NoError(err)
 
 	transport, err := suite.router.CreateDirectTransport()

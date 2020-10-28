@@ -49,20 +49,22 @@ type RouterDump struct {
 }
 
 type TransportDump struct {
-	Id                      string                  `json:"id,omitempty"`
-	Direct                  bool                    `json:"direct,omitempty"`
-	ProducerIds             []string                `json:"producerIds,omitempty"`
-	ConsumerIds             []string                `json:"consumerIds,omitempty"`
-	MapSsrcConsumerId       map[uint32]uint32       `json:"mapSsrcConsumerId,omitempty"`
-	MapRtxSsrcConsumerId    map[uint32]uint32       `json:"mapRtxSsrcConsumerId,omitempty"`
-	DataProducerIds         []string                `json:"dataProducerIds,omitempty"`
-	DataConsumerIds         []string                `json:"dataConsumerIds,omitempty"`
-	RecvRtpHeaderExtensions RecvRtpHeaderExtensions `json:"recvRtpHeaderExtensions,omitempty"`
-	RtpListener             RtpListener             `json:"rtpListener,omitempty"`
-	SctpParameters          *SctpParametersDump     `json:"SctpParameters,omitempty"`
-	SctpState               SctpState               `json:"sctpState,omitempty"`
-	SctpListener            SctpListener            `json:"sctpListener,omitempty"`
-	TraceEventTypes         string                  `json:"traceEventTypes,omitempty"`
+	Id                      string                   `json:"id,omitempty"`
+	Direct                  bool                     `json:"direct,omitempty"`
+	ProducerIds             []string                 `json:"producerIds,omitempty"`
+	ConsumerIds             []string                 `json:"consumerIds,omitempty"`
+	MapSsrcConsumerId       map[uint32]uint32        `json:"mapSsrcConsumerId,omitempty"`
+	MapRtxSsrcConsumerId    map[uint32]uint32        `json:"mapRtxSsrcConsumerId,omitempty"`
+	DataProducerIds         []string                 `json:"dataProducerIds,omitempty"`
+	DataConsumerIds         []string                 `json:"dataConsumerIds,omitempty"`
+	Tuple                   TransportTuple           `json:"tuple,omitempty"`
+	RtcpTuple               TransportTuple           `json:"rtcpTuple,omitempty"`
+	RecvRtpHeaderExtensions *RecvRtpHeaderExtensions `json:"recvRtpHeaderExtensions,omitempty"`
+	RtpListener             *RtpListener             `json:"rtpListener,omitempty"`
+	SctpParameters          SctpParameters           `json:"SctpParameters,omitempty"`
+	SctpState               SctpState                `json:"sctpState,omitempty"`
+	SctpListener            *SctpListener            `json:"sctpListener,omitempty"`
+	TraceEventTypes         string                   `json:"traceEventTypes,omitempty"`
 }
 
 type ConsumerDump struct {
@@ -115,12 +117,6 @@ type RtpListener struct {
 	SsrcTable map[uint32]string `json:"ssrcTable,omitempty"`
 	MidTable  map[string]string `json:"midTable,omitempty"`
 	RidTable  map[string]string `json:"ridTable,omitempty"`
-}
-
-type SctpParametersDump struct {
-	SctpParameters
-	SctpBufferedAmount uint32 `json:"sctpBufferedAmount,omitempty"`
-	IsDataChannel      bool   `json:"isDataChannel,omitempty"`
 }
 
 type SctpListener struct {

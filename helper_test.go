@@ -2,8 +2,13 @@ package mediasoup
 
 import "github.com/jiyeyuran/mediasoup-go/h264"
 
-func CreateRouter() *Router {
-	router, err := worker.CreateRouter(RouterOptions{
+func CreateRouter(workers ...*Worker) *Router {
+	myworker := worker
+	if len(workers) > 0 && workers[0] != nil {
+		myworker = workers[0]
+	}
+
+	router, err := myworker.CreateRouter(RouterOptions{
 		MediaCodecs: []*RtpCodecCapability{
 			{
 				Kind:      "audio",

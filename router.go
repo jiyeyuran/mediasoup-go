@@ -311,8 +311,8 @@ func (router *Router) CreatePlainTransport(params ...PlainTransportOption) (tran
 		"numSctpStreams":     options.NumSctpStreams,
 		"maxSctpMessageSize": options.MaxSctpMessageSize,
 		"sctpSendBufferSize": options.SctpSendBufferSize,
-		"isDataChannel":      true,
-		"enableSrtp":         options.EnableSctp,
+		"isDataChannel":      false,
+		"enableSrtp":         options.EnableSrtp,
 		"srtpCryptoSuite":    options.SrtpCryptoSuite,
 	}
 

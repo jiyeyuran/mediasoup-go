@@ -58,6 +58,10 @@ type SctpParameters struct {
 	 * Maximum allowed size for SCTP messages.
 	 */
 	MaxMessageSize uint32 `json:"maxMessageSize"`
+
+	IsDataChannel      bool   `json:"isDataChannel,omitempty"`
+	SctpBufferedAmount uint32 `json:"sctpBufferedAmount,omitempty"`
+	SendBufferSize     uint32 `json:"sendBufferSize,omitempty"`
 }
 
 /**

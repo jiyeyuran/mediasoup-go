@@ -57,16 +57,12 @@ type PipeTransportOptions struct {
 
 type PipeTransportOption func(*PipeTransportOptions)
 
-type PipeTransportSpecificStat struct {
-	Tuple TransportTuple `json:"tuple"`
-}
-
 type pipeTransortData struct {
-	Tuple          TransportTuple `json:"tuple,omitempty"`
-	SctpParameters SctpParameters `json:"sctpParameters,omitempty"`
-	SctpState      SctpState      `json:"sctpState,omitempty"`
-	Rtx            bool           `json:"rtx,omitempty"`
-	SrtpParameters SrtpParameters `json:"srtpParameters,omitempty"`
+	Tuple          TransportTuple  `json:"tuple,omitempty"`
+	SctpParameters SctpParameters  `json:"sctpParameters,omitempty"`
+	SctpState      SctpState       `json:"sctpState,omitempty"`
+	Rtx            bool            `json:"rtx,omitempty"`
+	SrtpParameters *SrtpParameters `json:"srtpParameters,omitempty"`
 }
 
 /**
@@ -132,7 +128,7 @@ func (t PipeTransport) SctpState() SctpState {
 /**
  * SRTP parameters.
  */
-func (t PipeTransport) SrtpParameters() SrtpParameters {
+func (t PipeTransport) SrtpParameters() *SrtpParameters {
 	return t.data.SrtpParameters
 }
 

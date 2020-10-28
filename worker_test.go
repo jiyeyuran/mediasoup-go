@@ -10,9 +10,12 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+var worker *Worker
+
 func init() {
 	os.Setenv("DEBUG_COLORS", "false")
 	DefaultLevel = WarnLevel
+	worker = CreateTestWorker()
 }
 
 func CreateTestWorker(options ...Option) *Worker {

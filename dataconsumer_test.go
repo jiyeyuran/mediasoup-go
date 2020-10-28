@@ -32,7 +32,7 @@ func (suite *DataConsumerTestingSuite) SetupTest() {
 	}
 	var err error
 	suite.worker = CreateTestWorker()
-	suite.router, err = suite.worker.CreateRouter(RouterOptions{})
+	suite.router = CreateRouter(suite.worker)
 	suite.NoError(err)
 	suite.transport1, err = suite.router.CreateWebRtcTransport(func(o *WebRtcTransportOptions) {
 		o.ListenIps = []TransportListenIp{

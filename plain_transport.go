@@ -71,13 +71,13 @@ type PlainTransportSpecificStat struct {
 }
 
 type plainTransportData struct {
-	RtcpMux        bool           `json:"rtcp_mux,omitempty"`
-	Comedia        bool           `json:"comedia,omitempty"`
-	Tuple          TransportTuple `json:"tuple,omitempty"`
-	RtcpTuple      TransportTuple `json:"rtcpTuple,omitempty"`
-	SctpParameters SctpParameters `json:"sctpParameters,omitempty"`
-	SctpState      SctpState      `json:"sctpState,omitempty"`
-	SrtpParameters SrtpParameters `json:"srtpParameters,omitempty"`
+	RtcpMux        bool            `json:"rtcp_mux,omitempty"`
+	Comedia        bool            `json:"comedia,omitempty"`
+	Tuple          TransportTuple  `json:"tuple,omitempty"`
+	RtcpTuple      TransportTuple  `json:"rtcpTuple,omitempty"`
+	SctpParameters SctpParameters  `json:"sctpParameters,omitempty"`
+	SctpState      SctpState       `json:"sctpState,omitempty"`
+	SrtpParameters *SrtpParameters `json:"srtpParameters,omitempty"`
 }
 
 /**
@@ -148,7 +148,7 @@ func (t PlainTransport) SctpState() SctpState {
 /**
  * SRTP parameters.
  */
-func (t PlainTransport) SrtpParameters() SrtpParameters {
+func (t PlainTransport) SrtpParameters() *SrtpParameters {
 	return t.data.SrtpParameters
 }
 
@@ -223,7 +223,7 @@ func (transport *PlainTransport) Connect(options TransportConnectOptions) (err e
 	var data struct {
 		Tuple          *TransportTuple
 		RtcpTuple      *TransportTuple
-		SrtpParameters SrtpParameters
+		SrtpParameters *SrtpParameters
 	}
 	if err = resp.Unmarshal(&data); err != nil {
 		return

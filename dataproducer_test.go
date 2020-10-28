@@ -20,7 +20,7 @@ type DataProducerTestingSuite struct {
 
 func (suite *DataProducerTestingSuite) SetupTest() {
 	suite.worker = CreateTestWorker()
-	suite.router, _ = suite.worker.CreateRouter(RouterOptions{})
+	suite.router = CreateRouter(suite.worker)
 	suite.transport1, _ = suite.router.CreateWebRtcTransport(func(o *WebRtcTransportOptions) {
 		o.ListenIps = []TransportListenIp{
 			{Ip: "127.0.0.1"},

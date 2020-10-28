@@ -120,15 +120,14 @@ type TransportStat struct {
 	MaxIncomingBitrate       int64     `json:"maxIncomingBitrate,omitempty"`
 
 	*WebRtcTransportSpecificStat
-	*PlainTransportSpecificStat
-	*PipeTransportSpecificStat
+	*PlainTransportSpecificStat // share tuple with pipe transport stat
 }
 
 type TransportConnectOptions struct {
 	// pipe and plain transport
-	Ip             string         `json:"ip,omitempty"`
-	Port           uint16         `json:"port,omitempty"`
-	SrtpParameters SrtpParameters `json:"srtpParameters,omitempty"`
+	Ip             string          `json:"ip,omitempty"`
+	Port           uint16          `json:"port,omitempty"`
+	SrtpParameters *SrtpParameters `json:"srtpParameters,omitempty"`
 
 	// plain transport
 	RtcpPort uint16 `json:"rtcpPort,omitempty"`
