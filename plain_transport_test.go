@@ -224,6 +224,7 @@ func (suite *PlainTransportTestingSuite) TestGetStats_Succeeds() {
 	suite.Zero(data[0].RtpSendBitrate)
 	suite.Zero(data[0].RtxBytesReceived)
 	suite.Zero(data[0].RtxRecvBitrate)
+	suite.Zero(data[0].RtxBytesSent)
 	suite.Zero(data[0].RtxSendBitrate)
 	suite.Zero(data[0].ProbationBytesSent)
 	suite.Zero(data[0].ProbationSendBitrate)

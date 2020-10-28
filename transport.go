@@ -20,7 +20,7 @@ type ITransport interface {
 	Dump() (*TransportDump, error)
 	GetStats() ([]*TransportStat, error)
 	Connect(TransportConnectOptions) error
-	setMaxIncomingBitrate(bitrate int) error
+	SetMaxIncomingBitrate(bitrate int) error
 	Produce(ProducerOptions) (*Producer, error)
 	Consume(ConsumerOptions) (*Consumer, error)
 	ProduceData(DataProducerOptions) (*DataProducer, error)
@@ -404,8 +404,8 @@ func (transport *Transport) Connect(TransportConnectOptions) error {
 /**
  * Set maximum incoming bitrate for receiving media.
  */
-func (transport *Transport) setMaxIncomingBitrate(bitrate int) error {
-	transport.logger.Debug("setMaxIncomingBitrate() [bitrate:%d]", bitrate)
+func (transport *Transport) SetMaxIncomingBitrate(bitrate int) error {
+	transport.logger.Debug("SetMaxIncomingBitrate() [bitrate:%d]", bitrate)
 
 	resp := transport.channel.Request(
 		"transport.setMaxIncomingBitrate", transport.internal, H{"bitrate": bitrate})

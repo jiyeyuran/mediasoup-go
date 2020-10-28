@@ -353,7 +353,9 @@ func (transport *WebRtcTransport) RestartIce() (iceParameters IceParameters, err
 	var data struct {
 		IceParameters IceParameters
 	}
-	err = resp.Unmarshal(&data)
+	if err = resp.Unmarshal(&data); err == nil {
+		transport.data.IceParameters = data.IceParameters
+	}
 
 	return data.IceParameters, err
 }

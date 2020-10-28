@@ -222,7 +222,7 @@ func (e *EventEmitter) emit(evt string, sync bool, args ...interface{}) {
 	listeners := e.evtListeners[evt][:]
 	e.mu.Unlock()
 
-	var callArgs []reflect.Value
+	callArgs := make([]reflect.Value, 0, len(args))
 
 	for _, arg := range args {
 		callArgs = append(callArgs, reflect.ValueOf(arg))

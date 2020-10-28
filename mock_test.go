@@ -10,8 +10,7 @@ import (
 type MockFunc struct {
 	require *require.Assertions
 	called  int
-	args    interface{}
-	waited  bool
+	args    []interface{}
 }
 
 func NewMockFunc(t *testing.T) *MockFunc {
@@ -31,7 +30,9 @@ func (w *MockFunc) Fn() func(...interface{}) {
 
 func (w *MockFunc) ExpectCalledWith(args ...interface{}) {
 	w.wait()
-	w.require.Equal(w.args, args)
+	for i, arg := range args {
+		w.require.EqualValues(arg, w.args[i])
+	}
 }
 
 func (w *MockFunc) ExpectCalled() {
@@ -52,16 +53,8 @@ func (w *MockFunc) CalledTimes() int {
 func (w *MockFunc) Reset() {
 	w.args = nil
 	w.called = 0
-	w.waited = false
 }
 
 func (w *MockFunc) wait() {
-	if !w.waited {
-		wait(time.Millisecond)
-		w.waited = true
-	}
-}
-
-func wait(d time.Duration) {
-	time.Sleep(d)
+	time.Sleep(time.Millisecond)
 }
