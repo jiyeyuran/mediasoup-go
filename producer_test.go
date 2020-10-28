@@ -446,6 +446,25 @@ func (suite *ProducerTestingSuite) TestProducerPauseAndResume_Succeeds() {
 	suite.False(data.Paused)
 }
 
+func (suite *ProducerTestingSuite) TestProducerEnableTraceEventSucceed() {
+	audioProducer := suite.audioProducer()
+	audioProducer.EnableTraceEvent("rtp", "pli")
+	data, _ := audioProducer.Dump()
+	suite.EqualValues("rtp,pli", data.TraceEventTypes)
+
+	audioProducer.EnableTraceEvent()
+	data, _ = audioProducer.Dump()
+	suite.Zero(data.TraceEventTypes)
+
+	audioProducer.EnableTraceEvent("nack", "FOO", "fir")
+	data, _ = audioProducer.Dump()
+	suite.EqualValues("nack,fir", data.TraceEventTypes)
+
+	audioProducer.EnableTraceEvent()
+	data, _ = audioProducer.Dump()
+	suite.Zero(data.TraceEventTypes)
+}
+
 func (suite *ProducerTestingSuite) TestProducerEmitsScore() {
 	videoProducer := suite.videoProducer()
 	channel := videoProducer.channel
