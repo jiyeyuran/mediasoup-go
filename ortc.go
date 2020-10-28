@@ -416,6 +416,7 @@ func getProducerRtpParametersMapping(params RtpParameters, caps RtpCapabilities)
 
 		if !matched {
 			err = NewUnsupportedError("unsupported codec [mimeType:%s, payloadType:%d]", codec.MimeType, codec.PayloadType)
+			return
 		}
 
 		codecToCapCodec[codec] = matchedCapCodec

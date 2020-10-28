@@ -9,7 +9,7 @@ import (
 
 type MockFunc struct {
 	require *require.Assertions
-	called  int32
+	called  int
 	args    interface{}
 	waited  bool
 }
@@ -39,9 +39,14 @@ func (w *MockFunc) ExpectCalled() {
 	w.require.NotZero(w.called)
 }
 
-func (w *MockFunc) ExpectCalledTimes(called int32) {
+func (w *MockFunc) ExpectCalledTimes(called int) {
 	w.wait()
 	w.require.Equal(called, w.called)
+}
+
+func (w *MockFunc) CalledTimes() int {
+	w.wait()
+	return int(w.called)
 }
 
 func (w *MockFunc) Reset() {

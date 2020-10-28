@@ -185,7 +185,6 @@ func newWebRtcTransport(params transportParams) ITransport {
 	transport.handleWorkerNotifications()
 
 	return transport
-
 }
 
 /**

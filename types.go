@@ -77,6 +77,15 @@ type ConsumerDump struct {
 	TraceEventTypes            string               `json:"traceEventTypes,omitempty"`
 }
 
+type ProducerDump struct {
+	Id              string        `json:"id,omitempty"`
+	Kind            string        `json:"kind,omitempty"`
+	Type            string        `json:"type,omitempty"`
+	RtpParameters   RtpParameters `json:"rtpParameters,omitempty"`
+	Paused          bool          `json:"paused,omitempty"`
+	TraceEventTypes string        `json:"traceEventTypes,omitempty"`
+}
+
 type DataConsumerDump struct {
 	Id                   string                `json:"id,omitempty"`
 	DataProducerId       string                `json:"dataProducerId,omitempty"`
