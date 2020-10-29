@@ -1,0 +1,641 @@
+package mediasoup
+
+import (
+	"testing"
+
+	"github.com/stretchr/testify/suite"
+)
+
+func TestPipeTransportTestingSuite(t *testing.T) {
+	suite.Run(t, new(PipeTransportTestingSuite))
+}
+
+type PipeTransportTestingSuite struct {
+	TestingSuite
+	router1       *Router
+	router2       *Router
+	transport1    ITransport
+	transport2    ITransport
+	audioProducer *Producer
+	videoProducer *Producer
+	dataProducer  *DataProducer
+}
+
+func (suite *PipeTransportTestingSuite) SetupTest() {
+	suite.router1 = CreateRouter()
+	suite.router2 = CreateRouter()
+
+	suite.transport1, _ = suite.router1.CreateWebRtcTransport(func(o *WebRtcTransportOptions) {
+		o.ListenIps = []TransportListenIp{
+			{Ip: "127.0.0.1"},
+		}
+		o.EnableSctp = true
+	})
+	suite.transport2, _ = suite.router2.CreateWebRtcTransport(func(o *WebRtcTransportOptions) {
+		o.ListenIps = []TransportListenIp{
+			{Ip: "127.0.0.1"},
+		}
+		o.EnableSctp = true
+	})
+	suite.audioProducer = CreateAudioProducer(suite.transport1)
+	suite.videoProducer = CreateVP8Producer(suite.transport1)
+	suite.dataProducer, _ = suite.transport1.ProduceData(DataProducerOptions{
+		SctpStreamParameters: &SctpStreamParameters{
+			StreamId:          666,
+			Ordered:           Bool(false),
+			MaxPacketLifeTime: 5000,
+		},
+		Label:    "foo",
+		Protocol: "bar",
+	})
+
+	// Pause the videoProducer.
+	suite.videoProducer.Pause()
+}
+
+func (suite *PipeTransportTestingSuite) TearDownTest() {
+	suite.router1.Close()
+	suite.router2.Close()
+}
+
+func (suite *PipeTransportTestingSuite) TestRouterPipeToRouter_SucceedsWithAudio() {
+	result, err := suite.router1.PipeToRouter(func(o *PipeToRouterOptions) {
+		o.ProducerId = suite.audioProducer.Id()
+		o.Router = suite.router2
+	})
+	suite.NoError(err)
+
+	pipeConsumer, pipeProducer := result.PipeConsumer, result.PipeProducer
+
+	dump, _ := suite.router1.Dump()
+
+	// There shoud should be two Transports in router1:
+	// - WebRtcTransport for audioProducer and videoProducer.
+	// - PipeTransport between router1 and router2.
+	suite.Len(dump.TransportIds, 2)
+
+	dump, _ = suite.router1.Dump()
+
+	// There shoud should be two Transports in router2:
+	// - WebRtcTransport for audioConsumer and videoConsumer.
+	// - pipeTransport between router2 and router1.
+	suite.Len(dump.TransportIds, 2)
+
+	suite.False(pipeConsumer.Closed())
+	suite.EqualValues("audio", pipeConsumer.Kind())
+	suite.NotNil(pipeConsumer.RtpParameters())
+	suite.Zero(pipeConsumer.RtpParameters().Mid)
+	suite.EqualValues([]*RtpCodecParameters{
+		{
+			MimeType:     "audio/opus",
+			ClockRate:    48000,
+			PayloadType:  100,
+			Channels:     2,
+			Parameters:   RtpCodecSpecificParameters{Useinbandfec: 1, Usedtx: 1},
+			RtcpFeedback: []RtcpFeedback{},
+		},
+	}, pipeConsumer.RtpParameters().Codecs)
+	suite.EqualValues([]RtpHeaderExtensionParameters{
+		{
+			Uri:     "urn:ietf:params:rtp-hdrext:ssrc-audio-level",
+			Id:      10,
+			Encrypt: false,
+		},
+	}, pipeConsumer.RtpParameters().HeaderExtensions)
+	suite.EqualValues("pipe", pipeConsumer.Type())
+	suite.False(pipeConsumer.Paused())
+	suite.False(pipeConsumer.ProducerPaused())
+	suite.Equal(ConsumerScore{
+		Score:          10,
+		ProducerScore:  10,
+		ProducerScores: []uint32{},
+	}, pipeConsumer.Score())
+	suite.Equal(H{}, pipeConsumer.AppData())
+
+	suite.Equal(suite.audioProducer.Id(), pipeProducer.Id())
+	suite.False(pipeProducer.Closed())
+	suite.EqualValues("audio", pipeProducer.Kind())
+	suite.Zero(pipeProducer.RtpParameters().Mid)
+	suite.EqualValues([]*RtpCodecParameters{
+		{
+			MimeType:     "audio/opus",
+			ClockRate:    48000,
+			PayloadType:  100,
+			Channels:     2,
+			Parameters:   RtpCodecSpecificParameters{Useinbandfec: 1, Usedtx: 1},
+			RtcpFeedback: []RtcpFeedback{},
+		},
+	}, pipeProducer.RtpParameters().Codecs)
+	suite.EqualValues([]RtpHeaderExtensionParameters{
+		{
+			Uri:     "urn:ietf:params:rtp-hdrext:ssrc-audio-level",
+			Id:      10,
+			Encrypt: false,
+		},
+	}, pipeProducer.RtpParameters().HeaderExtensions)
+	suite.False(pipeProducer.Paused())
+}
+
+func (suite *PipeTransportTestingSuite) TestRouterPipeToRouter_SucceedsWithVideo() {
+	result, err := suite.router1.PipeToRouter(func(o *PipeToRouterOptions) {
+		o.ProducerId = suite.videoProducer.Id()
+		o.Router = suite.router2
+	})
+	suite.NoError(err)
+
+	pipeConsumer, pipeProducer := result.PipeConsumer, result.PipeProducer
+
+	dump, _ := suite.router1.Dump()
+
+	// There shoud should be two Transports in router1:
+	// - WebRtcTransport for audioProducer and videoProducer.
+	// - PipeTransport between router1 and router2.
+	suite.Len(dump.TransportIds, 2)
+
+	dump, _ = suite.router1.Dump()
+
+	// There shoud should be two Transports in router2:
+	// - WebRtcTransport for audioConsumer and videoConsumer.
+	// - pipeTransport between router2 and router1.
+	suite.Len(dump.TransportIds, 2)
+
+	suite.False(pipeConsumer.Closed())
+	suite.EqualValues("video", pipeConsumer.Kind())
+	suite.NotNil(pipeConsumer.RtpParameters())
+	suite.Zero(pipeConsumer.RtpParameters().Mid)
+	suite.EqualValues([]*RtpCodecParameters{
+		{
+			MimeType:    "video/VP8",
+			ClockRate:   90000,
+			PayloadType: 101,
+			RtcpFeedback: []RtcpFeedback{
+				{Type: "nack", Parameter: "pli"},
+				{Type: "ccm", Parameter: "fir"},
+			},
+		},
+	}, pipeConsumer.RtpParameters().Codecs)
+	suite.EqualValues([]RtpHeaderExtensionParameters{
+		{
+			Uri:     "http://tools.ietf.org/html/draft-ietf-avtext-framemarking-07",
+			Id:      6,
+			Encrypt: false,
+		},
+		{
+			Uri:     "urn:ietf:params:rtp-hdrext:framemarking",
+			Id:      7,
+			Encrypt: false,
+		},
+		{
+			Uri:     "urn:3gpp:video-orientation",
+			Id:      11,
+			Encrypt: false,
+		},
+		{
+			Uri:     "urn:ietf:params:rtp-hdrext:toffset",
+			Id:      12,
+			Encrypt: false,
+		},
+	}, pipeConsumer.RtpParameters().HeaderExtensions)
+	suite.EqualValues("pipe", pipeConsumer.Type())
+	suite.False(pipeConsumer.Paused())
+	suite.True(pipeConsumer.ProducerPaused())
+	suite.Equal(ConsumerScore{
+		Score:          10,
+		ProducerScore:  10,
+		ProducerScores: []uint32{},
+	}, pipeConsumer.Score())
+	suite.Equal(H{}, pipeConsumer.AppData())
+
+	suite.Equal(suite.videoProducer.Id(), pipeProducer.Id())
+	suite.False(pipeProducer.Closed())
+	suite.EqualValues("video", pipeProducer.Kind())
+	suite.Zero(pipeProducer.RtpParameters().Mid)
+	suite.EqualValues([]*RtpCodecParameters{
+		{
+			MimeType:    "video/VP8",
+			ClockRate:   90000,
+			PayloadType: 101,
+			RtcpFeedback: []RtcpFeedback{
+				{Type: "nack", Parameter: "pli"},
+				{Type: "ccm", Parameter: "fir"},
+			},
+		},
+	}, pipeProducer.RtpParameters().Codecs)
+	suite.EqualValues([]RtpHeaderExtensionParameters{
+		{
+			Uri:     "http://tools.ietf.org/html/draft-ietf-avtext-framemarking-07",
+			Id:      6,
+			Encrypt: false,
+		},
+		{
+			Uri:     "urn:ietf:params:rtp-hdrext:framemarking",
+			Id:      7,
+			Encrypt: false,
+		},
+		{
+			Uri:     "urn:3gpp:video-orientation",
+			Id:      11,
+			Encrypt: false,
+		},
+		{
+			Uri:     "urn:ietf:params:rtp-hdrext:toffset",
+			Id:      12,
+			Encrypt: false,
+		},
+	}, pipeProducer.RtpParameters().HeaderExtensions)
+	suite.True(pipeProducer.Paused())
+}
+
+func (suite *PipeTransportTestingSuite) TestRouterCreatePipeTransport_WithEnableRtxSucceeds() {
+	pipeTransport, err := suite.router1.CreatePipeTransport(func(o *PipeTransportOptions) {
+		o.ListenIp = TransportListenIp{Ip: "127.0.0.1"}
+		o.EnableRtx = true
+	})
+	suite.NoError(err)
+	suite.Empty(pipeTransport.SrtpParameters())
+
+	// No SRTP enabled so passing srtpParameters must fail.
+	err = pipeTransport.Connect(TransportConnectOptions{
+		Ip:   "127.0.0.2",
+		Port: 9999,
+		SrtpParameters: &SrtpParameters{
+			CryptoSuite: "AES_CM_128_HMAC_SHA1_80",
+			KeyBase64:   "ZnQ3eWJraDg0d3ZoYzM5cXN1Y2pnaHU5NWxrZTVv",
+		},
+	})
+	suite.Error(err)
+
+	pipeConsumer, err := pipeTransport.Consume(ConsumerOptions{
+		ProducerId: suite.videoProducer.Id(),
+	})
+	suite.NoError(err)
+	suite.False(pipeConsumer.Closed())
+	suite.EqualValues("video", pipeConsumer.Kind())
+	suite.NotNil(pipeConsumer.RtpParameters())
+	suite.Zero(pipeConsumer.RtpParameters().Mid)
+	suite.EqualValues([]*RtpCodecParameters{
+		{
+			MimeType:    "video/VP8",
+			ClockRate:   90000,
+			PayloadType: 101,
+			RtcpFeedback: []RtcpFeedback{
+				{Type: "nack", Parameter: ""},
+				{Type: "nack", Parameter: "pli"},
+				{Type: "ccm", Parameter: "fir"},
+			},
+		},
+		{
+			MimeType:    "video/rtx",
+			ClockRate:   90000,
+			PayloadType: 102,
+			Parameters: RtpCodecSpecificParameters{
+				Apt: 101,
+			},
+			RtcpFeedback: []RtcpFeedback{},
+		},
+	}, pipeConsumer.RtpParameters().Codecs)
+	suite.EqualValues([]RtpHeaderExtensionParameters{
+		{
+			Uri:     "http://tools.ietf.org/html/draft-ietf-avtext-framemarking-07",
+			Id:      6,
+			Encrypt: false,
+		},
+		{
+			Uri:     "urn:ietf:params:rtp-hdrext:framemarking",
+			Id:      7,
+			Encrypt: false,
+		},
+		{
+			Uri:     "urn:3gpp:video-orientation",
+			Id:      11,
+			Encrypt: false,
+		},
+		{
+			Uri:     "urn:ietf:params:rtp-hdrext:toffset",
+			Id:      12,
+			Encrypt: false,
+		},
+	}, pipeConsumer.RtpParameters().HeaderExtensions)
+	suite.EqualValues("pipe", pipeConsumer.Type())
+	suite.False(pipeConsumer.Paused())
+	suite.True(pipeConsumer.ProducerPaused())
+	suite.Equal(ConsumerScore{
+		Score:          10,
+		ProducerScore:  10,
+		ProducerScores: []uint32{},
+	}, pipeConsumer.Score())
+	suite.Equal(H{}, pipeConsumer.AppData())
+
+	pipeTransport.Close()
+}
+
+func (suite *PipeTransportTestingSuite) TestRouterCreatePipeTransport_WithEnableSrtpSucceeds() {
+	pipeTransport, err := suite.router1.CreatePipeTransport(func(o *PipeTransportOptions) {
+		o.ListenIp = TransportListenIp{Ip: "127.0.0.1"}
+		o.EnableSrtp = true
+	})
+	suite.NoError(err)
+	suite.Len(pipeTransport.SrtpParameters().KeyBase64, 40)
+
+	// Missing srtpParameters.
+	err = pipeTransport.Connect(TransportConnectOptions{
+		Ip:   "127.0.0.2",
+		Port: 9999,
+	})
+	suite.Error(err)
+
+	// Missing srtpParameters.cryptoSuite.
+	err = pipeTransport.Connect(TransportConnectOptions{
+		Ip:   "127.0.0.2",
+		Port: 9999,
+		SrtpParameters: &SrtpParameters{
+			KeyBase64: "ZnQ3eWJraDg0d3ZoYzM5cXN1Y2pnaHU5NWxrZTVv",
+		},
+	})
+	suite.Error(err)
+
+	// Invalid srtpParameters.keyBase64.
+	err = pipeTransport.Connect(TransportConnectOptions{
+		Ip:   "127.0.0.2",
+		Port: 9999,
+		SrtpParameters: &SrtpParameters{
+			CryptoSuite: "AES_CM_128_HMAC_SHA1_80",
+		},
+	})
+	suite.Error(err)
+
+	// Invalid srtpParameters.cryptoSuite.
+	err = pipeTransport.Connect(TransportConnectOptions{
+		Ip:   "127.0.0.2",
+		Port: 9999,
+		SrtpParameters: &SrtpParameters{
+			CryptoSuite: "FOO",
+			KeyBase64:   "ZnQ3eWJraDg0d3ZoYzM5cXN1Y2pnaHU5NWxrZTVv",
+		},
+	})
+	suite.Error(err)
+
+	// Valid srtpParameters.
+	err = pipeTransport.Connect(TransportConnectOptions{
+		Ip:   "127.0.0.2",
+		Port: 9999,
+		SrtpParameters: &SrtpParameters{
+			CryptoSuite: "AES_CM_128_HMAC_SHA1_80",
+			KeyBase64:   "ZnQ3eWJraDg0d3ZoYzM5cXN1Y2pnaHU5NWxrZTVv",
+		},
+	})
+	suite.NoError(err)
+
+	pipeTransport.Close()
+}
+
+func (suite *PipeTransportTestingSuite) TestTransportConsume_ForAPipeProducerSucceeds() {
+	_, err := suite.router1.PipeToRouter(func(o *PipeToRouterOptions) {
+		o.ProducerId = suite.videoProducer.Id()
+		o.Router = suite.router2
+	})
+	suite.NoError(err)
+	videoConsumer, err := suite.transport2.Consume(ConsumerOptions{
+		ProducerId:      suite.videoProducer.Id(),
+		RtpCapabilities: consumerDeviceCapabilities,
+	})
+	suite.NoError(err)
+
+	suite.NoError(err)
+	suite.False(videoConsumer.Closed())
+	suite.EqualValues("video", videoConsumer.Kind())
+	suite.NotNil(videoConsumer.RtpParameters())
+	suite.Equal("0", videoConsumer.RtpParameters().Mid)
+	suite.EqualValues([]*RtpCodecParameters{
+		{
+			MimeType:    "video/VP8",
+			ClockRate:   90000,
+			PayloadType: 101,
+			RtcpFeedback: []RtcpFeedback{
+				{Type: "nack", Parameter: ""},
+				{Type: "ccm", Parameter: "fir"},
+				{Type: "google-remb", Parameter: ""},
+				{Type: "transport-cc", Parameter: ""},
+			},
+		},
+		{
+			MimeType:    "video/rtx",
+			ClockRate:   90000,
+			PayloadType: 102,
+			Parameters: RtpCodecSpecificParameters{
+				Apt: 101,
+			},
+			RtcpFeedback: []RtcpFeedback{},
+		},
+	}, videoConsumer.RtpParameters().Codecs)
+	suite.EqualValues([]RtpHeaderExtensionParameters{
+		{
+			Uri:     "http://www.webrtc.org/experiments/rtp-hdrext/abs-send-time",
+			Id:      4,
+			Encrypt: false,
+		},
+		{
+			Uri:     "http://www.ietf.org/id/draft-holmer-rmcat-transport-wide-cc-extensions-01",
+			Id:      5,
+			Encrypt: false,
+		},
+	}, videoConsumer.RtpParameters().HeaderExtensions)
+	suite.Len(videoConsumer.RtpParameters().Encodings, 1)
+	suite.NotNil(videoConsumer.RtpParameters().Encodings[0].Rtx)
+	suite.NotZero(videoConsumer.RtpParameters().Encodings[0].Rtx.Ssrc)
+	suite.EqualValues("simulcast", videoConsumer.Type())
+	suite.False(videoConsumer.Paused())
+	suite.True(videoConsumer.ProducerPaused())
+	suite.Equal(ConsumerScore{
+		Score:          10,
+		ProducerScore:  0,
+		ProducerScores: []uint32{0, 0, 0},
+	}, videoConsumer.Score())
+	suite.Equal(H{}, videoConsumer.AppData())
+}
+
+func (suite *PipeTransportTestingSuite) TestProducerPauseAndProducerResumeAreTransmittedToPipeConsumer() {
+	_, err := suite.router1.PipeToRouter(func(o *PipeToRouterOptions) {
+		o.ProducerId = suite.videoProducer.Id()
+		o.Router = suite.router2
+	})
+	suite.NoError(err)
+	videoConsumer, err := suite.transport2.Consume(ConsumerOptions{
+		ProducerId:      suite.videoProducer.Id(),
+		RtpCapabilities: consumerDeviceCapabilities,
+	})
+	suite.NoError(err)
+
+	suite.True(suite.videoProducer.Paused())
+	suite.True(videoConsumer.ProducerPaused())
+	suite.False(videoConsumer.Paused())
+
+	observer := NewMockFunc(suite.T())
+	videoConsumer.Once("producerresume", observer.Fn())
+
+	suite.videoProducer.Resume()
+
+	observer.ExpectCalled()
+	suite.False(videoConsumer.ProducerPaused())
+	suite.False(videoConsumer.Paused())
+
+	videoConsumer.Once("producerpause", observer.Fn())
+
+	suite.videoProducer.Pause()
+
+	observer.ExpectCalled()
+	suite.True(videoConsumer.ProducerPaused())
+	suite.False(videoConsumer.Paused())
+}
+
+func (suite *PipeTransportTestingSuite) TestProducerCloseIsTransmittedToPipeConsumer() {
+	_, err := suite.router1.PipeToRouter(func(o *PipeToRouterOptions) {
+		o.ProducerId = suite.videoProducer.Id()
+		o.Router = suite.router2
+	})
+	suite.NoError(err)
+	videoConsumer, err := suite.transport2.Consume(ConsumerOptions{
+		ProducerId:      suite.videoProducer.Id(),
+		RtpCapabilities: consumerDeviceCapabilities,
+	})
+	suite.NoError(err)
+
+	suite.videoProducer.Close()
+
+	suite.True(suite.videoProducer.Closed())
+
+	observer := NewMockFunc(suite.T())
+	videoConsumer.Once("producerclose", observer.Fn())
+	observer.ExpectCalled()
+	suite.True(videoConsumer.Closed())
+}
+
+func (suite *PipeTransportTestingSuite) TestProducerPipeRouterSucceedsWithData() {
+	result, err := suite.router1.PipeToRouter(func(o *PipeToRouterOptions) {
+		o.DataProducerId = suite.dataProducer.Id()
+		o.Router = suite.router2
+	})
+	suite.NoError(err)
+
+	pipeDataConsumer, pipeDataProducer := result.PipeDataConsumer, result.PipeDataProducer
+	dump, _ := suite.router1.Dump()
+
+	// There shoud be two Transports in router1:
+	// - WebRtcTransport for audioProducer, videoProducer and dataProducer.
+	// - PipeTransport between router1 and router2.
+	suite.Len(dump.TransportIds, 2)
+
+	dump, _ = suite.router1.Dump()
+
+	// There shoud be two Transports in router2:
+	// - WebRtcTransport for audioConsumer, videoConsumer and dataConsumer.
+	// - pipeTransport between router2 and router1.
+	suite.Len(dump.TransportIds, 2)
+
+	suite.NotZero(pipeDataConsumer.Id())
+	suite.False(pipeDataConsumer.Closed())
+	suite.EqualValues("sctp", pipeDataConsumer.Type())
+	suite.NotNil(pipeDataConsumer.SctpStreamParameters())
+	suite.False(*pipeDataConsumer.SctpStreamParameters().Ordered)
+	suite.EqualValues(5000, pipeDataConsumer.SctpStreamParameters().MaxPacketLifeTime)
+	suite.Zero(pipeDataConsumer.SctpStreamParameters().MaxRetransmits)
+	suite.Equal("foo", pipeDataConsumer.Label())
+	suite.Equal("bar", pipeDataConsumer.Protocol())
+
+	suite.Equal(suite.dataProducer.Id(), pipeDataProducer.Id())
+	suite.False(pipeDataProducer.Closed())
+	suite.EqualValues("sctp", pipeDataProducer.Type())
+	suite.NotNil(pipeDataProducer.SctpStreamParameters())
+	suite.False(*pipeDataProducer.SctpStreamParameters().Ordered)
+	suite.EqualValues(5000, pipeDataProducer.SctpStreamParameters().MaxPacketLifeTime)
+	suite.Zero(pipeDataProducer.SctpStreamParameters().MaxRetransmits)
+	suite.Equal("foo", pipeDataProducer.Label())
+	suite.Equal("bar", pipeDataProducer.Protocol())
+}
+
+func (suite *PipeTransportTestingSuite) TestTransportDataConsumeForAPipeDataProducerSucceeds() {
+	_, err := suite.router1.PipeToRouter(func(o *PipeToRouterOptions) {
+		o.DataProducerId = suite.dataProducer.Id()
+		o.Router = suite.router2
+	})
+	suite.NoError(err)
+	dataConsumer, err := suite.transport2.ConsumeData(DataConsumerOptions{
+		DataProducerId: suite.dataProducer.Id(),
+	})
+	suite.NoError(err)
+	suite.NotZero(dataConsumer.Id())
+	suite.False(dataConsumer.Closed())
+	suite.EqualValues("sctp", dataConsumer.Type())
+	suite.NotNil(dataConsumer.SctpStreamParameters())
+	suite.False(*dataConsumer.SctpStreamParameters().Ordered)
+	suite.EqualValues(5000, dataConsumer.SctpStreamParameters().MaxPacketLifeTime)
+	suite.Zero(dataConsumer.SctpStreamParameters().MaxRetransmits)
+	suite.Equal("foo", dataConsumer.Label())
+	suite.Equal("bar", dataConsumer.Protocol())
+}
+
+func (suite *PipeTransportTestingSuite) TestDataProducerCloseIsTransmittedToPipeDataConsumer() {
+	_, err := suite.router1.PipeToRouter(func(o *PipeToRouterOptions) {
+		o.DataProducerId = suite.dataProducer.Id()
+		o.Router = suite.router2
+	})
+	suite.NoError(err)
+	dataConsumer, err := suite.transport2.ConsumeData(DataConsumerOptions{
+		DataProducerId: suite.dataProducer.Id(),
+	})
+	suite.NoError(err)
+
+	suite.dataProducer.Close()
+
+	suite.True(suite.dataProducer.Closed())
+
+	observer := NewMockFunc(suite.T())
+	dataConsumer.Once("dataproducerclose", observer.Fn())
+	observer.ExpectCalled()
+	suite.True(dataConsumer.Closed())
+}
+
+func (suite *PipeTransportTestingSuite) TestRouterPipeRouterCalledTwiceGenenratesASinglePipeTransportPair() {
+	routerA := CreateRouter()
+	routerB := CreateRouter()
+
+	defer routerA.Close()
+	defer routerB.Close()
+
+	transportA1, _ := routerA.CreateWebRtcTransport(func(o *WebRtcTransportOptions) {
+		o.ListenIps = []TransportListenIp{
+			{Ip: "127.0.0.1"},
+		}
+	})
+	transportA2, _ := routerA.CreateWebRtcTransport(func(o *WebRtcTransportOptions) {
+		o.ListenIps = []TransportListenIp{
+			{Ip: "127.0.0.1"},
+		}
+	})
+	audioProducer1 := CreateAudioProducer(transportA1)
+	audioProducer2 := CreateAudioProducer(transportA2)
+
+	_, err := routerA.PipeToRouter(func(o *PipeToRouterOptions) {
+		o.ProducerId = audioProducer1.Id()
+		o.Router = routerB
+	})
+	suite.NoError(err)
+	_, err = routerA.PipeToRouter(func(o *PipeToRouterOptions) {
+		o.ProducerId = audioProducer2.Id()
+		o.Router = routerB
+	})
+	suite.NoError(err)
+
+	dump, _ := routerA.Dump()
+
+	// There shoud be 3 Transports in routerA:
+	// - WebRtcTransport for audioProducer1 and audioProducer2.
+	// - PipeTransport between routerA and routerB.
+	suite.Len(dump.TransportIds, 3)
+
+	dump, _ = routerB.Dump()
+
+	// There shoud be 1 Transport in routerB:
+	// - PipeTransport between routerA and routerB.
+	suite.Len(dump.TransportIds, 1)
+}

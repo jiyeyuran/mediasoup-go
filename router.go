@@ -2,7 +2,6 @@ package mediasoup
 
 import (
 	"errors"
-	"reflect"
 	"sync"
 	"sync/atomic"
 
@@ -62,6 +61,8 @@ type PipeToRouterOptions struct {
 	 */
 	EnableSrtp bool `json:"enableSrtp,omitempty"`
 }
+
+type PipeToRouterOption func(o *PipeToRouterOptions)
 
 type PipeToRouterResult struct {
 	/**
@@ -402,12 +403,16 @@ func (router *Router) CreateDirectTransport(params ...DirectTransportOption) (tr
 /**
  * Pipes the given Producer or DataProducer into another Router in same host.
  */
-func (router *Router) PipeToRouter(options PipeToRouterOptions) (result *PipeToRouterResult, err error) {
-	if len(options.ListenIp.Ip) == 0 {
-		options.ListenIp.Ip = "127.0.0.1"
+func (router *Router) PipeToRouter(params ...PipeToRouterOption) (result *PipeToRouterResult, err error) {
+	options := &PipeToRouterOptions{
+		ListenIp: TransportListenIp{
+			Ip: "127.0.0.1",
+		},
+		EnableSctp:     true,
+		NumSctpStreams: NumSctpStreams{OS: 1024, MIS: 1024},
 	}
-	if reflect.DeepEqual(options.NumSctpStreams, NumSctpStreams{}) {
-		options.NumSctpStreams = NumSctpStreams{OS: 1024, MIS: 1024}
+	for _, o := range params {
+		o(options)
 	}
 	if len(options.ProducerId) == 0 && len(options.DataProducerId) == 0 {
 		err = NewTypeError("missing producerId")
