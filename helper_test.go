@@ -205,12 +205,12 @@ func CreateVP8Producer(tranpsort ITransport) *Producer {
 			Codecs: []*RtpCodecParameters{
 				{
 					MimeType:    "video/VP8",
-					PayloadType: 101,
+					PayloadType: 112,
 					ClockRate:   90000,
 					RtcpFeedback: []RtcpFeedback{
-						{Type: "nack", Parameter: ""},
+						{Type: "nack"},
 						{Type: "nack", Parameter: "pli"},
-						{Type: "goog-remb", Parameter: ""},
+						{Type: "goog-remb"},
 						{Type: "lalala"},
 					},
 				},
@@ -235,7 +235,7 @@ func CreateVP8Producer(tranpsort ITransport) *Producer {
 				{Ssrc: 22222224},
 			},
 			Rtcp: RtcpParameters{
-				Cname: "video-1",
+				Cname: "FOOBAR",
 			},
 		},
 		AppData: H{"foo": "bar2"},
