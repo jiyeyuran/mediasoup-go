@@ -199,7 +199,7 @@ func (suite *ConsumerTestingSuite) TestTransportConsume_Succeeds() {
 	suite.Equal(ConsumerType_Simple, audioConsumer.Type())
 	suite.False(audioConsumer.Paused())
 	suite.False(audioConsumer.ProducerPaused())
-	suite.Equal(ConsumerScore{Score: 10, ProducerScore: 0, ProducerScores: []uint32{0}}, audioConsumer.Score())
+	suite.Equal(ConsumerScore{Score: 10, ProducerScore: 0, ProducerScores: []uint16{0}}, audioConsumer.Score())
 	suite.Nil(audioConsumer.CurrentLayers())
 	suite.Nil(audioConsumer.PreferredLayers())
 	suite.Equal(H{"baz": "LOL"}, audioConsumer.AppData())
@@ -265,7 +265,7 @@ func (suite *ConsumerTestingSuite) TestTransportConsume_Succeeds() {
 	suite.EqualValues(ConsumerType_Simulcast, videoConsumer.Type())
 	suite.True(videoConsumer.Paused())
 	suite.True(videoConsumer.ProducerPaused())
-	suite.Equal(ConsumerScore{Score: 10, ProducerScore: 0, ProducerScores: []uint32{0, 0, 0, 0}}, videoConsumer.Score())
+	suite.Equal(ConsumerScore{Score: 10, ProducerScore: 0, ProducerScores: []uint16{0, 0, 0, 0}}, videoConsumer.Score())
 	suite.Nil(videoConsumer.CurrentLayers())
 	suite.Equal(H{"baz": "LOL"}, videoConsumer.AppData())
 

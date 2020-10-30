@@ -89,18 +89,18 @@ type ConsumerScore struct {
 	/**
 	 * The score of the RTP stream of the consumer.
 	 */
-	Score uint32 `json:"score,omitempty"`
+	Score uint16 `json:"score,omitempty"`
 
 	/**
 	 * The score of the currently selected RTP stream of the producer.
 	 */
-	ProducerScore uint32 `json:"producerScore,omitempty"`
+	ProducerScore uint16 `json:"producerScore,omitempty"`
 
 	/**
 	 * The scores of all RTP streams in the producer ordered by encoding (just
 	 * useful when the producer uses simulcast).
 	 */
-	ProducerScores []uint32 `json:"producerScores,omitempty"`
+	ProducerScores []uint16 `json:"producerScores,omitempty"`
 }
 
 type ConsumerLayers struct {
@@ -198,7 +198,7 @@ func newConsumer(params consumerParams) *Consumer {
 		params.score = ConsumerScore{
 			Score:          10,
 			ProducerScore:  10,
-			ProducerScores: []uint32{},
+			ProducerScores: []uint16{},
 		}
 	}
 
