@@ -71,8 +71,8 @@ type PlainTransportSpecificStat struct {
 type plainTransportData struct {
 	RtcpMux        bool            `json:"rtcp_mux,omitempty"`
 	Comedia        bool            `json:"comedia,omitempty"`
-	Tuple          TransportTuple  `json:"tuple,omitempty"`
-	RtcpTuple      TransportTuple  `json:"rtcpTuple,omitempty"`
+	Tuple          *TransportTuple `json:"tuple,omitempty"`
+	RtcpTuple      *TransportTuple `json:"rtcpTuple,omitempty"`
 	SctpParameters SctpParameters  `json:"sctpParameters,omitempty"`
 	SctpState      SctpState       `json:"sctpState,omitempty"`
 	SrtpParameters *SrtpParameters `json:"srtpParameters,omitempty"`
@@ -118,14 +118,14 @@ func newPlainTransport(params transportParams) ITransport {
 /**
  * Transport tuple.
  */
-func (t PlainTransport) Tuple() TransportTuple {
+func (t PlainTransport) Tuple() *TransportTuple {
 	return t.data.Tuple
 }
 
 /**
  * Transport RTCP tuple.
  */
-func (t PlainTransport) RtcpTuple() TransportTuple {
+func (t PlainTransport) RtcpTuple() *TransportTuple {
 	return t.data.RtcpTuple
 }
 
@@ -229,10 +229,10 @@ func (transport *PlainTransport) Connect(options TransportConnectOptions) (err e
 
 	// Update data.
 	if data.Tuple != nil {
-		transport.data.Tuple = *data.Tuple
+		transport.data.Tuple = data.Tuple
 	}
 	if data.RtcpTuple != nil {
-		transport.data.RtcpTuple = *data.RtcpTuple
+		transport.data.RtcpTuple = data.RtcpTuple
 	}
 
 	transport.data.SrtpParameters = data.SrtpParameters
@@ -245,7 +245,7 @@ func (transport *PlainTransport) handleWorkerNotifications() {
 		switch event {
 		case "tuple":
 			var result struct {
-				Tuple TransportTuple
+				Tuple *TransportTuple
 			}
 			json.Unmarshal(data, &result)
 
@@ -258,7 +258,7 @@ func (transport *PlainTransport) handleWorkerNotifications() {
 
 		case "rtcptuple":
 			var result struct {
-				RtcpTuple TransportTuple
+				RtcpTuple *TransportTuple
 			}
 			json.Unmarshal(data, &result)
 

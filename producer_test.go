@@ -48,16 +48,20 @@ func (suite *ProducerTestingSuite) SetupTest() {
 		MediaCodecs: mediaCodecs,
 	})
 
-	suite.transport1, _ = suite.router.CreateWebRtcTransport(WebRtcTransportOptions{
+	var err error
+
+	suite.transport1, err = suite.router.CreateWebRtcTransport(WebRtcTransportOptions{
 		ListenIps: []TransportListenIp{
 			{Ip: "127.0.0.1"},
 		},
 	})
-	suite.transport2, _ = suite.router.CreatePlainTransport(PlainTransportOptions{
+	suite.NoError(err)
+	suite.transport2, err = suite.router.CreatePlainTransport(PlainTransportOptions{
 		ListenIp: TransportListenIp{
 			Ip: "127.0.0.1",
 		},
 	})
+	suite.NoError(err)
 }
 
 func (suite *ProducerTestingSuite) TearDownTest() {

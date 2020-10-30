@@ -25,7 +25,7 @@ type DataConsumerOptions struct {
 	 * SCTP packet will stop being retransmitted. Defaults to the value in the
 	 * DataProducer if it has type 'sctp' or unset if it has type 'direct'.
 	 */
-	MaxPacketLifeTime uint32 `json:"maxPacketLifeTime,omitempty"`
+	MaxPacketLifeTime uint16 `json:"maxPacketLifeTime,omitempty"`
 
 	/**
 	 * Just if consuming over SCTP.
@@ -33,7 +33,7 @@ type DataConsumerOptions struct {
 	 * be retransmitted. Defaults to the value in the DataProducer if it has type
 	 * 'sctp' or unset if it has type 'direct'.
 	 */
-	MaxRetransmits uint32 `json:"maxRetransmits,omitempty"`
+	MaxRetransmits uint16 `json:"maxRetransmits,omitempty"`
 
 	/**
 	 * Custom application data.
