@@ -5,6 +5,8 @@ import (
 	"math/rand"
 	"sync"
 	"time"
+
+	"github.com/imdario/mergo"
 )
 
 func init() {
@@ -21,6 +23,10 @@ func clone(from, to interface{}) (err error) {
 		return err
 	}
 	return json.Unmarshal(data, to)
+}
+
+func override(dst, src interface{}) {
+	mergo.Merge(dst, src, mergo.WithOverride)
 }
 
 func syncMapLen(m *sync.Map) (len int) {

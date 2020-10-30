@@ -7,7 +7,6 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/imdario/mergo"
 	"github.com/jiyeyuran/mediasoup-go/h264"
 )
 
@@ -361,7 +360,7 @@ func generateRouterRtpCapabilities(mediaCodecs []*RtpCodecCapability) (caps RtpC
 		}
 
 		// Merge the media codec parameters.
-		mergo.Merge(&codec.Parameters, mediaCodec.Parameters, mergo.WithOverride)
+		override(&codec.Parameters, mediaCodec.Parameters)
 
 		// Append to the codec list.
 		caps.Codecs = append(caps.Codecs, codec)
