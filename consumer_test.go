@@ -45,91 +45,6 @@ func (suite *ConsumerTestingSuite) SetupTest() {
 		},
 	}
 
-	audioProducerParameters := ProducerOptions{
-		Kind: MediaKind_Audio,
-		RtpParameters: RtpParameters{
-			Mid: "AUDIO",
-			Codecs: []*RtpCodecParameters{
-				{
-					MimeType:    "audio/opus",
-					PayloadType: 111,
-					ClockRate:   48000,
-					Channels:    2,
-					Parameters: RtpCodecSpecificParameters{
-						Useinbandfec: 1,
-						Usedtx:       1,
-					},
-				},
-			},
-			HeaderExtensions: []RtpHeaderExtensionParameters{
-				{
-					Uri: "urn:ietf:params:rtp-hdrext:sdes:mid",
-					Id:  10,
-				},
-				{
-					Uri: "urn:ietf:params:rtp-hdrext:ssrc-audio-level",
-					Id:  12,
-				},
-			},
-			Encodings: []RtpEncodingParameters{{Ssrc: 11111111}},
-			Rtcp: RtcpParameters{
-				Cname: "FOOBAR",
-			},
-		},
-		AppData: H{"foo": 1, "bar": "2"},
-	}
-
-	videoProducerParameters := ProducerOptions{
-		Kind: MediaKind_Video,
-		RtpParameters: RtpParameters{
-			Mid: "VIDEO",
-			Codecs: []*RtpCodecParameters{
-				{
-					MimeType:    "video/h264",
-					PayloadType: 112,
-					ClockRate:   90000,
-					Parameters: RtpCodecSpecificParameters{
-						RtpParameter: h264.RtpParameter{
-							PacketizationMode: 1,
-							ProfileLevelId:    "4d0032",
-						},
-					},
-					RtcpFeedback: []RtcpFeedback{
-						{Type: "nack", Parameter: ""},
-						{Type: "nack", Parameter: "pli"},
-						{Type: "goog-remb", Parameter: ""},
-					},
-				},
-				{
-					MimeType:    "video/rtx",
-					PayloadType: 113,
-					ClockRate:   90000,
-					Parameters:  RtpCodecSpecificParameters{Apt: 112},
-				},
-			},
-			HeaderExtensions: []RtpHeaderExtensionParameters{
-				{
-					Uri: "urn:ietf:params:rtp-hdrext:sdes:mid",
-					Id:  10,
-				},
-				{
-					Uri: "urn:3gpp:video-orientation",
-					Id:  13,
-				},
-			},
-			Encodings: []RtpEncodingParameters{
-				{Ssrc: 22222222, Rtx: &RtpEncodingRtx{Ssrc: 22222223}},
-				{Ssrc: 22222224, Rtx: &RtpEncodingRtx{Ssrc: 22222225}},
-				{Ssrc: 22222226, Rtx: &RtpEncodingRtx{Ssrc: 22222227}},
-				{Ssrc: 22222228, Rtx: &RtpEncodingRtx{Ssrc: 22222229}},
-			},
-			Rtcp: RtcpParameters{
-				Cname: "FOOBAR",
-			},
-		},
-		AppData: H{"foo": 1, "bar": "2"},
-	}
-
 	suite.consumerDeviceCapabilities = RtpCapabilities{
 		Codecs: []*RtpCodecCapability{
 			{
@@ -234,8 +149,8 @@ func (suite *ConsumerTestingSuite) SetupTest() {
 		}
 	})
 
-	suite.audioProducer, _ = suite.transport1.Produce(audioProducerParameters)
-	suite.videoProducer, _ = suite.transport1.Produce(videoProducerParameters)
+	suite.audioProducer = CreateAudioProducer(suite.transport1)
+	suite.videoProducer = CreateH264Producer(suite.transport1)
 
 	// Pause the videoProducer.
 	suite.videoProducer.Pause()

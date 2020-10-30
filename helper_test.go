@@ -138,7 +138,7 @@ func CreateAudioProducer(tranpsort ITransport) *Producer {
 	return producer
 }
 
-func CreateVideoProducer(tranpsort ITransport) *Producer {
+func CreateH264Producer(tranpsort ITransport) *Producer {
 	producer, err := tranpsort.Produce(ProducerOptions{
 		Kind: MediaKind_Video,
 		RtpParameters: RtpParameters{
