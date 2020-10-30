@@ -1,7 +1,5 @@
 package mediasoup
 
-import "encoding/json"
-
 const (
 	PPID_WEBRTC_STRING int = 51
 	PPID_WEBRTC_BINARY     = 53
@@ -11,25 +9,6 @@ type H map[string]interface{}
 
 func Bool(b bool) *bool {
 	return &b
-}
-
-type DumpResult struct {
-	Data []byte
-	Err  error
-}
-
-func NewDumpResult(data []byte, err error) DumpResult {
-	return DumpResult{
-		Data: data,
-		Err:  err,
-	}
-}
-
-func (r DumpResult) Unmarshal(v interface{}) error {
-	if r.Err != nil {
-		return r.Err
-	}
-	return json.Unmarshal(r.Data, v)
 }
 
 type WorkerDump struct {

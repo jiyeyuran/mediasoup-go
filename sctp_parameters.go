@@ -59,6 +59,9 @@ type SctpParameters struct {
 	 */
 	MaxMessageSize uint32 `json:"maxMessageSize"`
 
+	/**
+	 * Set by worker.
+	 */
 	IsDataChannel      bool   `json:"isDataChannel,omitempty"`
 	SctpBufferedAmount uint32 `json:"sctpBufferedAmount,omitempty"`
 	SendBufferSize     uint32 `json:"sendBufferSize,omitempty"`
