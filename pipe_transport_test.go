@@ -291,7 +291,6 @@ func (suite *PipeTransportTestingSuite) TestRouterCreatePipeTransport_WithEnable
 			Parameters: RtpCodecSpecificParameters{
 				Apt: 101,
 			},
-			RtcpFeedback: []RtcpFeedback{},
 		},
 	}, pipeConsumer.RtpParameters().Codecs)
 	suite.EqualValues([]RtpHeaderExtensionParameters{
@@ -585,12 +584,12 @@ func (suite *PipeTransportTestingSuite) TestDataProducerCloseIsTransmittedToPipe
 	})
 	suite.NoError(err)
 
+	observer := NewMockFunc(suite.T())
+	dataConsumer.Once("dataproducerclose", observer.Fn())
+
 	suite.dataProducer.Close()
 
 	suite.True(suite.dataProducer.Closed())
-
-	observer := NewMockFunc(suite.T())
-	dataConsumer.Once("dataproducerclose", observer.Fn())
 	observer.ExpectCalled()
 	suite.True(dataConsumer.Closed())
 }

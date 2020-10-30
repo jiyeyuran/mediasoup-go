@@ -1,11 +1,10 @@
 package mediasoup
 
 import (
+	"encoding/json"
 	"math/rand"
 	"sync"
 	"time"
-
-	"github.com/jinzhu/copier"
 )
 
 func init() {
@@ -17,9 +16,11 @@ func generateRandomNumber() uint32 {
 }
 
 func clone(from, to interface{}) (err error) {
-	copier.Copy(to, from)
-
-	return
+	data, err := json.Marshal(from)
+	if err != nil {
+		return err
+	}
+	return json.Unmarshal(data, to)
 }
 
 func syncMapLen(m *sync.Map) (len int) {
