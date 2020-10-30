@@ -25,17 +25,17 @@ func (suite *PipeTransportTestingSuite) SetupTest() {
 	suite.router1 = CreateRouter()
 	suite.router2 = CreateRouter()
 
-	suite.transport1, _ = suite.router1.CreateWebRtcTransport(func(o *WebRtcTransportOptions) {
-		o.ListenIps = []TransportListenIp{
+	suite.transport1, _ = suite.router1.CreateWebRtcTransport(WebRtcTransportOptions{
+		ListenIps: []TransportListenIp{
 			{Ip: "127.0.0.1"},
-		}
-		o.EnableSctp = true
+		},
+		EnableSctp: true,
 	})
-	suite.transport2, _ = suite.router2.CreateWebRtcTransport(func(o *WebRtcTransportOptions) {
-		o.ListenIps = []TransportListenIp{
+	suite.transport2, _ = suite.router2.CreateWebRtcTransport(WebRtcTransportOptions{
+		ListenIps: []TransportListenIp{
 			{Ip: "127.0.0.1"},
-		}
-		o.EnableSctp = true
+		},
+		EnableSctp: true,
 	})
 	suite.audioProducer = CreateAudioProducer(suite.transport1)
 	suite.videoProducer = CreateVP8Producer(suite.transport1)
@@ -59,9 +59,9 @@ func (suite *PipeTransportTestingSuite) TearDownTest() {
 }
 
 func (suite *PipeTransportTestingSuite) TestRouterPipeToRouter_SucceedsWithAudio() {
-	result, err := suite.router1.PipeToRouter(func(o *PipeToRouterOptions) {
-		o.ProducerId = suite.audioProducer.Id()
-		o.Router = suite.router2
+	result, err := suite.router1.PipeToRouter(PipeToRouterOptions{
+		ProducerId: suite.audioProducer.Id(),
+		Router:     suite.router2,
 	})
 	suite.NoError(err)
 
@@ -137,9 +137,9 @@ func (suite *PipeTransportTestingSuite) TestRouterPipeToRouter_SucceedsWithAudio
 }
 
 func (suite *PipeTransportTestingSuite) TestRouterPipeToRouter_SucceedsWithVideo() {
-	result, err := suite.router1.PipeToRouter(func(o *PipeToRouterOptions) {
-		o.ProducerId = suite.videoProducer.Id()
-		o.Router = suite.router2
+	result, err := suite.router1.PipeToRouter(PipeToRouterOptions{
+		ProducerId: suite.videoProducer.Id(),
+		Router:     suite.router2,
 	})
 	suite.NoError(err)
 
@@ -247,9 +247,9 @@ func (suite *PipeTransportTestingSuite) TestRouterPipeToRouter_SucceedsWithVideo
 }
 
 func (suite *PipeTransportTestingSuite) TestRouterCreatePipeTransport_WithEnableRtxSucceeds() {
-	pipeTransport, err := suite.router1.CreatePipeTransport(func(o *PipeTransportOptions) {
-		o.ListenIp = TransportListenIp{Ip: "127.0.0.1"}
-		o.EnableRtx = true
+	pipeTransport, err := suite.router1.CreatePipeTransport(PipeTransportOptions{
+		ListenIp:  TransportListenIp{Ip: "127.0.0.1"},
+		EnableRtx: true,
 	})
 	suite.NoError(err)
 	suite.Empty(pipeTransport.SrtpParameters())
@@ -329,9 +329,9 @@ func (suite *PipeTransportTestingSuite) TestRouterCreatePipeTransport_WithEnable
 }
 
 func (suite *PipeTransportTestingSuite) TestRouterCreatePipeTransport_WithEnableSrtpSucceeds() {
-	pipeTransport, err := suite.router1.CreatePipeTransport(func(o *PipeTransportOptions) {
-		o.ListenIp = TransportListenIp{Ip: "127.0.0.1"}
-		o.EnableSrtp = true
+	pipeTransport, err := suite.router1.CreatePipeTransport(PipeTransportOptions{
+		ListenIp:   TransportListenIp{Ip: "127.0.0.1"},
+		EnableSrtp: true,
 	})
 	suite.NoError(err)
 	suite.Len(pipeTransport.SrtpParameters().KeyBase64, 40)
@@ -389,9 +389,9 @@ func (suite *PipeTransportTestingSuite) TestRouterCreatePipeTransport_WithEnable
 }
 
 func (suite *PipeTransportTestingSuite) TestTransportConsume_ForAPipeProducerSucceeds() {
-	_, err := suite.router1.PipeToRouter(func(o *PipeToRouterOptions) {
-		o.ProducerId = suite.videoProducer.Id()
-		o.Router = suite.router2
+	_, err := suite.router1.PipeToRouter(PipeToRouterOptions{
+		ProducerId: suite.videoProducer.Id(),
+		Router:     suite.router2,
 	})
 	suite.NoError(err)
 	videoConsumer, err := suite.transport2.Consume(ConsumerOptions{
@@ -454,9 +454,9 @@ func (suite *PipeTransportTestingSuite) TestTransportConsume_ForAPipeProducerSuc
 }
 
 func (suite *PipeTransportTestingSuite) TestProducerPauseAndProducerResumeAreTransmittedToPipeConsumer() {
-	_, err := suite.router1.PipeToRouter(func(o *PipeToRouterOptions) {
-		o.ProducerId = suite.videoProducer.Id()
-		o.Router = suite.router2
+	_, err := suite.router1.PipeToRouter(PipeToRouterOptions{
+		ProducerId: suite.videoProducer.Id(),
+		Router:     suite.router2,
 	})
 	suite.NoError(err)
 	videoConsumer, err := suite.transport2.Consume(ConsumerOptions{
@@ -488,9 +488,9 @@ func (suite *PipeTransportTestingSuite) TestProducerPauseAndProducerResumeAreTra
 }
 
 func (suite *PipeTransportTestingSuite) TestProducerCloseIsTransmittedToPipeConsumer() {
-	_, err := suite.router1.PipeToRouter(func(o *PipeToRouterOptions) {
-		o.ProducerId = suite.videoProducer.Id()
-		o.Router = suite.router2
+	_, err := suite.router1.PipeToRouter(PipeToRouterOptions{
+		ProducerId: suite.videoProducer.Id(),
+		Router:     suite.router2,
 	})
 	suite.NoError(err)
 	videoConsumer, err := suite.transport2.Consume(ConsumerOptions{
@@ -510,9 +510,9 @@ func (suite *PipeTransportTestingSuite) TestProducerCloseIsTransmittedToPipeCons
 }
 
 func (suite *PipeTransportTestingSuite) TestProducerPipeRouterSucceedsWithData() {
-	result, err := suite.router1.PipeToRouter(func(o *PipeToRouterOptions) {
-		o.DataProducerId = suite.dataProducer.Id()
-		o.Router = suite.router2
+	result, err := suite.router1.PipeToRouter(PipeToRouterOptions{
+		DataProducerId: suite.dataProducer.Id(),
+		Router:         suite.router2,
 	})
 	suite.NoError(err)
 
@@ -553,9 +553,9 @@ func (suite *PipeTransportTestingSuite) TestProducerPipeRouterSucceedsWithData()
 }
 
 func (suite *PipeTransportTestingSuite) TestTransportDataConsumeForAPipeDataProducerSucceeds() {
-	_, err := suite.router1.PipeToRouter(func(o *PipeToRouterOptions) {
-		o.DataProducerId = suite.dataProducer.Id()
-		o.Router = suite.router2
+	_, err := suite.router1.PipeToRouter(PipeToRouterOptions{
+		DataProducerId: suite.dataProducer.Id(),
+		Router:         suite.router2,
 	})
 	suite.NoError(err)
 	dataConsumer, err := suite.transport2.ConsumeData(DataConsumerOptions{
@@ -574,9 +574,9 @@ func (suite *PipeTransportTestingSuite) TestTransportDataConsumeForAPipeDataProd
 }
 
 func (suite *PipeTransportTestingSuite) TestDataProducerCloseIsTransmittedToPipeDataConsumer() {
-	_, err := suite.router1.PipeToRouter(func(o *PipeToRouterOptions) {
-		o.DataProducerId = suite.dataProducer.Id()
-		o.Router = suite.router2
+	_, err := suite.router1.PipeToRouter(PipeToRouterOptions{
+		DataProducerId: suite.dataProducer.Id(),
+		Router:         suite.router2,
 	})
 	suite.NoError(err)
 	dataConsumer, err := suite.transport2.ConsumeData(DataConsumerOptions{
@@ -601,27 +601,27 @@ func (suite *PipeTransportTestingSuite) TestRouterPipeRouterCalledTwiceGenenrate
 	defer routerA.Close()
 	defer routerB.Close()
 
-	transportA1, _ := routerA.CreateWebRtcTransport(func(o *WebRtcTransportOptions) {
-		o.ListenIps = []TransportListenIp{
+	transportA1, _ := routerA.CreateWebRtcTransport(WebRtcTransportOptions{
+		ListenIps: []TransportListenIp{
 			{Ip: "127.0.0.1"},
-		}
+		},
 	})
-	transportA2, _ := routerA.CreateWebRtcTransport(func(o *WebRtcTransportOptions) {
-		o.ListenIps = []TransportListenIp{
+	transportA2, _ := routerA.CreateWebRtcTransport(WebRtcTransportOptions{
+		ListenIps: []TransportListenIp{
 			{Ip: "127.0.0.1"},
-		}
+		},
 	})
 	audioProducer1 := CreateAudioProducer(transportA1)
 	audioProducer2 := CreateAudioProducer(transportA2)
 
-	_, err := routerA.PipeToRouter(func(o *PipeToRouterOptions) {
-		o.ProducerId = audioProducer1.Id()
-		o.Router = routerB
+	_, err := routerA.PipeToRouter(PipeToRouterOptions{
+		ProducerId: audioProducer1.Id(),
+		Router:     routerB,
 	})
 	suite.NoError(err)
-	_, err = routerA.PipeToRouter(func(o *PipeToRouterOptions) {
-		o.ProducerId = audioProducer2.Id()
-		o.Router = routerB
+	_, err = routerA.PipeToRouter(PipeToRouterOptions{
+		ProducerId: audioProducer2.Id(),
+		Router:     routerB,
 	})
 	suite.NoError(err)
 

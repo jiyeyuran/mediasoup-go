@@ -34,18 +34,18 @@ func (suite *DataConsumerTestingSuite) SetupTest() {
 	suite.worker = CreateTestWorker()
 	suite.router = CreateRouter(suite.worker)
 	suite.NoError(err)
-	suite.transport1, err = suite.router.CreateWebRtcTransport(func(o *WebRtcTransportOptions) {
-		o.ListenIps = []TransportListenIp{
+	suite.transport1, err = suite.router.CreateWebRtcTransport(WebRtcTransportOptions{
+		ListenIps: []TransportListenIp{
 			{Ip: "127.0.0.1"},
-		}
-		o.EnableSctp = true
+		},
+		EnableSctp: true,
 	})
 	suite.NoError(err)
-	suite.transport2, err = suite.router.CreatePlainTransport(func(o *PlainTransportOptions) {
-		o.ListenIp = TransportListenIp{
+	suite.transport2, err = suite.router.CreatePlainTransport(PlainTransportOptions{
+		ListenIp: TransportListenIp{
 			Ip: "127.0.0.1",
-		}
-		o.EnableSctp = true
+		},
+		EnableSctp: true,
 	})
 	suite.NoError(err)
 	suite.transport3, err = suite.router.CreateDirectTransport()

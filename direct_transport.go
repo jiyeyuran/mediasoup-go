@@ -13,8 +13,6 @@ type DirectTransportOptions struct {
 	AppData interface{} `json:"appData,omitempty"`
 }
 
-type DirectTransportOption func(*DirectTransportOptions)
-
 type directTransportData struct{}
 
 /**

@@ -21,17 +21,17 @@ type DataProducerTestingSuite struct {
 func (suite *DataProducerTestingSuite) SetupTest() {
 	suite.worker = CreateTestWorker()
 	suite.router = CreateRouter(suite.worker)
-	suite.transport1, _ = suite.router.CreateWebRtcTransport(func(o *WebRtcTransportOptions) {
-		o.ListenIps = []TransportListenIp{
+	suite.transport1, _ = suite.router.CreateWebRtcTransport(WebRtcTransportOptions{
+		ListenIps: []TransportListenIp{
 			{Ip: "127.0.0.1"},
-		}
-		o.EnableSctp = true
+		},
+		EnableSctp: true,
 	})
-	suite.transport2, _ = suite.router.CreatePlainTransport(func(o *PlainTransportOptions) {
-		o.ListenIp = TransportListenIp{
+	suite.transport2, _ = suite.router.CreatePlainTransport(PlainTransportOptions{
+		ListenIp: TransportListenIp{
 			Ip: "127.0.0.1",
-		}
-		o.EnableSctp = true
+		},
+		EnableSctp: true,
 	})
 }
 

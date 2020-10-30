@@ -3,6 +3,7 @@ package mediasoup
 import (
 	"encoding/json"
 	"math/rand"
+	"reflect"
 	"sync"
 	"time"
 
@@ -11,6 +12,25 @@ import (
 
 func init() {
 	rand.Seed(time.Now().UnixNano())
+}
+
+type ptrTransformers struct{}
+
+// overwrites pointer type
+func (ptrTransformers) Transformer(tp reflect.Type) func(dst, src reflect.Value) error {
+	if tp.Kind() == reflect.Ptr {
+		return func(dst, src reflect.Value) error {
+			if !src.IsNil() {
+				if dst.CanSet() {
+					dst.Set(src)
+				} else {
+					dst = src
+				}
+			}
+			return nil
+		}
+	}
+	return nil
 }
 
 func generateRandomNumber() uint32 {
@@ -25,8 +45,12 @@ func clone(from, to interface{}) (err error) {
 	return json.Unmarshal(data, to)
 }
 
-func override(dst, src interface{}) {
-	mergo.Merge(dst, src, mergo.WithOverride)
+func override(dst, src interface{}) error {
+	return mergo.Merge(dst, src,
+		mergo.WithOverride,
+		mergo.WithTypeCheck,
+		mergo.WithTransformers(ptrTransformers{}),
+	)
 }
 
 func syncMapLen(m *sync.Map) (len int) {

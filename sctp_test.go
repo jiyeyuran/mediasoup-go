@@ -32,14 +32,14 @@ func (suite *SctpTestingSuite) SetupTest() {
 	suite.worker = CreateTestWorker()
 	suite.router = CreateRouter(suite.worker)
 	suite.NoError(err)
-	transport, err := suite.router.CreatePlainTransport(func(o *PlainTransportOptions) {
-		o.ListenIp = TransportListenIp{
+	transport, err := suite.router.CreatePlainTransport(PlainTransportOptions{
+		ListenIp: TransportListenIp{
 			Ip:          "0.0.0.0",
 			AnnouncedIp: "127.0.0.1",
-		}
-		o.Comedia = true
-		o.EnableSctp = true
-		o.NumSctpStreams = NumSctpStreams{OS: 256, MIS: 256}
+		},
+		Comedia:        true,
+		EnableSctp:     true,
+		NumSctpStreams: NumSctpStreams{OS: 256, MIS: 256},
 	})
 	suite.NoError(err)
 

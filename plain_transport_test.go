@@ -18,12 +18,12 @@ type PlainTransportTestingSuite struct {
 
 func (suite *PlainTransportTestingSuite) SetupTest() {
 	suite.router = CreateRouter()
-	suite.transport, _ = suite.router.CreatePlainTransport(func(o *PlainTransportOptions) {
-		o.ListenIp = TransportListenIp{
+	suite.transport, _ = suite.router.CreatePlainTransport(PlainTransportOptions{
+		ListenIp: TransportListenIp{
 			Ip:          "127.0.0.1",
 			AnnouncedIp: "4.4.4.4",
-		}
-		o.RtcpMux = Bool(false)
+		},
+		RtcpMux: Bool(false),
 	})
 }
 
@@ -39,14 +39,14 @@ func (suite *PlainTransportTestingSuite) TestCreatePlainTransport_Succeeds() {
 	appData := H{"foo": "bar"}
 	onObserverNewTransport := NewMockFunc(suite.T())
 	router.Observer().Once("newtransport", onObserverNewTransport.Fn())
-	transport1, err := router.CreatePlainTransport(func(o *PlainTransportOptions) {
-		o.ListenIp = TransportListenIp{
+	transport1, err := router.CreatePlainTransport(PlainTransportOptions{
+		ListenIp: TransportListenIp{
 			Ip:          "127.0.0.1",
 			AnnouncedIp: "9.9.9.1",
-		}
-		o.RtcpMux = Bool(true)
-		o.EnableSctp = true
-		o.AppData = appData
+		},
+		RtcpMux:    Bool(true),
+		EnableSctp: true,
+		AppData:    appData,
 	})
 	suite.NoError(err)
 
@@ -86,18 +86,18 @@ func (suite *PlainTransportTestingSuite) TestCreatePlainTransport_Succeeds() {
 	transport1.Close()
 	suite.True(transport1.Closed())
 
-	_, err = router.CreatePlainTransport(func(o *PlainTransportOptions) {
-		o.ListenIp = TransportListenIp{
+	_, err = router.CreatePlainTransport(PlainTransportOptions{
+		ListenIp: TransportListenIp{
 			Ip: "127.0.0.1",
-		}
+		},
 	})
 	suite.NoError(err)
 
-	transport2, err := router.CreatePlainTransport(func(o *PlainTransportOptions) {
-		o.ListenIp = TransportListenIp{
+	transport2, err := router.CreatePlainTransport(PlainTransportOptions{
+		ListenIp: TransportListenIp{
 			Ip: "127.0.0.1",
-		}
-		o.RtcpMux = Bool(false)
+		},
+		RtcpMux: Bool(false),
 	})
 	suite.NoError(err)
 	suite.False(transport2.Closed())
@@ -121,13 +121,13 @@ func (suite *PlainTransportTestingSuite) TestCreatePlainTransport_Succeeds() {
 }
 
 func (suite *PlainTransportTestingSuite) TestCreatePlainTransport_TypeError() {
-	_, err := suite.router.CreatePlainTransport()
+	_, err := suite.router.CreatePlainTransport(PlainTransportOptions{})
 	suite.IsType(NewTypeError(""), err)
 
-	_, err = suite.router.CreatePlainTransport(func(o *PlainTransportOptions) {
-		o.ListenIp = TransportListenIp{
+	_, err = suite.router.CreatePlainTransport(PlainTransportOptions{
+		ListenIp: TransportListenIp{
 			Ip: "123",
-		}
+		},
 	})
 	suite.IsType(NewTypeError(""), err)
 }
@@ -135,11 +135,11 @@ func (suite *PlainTransportTestingSuite) TestCreatePlainTransport_TypeError() {
 func (suite *PlainTransportTestingSuite) TestCreatePlainTransport_EnableSrtpSucceeds() {
 	router := suite.router
 
-	transport1, _ := router.CreatePlainTransport(func(o *PlainTransportOptions) {
-		o.ListenIp = TransportListenIp{
+	transport1, _ := router.CreatePlainTransport(PlainTransportOptions{
+		ListenIp: TransportListenIp{
 			Ip: "127.0.0.1",
-		}
-		o.EnableSrtp = true
+		},
+		EnableSrtp: true,
 	})
 
 	suite.NotNil(transport1.SrtpParameters())
@@ -201,10 +201,10 @@ func (suite *PlainTransportTestingSuite) TestCreatePlainTransport_EnableSrtpSucc
 
 func (suite *PlainTransportTestingSuite) TestCreatePlainTransport_NonBindableIpError() {
 	router := suite.router
-	_, err := router.CreatePlainTransport(func(o *PlainTransportOptions) {
-		o.ListenIp = TransportListenIp{
+	_, err := router.CreatePlainTransport(PlainTransportOptions{
+		ListenIp: TransportListenIp{
 			Ip: "8.8.8.8",
-		}
+		},
 	})
 	suite.Error(err)
 }
@@ -330,10 +330,10 @@ func (suite *PlainTransportTestingSuite) TestEmitsRoutercloseIfRouterIsClosed() 
 func (suite *PlainTransportTestingSuite) TestEmitsRoutercloseIfWorkerIsClosed() {
 	worker := CreateTestWorker()
 	router := CreateRouter(worker)
-	transport, _ := router.CreatePlainTransport(func(o *PlainTransportOptions) {
-		o.ListenIp = TransportListenIp{
+	transport, _ := router.CreatePlainTransport(PlainTransportOptions{
+		ListenIp: TransportListenIp{
 			Ip: "127.0.0.1",
-		}
+		},
 	})
 	onObserverClose := NewMockFunc(suite.T())
 	transport.Observer().Once("close", onObserverClose.Fn())

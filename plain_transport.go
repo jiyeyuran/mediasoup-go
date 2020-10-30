@@ -61,8 +61,6 @@ type PlainTransportOptions struct {
 	AppData interface{} `json:"appData,omitempty"`
 }
 
-type PlainTransportOption func(*PlainTransportOptions)
-
 type PlainTransportSpecificStat struct {
 	RtcpMux   bool            `json:"rtcp_mux"`
 	Comedia   bool            `json:"comedia"`

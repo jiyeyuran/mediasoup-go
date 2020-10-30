@@ -42,9 +42,9 @@ func (suite *DirectTransportTestingSuite) TestRouterCreateDirectTransportSucceed
 	onObserverNewTransport := NewMockFunc(suite.T())
 	suite.router.Observer().Once("newtransport", onObserverNewTransport.Fn())
 
-	transport1, _ := suite.router.CreateDirectTransport(func(o *DirectTransportOptions) {
-		o.MaxMessageSize = 1024
-		o.AppData = H{"foo": "bar"}
+	transport1, _ := suite.router.CreateDirectTransport(DirectTransportOptions{
+		MaxMessageSize: 1024,
+		AppData:        H{"foo": "bar"},
 	})
 	onObserverNewTransport.ExpectCalledTimes(1)
 	onObserverNewTransport.ExpectCalledWith(transport1)

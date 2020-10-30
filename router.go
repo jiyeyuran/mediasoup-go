@@ -62,8 +62,6 @@ type PipeToRouterOptions struct {
 	EnableSrtp bool `json:"enableSrtp,omitempty"`
 }
 
-type PipeToRouterOption func(o *PipeToRouterOptions)
-
 type PipeToRouterResult struct {
 	/**
 	 * The Consumer created in the current Router.
@@ -241,7 +239,7 @@ func (router *Router) Dump() (data *RouterDump, err error) {
 /**
  * Create a WebRtcTransport.
  */
-func (router *Router) CreateWebRtcTransport(params ...WebRtcTransportOption) (transport *WebRtcTransport, err error) {
+func (router *Router) CreateWebRtcTransport(option WebRtcTransportOptions) (transport *WebRtcTransport, err error) {
 	options := &WebRtcTransportOptions{
 		EnableUdp:                       Bool(true),
 		InitialAvailableOutgoingBitrate: 600000,
@@ -249,9 +247,8 @@ func (router *Router) CreateWebRtcTransport(params ...WebRtcTransportOption) (tr
 		MaxSctpMessageSize:              262144,
 		SctpSendBufferSize:              262144,
 	}
-
-	for _, param := range params {
-		param(options)
+	if err = override(options, option); err != nil {
+		return
 	}
 
 	router.logger.Debug("createWebRtcTransport()")
@@ -287,7 +284,7 @@ func (router *Router) CreateWebRtcTransport(params ...WebRtcTransportOption) (tr
 /**
  * Create a PlainTransport.
  */
-func (router *Router) CreatePlainTransport(params ...PlainTransportOption) (transport *PlainTransport, err error) {
+func (router *Router) CreatePlainTransport(option PlainTransportOptions) (transport *PlainTransport, err error) {
 	options := &PlainTransportOptions{
 		RtcpMux:            Bool(true),
 		NumSctpStreams:     NumSctpStreams{OS: 1024, MIS: 1024},
@@ -295,9 +292,8 @@ func (router *Router) CreatePlainTransport(params ...PlainTransportOption) (tran
 		SctpSendBufferSize: 262144,
 		SrtpCryptoSuite:    AES_CM_128_HMAC_SHA1_80,
 	}
-
-	for _, param := range params {
-		param(options)
+	if err = override(options, option); err != nil {
+		return
 	}
 
 	router.logger.Debug("createPlainTransport()")
@@ -332,15 +328,14 @@ func (router *Router) CreatePlainTransport(params ...PlainTransportOption) (tran
 /**
  * Create a PipeTransport.
  */
-func (router *Router) CreatePipeTransport(params ...PipeTransportOption) (transport *PipeTransport, err error) {
+func (router *Router) CreatePipeTransport(option PipeTransportOptions) (transport *PipeTransport, err error) {
 	options := &PipeTransportOptions{
 		NumSctpStreams:     NumSctpStreams{OS: 1024, MIS: 1024},
 		MaxSctpMessageSize: 268435456,
 		SctpSendBufferSize: 268435456,
 	}
-
-	for _, param := range params {
-		param(options)
+	if err = override(options, option); err != nil {
+		return
 	}
 
 	router.logger.Debug("createPipeTransport()")
@@ -373,13 +368,14 @@ func (router *Router) CreatePipeTransport(params ...PipeTransportOption) (transp
 /**
  * Create a DirectTransport.
  */
-func (router *Router) CreateDirectTransport(params ...DirectTransportOption) (transport *DirectTransport, err error) {
+func (router *Router) CreateDirectTransport(params ...DirectTransportOptions) (transport *DirectTransport, err error) {
 	options := &DirectTransportOptions{
 		MaxMessageSize: 262144,
 	}
-
-	for _, param := range params {
-		param(options)
+	for _, option := range params {
+		if err = override(options, option); err != nil {
+			return
+		}
 	}
 
 	router.logger.Debug("createDirectTransport()")
@@ -403,7 +399,7 @@ func (router *Router) CreateDirectTransport(params ...DirectTransportOption) (tr
 /**
  * Pipes the given Producer or DataProducer into another Router in same host.
  */
-func (router *Router) PipeToRouter(params ...PipeToRouterOption) (result *PipeToRouterResult, err error) {
+func (router *Router) PipeToRouter(option PipeToRouterOptions) (result *PipeToRouterResult, err error) {
 	options := &PipeToRouterOptions{
 		ListenIp: TransportListenIp{
 			Ip: "127.0.0.1",
@@ -411,9 +407,10 @@ func (router *Router) PipeToRouter(params ...PipeToRouterOption) (result *PipeTo
 		EnableSctp:     true,
 		NumSctpStreams: NumSctpStreams{OS: 1024, MIS: 1024},
 	}
-	for _, o := range params {
-		o(options)
+	if err = override(options, option); err != nil {
+		return
 	}
+
 	if len(options.ProducerId) == 0 && len(options.DataProducerId) == 0 {
 		err = NewTypeError("missing producerId")
 		return
@@ -484,12 +481,12 @@ func (router *Router) PipeToRouter(params ...PipeToRouterOption) (result *PipeTo
 			}
 		}()
 
-		option := func(o *PipeTransportOptions) {
-			o.ListenIp = options.ListenIp
-			o.EnableSctp = options.EnableSctp
-			o.NumSctpStreams = options.NumSctpStreams
-			o.EnableRtx = options.EnableRtx
-			o.EnableSrtp = options.EnableSrtp
+		option := PipeTransportOptions{
+			ListenIp:       options.ListenIp,
+			EnableSctp:     options.EnableSctp,
+			NumSctpStreams: options.NumSctpStreams,
+			EnableRtx:      options.EnableRtx,
+			EnableSrtp:     options.EnableSrtp,
 		}
 		localPipeTransport, err = router.CreatePipeTransport(option)
 		if err != nil {

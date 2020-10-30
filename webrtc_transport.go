@@ -62,8 +62,6 @@ type WebRtcTransportOptions struct {
 	AppData interface{} `json:"appData,omitempty"`
 }
 
-type WebRtcTransportOption func(*WebRtcTransportOptions)
-
 type IceParameters struct {
 	UsernameFragment string `json:"usernameFragment"`
 	Password         string `json:"password"`

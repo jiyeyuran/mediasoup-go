@@ -19,11 +19,11 @@ type WebRtcTransportTestingSuite struct {
 
 func (suite *WebRtcTransportTestingSuite) SetupTest() {
 	suite.router = CreateRouter()
-	suite.transport, _ = suite.router.CreateWebRtcTransport(func(o *WebRtcTransportOptions) {
-		o.ListenIps = []TransportListenIp{
+	suite.transport, _ = suite.router.CreateWebRtcTransport(WebRtcTransportOptions{
+		ListenIps: []TransportListenIp{
 			{Ip: "127.0.0.1", AnnouncedIp: "9.9.9.1"},
-		}
-		o.EnableTcp = false
+		},
+		EnableTcp: false,
 	})
 }
 
@@ -39,18 +39,18 @@ func (suite *WebRtcTransportTestingSuite) TestCreateWebRtcTransport_Succeeds() {
 	appData := H{"foo": "bar"}
 	onObserverNewTransport := NewMockFunc(suite.T())
 	router.Observer().Once("newtransport", onObserverNewTransport.Fn())
-	transport1, err := router.CreateWebRtcTransport(func(o *WebRtcTransportOptions) {
-		o.ListenIps = []TransportListenIp{
+	transport1, err := router.CreateWebRtcTransport(WebRtcTransportOptions{
+		ListenIps: []TransportListenIp{
 			{Ip: "127.0.0.1", AnnouncedIp: "9.9.9.1"},
 			{Ip: "0.0.0.0", AnnouncedIp: "9.9.9.2"},
 			{Ip: "127.0.0.1"},
-		}
-		o.EnableTcp = true
-		o.PreferUdp = true
-		o.EnableSctp = true
-		o.NumSctpStreams = NumSctpStreams{OS: 2048, MIS: 2048}
-		o.MaxSctpMessageSize = 1000000
-		o.AppData = appData
+		},
+		EnableTcp:          true,
+		PreferUdp:          true,
+		EnableSctp:         true,
+		NumSctpStreams:     NumSctpStreams{OS: 2048, MIS: 2048},
+		MaxSctpMessageSize: 1000000,
+		AppData:            appData,
 	})
 	suite.NoError(err)
 
@@ -134,32 +134,32 @@ func (suite *WebRtcTransportTestingSuite) TestCreateWebRtcTransport_Succeeds() {
 	transport1.Close()
 	suite.True(transport1.Closed())
 
-	_, err = router.CreateWebRtcTransport(func(o *WebRtcTransportOptions) {
-		o.ListenIps = []TransportListenIp{
+	_, err = router.CreateWebRtcTransport(WebRtcTransportOptions{
+		ListenIps: []TransportListenIp{
 			{Ip: "127.0.0.1"},
-		}
+		},
 	})
 	suite.NoError(err)
 }
 
 func (suite *WebRtcTransportTestingSuite) TestCreateWebRtcTransport_TypeError() {
-	_, err := suite.router.CreateWebRtcTransport()
+	_, err := suite.router.CreateWebRtcTransport(WebRtcTransportOptions{})
 	suite.IsType(NewTypeError(""), err)
 
-	_, err = suite.router.CreateWebRtcTransport(func(o *WebRtcTransportOptions) {
-		o.ListenIps = []TransportListenIp{
+	_, err = suite.router.CreateWebRtcTransport(WebRtcTransportOptions{
+		ListenIps: []TransportListenIp{
 			{Ip: "123"},
-		}
+		},
 	})
 	suite.IsType(NewTypeError(""), err)
 }
 
 func (suite *WebRtcTransportTestingSuite) TestCreateWebRtcTransport_NonBindableIpError() {
 	router := suite.router
-	_, err := router.CreateWebRtcTransport(func(o *WebRtcTransportOptions) {
-		o.ListenIps = []TransportListenIp{
+	_, err := router.CreateWebRtcTransport(WebRtcTransportOptions{
+		ListenIps: []TransportListenIp{
 			{Ip: "8.8.8.8"},
-		}
+		},
 	})
 	suite.Error(err)
 }
@@ -384,11 +384,11 @@ func (suite *WebRtcTransportTestingSuite) TestMethodsRejectIfClosed() {
 
 func (suite *WebRtcTransportTestingSuite) TestEmitsRoutercloseIfRouterIsClosed() {
 	router := suite.router
-	transport, _ := router.CreateWebRtcTransport(func(o *WebRtcTransportOptions) {
-		o.ListenIps = []TransportListenIp{
+	transport, _ := router.CreateWebRtcTransport(WebRtcTransportOptions{
+		ListenIps: []TransportListenIp{
 			{Ip: "127.0.0.1"},
-		}
-		o.EnableSctp = true
+		},
+		EnableSctp: true,
 	})
 	onObserverClose := NewMockFunc(suite.T())
 	transport.Observer().Once("close", onObserverClose.Fn())
@@ -404,10 +404,10 @@ func (suite *WebRtcTransportTestingSuite) TestEmitsRoutercloseIfRouterIsClosed()
 func (suite *WebRtcTransportTestingSuite) TestEmitsRoutercloseIfWorkerIsClosed() {
 	worker := CreateTestWorker()
 	router := CreateRouter(worker)
-	transport, _ := router.CreateWebRtcTransport(func(o *WebRtcTransportOptions) {
-		o.ListenIps = []TransportListenIp{
+	transport, _ := router.CreateWebRtcTransport(WebRtcTransportOptions{
+		ListenIps: []TransportListenIp{
 			{Ip: "127.0.0.1"},
-		}
+		},
 	})
 	onObserverClose := NewMockFunc(suite.T())
 	transport.Observer().Once("close", onObserverClose.Fn())
