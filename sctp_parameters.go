@@ -30,12 +30,12 @@ type NumSctpStreams struct {
 	/**
 	 * Initially requested int of outgoing SCTP streams.
 	 */
-	OS int `json:"OS"`
+	OS uint16 `json:"OS"`
 
 	/**
 	 * Maximum int of incoming SCTP streams.
 	 */
-	MIS int `json:"MIS"`
+	MIS uint16 `json:"MIS"`
 }
 
 type SctpParameters struct {
@@ -62,9 +62,9 @@ type SctpParameters struct {
 	/**
 	 * Set by worker.
 	 */
-	IsDataChannel      bool   `json:"isDataChannel,omitempty"`
-	SctpBufferedAmount uint32 `json:"sctpBufferedAmount,omitempty"`
-	SendBufferSize     uint32 `json:"sendBufferSize,omitempty"`
+	IsDataChannel      bool `json:"isDataChannel,omitempty"`
+	SctpBufferedAmount int  `json:"sctpBufferedAmount,omitempty"`
+	SendBufferSize     int  `json:"sendBufferSize,omitempty"`
 }
 
 /**
