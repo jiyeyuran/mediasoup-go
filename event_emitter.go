@@ -66,31 +66,31 @@ func newInternalListener(listener interface{}, once bool) *intervalListener {
 	return l
 }
 
-func (l intervalListener) unmarshalArgs(args []reflect.Value) []reflect.Value {
-	actualArgs := make([]reflect.Value, len(args))
+func (l intervalListener) TryUnmarshalArguments(args []reflect.Value) []reflect.Value {
+	var actualArgs []reflect.Value
 
 	for i, arg := range args {
-		actualArgs[i] = arg
-
-		// auto unmarshal json data to golang type
+		// Unmarshal bytes to golang type
 		if isBytesType(arg.Type()) && !isBytesType(l.ArgTypes[i]) {
-			b, ok := arg.Interface().(json.RawMessage)
-			if !ok {
-				b, ok = arg.Interface().([]byte)
-			}
-			if ok {
-				val := reflect.New(l.ArgTypes[i]).Interface()
-				if err := json.Unmarshal(b, val); err == nil {
-					actualArgs[i] = reflect.ValueOf(val).Elem()
+			val := reflect.New(l.ArgTypes[i]).Interface()
+			if err := json.Unmarshal(arg.Bytes(), val); err == nil {
+				if actualArgs == nil {
+					actualArgs = make([]reflect.Value, len(args))
+					copy(actualArgs, args)
 				}
+				actualArgs[i] = reflect.ValueOf(val).Elem()
 			}
 		}
 	}
 
-	return actualArgs
+	if actualArgs != nil {
+		return actualArgs
+	}
+
+	return args
 }
 
-func (l intervalListener) alignArgs(args []reflect.Value) (actualArgs []reflect.Value) {
+func (l intervalListener) AlignArguments(args []reflect.Value) (actualArgs []reflect.Value) {
 	// delete unwanted arguments
 	if argLen := len(l.ArgTypes); len(args) >= argLen {
 		actualArgs = args[0:argLen]
@@ -230,9 +230,9 @@ func (e *EventEmitter) emit(evt string, sync bool, args ...interface{}) {
 
 	for _, listener := range listeners {
 		if !listener.FuncValue.Type().IsVariadic() {
-			callArgs = listener.alignArgs(callArgs)
+			callArgs = listener.AlignArguments(callArgs)
 		}
-		if actualArgs := listener.unmarshalArgs(callArgs); sync {
+		if actualArgs := listener.TryUnmarshalArguments(callArgs); sync {
 			if listener.Once != nil {
 				listener.Once.Do(func() {
 					listener.FuncValue.Call(actualArgs)
