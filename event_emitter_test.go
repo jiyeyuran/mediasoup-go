@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -126,8 +127,9 @@ func TestEventEmitter_SafeEmit(t *testing.T) {
 
 	called := false
 	emitter.On(evName, func(int) { called = true })
-	emitter.SafeEmit(evName, 1) // invalid argument, panic
+	emitter.SafeEmit(evName, "1") // invalid argument, panic
 
+	time.Sleep(time.Millisecond)
 	assert.False(t, called)
 }
 

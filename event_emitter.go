@@ -29,7 +29,7 @@ type intervalListener struct {
 	Once      *sync.Once
 }
 
-func newInternalListener(listener interface{}, once bool) *intervalListener {
+func newInternalListener(evt string, listener interface{}, once bool, logger Logger) *intervalListener {
 	var argTypes []reflect.Type
 	listenerValue := reflect.ValueOf(listener)
 	listenerType := listenerValue.Type()
@@ -49,6 +49,12 @@ func newInternalListener(listener interface{}, once bool) *intervalListener {
 	}
 
 	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				logger.Error("SafeEmit() | event listener threw an error [event:%s]: %s", evt, r)
+			}
+		}()
+
 		for args := range l.ArgValues {
 			if args == nil {
 				continue
@@ -107,12 +113,15 @@ func (l intervalListener) AlignArguments(args []reflect.Value) (actualArgs []ref
 }
 
 type EventEmitter struct {
+	logger       Logger
 	evtListeners map[string][]*intervalListener
 	mu           sync.Mutex
 }
 
 func NewEventEmitter() IEventEmitter {
-	return &EventEmitter{}
+	return &EventEmitter{
+		logger: NewLogger("EventEmitter"),
+	}
 }
 
 func (e *EventEmitter) AddListener(evt string, listener interface{}) {
@@ -125,7 +134,7 @@ func (e *EventEmitter) AddListener(evt string, listener interface{}) {
 	if e.evtListeners == nil {
 		e.evtListeners = make(map[string][]*intervalListener)
 	}
-	e.evtListeners[evt] = append(e.evtListeners[evt], newInternalListener(listener, false))
+	e.evtListeners[evt] = append(e.evtListeners[evt], newInternalListener(evt, listener, false, e.logger))
 }
 
 func (e *EventEmitter) Once(evt string, listener interface{}) {
@@ -138,7 +147,7 @@ func (e *EventEmitter) Once(evt string, listener interface{}) {
 	if e.evtListeners == nil {
 		e.evtListeners = make(map[string][]*intervalListener)
 	}
-	e.evtListeners[evt] = append(e.evtListeners[evt], newInternalListener(listener, true))
+	e.evtListeners[evt] = append(e.evtListeners[evt], newInternalListener(evt, listener, true, e.logger))
 }
 
 // Emit fires a particular event
