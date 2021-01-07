@@ -265,20 +265,75 @@ func (suite *ConsumerTestingSuite) TestTransportConsume_Succeeds() {
 	suite.EqualValues(ConsumerType_Simulcast, videoConsumer.Type())
 	suite.True(videoConsumer.Paused())
 	suite.True(videoConsumer.ProducerPaused())
+	suite.EqualValues(1, videoConsumer.Priority())
 	suite.Equal(ConsumerScore{Score: 10, ProducerScore: 0, ProducerScores: []uint16{0, 0, 0, 0}}, videoConsumer.Score())
 	suite.Nil(videoConsumer.CurrentLayers())
 	suite.Equal(H{"baz": "LOL"}, videoConsumer.AppData())
+
+	observer = NewMockFunc(suite.T())
+	transport2.Observer().Once("newconsumer", observer.Fn())
+
+	suite.True(router.CanConsume(suite.videoProducer.Id(), suite.consumerDeviceCapabilities))
+	videoPipeConsumer, err := transport2.Consume(ConsumerOptions{
+		ProducerId:      suite.videoProducer.Id(),
+		RtpCapabilities: suite.consumerDeviceCapabilities,
+		Pipe:            true,
+	})
+	suite.NoError(err)
+
+	observer.ExpectCalledTimes(1)
+	observer.ExpectCalledWith(videoPipeConsumer)
+	suite.NotEmpty(videoPipeConsumer.Id())
+	suite.Equal(suite.videoProducer.Id(), videoPipeConsumer.ProducerId())
+	suite.False(videoPipeConsumer.Closed())
+	suite.EqualValues(MediaKind_Video, videoPipeConsumer.Kind())
+	suite.Empty(videoPipeConsumer.RtpParameters().Mid)
+	suite.Len(videoPipeConsumer.RtpParameters().Codecs, 2)
+	suite.Equal(&RtpCodecParameters{
+		MimeType:    "video/H264",
+		ClockRate:   90000,
+		PayloadType: 103,
+		Parameters: RtpCodecSpecificParameters{
+			RtpParameter: h264.RtpParameter{
+				PacketizationMode: 1,
+				ProfileLevelId:    "4d0032",
+			},
+		},
+		RtcpFeedback: []RtcpFeedback{
+			{Type: "nack"},
+			{Type: "nack", Parameter: "pli"},
+			{Type: "ccm", Parameter: "fir"},
+			{Type: "goog-remb"},
+		},
+	}, videoPipeConsumer.RtpParameters().Codecs[0])
+	suite.Equal(&RtpCodecParameters{
+		MimeType:    "video/rtx",
+		ClockRate:   90000,
+		PayloadType: 104,
+		Parameters: RtpCodecSpecificParameters{
+			Apt: 103,
+		},
+	}, videoPipeConsumer.RtpParameters().Codecs[1])
+	suite.EqualValues(ConsumerType_Pipe, videoPipeConsumer.Type())
+	suite.False(videoPipeConsumer.Paused())
+	suite.True(videoPipeConsumer.ProducerPaused())
+	suite.EqualValues(1, videoPipeConsumer.Priority())
+	suite.Equal(ConsumerScore{Score: 10, ProducerScore: 10, ProducerScores: []uint16{0, 0, 0, 0}}, videoPipeConsumer.Score())
+	suite.Nil(videoPipeConsumer.PreferredLayers())
+	suite.Nil(videoPipeConsumer.CurrentLayers())
+	suite.Empty(videoPipeConsumer.AppData())
 
 	routerDump, _ = router.Dump()
 
 	expectedRouterDump := RouterDump{
 		MapProducerIdConsumerIds: map[string][]string{
 			suite.audioProducer.Id(): {audioConsumer.Id()},
-			suite.videoProducer.Id(): {videoConsumer.Id()},
+			suite.videoProducer.Id(): {videoPipeConsumer.Id(), videoConsumer.Id()},
 		},
 		MapConsumerIdProducerId: map[string]string{
-			audioConsumer.Id(): suite.audioProducer.Id(),
-			videoConsumer.Id(): suite.videoProducer.Id(),
+			audioConsumer.Id():     suite.audioProducer.Id(),
+			videoConsumer.Id():     suite.videoProducer.Id(),
+			videoPipeConsumer.Id(): suite.videoProducer.Id(),
 		},
 	}
 
@@ -288,11 +343,11 @@ func (suite *ConsumerTestingSuite) TestTransportConsume_Succeeds() {
 	transportDump, _ = transport2.Dump()
 	expectedTransportDump := TransportDump{
 		Id:          transport2.Id(),
-		ConsumerIds: []string{videoConsumer.Id(), audioConsumer.Id()},
+		ConsumerIds: []string{audioConsumer.Id(), videoConsumer.Id(), videoPipeConsumer.Id()},
 	}
 
 	suite.Equal(expectedTransportDump.Id, transportDump.Id)
-	suite.Equal(expectedTransportDump.ConsumerIds, transportDump.ConsumerIds)
+	suite.ElementsMatch(transportDump.ConsumerIds, expectedTransportDump.ConsumerIds)
 }
 
 func (suite *ConsumerTestingSuite) TestTransportConsume_UnsupportedError() {
@@ -633,11 +688,17 @@ func (suite *ConsumerTestingSuite) TestConsumerClose() {
 	suite.Empty(routerDump.MapProducerIdConsumerIds[suite.audioProducer.Id()])
 	suite.Equal(suite.videoProducer.Id(), routerDump.MapConsumerIdProducerId[videoConsumer.Id()])
 
+	videoPipeConsumer, _ := suite.transport2.Consume(ConsumerOptions{
+		ProducerId:      suite.videoProducer.Id(),
+		RtpCapabilities: suite.consumerDeviceCapabilities,
+		Pipe:            true,
+	})
+
 	transportDump, _ := suite.transport2.Dump()
 
 	suite.Equal(suite.transport2.Id(), transportDump.Id)
 	suite.Empty(transportDump.ProducerIds)
-	suite.EqualValues([]string{videoConsumer.Id()}, transportDump.ConsumerIds)
+	suite.ElementsMatch([]string{videoConsumer.Id(), videoPipeConsumer.Id()}, transportDump.ConsumerIds)
 }
 
 func (suite *ConsumerTestingSuite) TestConsumerRejectIfClosed() {

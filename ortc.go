@@ -622,7 +622,7 @@ func canConsume(consumableParams RtpParameters, caps RtpCapabilities) (ok bool, 
  * or disabled RTX.
  *
  */
-func getConsumerRtpParameters(consumableParams RtpParameters, caps RtpCapabilities) (consumerParams RtpParameters, err error) {
+func getConsumerRtpParameters(consumableParams RtpParameters, caps RtpCapabilities, pipe bool) (consumerParams RtpParameters, err error) {
 	for _, capCodec := range caps.Codecs {
 		if err = validateRtpCodecCapability(capCodec); err != nil {
 			return
@@ -711,6 +711,30 @@ func getConsumerRtpParameters(consumableParams RtpParameters, caps RtpCapabiliti
 				},
 			)
 		}
+	}
+
+	if pipe {
+		var consumableEncodings []RtpEncodingParameters
+
+		clone(consumableParams.Encodings, &consumableEncodings)
+
+		baseSsrc := generateRandomNumber()
+		baseRtxSsrc := generateRandomNumber()
+
+		for i := 0; i < len(consumableEncodings); i++ {
+			encoding := consumableEncodings[i]
+
+			encoding.Ssrc = baseSsrc + uint32(i)
+			if rtxSupported {
+				encoding.Rtx = &RtpEncodingRtx{Ssrc: baseRtxSsrc + uint32(i)}
+			} else {
+				encoding.Rtx = nil
+			}
+
+			consumerParams.Encodings = append(consumerParams.Encodings, encoding)
+		}
+
+		return
 	}
 
 	consumerEncoding := RtpEncodingParameters{

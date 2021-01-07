@@ -544,35 +544,43 @@ func (transport *Transport) Consume(options ConsumerOptions) (consumer *Consumer
 		return
 	}
 
-	rtpParameters, err := getConsumerRtpParameters(producer.ConsumableRtpParameters(), rtpCapabilities)
+	rtpParameters, err := getConsumerRtpParameters(producer.ConsumableRtpParameters(), rtpCapabilities, options.Pipe)
 	if err != nil {
 		return
 	}
 
-	transport.locker.Lock()
+	if !options.Pipe {
+		transport.locker.Lock()
 
-	// Set MID.
-	rtpParameters.Mid = fmt.Sprintf("%d", transport.nextMidForConsumers)
+		// Set MID.
+		rtpParameters.Mid = fmt.Sprintf("%d", transport.nextMidForConsumers)
 
-	transport.nextMidForConsumers++
+		transport.nextMidForConsumers++
 
-	// We use up to 8 bytes for MID (string).
-	if maxMid := uint32(100000000); transport.nextMidForConsumers == maxMid {
-		transport.logger.Error(`consume() | reaching max MID value "%d"`, maxMid)
+		// We use up to 8 bytes for MID (string).
+		if maxMid := uint32(100000000); transport.nextMidForConsumers == maxMid {
+			transport.logger.Error(`consume() | reaching max MID value "%d"`, maxMid)
 
-		transport.nextMidForConsumers = 0
+			transport.nextMidForConsumers = 0
+		}
+
+		transport.locker.Unlock()
 	}
-
-	transport.locker.Unlock()
 
 	internal := transport.internal
 	internal.ConsumerId = uuid.NewV4().String()
 	internal.ProducerId = producerId
 
+	typ := producer.Type()
+
+	if options.Pipe {
+		typ = "pipe"
+	}
+
 	reqData := H{
 		"kind":                   producer.Kind(),
 		"rtpParameters":          rtpParameters,
-		"type":                   producer.Type(),
+		"type":                   typ,
 		"consumableRtpEncodings": producer.ConsumableRtpParameters().Encodings,
 		"paused":                 paused,
 		"preferredLayers":        preferredLayers,
@@ -591,7 +599,7 @@ func (transport *Transport) Consume(options ConsumerOptions) (consumer *Consumer
 	consumerData := consumerData{
 		Kind:          producer.Kind(),
 		RtpParameters: rtpParameters,
-		Type:          producer.Type(),
+		Type:          typ,
 	}
 	consumer = newConsumer(consumerParams{
 		internal:        internal,
