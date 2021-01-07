@@ -508,7 +508,7 @@ func (router *Router) PipeToRouter(option PipeToRouterOptions) (result *PipeToRo
 		err = remotePipeTransport.Connect(TransportConnectOptions{
 			Ip:             localPipeTransport.Tuple().LocalIp,
 			Port:           localPipeTransport.Tuple().LocalPort,
-			SrtpParameters: remotePipeTransport.SrtpParameters(),
+			SrtpParameters: localPipeTransport.SrtpParameters(),
 		})
 		if err != nil {
 			return
