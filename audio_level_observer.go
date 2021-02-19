@@ -1,5 +1,7 @@
 package mediasoup
 
+import "encoding/json"
+
 type AudioLevelObserverOptions struct {
 	/**
 	 * Maximum int of entries in the 'volumes”' event. Default 1.
@@ -89,14 +91,21 @@ func (o *AudioLevelObserver) handleWorkerNotifications(params rtpObserverParams)
 		Volume     int    `json:"volume,omitempty"`
 	}
 
-	params.channel.On(rtpObserverId, func(event string, data []eventInfo) {
+	params.channel.On(rtpObserverId, func(event string, data []byte) {
 		switch event {
 		case "volumes":
 			// Get the corresponding Producer instance and remove entries with
 			// no Producer (it may have been closed in the meanwhile).
 			var volumes []AudioLevelObserverVolume
 
-			for _, row := range data {
+			events := []eventInfo{}
+
+			if err := json.Unmarshal(data, &events); err != nil {
+				o.logger.Error(`unmarshal events failed: %s`, err)
+				break
+			}
+
+			for _, row := range events {
 				if producer := getProducerById(row.ProducerId); producer != nil {
 					volumes = append(volumes, AudioLevelObserverVolume{
 						Producer: producer,
