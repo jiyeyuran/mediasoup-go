@@ -42,12 +42,13 @@ type DataConsumerOptions struct {
 }
 
 type DataConsumerStat struct {
-	Type         string `json:"type,omitempty"`
-	Timestamp    int64  `json:"timestamp,omitempty"`
-	Label        string `json:"label,omitempty"`
-	Protocol     string `json:"protocol,omitempty"`
-	MessagesSent int64  `json:"messagesSent,omitempty"`
-	BytesSent    int64  `json:"bytesSent,omitempty"`
+	Type           string `json:"type,omitempty"`
+	Timestamp      int64  `json:"timestamp,omitempty"`
+	Label          string `json:"label,omitempty"`
+	Protocol       string `json:"protocol,omitempty"`
+	MessagesSent   int64  `json:"messagesSent,omitempty"`
+	BytesSent      int64  `json:"bytesSent,omitempty"`
+	BufferedAmount uint32 `json:"bufferedAmount,omitempty"`
 }
 
 /**
