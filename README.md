@@ -16,6 +16,13 @@ import "github.com/jiyeyuran/mediasoup-go"
 
 ## Document
 Golang API [document](https://pkg.go.dev/github.com/jiyeyuran/mediasoup-go). mediasoup-go api is consistent with the node.js api. It would be very helpful to read official [document](https://mediasoup.org/documentation/v3/mediasoup/api/).
+
+
+## Demo Application
+[mediasoup-go-demo](https://github.com/jiyeyuran/mediasoup-go-demo).
+
+
+
 ## Usage
 ```
 package main
