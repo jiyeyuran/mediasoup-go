@@ -562,6 +562,25 @@ func (router *Router) PipeToRouter(option PipeToRouterOptions) (result *PipeToRo
 			return
 		}
 
+		// Ensure that the producer has not been closed in the meanwhile.
+		if producer.Closed() {
+			err = NewInvalidStateError("original Producer closed")
+			return
+		}
+
+		// Ensure that producer.paused has not changed in the meanwhile and, if
+		// so, sych the pipeProducer.
+		if pipeProducer.Paused() != producer.Paused() {
+			if producer.Paused() {
+				err = pipeProducer.Pause()
+			} else {
+				err = pipeProducer.Resume()
+			}
+			if err != nil {
+				return
+			}
+		}
+
 		// Pipe events from the pipe Consumer to the pipe Producer.
 		pipeConsumer.Observer().On("close", func() { pipeProducer.Close() })
 		pipeConsumer.Observer().On("pause", func() { pipeProducer.Pause() })
@@ -610,6 +629,12 @@ func (router *Router) PipeToRouter(option PipeToRouterOptions) (result *PipeToRo
 			AppData:              dataProducer.AppData(),
 		})
 		if err != nil {
+			return
+		}
+
+		// Ensure that the dataProducer has not been closed in the meanwhile.
+		if dataProducer.Closed() {
+			err = NewInvalidStateError("original DataProducer closed")
 			return
 		}
 
