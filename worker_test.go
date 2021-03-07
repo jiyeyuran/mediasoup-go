@@ -176,6 +176,8 @@ func TestWorkerProcessIgnoreSignals(t *testing.T) {
 	process.Signal(syscall.SIGUSR1)
 	process.Signal(syscall.SIGUSR2)
 
+	time.Sleep(10 * time.Millisecond)
+
 	onObserverDied.ExpectCalledTimes(0)
 	assert.False(t, worker.Closed())
 	worker.Close()

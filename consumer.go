@@ -531,7 +531,6 @@ func (consumer *Consumer) handleWorkerNotifications() {
 			}
 
 		case "score":
-			consumer.logger.Warn("score: %s", data)
 			var score ConsumerScore
 
 			json.Unmarshal(data, &score)
