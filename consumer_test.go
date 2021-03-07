@@ -578,16 +578,6 @@ func (suite *ConsumerTestingSuite) TestConsumerSetPreferredLayersSucceed() {
 	suite.Require().Equal(&ConsumerLayers{SpatialLayer: 2, TemporalLayer: 0}, videoConsumer.PreferredLayers())
 }
 
-func (suite *ConsumerTestingSuite) TestConsumerSetPreferredLayersRejectWithTypeError() {
-	videoConsumer := suite.videoConsumer(false)
-
-	err := videoConsumer.SetPreferredLayers(ConsumerLayers{})
-	suite.Require().IsType(TypeError{}, err)
-
-	err = videoConsumer.SetPreferredLayers(ConsumerLayers{TemporalLayer: 2})
-	suite.Require().IsType(TypeError{}, err)
-}
-
 func (suite *ConsumerTestingSuite) TestConsumerSetPrioritySucceed() {
 	videoConsumer := suite.videoConsumer(false)
 

@@ -8,9 +8,9 @@ import (
 var scalabilityModeRegex = regexp.MustCompile(`^[LS]([1-9]\d{0,1})T([1-9]\d{0,1})(_KEY)?`)
 
 type ScalabilityMode struct {
-	SpatialLayers  uint8 `json:"spatialLayers,omitempty"`
-	TemporalLayers uint8 `json:"temporalLayers,omitempty"`
-	Ksvc           bool  `json:"ksvc,omitempty"`
+	SpatialLayers  uint8 `json:"spatialLayers"`
+	TemporalLayers uint8 `json:"temporalLayers"`
+	Ksvc           bool  `json:"ksvc"`
 }
 
 func ParseScalabilityMode(scalabilityMode string) ScalabilityMode {

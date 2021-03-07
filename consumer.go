@@ -95,12 +95,12 @@ type ConsumerScore struct {
 	/**
 	 * The score of the RTP stream of the consumer.
 	 */
-	Score uint16 `json:"score,omitempty"`
+	Score uint16 `json:"score"`
 
 	/**
 	 * The score of the currently selected RTP stream of the producer.
 	 */
-	ProducerScore uint16 `json:"producerScore,omitempty"`
+	ProducerScore uint16 `json:"producerScore"`
 
 	/**
 	 * The scores of all RTP streams in the producer ordered by encoding (just
@@ -113,12 +113,12 @@ type ConsumerLayers struct {
 	/**
 	 * The spatial layer index (from 0 to N).
 	 */
-	SpatialLayer uint8 `json:"spatialLayer,omitempty"`
+	SpatialLayer uint8 `json:"spatialLayer"`
 
 	/**
 	 * The temporal layer index (from 0 to N).
 	 */
-	TemporalLayer uint8 `json:"temporalLayer,omitempty"`
+	TemporalLayer uint8 `json:"temporalLayer"`
 }
 
 type ConsumerStat = ProducerStat

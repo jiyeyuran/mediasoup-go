@@ -91,7 +91,7 @@ type ProducerScore struct {
 	/**
 	 * The score of the RTP stream.
 	 */
-	Score uint32 `json:"score,omitempty"`
+	Score uint32 `json:"score"`
 }
 
 type ProducerVideoOrientation struct {
@@ -108,7 +108,7 @@ type ProducerVideoOrientation struct {
 	/**
 	 * Rotation degrees (0, 90, 180 or 270).
 	 */
-	Rotation uint32 `json:"rotation,omitempty"`
+	Rotation uint32 `json:"rotation"`
 }
 
 type ProducerStat struct {
