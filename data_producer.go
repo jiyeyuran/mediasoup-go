@@ -179,6 +179,7 @@ func (p *DataProducer) Close() (err error) {
 		}
 
 		p.Emit("@close")
+		p.RemoveAllListeners()
 
 		// Emit observer event.
 		p.observer.SafeEmit("close")

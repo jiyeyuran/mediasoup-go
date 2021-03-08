@@ -135,6 +135,7 @@ func (o *RtpObserver) Close() {
 	o.channel.Request("rtpObserver.close", o.internal)
 
 	o.Emit("@close")
+	o.RemoveAllListeners()
 
 	// Emit observer event.
 	o.observer.SafeEmit("close")

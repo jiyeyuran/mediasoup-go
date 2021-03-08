@@ -313,6 +313,7 @@ func (transport *Transport) Close() {
 		transport.dataConsumers = sync.Map{}
 
 		transport.Emit("@close")
+		transport.RemoveAllListeners()
 
 		// Emit observer event.
 		transport.observer.SafeEmit("close")

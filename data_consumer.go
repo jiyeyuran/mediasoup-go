@@ -202,6 +202,7 @@ func (c *DataConsumer) Close() (err error) {
 		}
 
 		c.Emit("@close")
+		c.RemoveAllListeners()
 
 		// Emit observer event.
 		c.observer.SafeEmit("close")

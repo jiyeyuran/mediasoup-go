@@ -300,6 +300,7 @@ func (producer *Producer) Close() (err error) {
 		}
 
 		producer.Emit("@close")
+		producer.RemoveAllListeners()
 
 		// Emit observer event.
 		producer.observer.SafeEmit("close")

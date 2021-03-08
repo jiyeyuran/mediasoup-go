@@ -5,7 +5,7 @@ go 1.15
 require (
 	github.com/gobwas/glob v0.2.3
 	github.com/imdario/mergo v0.3.11
-	github.com/jiyeyuran/go-eventemitter v1.1.2
+	github.com/jiyeyuran/go-eventemitter v1.2.1
 	github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e // indirect
 	github.com/pion/logging v0.2.2
 	github.com/pion/sctp v1.7.11

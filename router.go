@@ -185,6 +185,7 @@ func (router *Router) Close() {
 		router.mapRouterPipeTransports = sync.Map{}
 
 		router.Emit("@close")
+		router.RemoveAllListeners()
 
 		// Emit observer event.
 		router.observer.SafeEmit("close")

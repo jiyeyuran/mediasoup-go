@@ -325,6 +325,7 @@ func (consumer *Consumer) Close() (err error) {
 		consumer.channel.Request("consumer.close", consumer.internal)
 
 		consumer.Emit("@close")
+		consumer.RemoveAllListeners()
 
 		// Emit observer event.
 		consumer.observer.SafeEmit("close")
