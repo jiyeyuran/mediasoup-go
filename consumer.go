@@ -322,7 +322,10 @@ func (consumer *Consumer) Close() (err error) {
 		consumer.channel.RemoveAllListeners(consumer.internal.ConsumerId)
 		consumer.payloadChannel.RemoveAllListeners(consumer.internal.ConsumerId)
 
-		consumer.channel.Request("consumer.close", consumer.internal)
+		response := consumer.channel.Request("consumer.close", consumer.internal)
+		if err = response.Err(); err != nil {
+			consumer.logger.Error("consumer close error: %s", err)
+		}
 
 		consumer.Emit("@close")
 		consumer.RemoveAllListeners()
@@ -344,6 +347,7 @@ func (consumer *Consumer) transportClosed() {
 		consumer.payloadChannel.RemoveAllListeners(consumer.internal.ConsumerId)
 
 		consumer.SafeEmit("transportclose")
+		consumer.RemoveAllListeners()
 
 		// Emit observer event.
 		consumer.observer.SafeEmit("close")
@@ -487,9 +491,11 @@ func (consumer *Consumer) handleWorkerNotifications() {
 		case "producerclose":
 			if atomic.CompareAndSwapUint32(&consumer.closed, 0, 1) {
 				consumer.channel.RemoveAllListeners(consumer.internal.ConsumerId)
+				consumer.payloadChannel.RemoveAllListeners(consumer.internal.ConsumerId)
 
 				consumer.Emit("@producerclose")
 				consumer.SafeEmit("producerclose")
+				consumer.RemoveAllListeners()
 
 				// Emit observer event.
 				consumer.observer.SafeEmit("close")

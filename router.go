@@ -220,6 +220,7 @@ func (router *Router) workerClosed() {
 		router.mapRouterPipeTransports = sync.Map{}
 
 		router.Emit("workerclose")
+		router.RemoveAllListeners()
 
 		// Emit observer event.
 		router.observer.SafeEmit("close")

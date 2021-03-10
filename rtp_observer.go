@@ -2,6 +2,7 @@ package mediasoup
 
 import (
 	"sync"
+	"sync/atomic"
 )
 
 type IRtpObserver interface {
@@ -31,7 +32,7 @@ type RtpObserver struct {
 	internal        internalData
 	channel         *Channel
 	payloadChannel  *PayloadChannel
-	closed          bool
+	closed          uint32
 	paused          bool
 	appData         interface{}
 	getProducerById func(string) *Producer
@@ -77,10 +78,7 @@ func (o *RtpObserver) Id() string {
  * Whether the RtpObserver is closed.
  */
 func (o *RtpObserver) Closed() bool {
-	o.locker.Lock()
-	defer o.locker.Unlock()
-
-	return o.closed
+	return atomic.LoadUint32(&o.closed) > 0
 }
 
 /**
@@ -117,54 +115,42 @@ func (o *RtpObserver) Observer() IEventEmitter {
  * Close the RtpObserver.
  */
 func (o *RtpObserver) Close() {
-	o.locker.Lock()
-	defer o.locker.Unlock()
+	if atomic.CompareAndSwapUint32(&o.closed, 0, 1) {
+		o.logger.Debug("close()")
 
-	if o.closed {
-		return
+		// Remove notification subscriptions.
+		o.channel.RemoveAllListeners(o.internal.RtpObserverId)
+		o.payloadChannel.RemoveAllListeners(o.internal.RtpObserverId)
+
+		o.channel.Request("rtpObserver.close", o.internal)
+
+		o.Emit("@close")
+		o.RemoveAllListeners()
+
+		// Emit observer event.
+		o.observer.SafeEmit("close")
+		o.observer.RemoveAllListeners()
 	}
-
-	o.logger.Debug("close()")
-
-	o.closed = true
-
-	// Remove notification subscriptions.
-	o.channel.RemoveAllListeners(o.internal.RtpObserverId)
-	o.payloadChannel.RemoveAllListeners(o.internal.RtpObserverId)
-
-	o.channel.Request("rtpObserver.close", o.internal)
-
-	o.Emit("@close")
-	o.RemoveAllListeners()
-
-	// Emit observer event.
-	o.observer.SafeEmit("close")
-	o.observer.RemoveAllListeners()
 }
 
 /**
  * Router was closed.
  */
 func (o *RtpObserver) routerClosed() {
-	o.locker.Lock()
-	defer o.locker.Unlock()
+	if atomic.CompareAndSwapUint32(&o.closed, 0, 1) {
+		o.logger.Debug("routerClosed()")
 
-	if o.closed {
-		return
+		// Remove notification subscriptions.
+		o.channel.RemoveAllListeners(o.internal.RtpObserverId)
+		o.payloadChannel.RemoveAllListeners(o.internal.RtpObserverId)
+
+		o.Emit("routerclose")
+		o.RemoveAllListeners()
+
+		// Emit observer event.
+		o.observer.SafeEmit("close")
+		o.observer.RemoveAllListeners()
 	}
-
-	o.logger.Debug("routerClosed()")
-
-	o.closed = true
-
-	// Remove notification subscriptions.
-	o.channel.RemoveAllListeners(o.internal.RtpObserverId)
-
-	o.Emit("routerclose")
-
-	// Emit observer event.
-	o.observer.SafeEmit("close")
-	o.observer.RemoveAllListeners()
 }
 
 /**

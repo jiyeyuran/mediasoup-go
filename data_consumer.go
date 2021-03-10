@@ -198,7 +198,7 @@ func (c *DataConsumer) Close() (err error) {
 		response := c.channel.Request("dataConsumer.close", c.internal)
 
 		if err = response.Err(); err != nil {
-			return
+			c.logger.Error("dataConsumer close error: %s", err)
 		}
 
 		c.Emit("@close")
@@ -221,6 +221,7 @@ func (c *DataConsumer) transportClosed() {
 		c.payloadChannel.RemoveAllListeners(c.Id())
 
 		c.SafeEmit("transportclose")
+		c.RemoveAllListeners()
 
 		// Emit observer event.
 		c.observer.SafeEmit("close")
@@ -336,9 +337,11 @@ func (c *DataConsumer) handleWorkerNotifications() {
 		case "dataproducerclose":
 			if atomic.CompareAndSwapUint32(&c.closed, 0, 1) {
 				c.channel.RemoveAllListeners(c.internal.DataConsumerId)
+				c.payloadChannel.RemoveAllListeners(c.internal.DataConsumerId)
 
 				c.Emit("@dataproducerclose")
 				c.SafeEmit("dataproducerclose")
+				c.RemoveAllListeners()
 
 				// Emit observer event.
 				c.observer.SafeEmit("close")

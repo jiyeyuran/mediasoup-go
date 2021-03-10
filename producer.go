@@ -296,7 +296,7 @@ func (producer *Producer) Close() (err error) {
 		response := producer.channel.Request("producer.close", producer.internal)
 
 		if err = response.Err(); err != nil {
-			return
+			producer.logger.Error("producer close error: %s", err)
 		}
 
 		producer.Emit("@close")
@@ -320,6 +320,7 @@ func (producer *Producer) transportClosed() {
 		producer.payloadChannel.RemoveAllListeners(producer.Id())
 
 		producer.SafeEmit("transportclose")
+		producer.RemoveAllListeners()
 
 		// Emit observer event.
 		producer.observer.SafeEmit("close")

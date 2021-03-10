@@ -175,7 +175,7 @@ func (p *DataProducer) Close() (err error) {
 		response := p.channel.Request("dataProducer.close", p.internal)
 
 		if err = response.Err(); err != nil {
-			return
+			p.logger.Error("dataProducer close error: %s", err)
 		}
 
 		p.Emit("@close")
@@ -194,6 +194,7 @@ func (p *DataProducer) transportClosed() {
 		p.logger.Debug("transportClosed()")
 
 		p.SafeEmit("transportclose")
+		p.RemoveAllListeners()
 
 		// Emit observer event.
 		p.observer.SafeEmit("close")

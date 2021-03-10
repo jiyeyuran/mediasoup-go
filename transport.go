@@ -370,6 +370,7 @@ func (transport *Transport) routerClosed() {
 		transport.dataConsumers = sync.Map{}
 
 		transport.SafeEmit("routerclose")
+		transport.RemoveAllListeners()
 
 		// Emit observer event.
 		transport.observer.SafeEmit("close")
