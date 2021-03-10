@@ -329,6 +329,7 @@ func (consumer *Consumer) Close() (err error) {
 
 		// Emit observer event.
 		consumer.observer.SafeEmit("close")
+		consumer.observer.RemoveAllListeners()
 	}
 	return
 }
@@ -346,6 +347,7 @@ func (consumer *Consumer) transportClosed() {
 
 		// Emit observer event.
 		consumer.observer.SafeEmit("close")
+		consumer.observer.RemoveAllListeners()
 	}
 }
 
@@ -491,6 +493,7 @@ func (consumer *Consumer) handleWorkerNotifications() {
 
 				// Emit observer event.
 				consumer.observer.SafeEmit("close")
+				consumer.observer.RemoveAllListeners()
 			}
 
 		case "producerpause":

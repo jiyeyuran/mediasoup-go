@@ -56,6 +56,7 @@ func (c *PayloadChannel) Close() {
 		c.consumerSocket.Close()
 
 		close(c.closeCh)
+		c.RemoveAllListeners()
 	}
 }
 

@@ -183,6 +183,7 @@ func (p *DataProducer) Close() (err error) {
 
 		// Emit observer event.
 		p.observer.SafeEmit("close")
+		p.observer.RemoveAllListeners()
 	}
 	return
 }
@@ -196,6 +197,7 @@ func (p *DataProducer) transportClosed() {
 
 		// Emit observer event.
 		p.observer.SafeEmit("close")
+		p.observer.RemoveAllListeners()
 	}
 }
 

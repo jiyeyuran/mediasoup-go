@@ -139,6 +139,7 @@ func (o *RtpObserver) Close() {
 
 	// Emit observer event.
 	o.observer.SafeEmit("close")
+	o.observer.RemoveAllListeners()
 }
 
 /**
@@ -163,6 +164,7 @@ func (o *RtpObserver) routerClosed() {
 
 	// Emit observer event.
 	o.observer.SafeEmit("close")
+	o.observer.RemoveAllListeners()
 }
 
 /**

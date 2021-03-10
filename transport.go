@@ -317,6 +317,7 @@ func (transport *Transport) Close() {
 
 		// Emit observer event.
 		transport.observer.SafeEmit("close")
+		transport.observer.RemoveAllListeners()
 	}
 	return
 }
@@ -372,6 +373,7 @@ func (transport *Transport) routerClosed() {
 
 		// Emit observer event.
 		transport.observer.SafeEmit("close")
+		transport.observer.RemoveAllListeners()
 	}
 }
 

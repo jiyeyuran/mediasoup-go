@@ -304,6 +304,7 @@ func (producer *Producer) Close() (err error) {
 
 		// Emit observer event.
 		producer.observer.SafeEmit("close")
+		producer.observer.RemoveAllListeners()
 	}
 
 	return
@@ -322,6 +323,7 @@ func (producer *Producer) transportClosed() {
 
 		// Emit observer event.
 		producer.observer.SafeEmit("close")
+		producer.observer.RemoveAllListeners()
 	}
 }
 

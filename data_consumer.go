@@ -206,6 +206,7 @@ func (c *DataConsumer) Close() (err error) {
 
 		// Emit observer event.
 		c.observer.SafeEmit("close")
+		c.observer.RemoveAllListeners()
 	}
 	return
 }
@@ -223,6 +224,7 @@ func (c *DataConsumer) transportClosed() {
 
 		// Emit observer event.
 		c.observer.SafeEmit("close")
+		c.observer.RemoveAllListeners()
 	}
 }
 
@@ -340,6 +342,7 @@ func (c *DataConsumer) handleWorkerNotifications() {
 
 				// Emit observer event.
 				c.observer.SafeEmit("close")
+				c.observer.RemoveAllListeners()
 			}
 		case "sctpsendbufferfull":
 			c.SafeEmit("sctpsendbufferfull")

@@ -320,9 +320,6 @@ func NewWorker(options ...Option) (worker *Worker, err error) {
 func (w *Worker) wait() {
 	err := w.child.Wait()
 
-	w.child = nil
-	w.Close()
-
 	var code int
 	var signal = os.Kill
 
@@ -354,6 +351,9 @@ func (w *Worker) wait() {
 		w.logger.Error("worker process died unexpectedly [pid:%d, code:%d, signal:%s]", w.pid, code, signal)
 		w.SafeEmit("died", fmt.Errorf("[pid:%d, code:%d, signal:%s]", w.pid, code, signal))
 	}
+
+	w.child = nil
+	w.Close()
 }
 
 /**
@@ -411,9 +411,11 @@ func (w *Worker) Close() {
 		return true
 	})
 	w.routers = sync.Map{}
+	w.RemoveAllListeners()
 
 	// Emit observer event.
 	w.observer.SafeEmit("close")
+	w.observer.RemoveAllListeners()
 }
 
 // Dump Worker.

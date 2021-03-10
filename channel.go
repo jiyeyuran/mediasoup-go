@@ -88,6 +88,7 @@ func (c *Channel) Close() {
 		c.consumerSocket.Close()
 
 		close(c.closeCh)
+		c.RemoveAllListeners()
 	}
 }
 
