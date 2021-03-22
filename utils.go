@@ -14,6 +14,8 @@ func init() {
 	rand.Seed(time.Now().UnixNano())
 }
 
+type H map[string]interface{}
+
 type ptrTransformers struct{}
 
 // overwrites pointer type
@@ -31,6 +33,10 @@ func (ptrTransformers) Transformer(tp reflect.Type) func(dst, src reflect.Value)
 		}
 	}
 	return nil
+}
+
+func Bool(b bool) *bool {
+	return &b
 }
 
 func generateRandomNumber() uint32 {

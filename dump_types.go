@@ -5,12 +5,6 @@ const (
 	PPID_WEBRTC_BINARY     = 53
 )
 
-type H map[string]interface{}
-
-func Bool(b bool) *bool {
-	return &b
-}
-
 type WorkerDump struct {
 	Pid       int      `json:"pid,omitempty"`
 	RouterIds []string `json:"routerIds,omitempty"`
