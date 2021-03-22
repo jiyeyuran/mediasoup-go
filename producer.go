@@ -113,27 +113,28 @@ type ProducerVideoOrientation struct {
 
 type ProducerStat struct {
 	// Common to all RtpStreams.
-	Type                 string  `json:"type"`
-	Timestamp            int64   `json:"timestamp"`
-	Ssrc                 uint32  `json:"ssrc"`
+	Type                 string  `json:"type,omitempty"`
+	Timestamp            int64   `json:"timestamp,omitempty"`
+	Ssrc                 uint32  `json:"ssrc,omitempty"`
 	RtxSsrc              uint32  `json:"rtxSsrc,omitempty"`
 	Rid                  string  `json:"rid,omitempty"`
-	Kind                 string  `json:"kind"`
-	MimeType             string  `json:"mimeType"`
-	PacketsLost          uint32  `json:"packetsLost"`
-	FractionLost         uint32  `json:"fractionLost"`
-	PacketsDiscarded     uint32  `json:"packetsDiscarded"`
-	PacketsRetransmitted uint32  `json:"packetsRetransmitted"`
-	PacketsRepaired      uint32  `json:"packetsRepaired"`
-	NackCount            uint32  `json:"nackCount"`
-	NackPacketCount      uint32  `json:"nackPacketCount"`
-	PliCount             uint32  `json:"pliCount"`
-	FirCount             uint32  `json:"firCount"`
-	Score                uint32  `json:"score"`
-	PacketCount          int64   `json:"packetCount"`
-	ByteCount            int64   `json:"byteCount"`
-	Bitrate              uint32  `json:"bitrate"`
+	Kind                 string  `json:"kind,omitempty"`
+	MimeType             string  `json:"mimeType,omitempty"`
+	PacketsLost          uint32  `json:"packetsLost,omitempty"`
+	FractionLost         uint32  `json:"fractionLost,omitempty"`
+	PacketsDiscarded     uint32  `json:"packetsDiscarded,omitempty"`
+	PacketsRetransmitted uint32  `json:"packetsRetransmitted,omitempty"`
+	PacketsRepaired      uint32  `json:"packetsRepaired,omitempty"`
+	NackCount            uint32  `json:"nackCount,omitempty"`
+	NackPacketCount      uint32  `json:"nackPacketCount,omitempty"`
+	PliCount             uint32  `json:"pliCount,omitempty"`
+	FirCount             uint32  `json:"firCount,omitempty"`
+	Score                uint32  `json:"score,omitempty"`
+	PacketCount          int64   `json:"packetCount,omitempty"`
+	ByteCount            int64   `json:"byteCount,omitempty"`
+	Bitrate              uint32  `json:"bitrate,omitempty"`
 	RoundTripTime        float32 `json:"roundTripTime,omitempty"`
+	RtxPacketsDiscarded  uint32  `json:"rtxPacketsDiscarded,omitempty"`
 
 	// RtpStreamRecv specific.
 	Jitter         uint32 `json:"jitter,omitempty"`
