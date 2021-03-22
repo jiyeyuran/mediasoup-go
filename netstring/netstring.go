@@ -3,6 +3,7 @@ package netstring
 import (
 	"bytes"
 	"strconv"
+	"sync"
 )
 
 type State int
@@ -19,10 +20,28 @@ const (
 	PARSE_END
 )
 
+var bp sync.Pool
+
+func init() {
+	bp.New = func() interface{} {
+		return &bytes.Buffer{}
+	}
+}
+
+func bufferPoolGet() *bytes.Buffer {
+	return bp.Get().(*bytes.Buffer)
+}
+
+func bufferPoolPut(b *bytes.Buffer) {
+	b.Reset()
+	bp.Put(b)
+}
+
 func Encode(payload []byte) (raw []byte) {
 	length := strconv.Itoa(len(payload))
 
-	var buffer bytes.Buffer
+	buffer := bufferPoolGet()
+	defer bufferPoolPut(buffer)
 
 	buffer.WriteString(length)
 	buffer.WriteByte(':')
@@ -33,7 +52,7 @@ func Encode(payload []byte) (raw []byte) {
 }
 
 type Decoder struct {
-	parsedData []byte
+	parsedData *bytes.Buffer
 	length     int
 	state      State
 	outputCh   chan []byte
@@ -41,14 +60,15 @@ type Decoder struct {
 
 func NewDecoder() *Decoder {
 	return &Decoder{
-		state:    PARSE_LENGTH,
-		outputCh: make(chan []byte, BUFFER_SIZE),
+		state:      PARSE_LENGTH,
+		parsedData: &bytes.Buffer{},
+		outputCh:   make(chan []byte, BUFFER_SIZE),
 	}
 }
 
 func (decoder *Decoder) Reset() {
 	decoder.length = 0
-	decoder.parsedData = []byte{}
+	decoder.parsedData.Reset()
 	decoder.state = PARSE_LENGTH
 }
 
@@ -109,7 +129,8 @@ func (decoder *Decoder) parseSeparator(i int, data []byte) int {
 func (decoder *Decoder) parseData(i int, data []byte) int {
 	dataSize := len(data) - i
 	dataLength := min(decoder.length, dataSize)
-	decoder.parsedData = append(decoder.parsedData, data[i:i+dataLength]...)
+	decoder.parsedData.Write(data[i : i+dataLength])
+	// decoder.parsedData = append(decoder.parsedData, data[i:i+dataLength]...)
 	decoder.length = decoder.length - dataLength
 	if decoder.length == 0 {
 		decoder.state = PARSE_END
@@ -122,7 +143,7 @@ func (decoder *Decoder) parseEnd(i int, data []byte) int {
 	symbol := data[i]
 	if symbol == END_SYMBOL {
 		// Symbol matches, that means this is valid data
-		decoder.outputCh <- decoder.parsedData
+		decoder.outputCh <- decoder.parsedData.Bytes()
 	}
 	// Irrespective of what symbol we got we have to reset.
 	// Since we are looking for new data from now onwards.
