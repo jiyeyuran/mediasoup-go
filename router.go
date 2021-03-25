@@ -408,7 +408,7 @@ func (router *Router) PipeToRouter(option PipeToRouterOptions) (result *PipeToRo
 		ListenIp: TransportListenIp{
 			Ip: "127.0.0.1",
 		},
-		EnableSctp:     true,
+		EnableSctp:     false,
 		NumSctpStreams: NumSctpStreams{OS: 1024, MIS: 1024},
 	}
 	if err = override(options, option); err != nil {

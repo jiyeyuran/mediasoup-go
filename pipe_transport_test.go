@@ -513,6 +513,7 @@ func (suite *PipeTransportTestingSuite) TestProducerPipeRouterSucceedsWithData()
 	result, err := suite.router1.PipeToRouter(PipeToRouterOptions{
 		DataProducerId: suite.dataProducer.Id(),
 		Router:         suite.router2,
+		EnableSctp:     true,
 	})
 	suite.NoError(err)
 
@@ -556,6 +557,7 @@ func (suite *PipeTransportTestingSuite) TestTransportDataConsumeForAPipeDataProd
 	_, err := suite.router1.PipeToRouter(PipeToRouterOptions{
 		DataProducerId: suite.dataProducer.Id(),
 		Router:         suite.router2,
+		EnableSctp:     true,
 	})
 	suite.NoError(err)
 	dataConsumer, err := suite.transport2.ConsumeData(DataConsumerOptions{
@@ -577,6 +579,7 @@ func (suite *PipeTransportTestingSuite) TestDataProducerCloseIsTransmittedToPipe
 	_, err := suite.router1.PipeToRouter(PipeToRouterOptions{
 		DataProducerId: suite.dataProducer.Id(),
 		Router:         suite.router2,
+		EnableSctp:     true,
 	})
 	suite.NoError(err)
 	dataConsumer, err := suite.transport2.ConsumeData(DataConsumerOptions{
