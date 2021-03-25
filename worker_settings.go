@@ -44,6 +44,11 @@ type WorkerSettings struct {
 	 * Custom application data.
 	 */
 	AppData interface{} `json:"appData,omitempty"`
+
+	/**
+	 * Custom options.
+	 */
+	CustomOptions map[string]interface{}
 }
 
 func (w WorkerSettings) Args() []string {
@@ -63,7 +68,26 @@ func (w WorkerSettings) Args() []string {
 		)
 	}
 
+	for key, value := range w.CustomOptions {
+		args = append(args, fmt.Sprintf("--%s=%v", key, value))
+	}
+
 	return args
+}
+
+func (w WorkerSettings) Option() Option {
+	return func(p *WorkerSettings) {
+		if len(w.LogLevel) == 0 {
+			w.LogLevel = WorkerLogLevel_Error
+		}
+		if w.RtcMinPort == 0 {
+			w.RtcMinPort = 10000
+		}
+		if w.RtcMaxPort == 0 {
+			w.RtcMaxPort = 59999
+		}
+		*p = w
+	}
 }
 
 type WorkerUpdateableSettings struct {
@@ -109,5 +133,14 @@ func WithDtlsCert(dtlsCertificateFile, dtlsPrivateKeyFile string) Option {
 	return func(o *WorkerSettings) {
 		o.DtlsCertificateFile = dtlsCertificateFile
 		o.DtlsPrivateKeyFile = dtlsPrivateKeyFile
+	}
+}
+
+func WithCustomOption(key string, value interface{}) Option {
+	return func(o *WorkerSettings) {
+		if o.CustomOptions == nil {
+			o.CustomOptions = make(map[string]interface{})
+		}
+		o.CustomOptions[key] = value
 	}
 }
