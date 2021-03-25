@@ -24,9 +24,9 @@ func Encode(payload []byte) (raw []byte) {
 	buffer := make([]byte, 0, len(length)+len(payload)+2)
 
 	buffer = append(buffer, []byte(length)...)
-	buffer = append(buffer, ':')
+	buffer = append(buffer, SEPARATOR_SYMBOL)
 	buffer = append(buffer, payload...)
-	buffer = append(buffer, ',')
+	buffer = append(buffer, END_SYMBOL)
 
 	return buffer
 }
