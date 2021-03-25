@@ -248,7 +248,15 @@ func (suite *WebRtcTransportTestingSuite) TestConnect_RejectsWithTypeError() {
 		},
 		Role: "chicken",
 	}
+	err = transport.Connect(TransportConnectOptions{
+		DtlsParameters: &dtlsRemoteParameters,
+	})
+	suite.IsType(NewTypeError(""), err)
 
+	dtlsRemoteParameters = DtlsParameters{
+		Fingerprints: []DtlsFingerprint{},
+		Role:         "chicken",
+	}
 	err = transport.Connect(TransportConnectOptions{
 		DtlsParameters: &dtlsRemoteParameters,
 	})
