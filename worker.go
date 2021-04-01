@@ -241,9 +241,17 @@ func NewWorker(options ...Option) (worker *Worker, err error) {
 		return
 	}
 
-	logger.Debug("spawning worker process: %s %s", WorkerBin, strings.Join(settings.Args(), " "))
+	bin := strings.TrimSpace(WorkerBin)
+	args := settings.Args()
 
-	child := exec.Command(WorkerBin, settings.Args()...)
+	if binArgs := strings.Fields(bin); len(binArgs) > 1 {
+		bin = binArgs[0]
+		args = append(binArgs[1:], args...)
+	}
+
+	logger.Debug("spawning worker process: %s %s", bin, strings.Join(args, " "))
+
+	child := exec.Command(bin, args...)
 	child.ExtraFiles = []*os.File{producerPair[1], consumerPair[1], payloadProducerPair[1], payloadConsumerPair[1]}
 	child.Env = []string{"MEDIASOUP_VERSION=" + VERSION}
 
