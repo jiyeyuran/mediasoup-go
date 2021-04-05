@@ -13,6 +13,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"syscall"
+	"time"
 
 	uuid "github.com/satori/go.uuid"
 )
@@ -320,7 +321,22 @@ func NewWorker(options ...Option) (worker *Worker, err error) {
 
 	worker.Once("@failure", func(err error) { doneCh <- err })
 
-	err = <-doneCh
+	select {
+	case err = <-doneCh:
+		return
+	case <-time.After(3 * time.Second):
+		if channel.Closed() {
+			err = fmt.Errorf("Error starting process [pid: %d]", pid)
+			return
+		}
+
+		if !worker.spawnDone {
+			worker.spawnDone = true
+			logger.Debug("worker process running [pid:%d]", pid)
+			worker.Emit("@success")
+			return
+		}
+	}
 
 	return
 }
