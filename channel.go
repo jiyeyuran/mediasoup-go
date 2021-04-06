@@ -59,6 +59,7 @@ type Channel struct {
 	sents          sync.Map
 	sentsLen       int64
 	closeCh        chan struct{}
+	startCh        chan struct{}
 }
 
 func newChannel(producerSocket, consumerSocket net.Conn, pid int) *Channel {
@@ -73,11 +74,16 @@ func newChannel(producerSocket, consumerSocket net.Conn, pid int) *Channel {
 		consumerSocket: consumerSocket,
 		pid:            pid,
 		closeCh:        make(chan struct{}),
+		startCh:        make(chan struct{}),
 	}
 
 	go channel.runReadLoop()
 
 	return channel
+}
+
+func (c *Channel) Start() {
+	close(c.startCh)
 }
 
 func (c *Channel) Close() {
@@ -166,6 +172,13 @@ func (c *Channel) runReadLoop() {
 	decoder := netstring.NewDecoder()
 
 	go func() {
+		select {
+		// wait start signal
+		case <-c.startCh:
+		case <-c.closeCh:
+			return
+		}
+
 		for {
 			select {
 			case nsPayload := <-decoder.Result():

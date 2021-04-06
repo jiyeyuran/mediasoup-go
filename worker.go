@@ -315,10 +315,12 @@ func NewWorker(options ...Option) (worker *Worker, err error) {
 			close(doneCh)
 		}
 	})
+	worker.Once("@failure", func(err error) { doneCh <- err })
 
 	go worker.wait()
 
-	worker.Once("@failure", func(err error) { doneCh <- err })
+	// start to handle channel data
+	channel.Start()
 
 	err = <-doneCh
 
