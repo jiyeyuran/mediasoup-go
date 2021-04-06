@@ -406,7 +406,6 @@ func (w *Worker) Close() {
 	if w.child != nil {
 		w.child.Process.Signal(syscall.SIGTERM)
 		w.child.Process.Signal(os.Kill)
-		w.child = nil
 	}
 
 	// Close the Channel instance.
