@@ -2,7 +2,6 @@ package mediasoup
 
 import (
 	"encoding/json"
-	"fmt"
 	"reflect"
 	"sync"
 	"sync/atomic"
@@ -430,7 +429,6 @@ func (consumer *Consumer) SetPreferredLayers(layers ConsumerLayers) (err error) 
 	consumer.logger.Debug("setPreferredLayers()")
 
 	response := consumer.channel.Request("consumer.setPreferredLayers", consumer.internal, layers)
-	fmt.Printf("setPreferredLayers: %s\n", response.data)
 	err = response.Unmarshal(&consumer.preferredLayers)
 
 	return

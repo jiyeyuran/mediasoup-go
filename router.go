@@ -169,20 +169,12 @@ func (router *Router) Close() {
 			value.(ITransport).routerClosed()
 			return true
 		})
-		router.transports = sync.Map{}
-
-		// Clear the Producers map.
-		router.producers = sync.Map{}
 
 		// Close every RtpObserver.
 		router.rtpObservers.Range(func(key, value interface{}) bool {
 			value.(IRtpObserver).routerClosed()
 			return true
 		})
-		router.rtpObservers = sync.Map{}
-
-		// Clear map of Router/PipeTransports.
-		router.mapRouterPipeTransports = sync.Map{}
 
 		router.Emit("@close")
 		router.RemoveAllListeners()
@@ -275,7 +267,7 @@ func (router *Router) CreateWebRtcTransport(option WebRtcTransportOptions) (tran
 
 	resp := router.channel.Request("router.createWebRtcTransport", internal, reqData)
 
-	var data webrtcTransportData
+	var data *webrtcTransportData
 	if err = resp.Unmarshal(&data); err != nil {
 		return
 	}
@@ -319,7 +311,7 @@ func (router *Router) CreatePlainTransport(option PlainTransportOptions) (transp
 
 	resp := router.channel.Request("router.createPlainTransport", internal, reqData)
 
-	var data plainTransportData
+	var data *plainTransportData
 	if err = resp.Unmarshal(&data); err != nil {
 		return
 	}
@@ -359,7 +351,7 @@ func (router *Router) CreatePipeTransport(option PipeTransportOptions) (transpor
 
 	resp := router.channel.Request("router.createPipeTransport", internal, reqData)
 
-	var data pipeTransortData
+	var data *pipeTransortData
 	if err = resp.Unmarshal(&data); err != nil {
 		return
 	}
@@ -390,7 +382,7 @@ func (router *Router) CreateDirectTransport(params ...DirectTransportOptions) (t
 
 	resp := router.channel.Request("router.createDirectTransport", internal, reqData)
 
-	var data directTransportData
+	var data *directTransportData
 	if err = resp.Unmarshal(&data); err != nil {
 		return
 	}
@@ -736,16 +728,16 @@ func (router *Router) createTransport(internal internalData, data, appData inter
 	var newTransport func(transportParams) ITransport
 
 	switch data.(type) {
-	case directTransportData:
+	case *directTransportData:
 		newTransport = newDirectTransport
 
-	case plainTransportData:
+	case *plainTransportData:
 		newTransport = newPlainTransport
 
-	case pipeTransortData:
+	case *pipeTransortData:
 		newTransport = newPipeTransport
 
-	case webrtcTransportData:
+	case *webrtcTransportData:
 		newTransport = newWebRtcTransport
 	}
 

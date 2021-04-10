@@ -97,42 +97,21 @@ func (suite *SctpTestingSuite) TearDownTest() {
 }
 
 func (suite *SctpTestingSuite) TestOrderedDataProducerDeliversAllSCTPMessagesToTheDataConsumer() {
-	numMessages := 200
-	sentMessageBytes := 0
-	recvMessageBytes := 0
-	lastSentMessageId := 0
-	lastRecvMessageId := 0
+	numMessages := uint32(200)
+	sentMessageBytes := uint32(0)
+	recvMessageBytes := uint32(0)
+	lastSentMessageId := uint32(0)
+	lastRecvMessageId := uint32(0)
 
 	done := make(chan struct{})
 
-	go func() {
-		for {
-			time.Sleep(time.Millisecond)
-
-			lastSentMessageId++
-
-			data := []byte(fmt.Sprintf("%d", lastSentMessageId))
-			payloadType := sctp.PayloadTypeWebRTCBinary
-
-			if lastSentMessageId < numMessages/2 {
-				payloadType = sctp.PayloadTypeWebRTCString
-			}
-
-			n, err := suite.stcpStream.WriteSCTP(data, payloadType)
-			suite.NoError(err)
-
-			sentMessageBytes += n
-
-			if lastSentMessageId == numMessages {
-				break
-			}
-		}
-	}()
-
 	suite.dataConsumer.On("message", func(payload []byte, ppid int) {
-		recvMessageBytes += len(payload)
-		id, err := strconv.Atoi(string(payload))
+		recvMessageBytes += uint32(len(payload))
+
+		id64, err := strconv.ParseUint(string(payload), 10, 32)
 		suite.NoError(err)
+
+		id := uint32(id64)
 
 		if id == numMessages {
 			close(done)
@@ -148,6 +127,28 @@ func (suite *SctpTestingSuite) TestOrderedDataProducerDeliversAllSCTPMessagesToT
 
 		suite.Equal(lastRecvMessageId, id)
 	})
+
+	for {
+		time.Sleep(time.Millisecond)
+
+		lastSentMessageId++
+
+		data := []byte(fmt.Sprintf("%d", lastSentMessageId))
+		payloadType := sctp.PayloadTypeWebRTCBinary
+
+		if lastSentMessageId < numMessages/2 {
+			payloadType = sctp.PayloadTypeWebRTCString
+		}
+
+		n, err := suite.stcpStream.WriteSCTP(data, payloadType)
+		suite.NoError(err)
+
+		sentMessageBytes += uint32(n)
+
+		if lastSentMessageId == numMessages {
+			break
+		}
+	}
 
 	select {
 	case <-done:

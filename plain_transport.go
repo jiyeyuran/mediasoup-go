@@ -1,6 +1,9 @@
 package mediasoup
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"sync"
+)
 
 type PlainTransportOptions struct {
 	/**
@@ -69,6 +72,7 @@ type PlainTransportSpecificStat struct {
 }
 
 type plainTransportData struct {
+	locker         sync.Mutex
 	RtcpMux        bool            `json:"rtcp_mux,omitempty"`
 	Comedia        bool            `json:"comedia,omitempty"`
 	Tuple          *TransportTuple `json:"tuple,omitempty"`
@@ -76,6 +80,36 @@ type plainTransportData struct {
 	SctpParameters SctpParameters  `json:"sctpParameters,omitempty"`
 	SctpState      SctpState       `json:"sctpState,omitempty"`
 	SrtpParameters *SrtpParameters `json:"srtpParameters,omitempty"`
+}
+
+func (data *plainTransportData) SetTuple(tuple *TransportTuple) {
+	data.locker.Lock()
+	defer data.locker.Unlock()
+	data.Tuple = tuple
+}
+
+func (data *plainTransportData) SetRtcpTuple(rtcpTuple *TransportTuple) {
+	data.locker.Lock()
+	defer data.locker.Unlock()
+	data.RtcpTuple = rtcpTuple
+}
+
+func (data *plainTransportData) SetSctpState(sctpState SctpState) {
+	data.locker.Lock()
+	defer data.locker.Unlock()
+	data.SctpState = sctpState
+}
+
+func (data *plainTransportData) GetSctpState() (sctpState SctpState) {
+	data.locker.Lock()
+	defer data.locker.Unlock()
+	return data.SctpState
+}
+
+func (data *plainTransportData) SetSrtpParameters(srtpParameters *SrtpParameters) {
+	data.locker.Lock()
+	defer data.locker.Unlock()
+	data.SrtpParameters = srtpParameters
 }
 
 /**
@@ -89,12 +123,12 @@ type PlainTransport struct {
 	ITransport
 	logger   Logger
 	internal internalData
-	data     plainTransportData
+	data     *plainTransportData
 	channel  *Channel
 }
 
 func newPlainTransport(params transportParams) ITransport {
-	data := params.data.(plainTransportData)
+	data := params.data.(*plainTransportData)
 	params.data = transportData{
 		sctpParameters: data.SctpParameters,
 		sctpState:      data.SctpState,
@@ -178,8 +212,8 @@ func (transport *PlainTransport) Close() {
 		return
 	}
 
-	if len(transport.data.SctpState) > 0 {
-		transport.data.SctpState = SctpState_Closed
+	if len(transport.data.GetSctpState()) > 0 {
+		transport.data.SetSctpState(SctpState_Closed)
 	}
 
 	transport.ITransport.Close()
@@ -195,8 +229,8 @@ func (transport *PlainTransport) routerClosed() {
 		return
 	}
 
-	if len(transport.data.SctpState) > 0 {
-		transport.data.SctpState = SctpState_Closed
+	if len(transport.data.GetSctpState()) > 0 {
+		transport.data.SetSctpState(SctpState_Closed)
 	}
 
 	transport.ITransport.routerClosed()
@@ -229,13 +263,13 @@ func (transport *PlainTransport) Connect(options TransportConnectOptions) (err e
 
 	// Update data.
 	if data.Tuple != nil {
-		transport.data.Tuple = data.Tuple
+		transport.data.SetTuple(data.Tuple)
 	}
 	if data.RtcpTuple != nil {
-		transport.data.RtcpTuple = data.RtcpTuple
+		transport.data.SetRtcpTuple(data.RtcpTuple)
 	}
 
-	transport.data.SrtpParameters = data.SrtpParameters
+	transport.data.SetSrtpParameters(data.SrtpParameters)
 
 	return nil
 }
@@ -249,7 +283,7 @@ func (transport *PlainTransport) handleWorkerNotifications() {
 			}
 			json.Unmarshal(data, &result)
 
-			transport.data.Tuple = result.Tuple
+			transport.data.SetTuple(result.Tuple)
 
 			transport.SafeEmit("tuple", result.Tuple)
 
@@ -262,7 +296,7 @@ func (transport *PlainTransport) handleWorkerNotifications() {
 			}
 			json.Unmarshal(data, &result)
 
-			transport.data.RtcpTuple = result.RtcpTuple
+			transport.data.SetRtcpTuple(result.RtcpTuple)
 
 			transport.SafeEmit("rtcptuple", result.RtcpTuple)
 
@@ -275,7 +309,7 @@ func (transport *PlainTransport) handleWorkerNotifications() {
 			}
 			json.Unmarshal(data, &result)
 
-			transport.data.SctpState = result.SctpState
+			transport.data.SetSctpState(result.SctpState)
 
 			transport.SafeEmit("sctpstatechange", result.SctpState)
 

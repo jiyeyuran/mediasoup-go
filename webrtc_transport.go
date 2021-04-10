@@ -1,6 +1,9 @@
 package mediasoup
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"sync"
+)
 
 type WebRtcTransportOptions struct {
 	/**
@@ -132,6 +135,7 @@ type WebRtcTransportSpecificStat struct {
 }
 
 type webrtcTransportData struct {
+	locker sync.Mutex
 	// alway be 'controlled'
 	IceRole          string          `json:"iceRole,omitempty"`
 	IceParameters    IceParameters   `json:"iceParameters,omitempty"`
@@ -143,6 +147,54 @@ type webrtcTransportData struct {
 	DtlsRemoteCert   string          `json:"dtlsRemoteCert,omitempty"`
 	SctpParameters   SctpParameters  `json:"sctpParameters,omitempty"`
 	SctpState        SctpState       `json:"sctpState,omitempty"`
+}
+
+func (data *webrtcTransportData) SetIceParameters(iceParameters IceParameters) {
+	data.locker.Lock()
+	defer data.locker.Unlock()
+	data.IceParameters = iceParameters
+}
+
+func (data *webrtcTransportData) SetIceState(iceState IceState) {
+	data.locker.Lock()
+	defer data.locker.Unlock()
+	data.IceState = iceState
+}
+
+func (data *webrtcTransportData) SetIceSelectedTuple(tuple *TransportTuple) {
+	data.locker.Lock()
+	defer data.locker.Unlock()
+	data.IceSelectedTuple = tuple
+}
+
+func (data *webrtcTransportData) SetDtlsParametersRole(role DtlsRole) {
+	data.locker.Lock()
+	defer data.locker.Unlock()
+	data.DtlsParameters.Role = role
+}
+
+func (data *webrtcTransportData) SetDtlsState(dtlsState DtlsState) {
+	data.locker.Lock()
+	defer data.locker.Unlock()
+	data.DtlsState = dtlsState
+}
+
+func (data *webrtcTransportData) SetDtlsRemoteCert(dtlsRemoteCert string) {
+	data.locker.Lock()
+	defer data.locker.Unlock()
+	data.DtlsRemoteCert = dtlsRemoteCert
+}
+
+func (data *webrtcTransportData) GetSctpState() (sctpState SctpState) {
+	data.locker.Lock()
+	defer data.locker.Unlock()
+	return data.SctpState
+}
+
+func (data *webrtcTransportData) SetSctpState(sctpState SctpState) {
+	data.locker.Lock()
+	defer data.locker.Unlock()
+	data.SctpState = sctpState
 }
 
 /**
@@ -157,13 +209,13 @@ type WebRtcTransport struct {
 	ITransport
 	logger         Logger
 	internal       internalData
-	data           webrtcTransportData
+	data           *webrtcTransportData
 	channel        *Channel
 	payloadChannel *PayloadChannel
 }
 
 func newWebRtcTransport(params transportParams) ITransport {
-	data := params.data.(webrtcTransportData)
+	data := params.data.(*webrtcTransportData)
 	params.data = transportData{
 		sctpParameters: data.SctpParameters,
 		sctpState:      data.SctpState,
@@ -284,12 +336,12 @@ func (transport *WebRtcTransport) Close() {
 		return
 	}
 
-	transport.data.IceSelectedTuple = nil
-	transport.data.IceState = IceState_Closed
-	transport.data.DtlsState = DtlsState_Closed
+	transport.data.SetIceSelectedTuple(nil)
+	transport.data.SetIceState(IceState_Closed)
+	transport.data.SetDtlsState(DtlsState_Closed)
 
-	if len(transport.data.SctpState) > 0 {
-		transport.data.SctpState = SctpState_Closed
+	if len(transport.data.GetSctpState()) > 0 {
+		transport.data.SetSctpState(SctpState_Closed)
 	}
 
 	transport.ITransport.Close()
@@ -305,12 +357,12 @@ func (transport *WebRtcTransport) routerClosed() {
 		return
 	}
 
-	transport.data.IceSelectedTuple = nil
-	transport.data.IceState = IceState_Closed
-	transport.data.DtlsState = DtlsState_Closed
+	transport.data.SetIceSelectedTuple(nil)
+	transport.data.SetIceState(IceState_Closed)
+	transport.data.SetDtlsState(DtlsState_Closed)
 
-	if len(transport.data.SctpState) > 0 {
-		transport.data.SctpState = SctpState_Closed
+	if len(transport.data.GetSctpState()) > 0 {
+		transport.data.SetSctpState(SctpState_Closed)
 	}
 
 	transport.ITransport.routerClosed()
@@ -335,7 +387,7 @@ func (transport *WebRtcTransport) Connect(options TransportConnectOptions) (err 
 	}
 
 	// Update data.
-	transport.data.DtlsParameters.Role = data.DtlsLocalRole
+	transport.data.SetDtlsParametersRole(data.DtlsLocalRole)
 
 	return
 }
@@ -352,7 +404,7 @@ func (transport *WebRtcTransport) RestartIce() (iceParameters IceParameters, err
 		IceParameters IceParameters
 	}
 	if err = resp.Unmarshal(&data); err == nil {
-		transport.data.IceParameters = data.IceParameters
+		transport.data.SetIceParameters(data.IceParameters)
 	}
 
 	return data.IceParameters, err
@@ -378,7 +430,7 @@ func (transport *WebRtcTransport) handleWorkerNotifications() {
 			}
 			json.Unmarshal(data, &result)
 
-			transport.data.IceSelectedTuple = &result.IceSelectedTuple
+			transport.data.SetIceSelectedTuple(&result.IceSelectedTuple)
 
 			transport.SafeEmit("iceselectedtuplechange", result.IceSelectedTuple)
 
@@ -392,10 +444,10 @@ func (transport *WebRtcTransport) handleWorkerNotifications() {
 			}
 			json.Unmarshal(data, &result)
 
-			transport.data.DtlsState = result.DtlsState
+			transport.data.SetDtlsState(result.DtlsState)
 
 			if result.DtlsState == "connected" {
-				transport.data.DtlsRemoteCert = result.DtlsRemoteCert
+				transport.data.SetDtlsRemoteCert(result.DtlsRemoteCert)
 			}
 
 			transport.SafeEmit("dtlsstatechange", result.DtlsState)
@@ -409,7 +461,7 @@ func (transport *WebRtcTransport) handleWorkerNotifications() {
 			}
 			json.Unmarshal(data, &result)
 
-			transport.data.SctpState = result.SctpState
+			transport.data.SetSctpState(result.SctpState)
 
 			transport.SafeEmit("sctpstatechange", result.SctpState)
 

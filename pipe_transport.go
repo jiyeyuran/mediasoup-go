@@ -3,6 +3,7 @@ package mediasoup
 import (
 	"encoding/json"
 	"fmt"
+	"sync"
 
 	uuid "github.com/satori/go.uuid"
 )
@@ -56,11 +57,30 @@ type PipeTransportOptions struct {
 }
 
 type pipeTransortData struct {
+	locker         sync.Mutex
 	Tuple          TransportTuple  `json:"tuple,omitempty"`
 	SctpParameters SctpParameters  `json:"sctpParameters,omitempty"`
 	SctpState      SctpState       `json:"sctpState,omitempty"`
 	Rtx            bool            `json:"rtx,omitempty"`
 	SrtpParameters *SrtpParameters `json:"srtpParameters,omitempty"`
+}
+
+func (data *pipeTransortData) SetTuple(tuple TransportTuple) {
+	data.locker.Lock()
+	defer data.locker.Unlock()
+	data.Tuple = tuple
+}
+
+func (data *pipeTransortData) GetSctpState() (sctpState SctpState) {
+	data.locker.Lock()
+	defer data.locker.Unlock()
+	return data.SctpState
+}
+
+func (data *pipeTransortData) SetSctpState(sctpState SctpState) {
+	data.locker.Lock()
+	defer data.locker.Unlock()
+	data.SctpState = sctpState
 }
 
 /**
@@ -72,14 +92,14 @@ type PipeTransport struct {
 	ITransport
 	logger          Logger
 	internal        internalData
-	data            pipeTransortData
+	data            *pipeTransortData
 	channel         *Channel
 	payloadChannel  *PayloadChannel
 	getProducerById func(string) *Producer
 }
 
 func newPipeTransport(params transportParams) ITransport {
-	data := params.data.(pipeTransortData)
+	data := params.data.(*pipeTransortData)
 	params.data = transportData{
 		sctpParameters: data.SctpParameters,
 		sctpState:      data.SctpState,
@@ -156,8 +176,8 @@ func (transport *PipeTransport) Close() {
 		return
 	}
 
-	if len(transport.data.SctpState) > 0 {
-		transport.data.SctpState = SctpState_Closed
+	if len(transport.data.GetSctpState()) > 0 {
+		transport.data.SetSctpState(SctpState_Closed)
 	}
 
 	transport.ITransport.Close()
@@ -173,8 +193,8 @@ func (transport *PipeTransport) routerClosed() {
 		return
 	}
 
-	if len(transport.data.SctpState) > 0 {
-		transport.data.SctpState = SctpState_Closed
+	if len(transport.data.GetSctpState()) > 0 {
+		transport.data.SetSctpState(SctpState_Closed)
 	}
 
 	transport.ITransport.routerClosed()
@@ -203,7 +223,7 @@ func (transport *PipeTransport) Connect(options TransportConnectOptions) (err er
 	}
 
 	// Update data.
-	transport.data.Tuple = data.Tuple
+	transport.data.SetTuple(data.Tuple)
 
 	return nil
 }
@@ -287,7 +307,7 @@ func (transport *PipeTransport) handleWorkerNotifications() {
 			}
 			json.Unmarshal(data, &result)
 
-			transport.data.SctpState = result.SctpState
+			transport.data.SetSctpState(result.SctpState)
 
 			transport.SafeEmit("sctpstatechange", result.SctpState)
 

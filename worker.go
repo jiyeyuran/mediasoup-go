@@ -171,8 +171,6 @@ type Worker struct {
 	IEventEmitter
 	// Worker logger.
 	logger Logger
-	// mediasoup-worker child process.
-	child *exec.Cmd
 	// Worker process PID.
 	pid int
 	// Channel instance.
@@ -189,7 +187,7 @@ type Worker struct {
 	observer IEventEmitter
 
 	// spawnDone indices child is started
-	spawnDone bool
+	spawnDone uint32
 }
 
 func NewWorker(options ...Option) (worker *Worker, err error) {
@@ -297,7 +295,6 @@ func NewWorker(options ...Option) (worker *Worker, err error) {
 	worker = &Worker{
 		IEventEmitter:  NewEventEmitter(),
 		logger:         logger,
-		child:          child,
 		pid:            pid,
 		channel:        channel,
 		payloadChannel: payloadChannel,
@@ -308,8 +305,7 @@ func NewWorker(options ...Option) (worker *Worker, err error) {
 	doneCh := make(chan error)
 
 	channel.Once(strconv.Itoa(pid), func(event string) {
-		if !worker.spawnDone && event == "running" {
-			worker.spawnDone = true
+		if atomic.CompareAndSwapUint32(&worker.spawnDone, 0, 1) && event == "running" {
 			logger.Debug("worker process running [pid:%d]", pid)
 			worker.Emit("@success")
 			close(doneCh)
@@ -317,7 +313,7 @@ func NewWorker(options ...Option) (worker *Worker, err error) {
 	})
 	worker.Once("@failure", func(err error) { doneCh <- err })
 
-	go worker.wait()
+	go worker.wait(child)
 
 	// start to handle channel data
 	channel.Start()
@@ -327,13 +323,15 @@ func NewWorker(options ...Option) (worker *Worker, err error) {
 	return
 }
 
-func (w *Worker) wait() {
-	err := w.child.Wait()
+func (w *Worker) wait(child *exec.Cmd) {
+	if w.Closed() {
+		return
+	}
 
 	var code int
-	var signal = os.Kill
+	var signal = os.Interrupt
 
-	if exiterr, ok := err.(*exec.ExitError); ok {
+	if exiterr, ok := child.Wait().(*exec.ExitError); ok {
 		// The worker has exited with an exit code != 0
 		if status, ok := exiterr.Sys().(syscall.WaitStatus); ok {
 			code = status.ExitStatus()
@@ -346,9 +344,7 @@ func (w *Worker) wait() {
 		}
 	}
 
-	if !w.spawnDone {
-		w.spawnDone = true
-
+	if atomic.CompareAndSwapUint32(&w.spawnDone, 0, 1) {
 		if code == 42 {
 			w.logger.Error("worker process failed due to wrong settings [pid:%d]", w.pid)
 			w.Emit("@failure", NewTypeError("wrong settings"))
@@ -362,7 +358,6 @@ func (w *Worker) wait() {
 		w.SafeEmit("died", fmt.Errorf("[pid:%d, code:%d, signal:%s]", w.pid, code, signal))
 	}
 
-	w.child = nil
 	w.Close()
 }
 
@@ -403,9 +398,11 @@ func (w *Worker) Close() {
 	w.logger.Debug("close()")
 
 	// Kill the worker process.
-	if w.child != nil {
-		w.child.Process.Signal(syscall.SIGTERM)
-		w.child.Process.Signal(os.Kill)
+	if pid := w.Pid(); pid > 0 {
+		if process, err := os.FindProcess(pid); err == nil {
+			process.Signal(syscall.SIGTERM)
+			process.Signal(os.Kill)
+		}
 	}
 
 	// Close the Channel instance.

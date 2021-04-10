@@ -286,14 +286,12 @@ func (transport *Transport) Close() {
 
 			return true
 		})
-		transport.producers = sync.Map{}
 
 		transport.consumers.Range(func(key, value interface{}) bool {
 			value.(*Consumer).transportClosed()
 
 			return true
 		})
-		transport.consumers = sync.Map{}
 
 		transport.dataProducers.Range(func(key, value interface{}) bool {
 			producer := value.(*DataProducer)
@@ -303,14 +301,12 @@ func (transport *Transport) Close() {
 
 			return true
 		})
-		transport.dataProducers = sync.Map{}
 
 		transport.dataConsumers.Range(func(key, value interface{}) bool {
 			value.(*DataConsumer).transportClosed()
 
 			return true
 		})
-		transport.dataConsumers = sync.Map{}
 
 		transport.Emit("@close")
 		transport.RemoveAllListeners()
@@ -343,14 +339,12 @@ func (transport *Transport) routerClosed() {
 
 			return true
 		})
-		transport.producers = sync.Map{}
 
 		transport.consumers.Range(func(key, value interface{}) bool {
 			value.(*Consumer).transportClosed()
 
 			return true
 		})
-		transport.consumers = sync.Map{}
 
 		transport.dataProducers.Range(func(key, value interface{}) bool {
 			producer := value.(*DataProducer)
@@ -360,14 +354,12 @@ func (transport *Transport) routerClosed() {
 
 			return true
 		})
-		transport.dataProducers = sync.Map{}
 
 		transport.dataConsumers.Range(func(key, value interface{}) bool {
 			value.(*DataConsumer).transportClosed()
 
 			return true
 		})
-		transport.dataConsumers = sync.Map{}
 
 		transport.SafeEmit("routerclose")
 		transport.RemoveAllListeners()

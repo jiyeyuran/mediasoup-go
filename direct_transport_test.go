@@ -96,28 +96,6 @@ func (suite *DirectTransportTestingSuite) TestDataProducerSendSucceeds() {
 
 	done := make(chan struct{})
 
-	go func() {
-		for {
-			lastSentMessageId++
-
-			data := []byte(fmt.Sprintf("%d", lastSentMessageId))
-
-			if lastSentMessageId < numMessages/2 {
-				err := dataProducer.SendText(string(data))
-				suite.NoError(err)
-			} else {
-				err := dataProducer.Send(data)
-				suite.NoError(err)
-			}
-
-			sentMessageBytes += len(data)
-
-			if lastSentMessageId == numMessages {
-				break
-			}
-		}
-	}()
-
 	dataConsumer.On("message", func(payload []byte, ppid int) {
 		recvMessageBytes += len(payload)
 		id, err := strconv.Atoi(string(payload))
@@ -137,6 +115,26 @@ func (suite *DirectTransportTestingSuite) TestDataProducerSendSucceeds() {
 
 		suite.Equal(lastRecvMessageId, id)
 	})
+
+	for {
+		lastSentMessageId++
+
+		data := []byte(fmt.Sprintf("%d", lastSentMessageId))
+
+		if lastSentMessageId < numMessages/2 {
+			err := dataProducer.SendText(string(data))
+			suite.NoError(err)
+		} else {
+			err := dataProducer.Send(data)
+			suite.NoError(err)
+		}
+
+		sentMessageBytes += len(data)
+
+		if lastSentMessageId == numMessages {
+			break
+		}
+	}
 
 	select {
 	case <-done:
