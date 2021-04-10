@@ -8,14 +8,15 @@ import (
 )
 
 type MockFunc struct {
-	require *require.Assertions
-	called  int
-	args    []interface{}
+	require    *require.Assertions
+	notifyChan chan []interface{}
+	results    [][]interface{}
 }
 
 func NewMockFunc(t *testing.T) *MockFunc {
 	return &MockFunc{
-		require: require.New(t),
+		require:    require.New(t),
+		notifyChan: make(chan []interface{}, 100),
 	}
 }
 
@@ -23,38 +24,63 @@ func (w *MockFunc) Fn() func(...interface{}) {
 	w.Reset()
 
 	return func(args ...interface{}) {
-		w.args = args
-		w.called++
+		w.notifyChan <- args
 	}
 }
 
 func (w *MockFunc) ExpectCalledWith(args ...interface{}) {
 	w.wait()
+
+	if len(w.results) == 0 {
+		w.require.FailNow("fn is not called")
+		return
+	}
+
+	last := w.results[len(w.results)-1]
+
+	if len(args) != len(last) {
+		w.require.FailNow("fn is called, but the number of arguments is not the same")
+		return
+	}
 	for i, arg := range args {
-		w.require.EqualValues(arg, w.args[i])
+		w.require.EqualValues(arg, last[i])
 	}
 }
 
 func (w *MockFunc) ExpectCalled() {
-	w.wait()
-	w.require.NotZero(w.called)
+	w.require.NotZero(w.CalledTimes())
 }
 
 func (w *MockFunc) ExpectCalledTimes(called int) {
-	w.wait()
-	w.require.Equal(called, w.called)
+	w.require.Equal(called, w.CalledTimes())
 }
 
 func (w *MockFunc) CalledTimes() int {
 	w.wait()
-	return int(w.called)
+	return len(w.results)
 }
 
 func (w *MockFunc) Reset() {
-	w.args = nil
-	w.called = 0
+	w.notifyChan = make(chan []interface{}, 100)
+	w.results = nil
 }
 
 func (w *MockFunc) wait() {
-	time.Sleep(time.Millisecond)
+	// results are already collected
+	if len(w.results) > 0 {
+		return
+	}
+
+	// collect results with 10ms timeout
+	timer := time.NewTimer(time.Millisecond * 10)
+	defer timer.Stop()
+
+	for {
+		select {
+		case result := <-w.notifyChan:
+			w.results = append(w.results, result)
+		case <-timer.C:
+			return
+		}
+	}
 }

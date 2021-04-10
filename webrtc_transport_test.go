@@ -351,10 +351,12 @@ func (suite *WebRtcTransportTestingSuite) TestEvents_Succeeds() {
 	onDtlsStateChange.ExpectCalledWith("connecting")
 	suite.EqualValues("connecting", transport.DtlsState())
 
+	onDtlsStateChange.Reset()
+
 	data, _ = json.Marshal(H{"dtlsState": "connected", "dtlsRemoteCert": "ABCD"})
 	channel.Emit(transport.Id(), "dtlsstatechange", data)
 
-	onDtlsStateChange.ExpectCalledTimes(2)
+	onDtlsStateChange.ExpectCalledTimes(1)
 	onDtlsStateChange.ExpectCalledWith("connected")
 	suite.EqualValues("connected", transport.DtlsState())
 	suite.Equal("ABCD", transport.DtlsRemoteCert())
