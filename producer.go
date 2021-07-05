@@ -418,9 +418,7 @@ func (producer *Producer) EnableTraceEvent(types ...ProducerTraceEventType) erro
  * Send RTP packet (just valid for Producers created on a DirectTransport).
  */
 func (producer *Producer) Send(rtpPacket []byte) error {
-	result := producer.payloadChannel.Request("producer.send", producer.internal, nil, rtpPacket)
-
-	return result.Err()
+	return producer.payloadChannel.Notify("producer.send", producer.internal, nil, rtpPacket)
 }
 
 func (producer *Producer) handleWorkerNotifications() {
