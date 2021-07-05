@@ -546,21 +546,23 @@ func (transport *Transport) Consume(options ConsumerOptions) (consumer *Consumer
 	}
 
 	if !options.Pipe {
-		transport.locker.Lock()
+		if len(options.Mid) > 0 {
+			rtpParameters.Mid = options.Mid
+		} else {
+			transport.locker.Lock()
 
-		// Set MID.
-		rtpParameters.Mid = fmt.Sprintf("%d", transport.nextMidForConsumers)
+			// Set MID.
+			rtpParameters.Mid = fmt.Sprintf("%d", transport.nextMidForConsumers)
+			transport.nextMidForConsumers++
 
-		transport.nextMidForConsumers++
+			// We use up to 8 bytes for MID (string).
+			if maxMid := uint32(100000000); transport.nextMidForConsumers == maxMid {
+				transport.logger.Error(`consume() | reaching max MID value "%d"`, maxMid)
+				transport.nextMidForConsumers = 0
+			}
 
-		// We use up to 8 bytes for MID (string).
-		if maxMid := uint32(100000000); transport.nextMidForConsumers == maxMid {
-			transport.logger.Error(`consume() | reaching max MID value "%d"`, maxMid)
-
-			transport.nextMidForConsumers = 0
+			transport.locker.Unlock()
 		}
-
-		transport.locker.Unlock()
 	}
 
 	internal := transport.internal

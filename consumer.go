@@ -35,6 +35,12 @@ type ConsumerOptions struct {
 	Paused bool `json:"paused,omitempty"`
 
 	/**
+	 * The MID for the Consumer. If not specified, a sequentially growing
+	 * number will be assigned.
+	 */
+	Mid string `json:"mid,omitempty"`
+
+	/**
 	 * Preferred spatial and temporal layer for simulcast or SVC media sources.
 	 * If unset, the highest ones are selected.
 	 */

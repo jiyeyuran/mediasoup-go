@@ -1,6 +1,8 @@
 package mediasoup
 
 import (
+	"regexp"
+	"strconv"
 	"testing"
 
 	"github.com/jiyeyuran/mediasoup-go/h264"
@@ -348,6 +350,33 @@ func (suite *ConsumerTestingSuite) TestTransportConsume_Succeeds() {
 
 	suite.Equal(expectedTransportDump.Id, transportDump.Id)
 	suite.ElementsMatch(transportDump.ConsumerIds, expectedTransportDump.ConsumerIds)
+}
+
+func (suite *ConsumerTestingSuite) TestTransportConsume_CreatedWithUserProvidedMid() {
+	audioConsumer1, _ := suite.transport2.Consume(ConsumerOptions{
+		ProducerId:      suite.audioProducer.Id(),
+		RtpCapabilities: suite.consumerDeviceCapabilities,
+	})
+	suite.True(regexp.MatchString("^[0-9]+", audioConsumer1.RtpParameters().Mid))
+
+	audioConsumer2, _ := suite.transport2.Consume(ConsumerOptions{
+		ProducerId:      suite.audioProducer.Id(),
+		Mid:             "custom-mid",
+		RtpCapabilities: suite.consumerDeviceCapabilities,
+	})
+	suite.Equal("custom-mid", audioConsumer2.RtpParameters().Mid)
+
+	audioConsumer3, _ := suite.transport2.Consume(ConsumerOptions{
+		ProducerId:      suite.audioProducer.Id(),
+		RtpCapabilities: suite.consumerDeviceCapabilities,
+	})
+	suite.True(regexp.MatchString("^[0-9]+", audioConsumer3.RtpParameters().Mid))
+	mid1, _ := strconv.Atoi(audioConsumer1.RtpParameters().Mid)
+	suite.Equal(strconv.Itoa(mid1+1), audioConsumer3.RtpParameters().Mid)
+
+	audioConsumer1.Close()
+	audioConsumer2.Close()
+	audioConsumer3.Close()
 }
 
 func (suite *ConsumerTestingSuite) TestTransportConsume_UnsupportedError() {
