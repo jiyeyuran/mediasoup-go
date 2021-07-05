@@ -17,7 +17,7 @@ import (
 	uuid "github.com/satori/go.uuid"
 )
 
-const VERSION = "3.7.1"
+const VERSION = "3.7.17"
 
 type WorkerLogLevel string
 
