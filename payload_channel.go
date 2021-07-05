@@ -19,6 +19,7 @@ type notification struct {
 
 type PayloadChannel struct {
 	IEventEmitter
+	locker              sync.Mutex
 	logger              Logger
 	closed              int32
 	producerSocket      net.Conn
@@ -75,26 +76,8 @@ func (c *PayloadChannel) Notify(event string, internal interface{}, data interfa
 		"data":     data,
 	}
 	rawData, _ := json.Marshal(notification)
-	ns1 := netstring.Encode(rawData)
-	ns2 := netstring.Encode(payload)
 
-	if len(ns1) > NS_MESSAGE_MAX_LEN {
-		err = errors.New("PayloadChannel notification too big")
-		return
-	}
-	if len(ns2) > NS_MESSAGE_MAX_LEN {
-		err = errors.New("PayloadChannel payload too big")
-		return
-	}
-
-	if _, err = c.producerSocket.Write(ns1); err != nil {
-		return
-	}
-	if _, err = c.producerSocket.Write(ns2); err != nil {
-		return
-	}
-
-	return
+	return c.writeAll(rawData, payload)
 }
 
 func (c *PayloadChannel) Request(method string, internal interface{}, data interface{}, payload []byte) (rsp workerResponse) {
@@ -133,22 +116,8 @@ func (c *PayloadChannel) Request(method string, internal interface{}, data inter
 		"internal": internal,
 		"data":     data,
 	})
-	ns1 := netstring.Encode(rawData)
-	ns2 := netstring.Encode(payload)
 
-	if len(ns1) > NS_MESSAGE_MAX_LEN {
-		rsp.err = errors.New("PayloadChannel request too big")
-		return
-	}
-	if len(ns2) > NS_MESSAGE_MAX_LEN {
-		rsp.err = errors.New("PayloadChannel payload too big")
-		return
-	}
-
-	if _, rsp.err = c.producerSocket.Write(ns1); rsp.err != nil {
-		return
-	}
-	if _, rsp.err = c.producerSocket.Write(ns2); rsp.err != nil {
+	if rsp.err = c.writeAll(rawData, payload); rsp.err != nil {
 		return
 	}
 
@@ -165,6 +134,29 @@ func (c *PayloadChannel) Request(method string, internal interface{}, data inter
 		rsp.err = NewInvalidStateError("Channel closed")
 	}
 
+	return
+}
+
+func (c *PayloadChannel) writeAll(data, payload []byte) (err error) {
+	ns1 := netstring.Encode(data)
+	ns2 := netstring.Encode(payload)
+
+	if len(ns1) > NS_MESSAGE_MAX_LEN {
+		return errors.New("PayloadChannel data too big")
+	}
+	if len(ns2) > NS_MESSAGE_MAX_LEN {
+		return errors.New("PayloadChannel payload too big")
+	}
+
+	c.locker.Lock()
+	defer c.locker.Unlock()
+
+	if _, err = c.producerSocket.Write(ns1); err != nil {
+		return
+	}
+	if _, err = c.producerSocket.Write(ns2); err != nil {
+		return
+	}
 	return
 }
 
