@@ -328,6 +328,15 @@ func (w *Worker) wait(child *exec.Cmd) {
 		return
 	}
 
+	// clean up unix descriptors
+	defer func() {
+		w.channel.Close()
+		w.payloadChannel.Close()
+		for _, extraFile := range child.ExtraFiles {
+			extraFile.Close()
+		}
+	}()
+
 	var code int
 	var signal = os.Interrupt
 
