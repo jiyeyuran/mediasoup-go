@@ -270,6 +270,9 @@ type RtpCodecSpecificParameters struct {
 	XGoogleMinBitrate   uint32 `json:"x-google-min-bitrate,omitempty"`
 	XGoogleMaxBitrate   uint32 `json:"x-google-max-bitrate,omitempty"`
 	XGoogleStartBitrate uint32 `json:"x-google-start-bitrate,omitempty"`
+	ChannelMapping      string `json:"channel_mapping,omitempty"`
+	NumStreams          uint8  `json:"num_streams,omitempty"`
+	CoupledStreams      uint8  `json:"coupled_streams,omitempty"`
 }
 
 /**

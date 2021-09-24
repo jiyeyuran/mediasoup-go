@@ -860,14 +860,14 @@ func findMatchedCodec(aCodec interface{}, bCodecs []*RtpCodecCapability, options
 	}
 
 	for _, bCodec := range bCodecs {
-		if matchedCodecs(rtpCodecParameters, bCodec, options) {
+		if matchCodecs(rtpCodecParameters, bCodec, options) {
 			return bCodec, true
 		}
 	}
 	return
 }
 
-func matchedCodecs(aCodec *RtpCodecParameters, bCodec *RtpCodecCapability, options matchOptions) (matched bool) {
+func matchCodecs(aCodec *RtpCodecParameters, bCodec *RtpCodecCapability, options matchOptions) (matched bool) {
 	aMimeType := strings.ToLower(aCodec.MimeType)
 	bMimeType := strings.ToLower(bCodec.MimeType)
 
@@ -887,6 +887,21 @@ func matchedCodecs(aCodec *RtpCodecParameters, bCodec *RtpCodecCapability, optio
 	}
 
 	switch aMimeType {
+	case "audio/multiopus":
+		aNumStreams := aCodec.Parameters.NumStreams
+		bNumstreams := bCodec.Parameters.NumStreams
+
+		if aNumStreams != bNumstreams {
+			return false
+		}
+
+		aCoupledStreams := aCodec.Parameters.CoupledStreams
+		bCoupledStreams := bCodec.Parameters.CoupledStreams
+
+		if aCoupledStreams != bCoupledStreams {
+			return false
+		}
+
 	case "video/h264":
 		aParameters, bParameters := aCodec.Parameters, bCodec.Parameters
 

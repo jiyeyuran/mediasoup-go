@@ -16,6 +16,48 @@ var supportedRtpCapabilities = RtpCapabilities{
 			},
 		},
 		{
+			Kind:      "audio",
+			MimeType:  "audio/multiopus",
+			ClockRate: 48000,
+			Channels:  4,
+			Parameters: RtpCodecSpecificParameters{
+				ChannelMapping: "0,1,2,3",
+				NumStreams:     2,
+				CoupledStreams: 2,
+			},
+			RtcpFeedback: []RtcpFeedback{
+				{Type: "transport-cc"},
+			},
+		},
+		{
+			Kind:      "audio",
+			MimeType:  "audio/multiopus",
+			ClockRate: 48000,
+			Channels:  6,
+			Parameters: RtpCodecSpecificParameters{
+				ChannelMapping: "0,4,1,2,3,5",
+				NumStreams:     4,
+				CoupledStreams: 2,
+			},
+			RtcpFeedback: []RtcpFeedback{
+				{Type: "transport-cc"},
+			},
+		},
+		{
+			Kind:      "audio",
+			MimeType:  "audio/multiopus",
+			ClockRate: 48000,
+			Channels:  8,
+			Parameters: RtpCodecSpecificParameters{
+				ChannelMapping: "0,6,1,2,3,4,5,7",
+				NumStreams:     5,
+				CoupledStreams: 3,
+			},
+			RtcpFeedback: []RtcpFeedback{
+				{Type: "transport-cc"},
+			},
+		},
+		{
 			Kind:                 "audio",
 			MimeType:             "audio/PCMU",
 			PreferredPayloadType: 0,
