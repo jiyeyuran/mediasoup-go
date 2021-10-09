@@ -232,6 +232,18 @@ func (router *Router) Dump() (data *RouterDump, err error) {
 	return
 }
 
+// GetProducers returns available producers on the router.
+func (router *Router) GetProducers() sync.Map {
+	router.logger.Debug("GetProducers()")
+	return router.producers
+}
+
+// GetTransports returns available transports on the router.
+func (router *Router) GetTransports() sync.Map {
+	router.logger.Debug("GetTransports()")
+	return router.transports
+}
+
 /**
  * Create a WebRtcTransport.
  */
