@@ -2,7 +2,7 @@ package mediasoup
 
 const (
 	PPID_WEBRTC_STRING int = 51
-	PPID_WEBRTC_BINARY     = 53
+	PPID_WEBRTC_BINARY int = 53
 )
 
 type WorkerDump struct {

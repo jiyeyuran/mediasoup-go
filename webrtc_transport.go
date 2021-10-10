@@ -103,18 +103,18 @@ type IceState string
 
 const (
 	IceState_New          IceState = "new"
-	IceState_Connected             = "connected"
-	IceState_Completed             = "completed"
-	IceState_Disconnected          = "disconnected"
-	IceState_Closed                = "closed"
+	IceState_Connected    IceState = "connected"
+	IceState_Completed    IceState = "completed"
+	IceState_Disconnected IceState = "disconnected"
+	IceState_Closed       IceState = "closed"
 )
 
 type DtlsRole string
 
 const (
 	DtlsRole_Auto   DtlsRole = "auto"
-	DtlsRole_Client          = "client"
-	DtlsRole_Server          = "server"
+	DtlsRole_Client DtlsRole = "client"
+	DtlsRole_Server DtlsRole = "server"
 )
 
 type DtlsState string

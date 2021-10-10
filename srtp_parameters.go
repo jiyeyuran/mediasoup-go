@@ -22,5 +22,5 @@ type SrtpCryptoSuite string
 
 const (
 	AES_CM_128_HMAC_SHA1_80 SrtpCryptoSuite = "AES_CM_128_HMAC_SHA1_80"
-	AES_CM_128_HMAC_SHA1_32                 = "AES_CM_128_HMAC_SHA1_32"
+	AES_CM_128_HMAC_SHA1_32 SrtpCryptoSuite = "AES_CM_128_HMAC_SHA1_32"
 )

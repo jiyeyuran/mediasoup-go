@@ -23,27 +23,27 @@ type WorkerLogLevel string
 
 const (
 	WorkerLogLevel_Debug WorkerLogLevel = "debug"
-	WorkerLogLevel_Warn                 = "warn"
-	WorkerLogLevel_Error                = "error"
-	WorkerLogLevel_None                 = "none"
+	WorkerLogLevel_Warn  WorkerLogLevel = "warn"
+	WorkerLogLevel_Error WorkerLogLevel = "error"
+	WorkerLogLevel_None  WorkerLogLevel = "none"
 )
 
 type WorkerLogTag string
 
 const (
 	WorkerLogTag_INFO      WorkerLogTag = "info"
-	WorkerLogTag_ICE                    = "ice"
-	WorkerLogTag_DTLS                   = "dtls"
-	WorkerLogTag_RTP                    = "rtp"
-	WorkerLogTag_SRTP                   = "srtp"
-	WorkerLogTag_RTCP                   = "rtcp"
-	WorkerLogTag_RTX                    = "rtx"
-	WorkerLogTag_BWE                    = "bwe"
-	WorkerLogTag_Score                  = "score"
-	WorkerLogTag_Simulcast              = "simulcast"
-	WorkerLogTag_SVC                    = "svc"
-	WorkerLogTag_SCTP                   = "sctp"
-	WorkerLogTag_Message                = "message"
+	WorkerLogTag_ICE       WorkerLogTag = "ice"
+	WorkerLogTag_DTLS      WorkerLogTag = "dtls"
+	WorkerLogTag_RTP       WorkerLogTag = "rtp"
+	WorkerLogTag_SRTP      WorkerLogTag = "srtp"
+	WorkerLogTag_RTCP      WorkerLogTag = "rtcp"
+	WorkerLogTag_RTX       WorkerLogTag = "rtx"
+	WorkerLogTag_BWE       WorkerLogTag = "bwe"
+	WorkerLogTag_Score     WorkerLogTag = "score"
+	WorkerLogTag_Simulcast WorkerLogTag = "simulcast"
+	WorkerLogTag_SVC       WorkerLogTag = "svc"
+	WorkerLogTag_SCTP      WorkerLogTag = "sctp"
+	WorkerLogTag_Message   WorkerLogTag = "message"
 )
 
 /**

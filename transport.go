@@ -48,14 +48,14 @@ type TransportProtocol string
 
 const (
 	TransportProtocol_Udp TransportProtocol = "udp"
-	TransportProtocol_Tcp                   = "tcp"
+	TransportProtocol_Tcp TransportProtocol = "tcp"
 )
 
 type TransportTraceEventType string
 
 const (
 	TransportTraceEventType_Probation TransportTraceEventType = "probation"
-	TransportTraceEventType_Bwe                               = "bwe"
+	TransportTraceEventType_Bwe       TransportTraceEventType = "bwe"
 )
 
 type TransportTuple struct {
@@ -142,9 +142,9 @@ type TransportType string
 
 const (
 	TransportType_Direct TransportType = "DirectTransport"
-	TransportType_Plain                = "PlainTransport"
-	TransportType_Pipe                 = "PipeTransport"
-	TransportType_Webrtc               = "WebrtcTransport"
+	TransportType_Plain  TransportType = "PlainTransport"
+	TransportType_Pipe   TransportType = "PipeTransport"
+	TransportType_Webrtc TransportType = "WebrtcTransport"
 )
 
 type transportData struct {
@@ -317,7 +317,6 @@ func (transport *Transport) Close() {
 		transport.observer.SafeEmit("close")
 		transport.observer.RemoveAllListeners()
 	}
-	return
 }
 
 /**
