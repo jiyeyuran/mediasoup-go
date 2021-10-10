@@ -65,10 +65,10 @@ type ConsumerTraceEventType string
 
 const (
 	ConsumerTraceEventType_Rtp      ConsumerTraceEventType = "rtp"
-	ConsumerTraceEventType_Keyframe                        = "keyframe"
-	ConsumerTraceEventType_Nack                            = "nack"
-	ConsumerTraceEventType_Pli                             = "pli"
-	ConsumerTraceEventType_Fir                             = "fir"
+	ConsumerTraceEventType_Keyframe ConsumerTraceEventType = "keyframe"
+	ConsumerTraceEventType_Nack     ConsumerTraceEventType = "nack"
+	ConsumerTraceEventType_Pli      ConsumerTraceEventType = "pli"
+	ConsumerTraceEventType_Fir      ConsumerTraceEventType = "fir"
 )
 
 /**
@@ -135,9 +135,9 @@ type ConsumerType string
 
 const (
 	ConsumerType_Simple    ConsumerType = "simple"
-	ConsumerType_Simulcast              = "simulcast"
-	ConsumerType_Svc                    = "svc"
-	ConsumerType_Pipe                   = "pipe"
+	ConsumerType_Simulcast ConsumerType = "simulcast"
+	ConsumerType_Svc       ConsumerType = "svc"
+	ConsumerType_Pipe      ConsumerType = "pipe"
 )
 
 type consumerParams struct {

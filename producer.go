@@ -46,10 +46,10 @@ type ProducerTraceEventType string
 
 const (
 	ProducerTraceEventType_Rtp      ProducerTraceEventType = "rtp"
-	ProducerTraceEventType_Keyframe                        = "keyframe"
-	ProducerTraceEventType_Nack                            = "nack"
-	ProducerTraceEventType_Pli                             = "pli"
-	ProducerTraceEventType_Fir                             = "fir"
+	ProducerTraceEventType_Keyframe ProducerTraceEventType = "keyframe"
+	ProducerTraceEventType_Nack     ProducerTraceEventType = "nack"
+	ProducerTraceEventType_Pli      ProducerTraceEventType = "pli"
+	ProducerTraceEventType_Fir      ProducerTraceEventType = "fir"
 )
 
 /**
