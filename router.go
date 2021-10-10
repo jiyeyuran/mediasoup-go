@@ -232,16 +232,46 @@ func (router *Router) Dump() (data *RouterDump, err error) {
 	return
 }
 
-// GetProducers returns available producers on the router.
-func (router *Router) GetProducers() sync.Map {
-	router.logger.Debug("GetProducers()")
-	return router.producers
+// Producers returns available producers on the router.
+func (router *Router) Producers() []*Producer {
+	router.logger.Debug("Producers()")
+	producers := make([]*Producer, 0)
+	router.producers.Range(func(key, value interface{}) bool {
+		producer, ok := value.(*Producer)
+		if ok {
+			producers = append(producers, producer)
+		}
+		return true
+	})
+	return producers
 }
 
-// GetTransports returns available transports on the router.
-func (router *Router) GetTransports() sync.Map {
-	router.logger.Debug("GetTransports()")
-	return router.transports
+// Producers returns available producers on the router.
+func (router *Router) DataProducers() []*DataProducer {
+	router.logger.Debug("DataProducers()")
+	dataProducers := make([]*DataProducer, 0)
+	router.dataProducers.Range(func(key, value interface{}) bool {
+		dataProducer, ok := value.(*DataProducer)
+		if ok {
+			dataProducers = append(dataProducers, dataProducer)
+		}
+		return true
+	})
+	return dataProducers
+}
+
+// Transports returns available transports on the router.
+func (router *Router) Transports() []*Transport {
+	router.logger.Debug("Transports()")
+	transports := make([]*Transport, 0)
+	router.transports.Range(func(key, value interface{}) bool {
+		transport, ok := value.(*Transport)
+		if ok {
+			transports = append(transports, transport)
+		}
+		return true
+	})
+	return transports
 }
 
 /**
