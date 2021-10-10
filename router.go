@@ -261,11 +261,11 @@ func (router *Router) DataProducers() []*DataProducer {
 }
 
 // Transports returns available transports on the router.
-func (router *Router) Transports() []*Transport {
+func (router *Router) Transports() []ITransport {
 	router.logger.Debug("Transports()")
-	transports := make([]*Transport, 0)
+	transports := make([]ITransport, 0)
 	router.transports.Range(func(key, value interface{}) bool {
-		transport, ok := value.(*Transport)
+		transport, ok := value.(ITransport)
 		if ok {
 			transports = append(transports, transport)
 		}
