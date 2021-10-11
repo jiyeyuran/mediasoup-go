@@ -846,17 +846,16 @@ func getPipeConsumerRtpParameters(consumableParams RtpParameters, enableRtx bool
 func findMatchedCodec(aCodec interface{}, bCodecs []*RtpCodecCapability, options matchOptions) (codec *RtpCodecCapability, matched bool) {
 	var rtpCodecParameters *RtpCodecParameters
 
-	switch aCodec.(type) {
+	switch aCodec := aCodec.(type) {
 	case *RtpCodecCapability:
-		cap := aCodec.(*RtpCodecCapability)
 		rtpCodecParameters = &RtpCodecParameters{
-			MimeType:   cap.MimeType,
-			ClockRate:  cap.ClockRate,
-			Channels:   cap.Channels,
-			Parameters: cap.Parameters,
+			MimeType:   aCodec.MimeType,
+			ClockRate:  aCodec.ClockRate,
+			Channels:   aCodec.Channels,
+			Parameters: aCodec.Parameters,
 		}
 	case *RtpCodecParameters:
-		rtpCodecParameters = aCodec.(*RtpCodecParameters)
+		rtpCodecParameters = aCodec
 	}
 
 	for _, bCodec := range bCodecs {

@@ -183,8 +183,6 @@ func (router *Router) Close() {
 		router.observer.SafeEmit("close")
 		router.observer.RemoveAllListeners()
 	}
-
-	return
 }
 
 func (router *Router) workerClosed() {
@@ -218,8 +216,6 @@ func (router *Router) workerClosed() {
 		router.observer.SafeEmit("close")
 		router.observer.RemoveAllListeners()
 	}
-
-	return
 }
 
 // Dump Router.

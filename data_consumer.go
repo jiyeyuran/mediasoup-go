@@ -58,7 +58,7 @@ type DataConsumerType string
 
 const (
 	DataConsumerType_Sctp   DataConsumerType = "sctp"
-	DataConsumerType_Direct                  = "direct"
+	DataConsumerType_Direct DataConsumerType = "direct"
 )
 
 type dataConsumerParams struct {

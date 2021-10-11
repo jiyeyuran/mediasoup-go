@@ -34,7 +34,7 @@ type MediaKind string
 
 const (
 	MediaKind_Audio MediaKind = "audio"
-	MediaKind_Video           = "video"
+	MediaKind_Video MediaKind = "video"
 )
 
 /**
@@ -105,9 +105,9 @@ type RtpHeaderExtensionDirection string
 
 const (
 	Direction_Sendrecv RtpHeaderExtensionDirection = "sendrecv"
-	Direction_Sendonly                             = "sendonly"
-	Direction_Recvonly                             = "recvonly"
-	Direction_Inactive                             = "inactive"
+	Direction_Sendonly RtpHeaderExtensionDirection = "sendonly"
+	Direction_Recvonly RtpHeaderExtensionDirection = "recvonly"
+	Direction_Inactive RtpHeaderExtensionDirection = "inactive"
 )
 
 /**
