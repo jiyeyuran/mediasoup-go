@@ -232,6 +232,48 @@ func (router *Router) Dump() (data *RouterDump, err error) {
 	return
 }
 
+// Producers returns available producers on the router.
+func (router *Router) Producers() []*Producer {
+	router.logger.Debug("Producers()")
+	producers := make([]*Producer, 0)
+	router.producers.Range(func(key, value interface{}) bool {
+		producer, ok := value.(*Producer)
+		if ok {
+			producers = append(producers, producer)
+		}
+		return true
+	})
+	return producers
+}
+
+// Producers returns available producers on the router.
+func (router *Router) DataProducers() []*DataProducer {
+	router.logger.Debug("DataProducers()")
+	dataProducers := make([]*DataProducer, 0)
+	router.dataProducers.Range(func(key, value interface{}) bool {
+		dataProducer, ok := value.(*DataProducer)
+		if ok {
+			dataProducers = append(dataProducers, dataProducer)
+		}
+		return true
+	})
+	return dataProducers
+}
+
+// Transports returns available transports on the router.
+func (router *Router) Transports() []ITransport {
+	router.logger.Debug("Transports()")
+	transports := make([]ITransport, 0)
+	router.transports.Range(func(key, value interface{}) bool {
+		transport, ok := value.(ITransport)
+		if ok {
+			transports = append(transports, transport)
+		}
+		return true
+	})
+	return transports
+}
+
 /**
  * Create a WebRtcTransport.
  */
