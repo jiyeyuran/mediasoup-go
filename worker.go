@@ -2,6 +2,7 @@ package mediasoup
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"net"
 	"os"
@@ -13,11 +14,14 @@ import (
 	"sync"
 	"sync/atomic"
 	"syscall"
+	"time"
 
+	"github.com/hashicorp/go-version"
+	"github.com/jiyeyuran/mediasoup-go/netcodec"
 	uuid "github.com/satori/go.uuid"
 )
 
-const VERSION = "3.7.17"
+var VERSION = "3.9.0"
 
 type WorkerLogLevel string
 
@@ -247,6 +251,21 @@ func NewWorker(options ...Option) (worker *Worker, err error) {
 		args = append(binArgs[1:], args...)
 	}
 
+	var channelCodec, payloadChannelCodec netcodec.Codec
+
+	v390, _ := version.NewVersion("3.9.0")
+	verLatest, err := version.NewVersion(VERSION)
+	if err != nil {
+		return
+	}
+	if verLatest.LessThan(v390) {
+		channelCodec = netcodec.NewNetstringCodec(producerSocket, consumerSocket)
+		payloadChannelCodec = netcodec.NewNetstringCodec(payloadProducerSocket, payloadConsumerSocket)
+	} else {
+		channelCodec = netcodec.NewNetLVCodec(producerSocket, consumerSocket, hostByteOrder())
+		payloadChannelCodec = netcodec.NewNetLVCodec(payloadProducerSocket, payloadConsumerSocket, hostByteOrder())
+	}
+
 	logger.Debug("spawning worker process: %s %s", bin, strings.Join(args, " "))
 
 	child := exec.Command(bin, args...)
@@ -266,8 +285,8 @@ func NewWorker(options ...Option) (worker *Worker, err error) {
 	}
 
 	pid := child.Process.Pid
-	channel := newChannel(producerSocket, consumerSocket, pid)
-	payloadChannel := newPayloadChannel(payloadProducerSocket, payloadConsumerSocket)
+	channel := newChannel(channelCodec, pid)
+	payloadChannel := newPayloadChannel(payloadChannelCodec)
 	workerLogger := NewLogger(fmt.Sprintf("worker[pid:%d]", pid))
 
 	go func() {
@@ -315,10 +334,19 @@ func NewWorker(options ...Option) (worker *Worker, err error) {
 
 	go worker.wait(child)
 
-	// start to handle channel data
+	// start to read channel data
 	channel.Start()
+	// start to read payload channel data
+	payloadChannel.Start()
 
-	err = <-doneCh
+	waitTimer := time.NewTimer(time.Second)
+	defer waitTimer.Stop()
+
+	select {
+	case err = <-doneCh:
+	case <-waitTimer.C:
+		err = errors.New("channel timeout")
+	}
 
 	return
 }

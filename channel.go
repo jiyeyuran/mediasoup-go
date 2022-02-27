@@ -4,17 +4,16 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"net"
 	"sync"
 	"sync/atomic"
 	"time"
 
-	"github.com/jiyeyuran/mediasoup-go/netstring"
+	"github.com/jiyeyuran/mediasoup-go/netcodec"
 )
 
 const (
 	// netstring length for a 4194304 bytes payload.
-	NS_MESSAGE_MAX_LEN = 4194313
+	NS_MESSAGE_MAX_LEN = 4194308
 	NS_PAYLOAD_MAX_LEN = 4194304
 )
 
@@ -50,48 +49,39 @@ type sentInfo struct {
 
 type Channel struct {
 	IEventEmitter
-	logger         Logger
-	closed         int32
-	producerSocket net.Conn
-	consumerSocket net.Conn
-	pid            int
-	nextId         int64
-	sents          sync.Map
-	sentsLen       int64
-	closeCh        chan struct{}
-	startCh        chan struct{}
+	logger   Logger
+	codec    netcodec.Codec
+	closed   int32
+	pid      int
+	nextId   int64
+	sents    sync.Map
+	sentsLen int64
+	closeCh  chan struct{}
 }
 
-func newChannel(producerSocket, consumerSocket net.Conn, pid int) *Channel {
+func newChannel(codec netcodec.Codec, pid int) *Channel {
 	logger := NewLogger("Channel")
 
 	logger.Debug("constructor()")
 
 	channel := &Channel{
-		IEventEmitter:  NewEventEmitter(),
-		logger:         logger,
-		producerSocket: producerSocket,
-		consumerSocket: consumerSocket,
-		pid:            pid,
-		closeCh:        make(chan struct{}),
-		startCh:        make(chan struct{}),
+		IEventEmitter: NewEventEmitter(),
+		logger:        logger,
+		codec:         codec,
+		pid:           pid,
+		closeCh:       make(chan struct{}),
 	}
-
-	go channel.runReadLoop()
 
 	return channel
 }
 
 func (c *Channel) Start() {
-	close(c.startCh)
+	go c.runReadLoop()
 }
 
 func (c *Channel) Close() {
 	if atomic.CompareAndSwapInt32(&c.closed, 0, 1) {
 		c.logger.Debug("close()")
-
-		c.producerSocket.Close()
-		c.consumerSocket.Close()
 
 		close(c.closeCh)
 		c.RemoveAllListeners()
@@ -141,14 +131,14 @@ func (c *Channel) Request(method string, internal interface{}, data ...interface
 	}
 	rawData, _ := json.Marshal(req)
 
-	ns := netstring.Encode(rawData)
-
-	if len(ns) > NS_MESSAGE_MAX_LEN {
+	if len(rawData) > NS_MESSAGE_MAX_LEN {
 		rsp.err = errors.New("Channel request too big")
 		return
 	}
 
-	if _, rsp.err = c.producerSocket.Write(ns); rsp.err != nil {
+	err := c.codec.WritePayload(rawData)
+	if err != nil {
+		rsp.err = err
 		return
 	}
 
@@ -169,48 +159,19 @@ func (c *Channel) Request(method string, internal interface{}, data ...interface
 }
 
 func (c *Channel) runReadLoop() {
-	decoder := netstring.NewDecoder()
-
-	go func() {
-		select {
-		// wait start signal
-		case <-c.startCh:
-		case <-c.closeCh:
-			return
-		}
-
-		for {
-			select {
-			case nsPayload := <-decoder.Result():
-				c.processNSPayload(nsPayload)
-			case <-c.closeCh:
-				return
-			}
-		}
-	}()
-
-	buf := make([]byte, NS_PAYLOAD_MAX_LEN)
+	defer c.Close()
 
 	for {
-		n, err := c.consumerSocket.Read(buf)
+		payload, err := c.codec.ReadPayload()
 		if err != nil {
 			c.logger.Error("Channel error: %s", err)
 			break
 		}
-		data := buf[:n]
-
-		decoder.Feed(data)
-
-		if decoder.Length() > NS_PAYLOAD_MAX_LEN {
-			c.logger.Error("receiving buffer is full, discarding all data into it")
-			decoder.Reset()
-		}
+		c.processPayload(payload)
 	}
-
-	c.Close()
 }
 
-func (c *Channel) processNSPayload(nsPayload []byte) {
+func (c *Channel) processPayload(nsPayload []byte) {
 	switch nsPayload[0] {
 	case '{':
 		c.processMessage(nsPayload)
@@ -235,12 +196,15 @@ func (c *Channel) processMessage(nsPayload []byte) {
 		Error    string `json:"error,omitempty"`
 		Reason   string `json:"reason,omitempty"`
 		// notification
-		TargetId string `json:"targetId,omitempty"`
-		Event    string `json:"event,omitempty"`
+		TargetId json.Number `json:"targetId,omitempty"`
+		Event    string      `json:"event,omitempty"`
 		// common data
 		Data json.RawMessage `json:"data,omitempty"`
 	}
-	json.Unmarshal(nsPayload, &msg)
+	if err := json.Unmarshal(nsPayload, &msg); err != nil {
+		c.logger.Error("received response, failed to unmarshal to json: %s", err)
+		return
+	}
 
 	if msg.Id > 0 {
 		value, ok := c.sents.Load(msg.Id)
@@ -266,7 +230,7 @@ func (c *Channel) processMessage(nsPayload []byte) {
 			c.logger.Error("received response is not accepted nor rejected [method:%s, id:%s]", sent.method, sent.id)
 		}
 	} else if len(msg.TargetId) > 0 && len(msg.Event) > 0 {
-		c.SafeEmit(msg.TargetId, msg.Event, msg.Data)
+		c.SafeEmit(msg.TargetId.String(), msg.Event, msg.Data)
 	} else {
 		c.logger.Error("received message is not a response nor a notification")
 	}

@@ -3,12 +3,11 @@ package mediasoup
 import (
 	"encoding/json"
 	"errors"
-	"net"
 	"sync"
 	"sync/atomic"
 	"time"
 
-	"github.com/jiyeyuran/mediasoup-go/netstring"
+	"github.com/jiyeyuran/mediasoup-go/netcodec"
 )
 
 type notification struct {
@@ -20,10 +19,9 @@ type notification struct {
 type PayloadChannel struct {
 	IEventEmitter
 	locker              sync.Mutex
+	codec               netcodec.Codec
 	logger              Logger
 	closed              int32
-	producerSocket      net.Conn
-	consumerSocket      net.Conn
 	nextId              int64
 	sents               sync.Map
 	sentsLen            int64
@@ -31,30 +29,28 @@ type PayloadChannel struct {
 	closeCh             chan struct{}
 }
 
-func newPayloadChannel(producerSocket, consumerSocket net.Conn) *PayloadChannel {
+func newPayloadChannel(codec netcodec.Codec) *PayloadChannel {
 	logger := NewLogger("PayloadChannel")
 
 	logger.Debug("constructor()")
 
 	channel := &PayloadChannel{
-		IEventEmitter:  NewEventEmitter(),
-		logger:         logger,
-		producerSocket: producerSocket,
-		consumerSocket: consumerSocket,
-		closeCh:        make(chan struct{}),
+		IEventEmitter: NewEventEmitter(),
+		logger:        logger,
+		codec:         codec,
+		closeCh:       make(chan struct{}),
 	}
 
-	go channel.runReadLoop()
-
 	return channel
+}
+
+func (c *PayloadChannel) Start() {
+	go c.runReadLoop()
 }
 
 func (c *PayloadChannel) Close() {
 	if atomic.CompareAndSwapInt32(&c.closed, 0, 1) {
 		c.logger.Debug("close()")
-
-		c.producerSocket.Close()
-		c.consumerSocket.Close()
 
 		close(c.closeCh)
 		c.RemoveAllListeners()
@@ -138,64 +134,41 @@ func (c *PayloadChannel) Request(method string, internal interface{}, data inter
 }
 
 func (c *PayloadChannel) writeAll(data, payload []byte) (err error) {
-	ns1 := netstring.Encode(data)
-	ns2 := netstring.Encode(payload)
-
-	if len(ns1) > NS_MESSAGE_MAX_LEN {
+	if len(payload) > NS_MESSAGE_MAX_LEN {
 		return errors.New("PayloadChannel data too big")
 	}
-	if len(ns2) > NS_MESSAGE_MAX_LEN {
+	if len(payload) > NS_MESSAGE_MAX_LEN {
 		return errors.New("PayloadChannel payload too big")
 	}
 
 	c.locker.Lock()
 	defer c.locker.Unlock()
 
-	if _, err = c.producerSocket.Write(ns1); err != nil {
+	if err = c.codec.WritePayload(data); err != nil {
 		return
 	}
-	if _, err = c.producerSocket.Write(ns2); err != nil {
-		return
+	if len(payload) > 0 {
+		if err = c.codec.WritePayload(payload); err != nil {
+			return
+		}
 	}
 	return
 }
 
 func (c *PayloadChannel) runReadLoop() {
-	decoder := netstring.NewDecoder()
-
-	go func() {
-		for {
-			select {
-			case nsPayload := <-decoder.Result():
-				c.processData(nsPayload)
-			case <-c.closeCh:
-				return
-			}
-		}
-	}()
-
-	buf := make([]byte, NS_PAYLOAD_MAX_LEN)
+	defer c.Close()
 
 	for {
-		n, err := c.consumerSocket.Read(buf)
+		payload, err := c.codec.ReadPayload()
 		if err != nil {
-			c.logger.Error("Channel error: %s", err)
+			c.logger.Error("PayloadChannel error: %s", err)
 			break
 		}
-		data := buf[:n]
-
-		decoder.Feed(data)
-
-		if decoder.Length() > NS_PAYLOAD_MAX_LEN {
-			c.logger.Error("receiving buffer is full, discarding all data into it")
-			decoder.Reset()
-		}
+		c.processPayload(payload)
 	}
-
-	c.Close()
 }
 
-func (c *PayloadChannel) processData(payload []byte) {
+func (c *PayloadChannel) processPayload(payload []byte) {
 	if c.ongoingNotification != nil {
 		notification := c.ongoingNotification
 		c.SafeEmit(notification.TargetId, notification.Event, notification.Data, payload)
