@@ -21,8 +21,6 @@ import (
 	uuid "github.com/satori/go.uuid"
 )
 
-var VERSION = "3.9.0"
-
 type WorkerLogLevel string
 
 const (
@@ -138,7 +136,10 @@ type WorkerResourceUsage struct {
 	RU_Nivcsw int64 `json:"ru_nivcsw"`
 }
 
-var WorkerBin string = os.Getenv("MEDIASOUP_WORKER_BIN")
+var (
+	WorkerVersion = "3.9.0"
+	WorkerBin     = os.Getenv("MEDIASOUP_WORKER_BIN")
+)
 
 func init() {
 	if len(WorkerBin) == 0 {
@@ -254,10 +255,11 @@ func NewWorker(options ...Option) (worker *Worker, err error) {
 	var channelCodec, payloadChannelCodec netcodec.Codec
 
 	v390, _ := version.NewVersion("3.9.0")
-	verLatest, err := version.NewVersion(VERSION)
+	verLatest, err := version.NewVersion(WorkerVersion)
 	if err != nil {
 		return
 	}
+	// use netstring codec if the mediasoup worker's version is less than 3.9.0
 	if verLatest.LessThan(v390) {
 		channelCodec = netcodec.NewNetstringCodec(producerSocket, consumerSocket)
 		payloadChannelCodec = netcodec.NewNetstringCodec(payloadProducerSocket, payloadConsumerSocket)
