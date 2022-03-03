@@ -272,7 +272,7 @@ func NewWorker(options ...Option) (worker *Worker, err error) {
 
 	child := exec.Command(bin, args...)
 	child.ExtraFiles = []*os.File{producerPair[1], consumerPair[1], payloadProducerPair[1], payloadConsumerPair[1]}
-	child.Env = []string{"MEDIASOUP_VERSION=" + VERSION}
+	child.Env = []string{"MEDIASOUP_VERSION=" + WorkerVersion}
 
 	stderr, err := child.StderrPipe()
 	if err != nil {
