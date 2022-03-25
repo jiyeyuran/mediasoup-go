@@ -248,7 +248,7 @@ func (transport *PipeTransport) Consume(options ConsumerOptions) (consumer *Cons
 
 	rtpParameters := getPipeConsumerRtpParameters(producer.ConsumableRtpParameters(), transport.data.Rtx)
 	internal := transport.internal
-	internal.ConsumerId = uuid.NewV4().String()
+	internal.ConsumerId = uuid.Must(uuid.NewV4()).String()
 	internal.ProducerId = producerId
 
 	reqData := H{
