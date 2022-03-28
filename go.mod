@@ -11,7 +11,7 @@ require (
 	github.com/pion/logging v0.2.2
 	github.com/pion/sctp v1.7.11
 	github.com/rs/zerolog v1.20.0
-	github.com/satori/go.uuid v1.2.0
+	github.com/satori/go.uuid v1.2.1-0.20181028125025-b2ce2384e17b
 	github.com/stretchr/testify v1.6.1
 	gopkg.in/check.v1 v1.0.0-20200902074654-038fdea0a05b // indirect
 )

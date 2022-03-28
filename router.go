@@ -288,7 +288,7 @@ func (router *Router) CreateWebRtcTransport(option WebRtcTransportOptions) (tran
 	router.logger.Debug("createWebRtcTransport()")
 
 	internal := router.internal
-	internal.TransportId = uuid.NewV4().String()
+	internal.TransportId = uuid.Must(uuid.NewV4()).String()
 	reqData := H{
 		"listenIps":                       options.ListenIps,
 		"enableUdp":                       options.EnableUdp,
@@ -333,7 +333,7 @@ func (router *Router) CreatePlainTransport(option PlainTransportOptions) (transp
 	router.logger.Debug("createPlainTransport()")
 
 	internal := router.internal
-	internal.TransportId = uuid.NewV4().String()
+	internal.TransportId = uuid.Must(uuid.NewV4()).String()
 	reqData := H{
 		"listenIp":           options.ListenIp,
 		"rtcpMux":            options.RtcpMux,
@@ -375,7 +375,7 @@ func (router *Router) CreatePipeTransport(option PipeTransportOptions) (transpor
 	router.logger.Debug("createPipeTransport()")
 
 	internal := router.internal
-	internal.TransportId = uuid.NewV4().String()
+	internal.TransportId = uuid.Must(uuid.NewV4()).String()
 	reqData := H{
 		"listenIp":           options.ListenIp,
 		"enableSctp":         options.EnableSctp,
@@ -415,7 +415,7 @@ func (router *Router) CreateDirectTransport(params ...DirectTransportOptions) (t
 	router.logger.Debug("createDirectTransport()")
 
 	internal := router.internal
-	internal.TransportId = uuid.NewV4().String()
+	internal.TransportId = uuid.Must(uuid.NewV4()).String()
 	reqData := H{"direct": true, "maxMessageSize": options.MaxMessageSize}
 
 	resp := router.channel.Request("router.createDirectTransport", internal, reqData)
@@ -703,7 +703,7 @@ func (router *Router) CreateAudioLevelObserver(options ...func(o *AudioLevelObse
 	}
 
 	internal := router.internal
-	internal.RtpObserverId = uuid.NewV4().String()
+	internal.RtpObserverId = uuid.Must(uuid.NewV4()).String()
 
 	resp := router.channel.Request("router.createAudioLevelObserver", internal, defaultOptions)
 

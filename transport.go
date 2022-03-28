@@ -429,7 +429,7 @@ func (transport *Transport) Produce(options ProducerOptions) (producer *Producer
 			return
 		}
 	} else {
-		id = uuid.NewV4().String()
+		id = uuid.Must(uuid.NewV4()).String()
 	}
 
 	// This may throw.
@@ -451,7 +451,7 @@ func (transport *Transport) Produce(options ProducerOptions) (producer *Producer
 		} else if len(transport.cnameForProducers) == 0 {
 			// Otherwise if we don"t have yet a CNAME for Producers and the RTP parameters
 			// do not include CNAME, create a random one.
-			transport.cnameForProducers = uuid.NewV4().String()[:8]
+			transport.cnameForProducers = uuid.Must(uuid.NewV4()).String()[:8]
 		}
 
 		// Override Producer"s CNAME.
@@ -567,7 +567,7 @@ func (transport *Transport) Consume(options ConsumerOptions) (consumer *Consumer
 	}
 
 	internal := transport.internal
-	internal.ConsumerId = uuid.NewV4().String()
+	internal.ConsumerId = uuid.Must(uuid.NewV4()).String()
 	internal.ProducerId = producerId
 
 	typ := producer.Type()
@@ -644,7 +644,7 @@ func (transport *Transport) ProduceData(options DataProducerOptions) (dataProduc
 			return
 		}
 	} else {
-		id = uuid.NewV4().String()
+		id = uuid.Must(uuid.NewV4()).String()
 	}
 
 	var typ DataProducerType
@@ -761,7 +761,7 @@ func (transport *Transport) ConsumeData(options DataConsumerOptions) (dataConsum
 	}
 
 	internal := transport.internal
-	internal.DataConsumerId = uuid.NewV4().String()
+	internal.DataConsumerId = uuid.Must(uuid.NewV4()).String()
 	internal.DataProducerId = dataProducerId
 
 	reqData := H{

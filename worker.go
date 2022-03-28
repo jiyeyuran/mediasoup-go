@@ -496,7 +496,7 @@ func (w *Worker) UpdateSettings(settings WorkerUpdateableSettings) error {
 func (w *Worker) CreateRouter(options RouterOptions) (router *Router, err error) {
 	w.logger.Debug("createRouter()")
 
-	internal := internalData{RouterId: uuid.NewV4().String()}
+	internal := internalData{RouterId: uuid.Must(uuid.NewV4()).String()}
 
 	rsp := w.channel.Request("worker.createRouter", internal, nil)
 	if err = rsp.Err(); err != nil {
