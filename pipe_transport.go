@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"sync"
 
-	uuid "github.com/satori/go.uuid"
+	"github.com/google/uuid"
 )
 
 type PipeTransportOptions struct {
@@ -248,7 +248,7 @@ func (transport *PipeTransport) Consume(options ConsumerOptions) (consumer *Cons
 
 	rtpParameters := getPipeConsumerRtpParameters(producer.ConsumableRtpParameters(), transport.data.Rtx)
 	internal := transport.internal
-	internal.ConsumerId = uuid.Must(uuid.NewV4()).String()
+	internal.ConsumerId = uuid.NewString()
 	internal.ProducerId = producerId
 
 	reqData := H{

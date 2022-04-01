@@ -16,9 +16,9 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/hashicorp/go-version"
 	"github.com/jiyeyuran/mediasoup-go/netcodec"
-	uuid "github.com/satori/go.uuid"
 )
 
 type WorkerLogLevel string
@@ -496,7 +496,7 @@ func (w *Worker) UpdateSettings(settings WorkerUpdateableSettings) error {
 func (w *Worker) CreateRouter(options RouterOptions) (router *Router, err error) {
 	w.logger.Debug("createRouter()")
 
-	internal := internalData{RouterId: uuid.Must(uuid.NewV4()).String()}
+	internal := internalData{RouterId: uuid.NewString()}
 
 	rsp := w.channel.Request("worker.createRouter", internal, nil)
 	if err = rsp.Err(); err != nil {

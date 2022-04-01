@@ -6,7 +6,7 @@ import (
 	"sync"
 	"sync/atomic"
 
-	uuid "github.com/satori/go.uuid"
+	"github.com/google/uuid"
 )
 
 type ITransport interface {
@@ -429,7 +429,7 @@ func (transport *Transport) Produce(options ProducerOptions) (producer *Producer
 			return
 		}
 	} else {
-		id = uuid.Must(uuid.NewV4()).String()
+		id = uuid.NewString()
 	}
 
 	// This may throw.
@@ -451,7 +451,7 @@ func (transport *Transport) Produce(options ProducerOptions) (producer *Producer
 		} else if len(transport.cnameForProducers) == 0 {
 			// Otherwise if we don"t have yet a CNAME for Producers and the RTP parameters
 			// do not include CNAME, create a random one.
-			transport.cnameForProducers = uuid.Must(uuid.NewV4()).String()[:8]
+			transport.cnameForProducers = uuid.NewString()[:8]
 		}
 
 		// Override Producer"s CNAME.
@@ -567,7 +567,7 @@ func (transport *Transport) Consume(options ConsumerOptions) (consumer *Consumer
 	}
 
 	internal := transport.internal
-	internal.ConsumerId = uuid.Must(uuid.NewV4()).String()
+	internal.ConsumerId = uuid.NewString()
 	internal.ProducerId = producerId
 
 	typ := producer.Type()
@@ -644,7 +644,7 @@ func (transport *Transport) ProduceData(options DataProducerOptions) (dataProduc
 			return
 		}
 	} else {
-		id = uuid.Must(uuid.NewV4()).String()
+		id = uuid.NewString()
 	}
 
 	var typ DataProducerType
@@ -761,7 +761,7 @@ func (transport *Transport) ConsumeData(options DataConsumerOptions) (dataConsum
 	}
 
 	internal := transport.internal
-	internal.DataConsumerId = uuid.Must(uuid.NewV4()).String()
+	internal.DataConsumerId = uuid.NewString()
 	internal.DataProducerId = dataProducerId
 
 	reqData := H{
