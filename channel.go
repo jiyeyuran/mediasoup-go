@@ -196,8 +196,8 @@ func (c *Channel) processMessage(nsPayload []byte) {
 		Error    string `json:"error,omitempty"`
 		Reason   string `json:"reason,omitempty"`
 		// notification
-		TargetId json.Number `json:"targetId,omitempty"`
-		Event    string      `json:"event,omitempty"`
+		TargetId json.RawMessage `json:"targetId,omitempty"`
+		Event    string          `json:"event,omitempty"`
 		// common data
 		Data json.RawMessage `json:"data,omitempty"`
 	}
@@ -230,7 +230,7 @@ func (c *Channel) processMessage(nsPayload []byte) {
 			c.logger.Error("received response is not accepted nor rejected [method:%s, id:%s]", sent.method, sent.id)
 		}
 	} else if len(msg.TargetId) > 0 && len(msg.Event) > 0 {
-		c.SafeEmit(msg.TargetId.String(), msg.Event, msg.Data)
+		c.SafeEmit(string(msg.TargetId), msg.Event, msg.Data)
 	} else {
 		c.logger.Error("received message is not a response nor a notification")
 	}
