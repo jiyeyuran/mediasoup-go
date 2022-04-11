@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"strconv"
+	"sync"
 )
 
 type State int
@@ -20,8 +21,10 @@ const (
 )
 
 type NetstringCodec struct {
-	w io.Writer
-	r *bufio.Reader
+	w       io.Writer
+	r       *bufio.Reader
+	wLocker sync.Mutex
+	rLocker sync.Mutex
 }
 
 func NewNetstringCodec(w io.Writer, r io.Reader) Codec {
@@ -31,7 +34,10 @@ func NewNetstringCodec(w io.Writer, r io.Reader) Codec {
 	}
 }
 
-func (c NetstringCodec) WritePayload(payload []byte) error {
+func (c *NetstringCodec) WritePayload(payload []byte) error {
+	c.wLocker.Lock()
+	defer c.wLocker.Unlock()
+
 	length := strconv.Itoa(len(payload))
 
 	buffer := make([]byte, 0, len(length)+len(payload)+2)
@@ -44,7 +50,10 @@ func (c NetstringCodec) WritePayload(payload []byte) error {
 	return err
 }
 
-func (c NetstringCodec) ReadPayload() (payload []byte, err error) {
+func (c *NetstringCodec) ReadPayload() (payload []byte, err error) {
+	c.rLocker.Lock()
+	defer c.rLocker.Unlock()
+
 	begin, err := c.r.ReadString(SEPARATOR_SYMBOL)
 	if err != nil {
 		return
