@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -230,7 +231,9 @@ func (c *Channel) processMessage(nsPayload []byte) {
 			c.logger.Error("received response is not accepted nor rejected [method:%s, id:%s]", sent.method, sent.id)
 		}
 	} else if len(msg.TargetId) > 0 && len(msg.Event) > 0 {
-		c.SafeEmit(string(msg.TargetId), msg.Event, msg.Data)
+		targetId := strings.TrimPrefix(string(msg.TargetId), "\"")
+		targetId = strings.TrimSuffix(targetId, "\"")
+		c.SafeEmit(targetId, msg.Event, msg.Data)
 	} else {
 		c.logger.Error("received message is not a response nor a notification")
 	}
