@@ -196,7 +196,7 @@ func (c *Channel) processMessage(nsPayload []byte) {
 		Error    string `json:"error,omitempty"`
 		Reason   string `json:"reason,omitempty"`
 		// notification
-		TargetId json.Number `json:"targetId,omitempty"`
+		TargetId interface{} `json:"targetId,omitempty"`
 		Event    string      `json:"event,omitempty"`
 		// common data
 		Data json.RawMessage `json:"data,omitempty"`
@@ -229,8 +229,15 @@ func (c *Channel) processMessage(nsPayload []byte) {
 		} else {
 			c.logger.Error("received response is not accepted nor rejected [method:%s, id:%s]", sent.method, sent.id)
 		}
-	} else if len(msg.TargetId) > 0 && len(msg.Event) > 0 {
-		c.SafeEmit(msg.TargetId.String(), msg.Event, msg.Data)
+	} else if msg.TargetId != nil && len(msg.Event) > 0 {
+		var targetId string
+		// The type of msg.TargetId should be string or float64
+		if v, ok := msg.TargetId.(string); ok {
+			targetId = v
+		} else {
+			targetId = fmt.Sprintf("%v", v)
+		}
+		c.SafeEmit(targetId, msg.Event, msg.Data)
 	} else {
 		c.logger.Error("received message is not a response nor a notification")
 	}
