@@ -238,9 +238,12 @@ func (c *Channel) processMessage(nsPayload []byte) {
 	} else if msg.TargetId != nil && len(msg.Event) > 0 {
 		var targetId string
 		// The type of msg.TargetId should be string or float64
-		if v, ok := msg.TargetId.(string); ok {
+		switch v := msg.TargetId.(type) {
+		case string:
 			targetId = v
-		} else {
+		case float64:
+			targetId = fmt.Sprintf("%0.0f", v)
+		default:
 			targetId = fmt.Sprintf("%v", v)
 		}
 		c.SafeEmit(targetId, msg.Event, msg.Data)
