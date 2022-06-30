@@ -15,6 +15,7 @@ var worker *Worker
 func init() {
 	os.Setenv("DEBUG_COLORS", "false")
 	DefaultLevel = WarnLevel
+	// WorkerBin = "../mediasoup/worker/out/Release/mediasoup-worker"
 	worker = CreateTestWorker()
 }
 
@@ -173,8 +174,8 @@ func TestWorkerProcessIgnoreSignals(t *testing.T) {
 	process.Signal(syscall.SIGPIPE)
 	process.Signal(syscall.SIGHUP)
 	process.Signal(syscall.SIGALRM)
-	process.Signal(syscall.SIGUSR1)
-	process.Signal(syscall.SIGUSR2)
+	// process.Signal(syscall.SIGUSR1)
+	// process.Signal(syscall.SIGUSR2)
 
 	time.Sleep(10 * time.Millisecond)
 

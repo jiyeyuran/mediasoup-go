@@ -327,20 +327,19 @@ func (suite *ConsumerTestingSuite) TestTransportConsume_Succeeds() {
 
 	routerDump, _ = router.Dump()
 
-	expectedRouterDump := RouterDump{
-		MapProducerIdConsumerIds: map[string][]string{
-			suite.audioProducer.Id(): {audioConsumer.Id()},
-			suite.videoProducer.Id(): {videoPipeConsumer.Id(), videoConsumer.Id()},
-		},
-		MapConsumerIdProducerId: map[string]string{
-			audioConsumer.Id():     suite.audioProducer.Id(),
-			videoConsumer.Id():     suite.videoProducer.Id(),
-			videoPipeConsumer.Id(): suite.videoProducer.Id(),
-		},
-	}
-
-	suite.Equal(expectedRouterDump.MapProducerIdConsumerIds, routerDump.MapProducerIdConsumerIds)
-	suite.Equal(expectedRouterDump.MapConsumerIdProducerId, routerDump.MapConsumerIdProducerId)
+	suite.ElementsMatch(
+		[]string{audioConsumer.Id()},
+		routerDump.MapProducerIdConsumerIds[suite.audioProducer.Id()],
+	)
+	suite.ElementsMatch(
+		[]string{videoConsumer.Id(), videoPipeConsumer.Id()},
+		routerDump.MapProducerIdConsumerIds[suite.videoProducer.Id()],
+	)
+	suite.Equal(map[string]string{
+		audioConsumer.Id():     suite.audioProducer.Id(),
+		videoConsumer.Id():     suite.videoProducer.Id(),
+		videoPipeConsumer.Id(): suite.videoProducer.Id(),
+	}, routerDump.MapConsumerIdProducerId)
 
 	transportDump, _ = transport2.Dump()
 	expectedTransportDump := TransportDump{

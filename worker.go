@@ -4,11 +4,8 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
-	"net"
 	"os"
 	"os/exec"
-	"path/filepath"
-	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -20,6 +17,34 @@ import (
 	"github.com/hashicorp/go-version"
 	"github.com/jiyeyuran/mediasoup-go/netcodec"
 )
+
+const (
+	// From this version to up, mediasoup-worker uses LV protocol to communicate with wrappers.
+	defaultWorkerVersion = "3.9.0"
+)
+
+var (
+	// Deprecated, use WithWorkerBin option
+	WorkerBin = getDefaultWorkerBin()
+	// Deprecated, use WithWorkerVersion option
+	WorkerVersion = getDefaultWorkerVersion()
+)
+
+func getDefaultWorkerBin() string {
+	workerBin := os.Getenv("MEDIASOUP_WORKER_BIN")
+	if len(workerBin) > 0 {
+		return workerBin
+	}
+	return "/usr/local/lib/node_modules/mediasoup/worker/out/Release/mediasoup-worker"
+}
+
+func getDefaultWorkerVersion() string {
+	workerVersion := os.Getenv("MEDIASOUP_WORKER_VERSION")
+	if len(workerVersion) > 0 {
+		return workerVersion
+	}
+	return defaultWorkerVersion
+}
 
 type WorkerLogLevel string
 
@@ -136,34 +161,6 @@ type WorkerResourceUsage struct {
 	RU_Nivcsw int64 `json:"ru_nivcsw"`
 }
 
-var (
-	WorkerVersion = "3.9.0"
-	WorkerBin     = os.Getenv("MEDIASOUP_WORKER_BIN")
-)
-
-func init() {
-	if len(WorkerBin) == 0 {
-		buildType := os.Getenv("MEDIASOUP_BUILDTYPE")
-
-		if buildType != "Debug" {
-			buildType = "Release"
-		}
-
-		var mediasoupHome = os.Getenv("MEDIASOUP_HOME")
-
-		if len(mediasoupHome) == 0 {
-			if runtime.GOOS == "windows" {
-				homeDir, _ := os.UserHomeDir()
-				mediasoupHome = filepath.Join(homeDir, "AppData", "Roaming", "npm", "node_modules", "mediasoup")
-			} else {
-				mediasoupHome = "/usr/local/lib/node_modules/mediasoup"
-			}
-		}
-
-		WorkerBin = filepath.Join(mediasoupHome, "worker", "out", buildType, "mediasoup-worker")
-	}
-}
-
 type Option func(w *WorkerSettings)
 
 /**
@@ -198,10 +195,12 @@ type Worker struct {
 func NewWorker(options ...Option) (worker *Worker, err error) {
 	logger := NewLogger("Worker")
 	settings := &WorkerSettings{
-		LogLevel:   WorkerLogLevel_Error,
-		RtcMinPort: 10000,
-		RtcMaxPort: 59999,
-		AppData:    H{},
+		WorkerBin:     WorkerBin,
+		WorkerVersion: WorkerVersion,
+		LogLevel:      WorkerLogLevel_Error,
+		RtcMinPort:    10000,
+		RtcMaxPort:    59999,
+		AppData:       H{},
 	}
 
 	for _, option := range options {
@@ -210,69 +209,51 @@ func NewWorker(options ...Option) (worker *Worker, err error) {
 
 	logger.Debug("constructor()")
 
-	producerPair, err := createSocketPair()
+	producerReader, producerWriter, err := os.Pipe()
 	if err != nil {
 		return
 	}
-	consumerPair, err := createSocketPair()
+	consumerReader, consumerWriter, err := os.Pipe()
 	if err != nil {
 		return
 	}
-	payloadProducerPair, err := createSocketPair()
+	payloadProducerReader, payloadProducerWriter, err := os.Pipe()
 	if err != nil {
 		return
 	}
-	payloadConsumerPair, err := createSocketPair()
+	payloadConsumerReader, payloadConsumerWriter, err := os.Pipe()
 	if err != nil {
 		return
 	}
-
-	producerSocket, err := fileToConn(producerPair[0])
+	var (
+		channelCodec, payloadChannelCodec netcodec.Codec
+		workerVersion                     = settings.WorkerVersion
+	)
+	defautVerionFormatted, _ := version.NewVersion(defaultWorkerVersion)
+	workerVersionFormatted, err := version.NewVersion(workerVersion)
 	if err != nil {
 		return
 	}
-	consumerSocket, err := fileToConn(consumerPair[0])
-	if err != nil {
-		return
-	}
-	payloadProducerSocket, err := fileToConn(payloadProducerPair[0])
-	if err != nil {
-		return
-	}
-	payloadConsumerSocket, err := fileToConn(payloadConsumerPair[0])
-	if err != nil {
-		return
-	}
-
-	bin := strings.TrimSpace(WorkerBin)
-	args := settings.Args()
-
-	if binArgs := strings.Fields(bin); len(binArgs) > 1 {
-		bin = binArgs[0]
-		args = append(binArgs[1:], args...)
-	}
-
-	var channelCodec, payloadChannelCodec netcodec.Codec
-
-	v390, _ := version.NewVersion("3.9.0")
-	verLatest, err := version.NewVersion(WorkerVersion)
-	if err != nil {
-		return
-	}
-	// use netstring codec if the mediasoup worker's version is less than 3.9.0
-	if verLatest.LessThan(v390) {
-		channelCodec = netcodec.NewNetstringCodec(producerSocket, consumerSocket)
-		payloadChannelCodec = netcodec.NewNetstringCodec(payloadProducerSocket, payloadConsumerSocket)
+	// use netstring codec for old mediasoup-worker version
+	if workerVersionFormatted.LessThan(defautVerionFormatted) {
+		channelCodec = netcodec.NewNetstringCodec(producerWriter, consumerReader)
+		payloadChannelCodec = netcodec.NewNetstringCodec(payloadProducerWriter, payloadConsumerReader)
 	} else {
-		channelCodec = netcodec.NewNetLVCodec(producerSocket, consumerSocket, hostByteOrder())
-		payloadChannelCodec = netcodec.NewNetLVCodec(payloadProducerSocket, payloadConsumerSocket, hostByteOrder())
+		channelCodec = netcodec.NewNetLVCodec(producerWriter, consumerReader, hostByteOrder())
+		payloadChannelCodec = netcodec.NewNetLVCodec(payloadProducerWriter, payloadConsumerReader, hostByteOrder())
 	}
 
+	bin := settings.WorkerBin
+	args := settings.Args()
+	if wrappedArgs := strings.Fields(settings.WorkerBin); len(wrappedArgs) > 1 {
+		bin = wrappedArgs[0]
+		args = append(wrappedArgs[1:], args...)
+	}
 	logger.Debug("spawning worker process: %s %s", bin, strings.Join(args, " "))
 
 	child := exec.Command(bin, args...)
-	child.ExtraFiles = []*os.File{producerPair[1], consumerPair[1], payloadProducerPair[1], payloadConsumerPair[1]}
-	child.Env = []string{"MEDIASOUP_VERSION=" + WorkerVersion}
+	child.ExtraFiles = []*os.File{producerReader, consumerWriter, payloadProducerReader, payloadConsumerWriter}
+	child.Env = []string{"MEDIASOUP_VERSION=" + workerVersion}
 
 	stderr, err := child.StderrPipe()
 	if err != nil {
@@ -524,21 +505,4 @@ func (w *Worker) CreateRouter(options RouterOptions) (router *Router, err error)
 	w.observer.SafeEmit("newrouter", router)
 
 	return
-}
-
-func createSocketPair() (file [2]*os.File, err error) {
-	fd, err := syscall.Socketpair(syscall.AF_LOCAL, syscall.SOCK_STREAM, 0)
-	if err != nil {
-		return
-	}
-	file[0] = os.NewFile(uintptr(fd[0]), "")
-	file[1] = os.NewFile(uintptr(fd[1]), "")
-
-	return
-}
-
-func fileToConn(file *os.File) (net.Conn, error) {
-	defer file.Close()
-
-	return net.FileConn(file)
 }

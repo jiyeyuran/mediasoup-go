@@ -259,8 +259,8 @@ func (suite *PipeTransportTestingSuite) TestRouterCreatePipeTransport_WithEnable
 		Ip:   "127.0.0.2",
 		Port: 9999,
 		SrtpParameters: &SrtpParameters{
-			CryptoSuite: "AES_CM_128_HMAC_SHA1_80",
-			KeyBase64:   "ZnQ3eWJraDg0d3ZoYzM5cXN1Y2pnaHU5NWxrZTVv",
+			CryptoSuite: "AEAD_AES_256_GCM",
+			KeyBase64:   "YTdjcDBvY2JoMGY5YXNlNDc0eDJsdGgwaWRvNnJsamRrdG16aWVpZHphdHo=",
 		},
 	})
 	suite.Error(err)
@@ -334,7 +334,8 @@ func (suite *PipeTransportTestingSuite) TestRouterCreatePipeTransport_WithEnable
 		EnableSrtp: true,
 	})
 	suite.NoError(err)
-	suite.Len(pipeTransport.SrtpParameters().KeyBase64, 40)
+	// The master length of AEAD_AES_256_GCM.
+	suite.Len(pipeTransport.SrtpParameters().KeyBase64, 60)
 
 	// Missing srtpParameters.
 	err = pipeTransport.Connect(TransportConnectOptions{
@@ -348,7 +349,7 @@ func (suite *PipeTransportTestingSuite) TestRouterCreatePipeTransport_WithEnable
 		Ip:   "127.0.0.2",
 		Port: 9999,
 		SrtpParameters: &SrtpParameters{
-			KeyBase64: "ZnQ3eWJraDg0d3ZoYzM5cXN1Y2pnaHU5NWxrZTVv",
+			KeyBase64: "YTdjcDBvY2JoMGY5YXNlNDc0eDJsdGgwaWRvNnJsamRrdG16aWVpZHphdHo=",
 		},
 	})
 	suite.Error(err)
@@ -358,7 +359,7 @@ func (suite *PipeTransportTestingSuite) TestRouterCreatePipeTransport_WithEnable
 		Ip:   "127.0.0.2",
 		Port: 9999,
 		SrtpParameters: &SrtpParameters{
-			CryptoSuite: "AES_CM_128_HMAC_SHA1_80",
+			CryptoSuite: "AEAD_AES_256_GCM",
 		},
 	})
 	suite.Error(err)
@@ -369,7 +370,7 @@ func (suite *PipeTransportTestingSuite) TestRouterCreatePipeTransport_WithEnable
 		Port: 9999,
 		SrtpParameters: &SrtpParameters{
 			CryptoSuite: "FOO",
-			KeyBase64:   "ZnQ3eWJraDg0d3ZoYzM5cXN1Y2pnaHU5NWxrZTVv",
+			KeyBase64:   "YTdjcDBvY2JoMGY5YXNlNDc0eDJsdGgwaWRvNnJsamRrdG16aWVpZHphdHo=",
 		},
 	})
 	suite.Error(err)
@@ -379,8 +380,8 @@ func (suite *PipeTransportTestingSuite) TestRouterCreatePipeTransport_WithEnable
 		Ip:   "127.0.0.2",
 		Port: 9999,
 		SrtpParameters: &SrtpParameters{
-			CryptoSuite: "AES_CM_128_HMAC_SHA1_80",
-			KeyBase64:   "ZnQ3eWJraDg0d3ZoYzM5cXN1Y2pnaHU5NWxrZTVv",
+			CryptoSuite: "AEAD_AES_256_GCM",
+			KeyBase64:   "YTdjcDBvY2JoMGY5YXNlNDc0eDJsdGgwaWRvNnJsamRrdG16aWVpZHphdHo=",
 		},
 	})
 	suite.NoError(err)
