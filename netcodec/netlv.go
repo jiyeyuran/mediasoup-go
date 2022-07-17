@@ -3,12 +3,14 @@ package netcodec
 import (
 	"encoding/binary"
 	"io"
+	"sync"
 )
 
 type NetLVCodec struct {
 	w            io.Writer
 	r            io.Reader
 	nativeEndian binary.ByteOrder
+	mu           sync.Mutex
 }
 
 func NewNetLVCodec(w io.Writer, r io.Reader, nativeEndian binary.ByteOrder) Codec {
@@ -19,7 +21,7 @@ func NewNetLVCodec(w io.Writer, r io.Reader, nativeEndian binary.ByteOrder) Code
 	}
 }
 
-func (c NetLVCodec) WritePayload(payload []byte) error {
+func (c *NetLVCodec) WritePayload(payload []byte) error {
 	length := uint32(len(payload))
 	if length == 0 {
 		return nil
@@ -31,7 +33,9 @@ func (c NetLVCodec) WritePayload(payload []byte) error {
 	return err
 }
 
-func (c NetLVCodec) ReadPayload() (payload []byte, err error) {
+func (c *NetLVCodec) ReadPayload() (payload []byte, err error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	var payloadLen uint32
 	if err = binary.Read(c.r, c.nativeEndian, &payloadLen); err != nil {
 		return

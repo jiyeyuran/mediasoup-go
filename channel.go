@@ -49,7 +49,6 @@ type sentInfo struct {
 
 type Channel struct {
 	IEventEmitter
-	locker   sync.Mutex
 	logger   Logger
 	codec    netcodec.Codec
 	closed   int32
@@ -131,18 +130,11 @@ func (c *Channel) Request(method string, internal interface{}, data ...interface
 		rsp.err = errors.New("Channel request too big")
 		return
 	}
-
-	c.locker.Lock()
-
 	err := c.codec.WritePayload(rawData)
 	if err != nil {
-		c.locker.Unlock()
 		rsp.err = err
 		return
 	}
-
-	c.locker.Unlock()
-
 	timeout := 1000 * (15 + (0.1 * float64(size)))
 	timer := time.NewTimer(time.Duration(timeout) * time.Millisecond)
 	defer timer.Stop()
