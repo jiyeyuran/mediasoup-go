@@ -15,12 +15,13 @@ var worker *Worker
 func init() {
 	os.Setenv("DEBUG_COLORS", "false")
 	DefaultLevel = WarnLevel
-	// WorkerBin = "../mediasoup/worker/out/Release/mediasoup-worker"
+	WorkerBin = "../mediasoup/worker/out/Release/mediasoup-worker"
 	worker = CreateTestWorker()
 }
 
 func CreateTestWorker(options ...Option) *Worker {
-	options = append([]Option{WithLogLevel("debug"), WithLogTags([]WorkerLogTag{"info"})}, options...)
+	defaultOptions := []Option{WithLogLevel("debug"), WithLogTags([]WorkerLogTag{"info"})}
+	options = append(defaultOptions, options...)
 
 	worker, err := NewWorker(options...)
 	if err != nil {
@@ -58,13 +59,13 @@ func TestCreateWorker_Succeeds(t *testing.T) {
 
 func TestCreateWorker_TypeError(t *testing.T) {
 	_, err := NewWorker(WithLogLevel("chicken"))
-	assert.IsType(t, err, NewTypeError(""))
+	assert.IsType(t, TypeError{}, err)
 
 	_, err = NewWorker(WithRtcMinPort(1000), WithRtcMaxPort(999))
-	assert.IsType(t, err, NewTypeError(""))
+	assert.IsType(t, TypeError{}, err)
 
-	_, err = NewWorker(WithDtlsCert("notfuond/dtls-cert.pem", "notfuond/dtls-key.pem"))
-	assert.IsType(t, err, NewTypeError(""))
+	_, err = NewWorker(WithDtlsCert("/notfound/cert.pem", "/notfound/priv.pem"))
+	assert.IsType(t, TypeError{}, err)
 }
 
 func TestWorkerUpdateSettings_Succeeds(t *testing.T) {
@@ -77,7 +78,7 @@ func TestWorkerUpdateSettings_Succeeds(t *testing.T) {
 func TestWorkerUpdateSettings_TypeError(t *testing.T) {
 	worker := CreateTestWorker()
 	err := worker.UpdateSettings(WorkerUpdateableSettings{LogLevel: "chicken"})
-	assert.IsType(t, err, NewTypeError(""))
+	assert.IsType(t, TypeError{}, err)
 	worker.Close()
 }
 
@@ -86,7 +87,7 @@ func TestWorkerUpdateSettings_InvalidStateError(t *testing.T) {
 	worker.Close()
 
 	err := worker.UpdateSettings(WorkerUpdateableSettings{LogLevel: "error"})
-	assert.IsType(t, err, NewInvalidStateError(""))
+	assert.IsType(t, InvalidStateError{}, err)
 }
 
 func TestWorkerDump(t *testing.T) {

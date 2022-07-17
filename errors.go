@@ -42,7 +42,7 @@ type InvalidStateError struct {
 }
 
 func NewInvalidStateError(format string, args ...interface{}) error {
-	return UnsupportedError{
+	return InvalidStateError{
 		name:    "InvalidStateError",
 		message: fmt.Sprintf(format, args...),
 	}
