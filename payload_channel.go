@@ -81,14 +81,8 @@ func (c *PayloadChannel) Request(method string, internal interface{}, data inter
 		rsp.err = NewInvalidStateError("PayloadChannel closed")
 		return
 	}
-
-	id := int64(1)
-
-	if atomic.LoadInt64(&c.nextId) < 4294967295 {
-		id = atomic.AddInt64(&c.nextId, 1)
-	} else {
-		atomic.StoreInt64(&c.nextId, id)
-	}
+	id := atomic.AddInt64(&c.nextId, 1)
+	atomic.CompareAndSwapInt64(&c.nextId, 4294967295, 1)
 
 	c.logger.Debug("request() [method:%s, id:%d]", method, id)
 
