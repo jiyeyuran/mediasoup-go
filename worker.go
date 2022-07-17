@@ -367,18 +367,20 @@ func (w *Worker) wait(child *exec.Cmd) {
 	if atomic.CompareAndSwapUint32(&w.spawnDone, 0, 1) {
 		if code == 42 {
 			w.logger.Error("worker process failed due to wrong settings [pid:%d]", w.pid)
+
+			w.Close()
 			w.Emit("@failure", NewTypeError("wrong settings"))
 		} else {
 			w.logger.Error("worker process failed unexpectedly [pid:%d, code:%d, signal:%s]",
 				w.pid, code, signal)
+
+			w.Close()
 			w.Emit("@failure", fmt.Errorf(`[pid:%d, code:%d, signal:%s]`, w.pid, code, signal))
 		}
 	} else {
 		w.logger.Error("worker process died unexpectedly [pid:%d, code:%d, signal:%s]", w.pid, code, signal)
-		w.SafeEmit("died", fmt.Errorf("[pid:%d, code:%d, signal:%s]", w.pid, code, signal))
+		w.died(fmt.Errorf("[pid:%d, code:%d, signal:%s]", w.pid, code, signal))
 	}
-
-	w.Close()
 }
 
 /**
@@ -438,11 +440,9 @@ func (w *Worker) Close() {
 		return true
 	})
 	w.routers = sync.Map{}
-	w.RemoveAllListeners()
 
 	// Emit observer event.
 	w.observer.SafeEmit("close")
-	w.observer.RemoveAllListeners()
 }
 
 // Dump Worker.
@@ -505,4 +505,29 @@ func (w *Worker) CreateRouter(options RouterOptions) (router *Router, err error)
 	w.observer.SafeEmit("newrouter", router)
 
 	return
+}
+
+func (w *Worker) died(err error) {
+	if !atomic.CompareAndSwapUint32(&w.closed, 0, 1) {
+		return
+	}
+	w.logger.Debug(`died() [error:%s]`, err)
+
+	// Close the Channel instance.
+	w.channel.Close()
+
+	// Close the PayloadChannel instance.
+	w.payloadChannel.Close()
+
+	// Close every Router.
+	w.routers.Range(func(key, value interface{}) bool {
+		value.(*Router).workerClosed()
+		return true
+	})
+	w.routers = sync.Map{}
+
+	w.SafeEmit("died", err)
+
+	// Emit observer event.
+	w.observer.SafeEmit("close")
 }
