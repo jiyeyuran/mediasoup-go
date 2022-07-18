@@ -47,12 +47,12 @@ func (w *MockFunc) ExpectCalledWith(args ...interface{}) {
 	}
 }
 
-func (w *MockFunc) ExpectCalled() {
-	w.require.NotZero(w.CalledTimes())
+func (w *MockFunc) ExpectCalled(msgAndArgs ...interface{}) {
+	w.require.NotZero(w.CalledTimes(), msgAndArgs...)
 }
 
-func (w *MockFunc) ExpectCalledTimes(called int) {
-	w.require.Equal(called, w.CalledTimes())
+func (w *MockFunc) ExpectCalledTimes(called int, msgAndArgs ...interface{}) {
+	w.require.Equal(called, w.CalledTimes(), msgAndArgs...)
 }
 
 func (w *MockFunc) CalledTimes() int {

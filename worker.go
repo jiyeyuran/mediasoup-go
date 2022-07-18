@@ -181,6 +181,8 @@ type Worker struct {
 	payloadChannel *PayloadChannel
 	// Closed flag.
 	closed uint32
+	// Died flag.
+	died bool
 	// Custom app data.
 	appData interface{}
 	// Routers map.
@@ -379,7 +381,7 @@ func (w *Worker) wait(child *exec.Cmd) {
 		}
 	} else {
 		w.logger.Error("worker process died unexpectedly [pid:%d, code:%d, signal:%s]", w.pid, code, signal)
-		w.died(fmt.Errorf("[pid:%d, code:%d, signal:%s]", w.pid, code, signal))
+		w.workerDied(fmt.Errorf("[pid:%d, code:%d, signal:%s]", w.pid, code, signal))
 	}
 }
 
@@ -395,6 +397,13 @@ func (w *Worker) Pid() int {
  */
 func (w *Worker) Closed() bool {
 	return atomic.LoadUint32(&w.closed) > 0
+}
+
+/**
+ * Whether the Worker is died.
+ */
+func (w *Worker) Died() bool {
+	return w.died
 }
 
 /**
@@ -507,10 +516,11 @@ func (w *Worker) CreateRouter(options RouterOptions) (router *Router, err error)
 	return
 }
 
-func (w *Worker) died(err error) {
+func (w *Worker) workerDied(err error) {
 	if !atomic.CompareAndSwapUint32(&w.closed, 0, 1) {
 		return
 	}
+	w.died = true
 	w.logger.Debug(`died() [error:%s]`, err)
 
 	// Close the Channel instance.

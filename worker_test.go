@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 var worker *Worker
@@ -142,7 +143,11 @@ func TestWorkerEmitsDied(t *testing.T) {
 		assert.NoError(t, err)
 
 		diedCh := make(chan struct{})
-		worker.On("died", func() { close(diedCh) })
+		worker.On("died", func() {
+			require.Zero(t, len(onObserverClose.results), `observer "close" event emitted before worker "died" event`)
+			require.True(t, worker.Closed(), "worker.closed is false")
+			close(diedCh)
+		})
 
 		process.Signal(signal)
 
@@ -154,6 +159,7 @@ func TestWorkerEmitsDied(t *testing.T) {
 
 		onObserverClose.ExpectCalledTimes(1)
 		assert.True(t, worker.Closed())
+		assert.True(t, worker.Died())
 	}
 }
 
