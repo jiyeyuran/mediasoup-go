@@ -690,6 +690,45 @@ func (router *Router) PipeToRouter(option PipeToRouterOptions) (result *PipeToRo
 	return
 }
 
+// CreateActiveSpeakerObserver create an ActiveSpeakerObserver
+func (router *Router) CreateActiveSpeakerObserver(options ...func(*ActiveSpeakerObserverOptions)) (activeSpeakerObserver *ActiveSpeakerObserver, err error) {
+	router.logger.Debug("createActiveSpeakerObserver()")
+
+	o := &ActiveSpeakerObserverOptions{
+		Interval: 300,
+	}
+	for _, option := range options {
+		option(o)
+	}
+
+	internal := router.internal
+	internal.RtpObserverId = uuid.NewString()
+
+	resp := router.channel.Request("router.createActiveSpeakerObserver", internal, o)
+	if err = resp.Err(); err != nil {
+		return
+	}
+	activeSpeakerObserver = newActiveSpeakerObserver(rtpObserverParams{
+		internal:       internal,
+		channel:        router.channel,
+		payloadChannel: router.payloadChannel,
+		appData:        router.appData,
+		getProducerById: func(producerId string) *Producer {
+			if value, ok := router.producers.Load(producerId); ok {
+				return value.(*Producer)
+			}
+			return nil
+		},
+	})
+	router.rtpObservers.Store(activeSpeakerObserver.Id(), activeSpeakerObserver)
+	activeSpeakerObserver.On("@close", func() {
+		router.rtpObservers.Delete(activeSpeakerObserver.Id())
+	})
+	// Emit observer event.
+	router.observer.SafeEmit("newrtpobserver", activeSpeakerObserver)
+	return
+}
+
 /**
  * Create an AudioLevelObserver.
  */
