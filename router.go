@@ -732,25 +732,23 @@ func (router *Router) CreateActiveSpeakerObserver(options ...func(*ActiveSpeaker
 /**
  * Create an AudioLevelObserver.
  */
-func (router *Router) CreateAudioLevelObserver(options ...func(o *AudioLevelObserverOptions)) (rtpObserver IRtpObserver, err error) {
+func (router *Router) CreateAudioLevelObserver(options ...func(o *AudioLevelObserverOptions)) (audioLevelObserver *AudioLevelObserver, err error) {
 	router.logger.Debug("createAudioLevelObserver()")
 
-	defaultOptions := NewAudioLevelObserverOptions()
+	o := NewAudioLevelObserverOptions()
 
 	for _, option := range options {
-		option(&defaultOptions)
+		option(&o)
 	}
 
 	internal := router.internal
 	internal.RtpObserverId = uuid.NewString()
 
-	resp := router.channel.Request("router.createAudioLevelObserver", internal, defaultOptions)
-
+	resp := router.channel.Request("router.createAudioLevelObserver", internal, o)
 	if err = resp.Err(); err != nil {
 		return
 	}
-
-	rtpObserver = newAudioLevelObserver(rtpObserverParams{
+	audioLevelObserver = newAudioLevelObserver(rtpObserverParams{
 		internal:       internal,
 		channel:        router.channel,
 		payloadChannel: router.payloadChannel,
@@ -763,11 +761,13 @@ func (router *Router) CreateAudioLevelObserver(options ...func(o *AudioLevelObse
 		},
 	})
 
-	router.rtpObservers.Store(rtpObserver.Id(), rtpObserver)
-	rtpObserver.On("@close", func() {
-		router.rtpObservers.Delete(rtpObserver.Id())
+	router.rtpObservers.Store(audioLevelObserver.Id(), audioLevelObserver)
+	audioLevelObserver.On("@close", func() {
+		router.rtpObservers.Delete(audioLevelObserver.Id())
 	})
 
+	// Emit observer event.
+	router.observer.SafeEmit("newrtpobserver", audioLevelObserver)
 	return
 }
 

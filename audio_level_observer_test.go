@@ -4,12 +4,13 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
-var (
-	audioLevelMediaCodecs = []*RtpCodecCapability{
+func TestAudioLevelObserver(t *testing.T) {
+	mediaCodecs := []*RtpCodecCapability{
 		{
-			Kind:      MediaKind_Audio,
+			Kind:      "audio",
 			MimeType:  "audio/opus",
 			ClockRate: 48000,
 			Channels:  2,
@@ -18,102 +19,68 @@ var (
 			},
 		},
 	}
-)
 
-func TestCreateAudioLevelObserver_Succeeds(t *testing.T) {
+	// before all
 	worker := CreateTestWorker()
 	router, _ := worker.CreateRouter(RouterOptions{
-		MediaCodecs: audioLevelMediaCodecs,
+		MediaCodecs: mediaCodecs,
 	})
-	audioLevelObserver, err := router.CreateAudioLevelObserver()
-	assert.NoError(t, err)
-	assert.False(t, audioLevelObserver.Closed())
-	assert.False(t, audioLevelObserver.Paused())
+	var AudioLevelObserver IRtpObserver
+	// after all
+	defer worker.Close()
 
-	result, _ := router.Dump()
+	t.Run("router.createAudioLevelObserver() succeeds", func(t *testing.T) {
+		onObserverNewRtpObserver := NewMockFunc(t)
+		router.observer.Once("newrtpobserver", onObserverNewRtpObserver.Fn())
 
-	assert.Equal(t, []string{audioLevelObserver.Id()}, result.RtpObserverIds)
-}
+		var err error
+		AudioLevelObserver, err = router.CreateAudioLevelObserver()
+		require.NoError(t, err)
 
-func TestCreateAudioLevelObserver_TypeError(t *testing.T) {
-	worker := CreateTestWorker()
-	router, _ := worker.CreateRouter(RouterOptions{
-		MediaCodecs: audioLevelMediaCodecs,
-	})
-	_, err := router.CreateAudioLevelObserver(func(o *AudioLevelObserverOptions) {
-		o.MaxEntries = 0
-	})
-	assert.IsType(t, err, NewTypeError(""))
-}
-
-func TestCreateAudioLevelObserver_Pause_Resume(t *testing.T) {
-	worker := CreateTestWorker()
-	router, _ := worker.CreateRouter(RouterOptions{
-		MediaCodecs: audioLevelMediaCodecs,
-	})
-	audioLevelObserver, err := router.CreateAudioLevelObserver()
-	assert.NoError(t, err)
-
-	audioLevelObserver.Pause()
-	assert.True(t, audioLevelObserver.Paused())
-
-	audioLevelObserver.Resume()
-	assert.False(t, audioLevelObserver.Paused())
-}
-
-func TestCreateAudioLevelObserver_Close(t *testing.T) {
-	worker := CreateTestWorker()
-	router, _ := worker.CreateRouter(RouterOptions{
-		MediaCodecs: audioLevelMediaCodecs,
-	})
-	_, err := router.CreateAudioLevelObserver()
-	assert.NoError(t, err)
-	audioLevelObserver2, err := router.CreateAudioLevelObserver()
-	assert.NoError(t, err)
-
-	result, _ := router.Dump()
-	assert.Equal(t, 2, len(result.RtpObserverIds))
-
-	audioLevelObserver2.Close()
-	assert.True(t, audioLevelObserver2.Closed())
-
-	result, _ = router.Dump()
-	assert.Equal(t, 1, len(result.RtpObserverIds))
-}
-
-func TestCreateAudioLevelObserver_Router_Close(t *testing.T) {
-	worker := CreateTestWorker()
-	router, _ := worker.CreateRouter(RouterOptions{
-		MediaCodecs: audioLevelMediaCodecs,
-	})
-	audioLevelObserver, err := router.CreateAudioLevelObserver()
-	assert.NoError(t, err)
-
-	routerclose := false
-	audioLevelObserver.On("routerclose", func() {
-		routerclose = true
-	})
-	router.Close()
-
-	assert.True(t, audioLevelObserver.Closed())
-	assert.True(t, routerclose)
-}
-
-func TestCreateAudioLevelObserver_Worker_Close(t *testing.T) {
-	worker := CreateTestWorker()
-	router, _ := worker.CreateRouter(RouterOptions{
-		MediaCodecs: audioLevelMediaCodecs,
+		onObserverNewRtpObserver.ExpectCalled()
+		onObserverNewRtpObserver.ExpectCalledWith(AudioLevelObserver)
+		assert.False(t, AudioLevelObserver.Closed())
+		assert.False(t, AudioLevelObserver.Paused())
 	})
 
-	audioLevelObserver, err := router.CreateAudioLevelObserver()
-	assert.NoError(t, err)
-
-	routerclose := false
-	audioLevelObserver.On("routerclose", func() {
-		routerclose = true
+	t.Run("AudioLevelObserver.pause() and resume() succeed", func(t *testing.T) {
+		AudioLevelObserver.Pause()
+		assert.True(t, AudioLevelObserver.Paused())
+		AudioLevelObserver.Resume()
+		assert.False(t, AudioLevelObserver.Paused())
 	})
-	worker.Close()
 
-	assert.True(t, audioLevelObserver.Closed())
-	assert.True(t, routerclose)
+	t.Run("AudioLevelObserver.close() succeeds", func(t *testing.T) {
+		// We need different a AudioLevelObserver instance here.
+		AudioLevelObserver2, _ := router.CreateAudioLevelObserver()
+
+		dump, _ := router.Dump()
+		assert.Len(t, dump.RtpObserverIds, 2)
+
+		AudioLevelObserver2.Close()
+		assert.True(t, AudioLevelObserver2.Closed())
+
+		dump, _ = router.Dump()
+		assert.Len(t, dump.RtpObserverIds, 1)
+	})
+
+	t.Run(`AudioLevelObserver emits "routerclose" if Router is closed`, func(t *testing.T) {
+		// We need different Router and AudioLevelObserver instances here.
+		router2, _ := worker.CreateRouter(RouterOptions{MediaCodecs: mediaCodecs})
+		AudioLevelObserver2, _ := router2.CreateAudioLevelObserver()
+		onObserverNewRtpObserver := NewMockFunc(t)
+		AudioLevelObserver2.On("routerclose", onObserverNewRtpObserver.Fn())
+		router2.Close()
+		assert.Equal(t, 1, onObserverNewRtpObserver.CalledTimes())
+		assert.True(t, AudioLevelObserver2.Closed())
+	})
+
+	t.Run(`AudioLevelObserver emits "routerclose" if Worker is closed`, func(t *testing.T) {
+		onObserverNewRtpObserver := NewMockFunc(t)
+		AudioLevelObserver.On("routerclose", onObserverNewRtpObserver.Fn())
+		worker.Close()
+
+		assert.Equal(t, 1, onObserverNewRtpObserver.CalledTimes())
+		assert.True(t, AudioLevelObserver.Closed())
+	})
 }
