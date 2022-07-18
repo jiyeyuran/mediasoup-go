@@ -16,7 +16,7 @@ var worker *Worker
 func init() {
 	os.Setenv("DEBUG_COLORS", "false")
 	DefaultLevel = WarnLevel
-	WorkerBin = "../mediasoup/worker/out/Release/mediasoup-worker"
+	// WorkerBin = "../mediasoup/worker/out/Release/mediasoup-worker"
 	worker = CreateTestWorker()
 }
 
