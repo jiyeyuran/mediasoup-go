@@ -1,9 +1,12 @@
 package mediasoup
 
 import (
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/suite"
+	"golang.org/x/sync/errgroup"
 )
 
 func TestPipeTransportTestingSuite(t *testing.T) {
@@ -598,47 +601,120 @@ func (suite *PipeTransportTestingSuite) TestDataProducerCloseIsTransmittedToPipe
 	suite.True(dataConsumer.Closed())
 }
 
-func (suite *PipeTransportTestingSuite) TestRouterPipeRouterCalledTwiceGenenratesASinglePipeTransportPair() {
-	routerA := CreateRouter()
-	routerB := CreateRouter()
+func (suite *PipeTransportTestingSuite) TestPipeToRouter() {
+	t := suite.T()
+	t.Run(`router.pipeToRouter() called twice generates a single PipeTransport pair`, func(t *testing.T) {
+		routerA := CreateRouter()
+		routerB := CreateRouter()
+		defer routerA.Close()
+		defer routerB.Close()
 
-	defer routerA.Close()
-	defer routerB.Close()
+		transportA1, _ := routerA.CreateWebRtcTransport(WebRtcTransportOptions{
+			ListenIps: []TransportListenIp{{Ip: "127.0.0.1"}},
+		})
+		transportA2, _ := routerA.CreateWebRtcTransport(WebRtcTransportOptions{
+			ListenIps: []TransportListenIp{{Ip: "127.0.0.1"}},
+		})
+		audioProducerA1 := CreateAudioProducer(transportA1)
+		audioProducerA2 := CreateAudioProducer(transportA2)
 
-	transportA1, _ := routerA.CreateWebRtcTransport(WebRtcTransportOptions{
-		ListenIps: []TransportListenIp{
-			{Ip: "127.0.0.1"},
-		},
+		_, err := routerA.PipeToRouter(PipeToRouterOptions{
+			ProducerId: audioProducerA1.Id(),
+			Router:     routerB,
+		})
+		suite.NoError(err)
+		_, err = routerA.PipeToRouter(PipeToRouterOptions{
+			ProducerId: audioProducerA2.Id(),
+			Router:     routerB,
+		})
+		suite.NoError(err)
+
+		dump, _ := routerA.Dump()
+
+		// There shoud be 3 Transports in routerA:
+		// - WebRtcTransport for audioProducer1 and audioProducer2.
+		// - PipeTransport between routerA and routerB.
+		suite.Len(dump.TransportIds, 3)
+
+		dump, _ = routerB.Dump()
+
+		// There shoud be 1 Transport in routerB:
+		// - PipeTransport between routerA and routerB.
+		suite.Len(dump.TransportIds, 1)
 	})
-	transportA2, _ := routerA.CreateWebRtcTransport(WebRtcTransportOptions{
-		ListenIps: []TransportListenIp{
-			{Ip: "127.0.0.1"},
-		},
+
+	t.Run("router.pipeToRouter() called in two Routers passing one to each other as argument generates a single a single PipeTransport pair", func(t *testing.T) {
+		routerA := CreateRouter()
+		routerB := CreateRouter()
+		defer routerB.Close()
+
+		transportA, _ := routerA.CreateWebRtcTransport(WebRtcTransportOptions{
+			ListenIps: []TransportListenIp{{Ip: "127.0.0.1"}},
+		})
+		transportB, _ := routerB.CreateWebRtcTransport(WebRtcTransportOptions{
+			ListenIps: []TransportListenIp{{Ip: "127.0.0.1"}},
+		})
+		audioProducerA := CreateAudioProducer(transportA)
+		audioProducerB := CreateAudioProducer(transportB)
+		pipeTransportsA := sync.Map{}
+		pipeTransportsB := sync.Map{}
+
+		routerA.Observer().On("newtransport", func(transport ITransport) {
+			if _, ok := transport.(*PipeTransport); !ok {
+				return
+			}
+			pipeTransportsA.Store(transport.Id(), transport)
+			transport.Observer().On("close", func() {
+				pipeTransportsA.Delete(transport.Id())
+			})
+		})
+		routerB.Observer().On("newtransport", func(transport ITransport) {
+			if _, ok := transport.(*PipeTransport); !ok {
+				return
+			}
+			pipeTransportsB.Store(transport.Id(), transport)
+			transport.Observer().On("close", func() {
+				pipeTransportsB.Delete(transport.Id())
+			})
+		})
+
+		group := new(errgroup.Group)
+		group.Go(func() error {
+			_, err := routerA.PipeToRouter(PipeToRouterOptions{
+				ProducerId: audioProducerA.Id(),
+				Router:     routerB,
+			})
+			return err
+		})
+		group.Go(func() error {
+			_, err := routerB.PipeToRouter(PipeToRouterOptions{
+				ProducerId: audioProducerB.Id(),
+				Router:     routerA,
+			})
+			return err
+		})
+		suite.NoError(group.Wait())
+
+		suite.Equal(1, syncMapLen(&pipeTransportsA))
+		suite.Equal(1, syncMapLen(&pipeTransportsB))
+
+		var pipeTransportA, pipeTransportB *PipeTransport
+
+		pipeTransportsA.Range(func(key, value interface{}) bool {
+			pipeTransportA = value.(*PipeTransport)
+			return false
+		})
+		pipeTransportsB.Range(func(key, value interface{}) bool {
+			pipeTransportB = value.(*PipeTransport)
+			return false
+		})
+		suite.Equal(pipeTransportA.Tuple().LocalPort, pipeTransportB.Tuple().RemotePort)
+		suite.Equal(pipeTransportB.Tuple().LocalPort, pipeTransportA.Tuple().RemotePort)
+
+		routerA.Close()
+
+		time.Sleep(time.Millisecond * 10)
+		suite.Equal(0, syncMapLen(&pipeTransportsA))
+		suite.Equal(0, syncMapLen(&pipeTransportsB))
 	})
-	audioProducer1 := CreateAudioProducer(transportA1)
-	audioProducer2 := CreateAudioProducer(transportA2)
-
-	_, err := routerA.PipeToRouter(PipeToRouterOptions{
-		ProducerId: audioProducer1.Id(),
-		Router:     routerB,
-	})
-	suite.NoError(err)
-	_, err = routerA.PipeToRouter(PipeToRouterOptions{
-		ProducerId: audioProducer2.Id(),
-		Router:     routerB,
-	})
-	suite.NoError(err)
-
-	dump, _ := routerA.Dump()
-
-	// There shoud be 3 Transports in routerA:
-	// - WebRtcTransport for audioProducer1 and audioProducer2.
-	// - PipeTransport between routerA and routerB.
-	suite.Len(dump.TransportIds, 3)
-
-	dump, _ = routerB.Dump()
-
-	// There shoud be 1 Transport in routerB:
-	// - PipeTransport between routerA and routerB.
-	suite.Len(dump.TransportIds, 1)
 }

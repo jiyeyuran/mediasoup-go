@@ -1,12 +1,17 @@
 package mediasoup
 
 import (
-	"errors"
+	"sort"
+	"strings"
 	"sync"
 	"sync/atomic"
 
 	"github.com/google/uuid"
+	"golang.org/x/sync/errgroup"
+	"golang.org/x/sync/singleflight"
 )
+
+var pipeRouterGroup = &singleflight.Group{}
 
 type RouterOptions struct {
 	/**
@@ -119,7 +124,6 @@ type Router struct {
 	dataProducers           sync.Map
 	mapRouterPipeTransports sync.Map
 	observer                IEventEmitter
-	locker                  sync.Mutex
 }
 
 func newRouter(params routerParams) *Router {
@@ -434,6 +438,8 @@ func (router *Router) CreateDirectTransport(params ...DirectTransportOptions) (t
  * Pipes the given Producer or DataProducer into another Router in same host.
  */
 func (router *Router) PipeToRouter(option PipeToRouterOptions) (result *PipeToRouterResult, err error) {
+	router.logger.Debug("pipeToRouter()")
+
 	options := &PipeToRouterOptions{
 		ListenIp: TransportListenIp{
 			Ip: "127.0.0.1",
@@ -461,9 +467,6 @@ func (router *Router) PipeToRouter(option PipeToRouterOptions) (result *PipeToRo
 		err = NewTypeError("cannot use this Router as destination'")
 		return
 	}
-
-	router.logger.Debug("pipeToRouter()")
-
 	var producer *Producer
 	var dataProducer *DataProducer
 
@@ -483,82 +486,82 @@ func (router *Router) PipeToRouter(option PipeToRouterOptions) (result *PipeToRo
 			return
 		}
 	}
-
-	// Here we may have to create a new PipeTransport pair to connect source and
-	// destination Routers. We just want to keep a PipeTransport pair for each
-	// pair of Routers. Since this operation is async, it may happen that two
-	// simultaneous calls to router1.pipeToRouter({ producerId: xxx, router: router2 })
-	// would end up generating two pairs of PipeTranports. To prevent that, let's
-	// use a locker.
-	router.locker.Lock()
-	defer router.locker.Unlock()
-
 	var localPipeTransport, remotePipeTransport *PipeTransport
 
-	value, ok := router.mapRouterPipeTransports.Load(options.Router)
-
-	if ok {
+	if value, ok := router.mapRouterPipeTransports.Load(options.Router); ok {
 		pipeTransportPair := value.([]*PipeTransport)
-		localPipeTransport = pipeTransportPair[0]
-		remotePipeTransport = pipeTransportPair[1]
+		localPipeTransport, remotePipeTransport = pipeTransportPair[0], pipeTransportPair[1]
 	} else {
-		defer func() {
-			if err != nil {
-				router.logger.Error("pipeToRouter() | error creating PipeTransport pair:%s", err)
+		// Here we may have to create a new PipeTransport pair to connect source and
+		// destination Routers. We just want to keep a PipeTransport pair for each
+		// pair of Routers. Since this operation is async, it may happen that two
+		// simultaneous calls to router1.pipeToRouter({ producerId: xxx, router: router2 })
+		// would end up generating two pairs of PipeTranports. To prevent that, let's
+		// use singleflight.
+		keys := []string{router.Id(), options.Router.Id()}
+		sort.Strings(keys)
+		v, err, _ := pipeRouterGroup.Do(strings.Join(keys, ""), func() (result interface{}, err error) {
+			defer func() {
+				if err != nil {
+					router.logger.Error("pipeToRouter() | error creating PipeTransport pair:%s", err)
 
-				if localPipeTransport != nil {
-					localPipeTransport.Close()
+					if localPipeTransport != nil {
+						localPipeTransport.Close()
+					}
+					if remotePipeTransport != nil {
+						remotePipeTransport.Close()
+					}
 				}
-				if remotePipeTransport != nil {
-					remotePipeTransport.Close()
-				}
+			}()
+
+			option := PipeTransportOptions{
+				ListenIp:       options.ListenIp,
+				EnableSctp:     options.EnableSctp,
+				NumSctpStreams: options.NumSctpStreams,
+				EnableRtx:      options.EnableRtx,
+				EnableSrtp:     options.EnableSrtp,
 			}
-		}()
+			errgroup := new(errgroup.Group)
 
-		option := PipeTransportOptions{
-			ListenIp:       options.ListenIp,
-			EnableSctp:     options.EnableSctp,
-			NumSctpStreams: options.NumSctpStreams,
-			EnableRtx:      options.EnableRtx,
-			EnableSrtp:     options.EnableSrtp,
-		}
-		localPipeTransport, err = router.CreatePipeTransport(option)
-		if err != nil {
-			return
-		}
-		remotePipeTransport, err = options.Router.CreatePipeTransport(option)
-		if err != nil {
-			return
-		}
-
-		err = localPipeTransport.Connect(TransportConnectOptions{
-			Ip:             remotePipeTransport.Tuple().LocalIp,
-			Port:           remotePipeTransport.Tuple().LocalPort,
-			SrtpParameters: remotePipeTransport.SrtpParameters(),
+			errgroup.Go(func() error {
+				localPipeTransport, err = router.CreatePipeTransport(option)
+				return err
+			})
+			errgroup.Go(func() error {
+				remotePipeTransport, err = options.Router.CreatePipeTransport(option)
+				return err
+			})
+			if err = errgroup.Wait(); err != nil {
+				return
+			}
+			errgroup.Go(func() error {
+				return localPipeTransport.Connect(TransportConnectOptions{
+					Ip:             remotePipeTransport.Tuple().LocalIp,
+					Port:           remotePipeTransport.Tuple().LocalPort,
+					SrtpParameters: remotePipeTransport.SrtpParameters(),
+				})
+			})
+			errgroup.Go(func() error {
+				return remotePipeTransport.Connect(TransportConnectOptions{
+					Ip:             localPipeTransport.Tuple().LocalIp,
+					Port:           localPipeTransport.Tuple().LocalPort,
+					SrtpParameters: localPipeTransport.SrtpParameters(),
+				})
+			})
+			if err = errgroup.Wait(); err != nil {
+				return
+			}
+			return []*PipeTransport{localPipeTransport, remotePipeTransport}, nil
 		})
 		if err != nil {
-			return
+			return nil, err
 		}
-		err = remotePipeTransport.Connect(TransportConnectOptions{
-			Ip:             localPipeTransport.Tuple().LocalIp,
-			Port:           localPipeTransport.Tuple().LocalPort,
-			SrtpParameters: localPipeTransport.SrtpParameters(),
-		})
-		if err != nil {
-			return
+		pipeTransportPair := v.([]*PipeTransport)
+		// swap local and remote PipeTransport if pipeTransportPair is shared from the other router
+		if localPipeTransport == nil && remotePipeTransport == nil {
+			localPipeTransport, remotePipeTransport = pipeTransportPair[1], pipeTransportPair[0]
 		}
-
-		localPipeTransport.Observer().On("close", func() {
-			remotePipeTransport.Close()
-			router.mapRouterPipeTransports.Delete(options.Router)
-		})
-
-		remotePipeTransport.Observer().On("close", func() {
-			localPipeTransport.Close()
-			router.mapRouterPipeTransports.Delete(options.Router)
-		})
-
-		router.mapRouterPipeTransports.Store(options.Router, []*PipeTransport{localPipeTransport, remotePipeTransport})
+		router.addPipeTransportPair(options.Router, []*PipeTransport{localPipeTransport, remotePipeTransport})
 	}
 
 	if producer != nil {
@@ -584,7 +587,6 @@ func (router *Router) PipeToRouter(option PipeToRouterOptions) (result *PipeToRo
 		if err != nil {
 			return
 		}
-
 		pipeProducer, err = remotePipeTransport.Produce(ProducerOptions{
 			Id:            producer.Id(),
 			Kind:          pipeConsumer.Kind(),
@@ -595,7 +597,6 @@ func (router *Router) PipeToRouter(option PipeToRouterOptions) (result *PipeToRo
 		if err != nil {
 			return
 		}
-
 		// Ensure that the producer has not been closed in the meanwhile.
 		if producer.Closed() {
 			err = NewInvalidStateError("original Producer closed")
@@ -627,7 +628,6 @@ func (router *Router) PipeToRouter(option PipeToRouterOptions) (result *PipeToRo
 			PipeConsumer: pipeConsumer,
 			PipeProducer: pipeProducer,
 		}
-
 		return
 	}
 
@@ -654,7 +654,6 @@ func (router *Router) PipeToRouter(option PipeToRouterOptions) (result *PipeToRo
 		if err != nil {
 			return
 		}
-
 		pipeDataProducer, err = remotePipeTransport.ProduceData(DataProducerOptions{
 			Id:                   dataProducer.Id(),
 			SctpStreamParameters: pipeDataConsumer.SctpStreamParameters(),
@@ -665,7 +664,6 @@ func (router *Router) PipeToRouter(option PipeToRouterOptions) (result *PipeToRo
 		if err != nil {
 			return
 		}
-
 		// Ensure that the dataProducer has not been closed in the meanwhile.
 		if dataProducer.Closed() {
 			err = NewInvalidStateError("original DataProducer closed")
@@ -674,7 +672,6 @@ func (router *Router) PipeToRouter(option PipeToRouterOptions) (result *PipeToRo
 
 		// Pipe events from the pipe DataConsumer to the pipe DataProducer.
 		pipeDataConsumer.Observer().On("close", func() { pipeDataProducer.Close() })
-
 		// Pipe events from the pipe DataProducer to the pipe DataConsumer.
 		pipeDataProducer.Observer().On("close", func() { pipeDataConsumer.Close() })
 
@@ -682,12 +679,21 @@ func (router *Router) PipeToRouter(option PipeToRouterOptions) (result *PipeToRo
 			PipeDataConsumer: pipeDataConsumer,
 			PipeDataProducer: pipeDataProducer,
 		}
-
 		return
 	}
-
-	err = errors.New("internal error")
 	return
+}
+
+func (router *Router) addPipeTransportPair(key *Router, pipeTransportPair []*PipeTransport) {
+	if _, loaded := router.mapRouterPipeTransports.LoadOrStore(key, pipeTransportPair); loaded {
+		return
+	}
+	localPipeTransport, remotePipeTransport := pipeTransportPair[0], pipeTransportPair[1]
+
+	localPipeTransport.Observer().On("close", func() {
+		remotePipeTransport.Close()
+		router.mapRouterPipeTransports.Delete(key)
+	})
 }
 
 // CreateActiveSpeakerObserver create an ActiveSpeakerObserver

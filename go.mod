@@ -13,5 +13,6 @@ require (
 	github.com/pion/sctp v1.7.11
 	github.com/rs/zerolog v1.20.0
 	github.com/stretchr/testify v1.6.1
+	golang.org/x/sync v0.0.0-20220601150217-0de741cfad7f // indirect
 	gopkg.in/check.v1 v1.0.0-20200902074654-038fdea0a05b // indirect
 )
