@@ -26,6 +26,8 @@ func (c *NetLVCodec) WritePayload(payload []byte) error {
 	if length == 0 {
 		return nil
 	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	if err := binary.Write(c.w, c.nativeEndian, length); err != nil {
 		return err
 	}
@@ -34,8 +36,6 @@ func (c *NetLVCodec) WritePayload(payload []byte) error {
 }
 
 func (c *NetLVCodec) ReadPayload() (payload []byte, err error) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
 	var payloadLen uint32
 	if err = binary.Read(c.r, c.nativeEndian, &payloadLen); err != nil {
 		return
