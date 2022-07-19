@@ -222,6 +222,23 @@ var supportedRtpCapabilities = RtpCapabilities{
 		},
 		{
 			Kind:      "video",
+			MimeType:  "video/H264-SVC",
+			ClockRate: 90000,
+			Parameters: RtpCodecSpecificParameters{
+				RtpParameter: h264.RtpParameter{
+					LevelAsymmetryAllowed: 1,
+				},
+			},
+			RtcpFeedback: []RtcpFeedback{
+				{Type: "nack"},
+				{Type: "nack", Parameter: "pli"},
+				{Type: "ccm", Parameter: "fir"},
+				{Type: "goog-remb"},
+				{Type: "transport-cc"},
+			},
+		},
+		{
+			Kind:      "video",
 			MimeType:  "video/H265",
 			ClockRate: 90000,
 			Parameters: RtpCodecSpecificParameters{
