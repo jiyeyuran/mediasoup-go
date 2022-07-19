@@ -349,6 +349,20 @@ var supportedRtpCapabilities = RtpCapabilities{
 			PreferredEncrypt: false,
 			Direction:        Direction_Sendrecv,
 		},
+		{
+			Kind:             "video",
+			Uri:              "http://www.webrtc.org/experiments/rtp-hdrext/abs-capture-time",
+			PreferredId:      13,
+			PreferredEncrypt: false,
+			Direction:        Direction_Sendrecv,
+		},
+		{
+			Kind:             "audio",
+			Uri:              "http://www.webrtc.org/experiments/rtp-hdrext/abs-capture-time",
+			PreferredId:      13,
+			PreferredEncrypt: false,
+			Direction:        Direction_Sendrecv,
+		},
 	},
 }
 
