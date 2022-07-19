@@ -902,17 +902,17 @@ func matchCodecs(aCodec *RtpCodecParameters, bCodec *RtpCodecCapability, options
 		}
 
 	case "video/h264":
-		aParameters, bParameters := aCodec.Parameters, bCodec.Parameters
-
-		if aParameters.PacketizationMode != bParameters.PacketizationMode {
-			return
-		}
-
 		if options.strict {
+			aParameters, bParameters := aCodec.Parameters, bCodec.Parameters
+
+			if aParameters.PacketizationMode != bParameters.PacketizationMode {
+				return false
+			}
+
 			selectedProfileLevelId, err := h264.GenerateProfileLevelIdForAnswer(
 				aParameters.RtpParameter, bParameters.RtpParameter)
 			if err != nil {
-				return
+				return false
 			}
 
 			if options.modify {
@@ -920,6 +920,16 @@ func matchCodecs(aCodec *RtpCodecParameters, bCodec *RtpCodecCapability, options
 				aCodec.Parameters = aParameters
 			}
 		}
+
+	case "video/vp9":
+		if options.strict {
+			aParameters, bParameters := aCodec.Parameters, bCodec.Parameters
+
+			if aParameters.ProfileId != bParameters.ProfileId {
+				return false
+			}
+		}
+
 	}
 
 	return true

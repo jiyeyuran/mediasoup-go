@@ -209,25 +209,6 @@ var supportedRtpCapabilities = RtpCapabilities{
 			ClockRate: 90000,
 			Parameters: RtpCodecSpecificParameters{
 				RtpParameter: h264.RtpParameter{
-					PacketizationMode:     1,
-					LevelAsymmetryAllowed: 1,
-				},
-			},
-			RtcpFeedback: []RtcpFeedback{
-				{Type: "nack"},
-				{Type: "nack", Parameter: "pli"},
-				{Type: "ccm", Parameter: "fir"},
-				{Type: "goog-remb"},
-				{Type: "transport-cc"},
-			},
-		},
-		{
-			Kind:      "video",
-			MimeType:  "video/H264",
-			ClockRate: 90000,
-			Parameters: RtpCodecSpecificParameters{
-				RtpParameter: h264.RtpParameter{
-					PacketizationMode:     0,
 					LevelAsymmetryAllowed: 1,
 				},
 			},
@@ -245,25 +226,6 @@ var supportedRtpCapabilities = RtpCapabilities{
 			ClockRate: 90000,
 			Parameters: RtpCodecSpecificParameters{
 				RtpParameter: h264.RtpParameter{
-					PacketizationMode:     1,
-					LevelAsymmetryAllowed: 1,
-				},
-			},
-			RtcpFeedback: []RtcpFeedback{
-				{Type: "nack"},
-				{Type: "nack", Parameter: "pli"},
-				{Type: "ccm", Parameter: "fir"},
-				{Type: "goog-remb"},
-				{Type: "transport-cc"},
-			},
-		},
-		{
-			Kind:      "video",
-			MimeType:  "video/H265",
-			ClockRate: 90000,
-			Parameters: RtpCodecSpecificParameters{
-				RtpParameter: h264.RtpParameter{
-					PacketizationMode:     0,
 					LevelAsymmetryAllowed: 1,
 				},
 			},
