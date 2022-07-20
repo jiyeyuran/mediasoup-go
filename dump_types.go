@@ -1,13 +1,50 @@
 package mediasoup
 
+import "encoding/json"
+
 const (
 	PPID_WEBRTC_STRING int = 51
 	PPID_WEBRTC_BINARY int = 53
 )
 
 type WorkerDump struct {
-	Pid       int      `json:"pid,omitempty"`
-	RouterIds []string `json:"routerIds,omitempty"`
+	Pid             int      `json:"pid,omitempty"`
+	RouterIds       []string `json:"routerIds,omitempty"`
+	WebRtcServerIds []string `json:"webRtcServerIds,omitempty"`
+}
+
+func (d WorkerDump) String() string {
+	data, _ := json.Marshal(d)
+	return string(data)
+}
+
+type WebRtcServerDump struct {
+	Id                        string                     `json:"id,omitempty"`
+	UdpSockets                []NetAddr                  `json:"udpSockets,omitempty"`
+	TcpServers                []NetAddr                  `json:"tcpServers,omitempty"`
+	WebRtcTransportIds        []string                   `json:"webRtcTransportIds,omitempty"`
+	LocalIceUsernameFragments []LocalIceUsernameFragment `json:"localIceUsernameFragments,omitempty"`
+	TupleHashes               []TupleHash                `json:"tupleHashes,omitempty"`
+}
+
+func (d WebRtcServerDump) String() string {
+	data, _ := json.Marshal(d)
+	return string(data)
+}
+
+type NetAddr struct {
+	Ip   string `json:"ip,omitempty"`
+	Port uint16 `json:"port,omitempty"`
+}
+
+type LocalIceUsernameFragment struct {
+	LocalIceUsernameFragment string `json:"localIceUsernameFragment,omitempty"`
+	WebRtcTransportId        string `json:"webRtcTransportId,omitempty"`
+}
+
+type TupleHash struct {
+	TupleHash         uint64 `json:"tupleHash,omitempty"`
+	WebRtcTransportId string `json:"webRtcTransportId,omitempty"`
 }
 
 type RouterDump struct {
@@ -19,6 +56,11 @@ type RouterDump struct {
 	MapProducerIdObserverIds         map[string][]string `json:"mapProducerIdObserverIds,omitempty"`
 	MapDataProducerIdDataConsumerIds map[string][]string `json:"mapDataProducerIdDataConsumerIds,omitempty"`
 	MapDataConsumerIdDataProducerId  map[string]string   `json:"mapDataConsumerIdDataProducerId,omitempty"`
+}
+
+func (d RouterDump) String() string {
+	data, _ := json.Marshal(d)
+	return string(data)
 }
 
 type TransportDump struct {
@@ -44,12 +86,22 @@ type TransportDump struct {
 	*WebRtcTransportDump
 }
 
+func (d TransportDump) String() string {
+	data, _ := json.Marshal(d)
+	return string(data)
+}
+
 type PlainTransportDump struct {
 	RtcpMux        bool            `json:"rtcpMux,omitempty"`
 	Comedia        bool            `json:"comedia,omitempty"`
 	Tuple          *TransportTuple `json:"tuple,omitempty"`
 	RtcpTuple      *TransportTuple `json:"rtcpTuple,omitempty"`
 	SrtpParameters *SrtpParameters `json:"srtpParameters,omitempty"`
+}
+
+func (d PlainTransportDump) String() string {
+	data, _ := json.Marshal(d)
+	return string(data)
 }
 
 type WebRtcTransportDump struct {
@@ -61,6 +113,11 @@ type WebRtcTransportDump struct {
 	DtlsParameters   DtlsParameters  `json:"dtlsParameters,omitempty"`
 	DtlsState        DtlsState       `json:"dtlsState,omitempty"`
 	DtlsRemoteCert   string          `json:"dtlsRemoteCert,omitempty"`
+}
+
+func (d WebRtcTransportDump) String() string {
+	data, _ := json.Marshal(d)
+	return string(data)
 }
 
 type ConsumerDump struct {
@@ -78,6 +135,11 @@ type ConsumerDump struct {
 	RtpStreams                 []RtpStream          `json:"rtpStreams,omitempty"`
 	RtpStream                  *RtpStream           `json:"rtpStream,omitempty"` // dump by SvcConsumer
 	*SimulcastConsumerDump
+}
+
+func (d ConsumerDump) String() string {
+	data, _ := json.Marshal(d)
+	return string(data)
 }
 
 type RtpStream struct {
@@ -115,6 +177,11 @@ type SimulcastConsumerDump struct {
 	CurrentTemporalLayer   int16 `json:"currentTemporalLayer,omitempty"`
 }
 
+func (d SimulcastConsumerDump) String() string {
+	data, _ := json.Marshal(d)
+	return string(data)
+}
+
 type ProducerDump struct {
 	Id              string             `json:"id,omitempty"`
 	Kind            string             `json:"kind,omitempty"`
@@ -125,6 +192,11 @@ type ProducerDump struct {
 	RtpStreams      []RtpStream        `json:"rtpStreams,omitempty"`
 	Paused          bool               `json:"paused,omitempty"`
 	TraceEventTypes string             `json:"traceEventTypes,omitempty"`
+}
+
+func (d ProducerDump) String() string {
+	data, _ := json.Marshal(d)
+	return string(data)
 }
 
 type DataConsumerDump struct {
@@ -138,12 +210,22 @@ type DataConsumerDump struct {
 	BufferedAmountLowThreshold uint32                `json:"bufferedAmountLowThreshold,omitempty"`
 }
 
+func (d DataConsumerDump) String() string {
+	data, _ := json.Marshal(d)
+	return string(data)
+}
+
 type DataProducerDump struct {
 	Id                   string                `json:"id,omitempty"`
 	Type                 string                `json:"type,omitempty"`
 	SctpStreamParameters *SctpStreamParameters `json:"sctpStreamParameters,omitempty"`
 	Label                string                `json:"label,omitempty"`
 	Protocol             string                `json:"protocol,omitempty"`
+}
+
+func (d DataProducerDump) String() string {
+	data, _ := json.Marshal(d)
+	return string(data)
 }
 
 type RecvRtpHeaderExtensions struct {

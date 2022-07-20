@@ -53,8 +53,9 @@ func TestCreateRouter_Succeeds(t *testing.T) {
 
 	dump, _ := worker.Dump()
 	expectDump := WorkerDump{
-		Pid:       worker.Pid(),
-		RouterIds: []string{router.Id()},
+		Pid:             worker.Pid(),
+		RouterIds:       []string{router.Id()},
+		WebRtcServerIds: []string{},
 	}
 	assert.Equal(t, expectDump, dump)
 
@@ -67,12 +68,6 @@ func TestCreateRouter_Succeeds(t *testing.T) {
 
 	assert.True(t, router.Closed())
 	assert.Equal(t, 0, syncMapLen(&worker.routers))
-}
-
-func TestCreateRouter_TypeError(t *testing.T) {
-	worker := CreateTestWorker()
-	_, err := worker.CreateRouter(RouterOptions{})
-	assert.IsType(t, err, NewTypeError(""))
 }
 
 func TestCreateRouter_InvalidStateError(t *testing.T) {

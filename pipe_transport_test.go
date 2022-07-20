@@ -104,6 +104,11 @@ func (suite *PipeTransportTestingSuite) TestRouterPipeToRouter_SucceedsWithAudio
 			Id:      10,
 			Encrypt: false,
 		},
+		{
+			Uri:     "http://www.webrtc.org/experiments/rtp-hdrext/abs-capture-time",
+			Id:      13,
+			Encrypt: false,
+		},
 	}, pipeConsumer.RtpParameters().HeaderExtensions)
 	suite.EqualValues("pipe", pipeConsumer.Type())
 	suite.False(pipeConsumer.Paused())
@@ -133,6 +138,11 @@ func (suite *PipeTransportTestingSuite) TestRouterPipeToRouter_SucceedsWithAudio
 		{
 			Uri:     "urn:ietf:params:rtp-hdrext:ssrc-audio-level",
 			Id:      10,
+			Encrypt: false,
+		},
+		{
+			Uri:     "http://www.webrtc.org/experiments/rtp-hdrext/abs-capture-time",
+			Id:      13,
 			Encrypt: false,
 		},
 	}, pipeProducer.RtpParameters().HeaderExtensions)
@@ -198,6 +208,11 @@ func (suite *PipeTransportTestingSuite) TestRouterPipeToRouter_SucceedsWithVideo
 			Id:      12,
 			Encrypt: false,
 		},
+		{
+			Uri:     "http://www.webrtc.org/experiments/rtp-hdrext/abs-capture-time",
+			Id:      13,
+			Encrypt: false,
+		},
 	}, pipeConsumer.RtpParameters().HeaderExtensions)
 	suite.EqualValues("pipe", pipeConsumer.Type())
 	suite.False(pipeConsumer.Paused())
@@ -243,6 +258,11 @@ func (suite *PipeTransportTestingSuite) TestRouterPipeToRouter_SucceedsWithVideo
 		{
 			Uri:     "urn:ietf:params:rtp-hdrext:toffset",
 			Id:      12,
+			Encrypt: false,
+		},
+		{
+			Uri:     "http://www.webrtc.org/experiments/rtp-hdrext/abs-capture-time",
+			Id:      13,
 			Encrypt: false,
 		},
 	}, pipeProducer.RtpParameters().HeaderExtensions)
@@ -315,6 +335,11 @@ func (suite *PipeTransportTestingSuite) TestRouterCreatePipeTransport_WithEnable
 		{
 			Uri:     "urn:ietf:params:rtp-hdrext:toffset",
 			Id:      12,
+			Encrypt: false,
+		},
+		{
+			Uri:     "http://www.webrtc.org/experiments/rtp-hdrext/abs-capture-time",
+			Id:      13,
 			Encrypt: false,
 		},
 	}, pipeConsumer.RtpParameters().HeaderExtensions)

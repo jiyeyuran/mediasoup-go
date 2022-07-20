@@ -1,6 +1,10 @@
 package mediasoup
 
-import "github.com/jiyeyuran/mediasoup-go/h264"
+import (
+	"net"
+
+	"github.com/jiyeyuran/mediasoup-go/h264"
+)
 
 var consumerDeviceCapabilities = RtpCapabilities{
 	Codecs: []*RtpCodecCapability{
@@ -246,4 +250,38 @@ func CreateVP8Producer(tranpsort ITransport) *Producer {
 	}
 
 	return producer
+}
+
+// GetFreePort get port preferred outbound ip of this machine
+func GetFreeUdpPort() uint16 {
+	a, err := net.ResolveUDPAddr("udp", "localhost:0")
+	if err == nil {
+		var l *net.UDPConn
+		if l, err = net.ListenUDP("udp", a); err == nil {
+			defer l.Close()
+			return uint16(l.LocalAddr().(*net.UDPAddr).Port)
+		}
+	}
+	panic(err)
+	// conn, err := net.Dial("udp", "8.8.8.8:80")
+	// if err != nil {
+	// 	panic(err)
+	// }
+	// defer conn.Close()
+
+	// localAddr := conn.LocalAddr().(*net.UDPAddr)
+
+	// return uint16(localAddr.Port)
+}
+
+func GetFreeTcpPort() (port uint16) {
+	a, err := net.ResolveTCPAddr("tcp", "localhost:0")
+	if err == nil {
+		var l *net.TCPListener
+		if l, err = net.ListenTCP("tcp", a); err == nil {
+			defer l.Close()
+			return uint16(l.Addr().(*net.TCPAddr).Port)
+		}
+	}
+	panic(err)
 }

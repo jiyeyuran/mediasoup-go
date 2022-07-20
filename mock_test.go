@@ -11,13 +11,20 @@ type MockFunc struct {
 	require    *require.Assertions
 	notifyChan chan []interface{}
 	results    [][]interface{}
+	timeout    time.Duration
 }
 
 func NewMockFunc(t *testing.T) *MockFunc {
 	return &MockFunc{
 		require:    require.New(t),
 		notifyChan: make(chan []interface{}, 100),
+		timeout:    50 * time.Millisecond,
 	}
+}
+
+func (w *MockFunc) WithTimeout(timeout time.Duration) *MockFunc {
+	w.timeout = timeout
+	return w
 }
 
 func (w *MockFunc) Fn() func(...interface{}) {
@@ -71,8 +78,8 @@ func (w *MockFunc) wait() {
 		return
 	}
 
-	// collect results with 10ms timeout
-	timer := time.NewTimer(time.Millisecond * 10)
+	// collect results within timeout
+	timer := time.NewTimer(w.timeout)
 	defer timer.Stop()
 
 	for {

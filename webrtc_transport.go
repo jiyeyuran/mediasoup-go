@@ -7,8 +7,13 @@ import (
 
 type WebRtcTransportOptions struct {
 	/**
+	 * Instance of WebRtcServer. Mandatory unless listenIps is given.
+	 */
+	WebRtcServer *WebRtcServer
+
+	/**
 	 * Listening IP address or addresses in order of preference (first one is the
-	 * preferred one).
+	 * preferred one). Mandatory unless webRtcServer is given.
 	 */
 	ListenIps []TransportListenIp `json:"listenIps,omitempty"`
 
@@ -76,7 +81,7 @@ type IceCandidate struct {
 	Priority   uint32            `json:"priority"`
 	Ip         string            `json:"ip"`
 	Protocol   TransportProtocol `json:"protocol"`
-	Port       uint32            `json:"port"`
+	Port       uint16            `json:"port"`
 	// alway "host"
 	Type string `json:"type,omitempty"`
 	// "passive" | undefined
@@ -366,6 +371,20 @@ func (transport *WebRtcTransport) routerClosed() {
 	}
 
 	transport.ITransport.routerClosed()
+}
+
+// webRtcServerClosed called when closing the associated WebRtcServer.
+func (transport *WebRtcTransport) webRtcServerClosed() {
+	if transport.Closed() {
+		return
+	}
+	transport.data.IceState = IceState_Closed
+	transport.data.IceSelectedTuple = nil
+	transport.data.DtlsState = DtlsState_Closed
+
+	if len(transport.data.SctpState) > 0 {
+		transport.data.SctpState = SctpState_Closed
+	}
 }
 
 /**

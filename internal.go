@@ -8,4 +8,5 @@ type internalData struct {
 	DataProducerId string `json:"dataProducerId,omitempty"`
 	DataConsumerId string `json:"dataConsumerId,omitempty"`
 	RtpObserverId  string `json:"rtpObserverId,omitempty"`
+	WebRtcServerId string `json:"webRtcServerId,omitempty"`
 }

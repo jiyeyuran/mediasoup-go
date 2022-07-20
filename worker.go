@@ -185,6 +185,8 @@ type Worker struct {
 	died bool
 	// Custom app data.
 	appData interface{}
+	// WebRtcServers map
+	webRtcServers sync.Map
 	// Routers map.
 	routers sync.Map
 	// Observer instance.
@@ -418,6 +420,24 @@ func (w *Worker) Observer() IEventEmitter {
 	return w.observer
 }
 
+// Just for testing purposes.
+func (w *Worker) webRtcServersForTesting() (servers []*WebRtcServer) {
+	w.webRtcServers.Range(func(key, value interface{}) bool {
+		servers = append(servers, value.(*WebRtcServer))
+		return true
+	})
+	return
+}
+
+// Just for testing purposes.
+func (w *Worker) routersForTesting() (routers []*Router) {
+	w.routers.Range(func(key, value interface{}) bool {
+		routers = append(routers, value.(*Router))
+		return true
+	})
+	return
+}
+
 /**
  * Close the Worker.
  */
@@ -450,6 +470,14 @@ func (w *Worker) Close() {
 	})
 	w.routers = sync.Map{}
 
+	// Close every WebRtcServer.
+	w.webRtcServers.Range(func(key, value interface{}) bool {
+		webRtcServer := value.(*WebRtcServer)
+		webRtcServer.workerClosed()
+		return true
+	})
+	w.webRtcServers = sync.Map{}
+
 	// Emit observer event.
 	w.observer.SafeEmit("close")
 }
@@ -480,6 +508,32 @@ func (w *Worker) UpdateSettings(settings WorkerUpdateableSettings) error {
 	w.logger.Debug("updateSettings()")
 
 	return w.channel.Request("worker.updateSettings", nil, settings).Err()
+}
+
+// Create a WebRtcServer.
+func (w *Worker) CreateWebRtcServer(options WebRtcServerOptions) (webRtcServer *WebRtcServer, err error) {
+	w.logger.Debug("createWebRtcServer()")
+
+	internal := internalData{WebRtcServerId: uuid.NewString()}
+	reqData := H{"listenInfos": options.ListenInfos}
+	err = w.channel.Request("worker.createWebRtcServer", internal, reqData).Err()
+	if err != nil {
+		return
+	}
+	webRtcServer = NewWebRtcServer(webrtcServerParams{
+		internal: internal,
+		channel:  w.channel,
+		appData:  options.AppData,
+	})
+
+	w.webRtcServers.Store(webRtcServer.Id(), webRtcServer)
+	webRtcServer.On("@close", func() {
+		w.webRtcServers.Delete(webRtcServer.Id())
+	})
+
+	// Emit observer event.
+	w.observer.SafeEmit("newwebrtcserver", webRtcServer)
+	return
 }
 
 // CreateRouter creates a router.
@@ -535,6 +589,14 @@ func (w *Worker) workerDied(err error) {
 		return true
 	})
 	w.routers = sync.Map{}
+
+	// Close every WebRtcServer.
+	w.webRtcServers.Range(func(key, value interface{}) bool {
+		webRtcServer := value.(*WebRtcServer)
+		webRtcServer.workerClosed()
+		return true
+	})
+	w.webRtcServers = sync.Map{}
 
 	w.SafeEmit("died", err)
 

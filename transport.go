@@ -16,7 +16,6 @@ type ITransport interface {
 	AppData() interface{}
 	Observer() IEventEmitter
 	Close()
-	routerClosed()
 	Dump() (*TransportDump, error)
 	GetStats() ([]*TransportStat, error)
 	Connect(TransportConnectOptions) error
@@ -26,6 +25,10 @@ type ITransport interface {
 	ProduceData(DataProducerOptions) (*DataProducer, error)
 	ConsumeData(DataConsumerOptions) (*DataConsumer, error)
 	EnableTraceEvent(types ...TransportTraceEventType) error
+
+	// internal methods
+	routerClosed()
+	listenServerClosed()
 }
 
 type TransportListenIp struct {
@@ -369,6 +372,65 @@ func (transport *Transport) routerClosed() {
 		transport.observer.SafeEmit("close")
 		transport.observer.RemoveAllListeners()
 	}
+}
+
+// listenServerClosed Listen server was closed (this just happens in WebRtcTransports when their
+// associated WebRtcServer is closed).
+func (transport *Transport) listenServerClosed() {
+	if !atomic.CompareAndSwapUint32(&transport.closed, 0, 1) {
+		return
+	}
+	transport.logger.Debug("listenServerClosed()")
+
+	// Remove notification subscriptions.
+	transport.channel.RemoveAllListeners(transport.Id())
+	transport.payloadChannel.RemoveAllListeners(transport.Id())
+
+	// Close every Producer.
+	transport.producers.Range(func(key, value interface{}) bool {
+		producer := value.(*Producer)
+		producer.transportClosed()
+		// NOTE: No need to tell the Router since it already knows (it has
+		// been closed in fact).
+		return true
+	})
+	transport.producers = sync.Map{}
+
+	// Close every Consumer.
+	transport.consumers.Range(func(key, value interface{}) bool {
+		consumer := value.(*Consumer)
+		consumer.transportClosed()
+		return true
+	})
+	transport.consumers = sync.Map{}
+
+	// Close every DataProducer.
+	transport.dataProducers.Range(func(key, value interface{}) bool {
+		producer := value.(*DataProducer)
+		producer.transportClosed()
+		// NOTE: No need to tell the Router since it already knows (it has
+		// been closed in fact).
+		return true
+	})
+	transport.dataProducers = sync.Map{}
+
+	// Close every DataConsumer.
+	transport.dataConsumers.Range(func(key, value interface{}) bool {
+		consumer := value.(*DataConsumer)
+		consumer.transportClosed()
+		return true
+	})
+	transport.dataConsumers = sync.Map{}
+
+	// Need to emit this event to let the parent Router know since
+	// transport.listenServerClosed() is called by the listen server.
+	// NOTE: Currently there is just WebRtcServer for WebRtcTransports.
+	transport.Emit("@listenserverclose")
+
+	transport.SafeEmit("listenserverclose")
+
+	// Emit observer event.
+	transport.observer.SafeEmit("close")
 }
 
 // Dump Transport.

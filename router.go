@@ -157,8 +157,26 @@ func (router *Router) RtpCapabilities() RtpCapabilities {
 	return router.data.RtpCapabilities
 }
 
+// AppData returns App custom data.
+func (router *Router) AppData() interface{} {
+	return router.appData
+}
+
+// Observer return
 func (router *Router) Observer() IEventEmitter {
 	return router.observer
+}
+
+// Just for testing purposes.
+func (router *Router) transportsForTesting() map[string]ITransport {
+	transports := make(map[string]ITransport)
+
+	router.transports.Range(func(key, value interface{}) bool {
+		transports[key.(string)] = value.(ITransport)
+		return true
+	})
+
+	return transports
 }
 
 // Close the Router.
@@ -214,11 +232,9 @@ func (router *Router) workerClosed() {
 		router.mapRouterPipeTransports = sync.Map{}
 
 		router.Emit("workerclose")
-		router.RemoveAllListeners()
 
 		// Emit observer event.
 		router.observer.SafeEmit("close")
-		router.observer.RemoveAllListeners()
 	}
 }
 
@@ -289,10 +305,22 @@ func (router *Router) CreateWebRtcTransport(option WebRtcTransportOptions) (tran
 		return
 	}
 
+	if len(options.ListenIps) == 0 && options.WebRtcServer == nil {
+		err = NewTypeError("missing webRtcServer and listenIps (one of them is mandatory)")
+		return
+	}
+
 	router.logger.Debug("createWebRtcTransport()")
 
+	method := "router.createWebRtcTransport"
 	internal := router.internal
 	internal.TransportId = uuid.NewString()
+
+	if options.WebRtcServer != nil {
+		method = "router.createWebRtcTransportWithServer"
+		internal.WebRtcServerId = option.WebRtcServer.Id()
+	}
+
 	reqData := H{
 		"listenIps":                       options.ListenIps,
 		"enableUdp":                       options.EnableUdp,
@@ -306,17 +334,17 @@ func (router *Router) CreateWebRtcTransport(option WebRtcTransportOptions) (tran
 		"sctpSendBufferSize":              options.SctpSendBufferSize,
 		"isDataChannel":                   true,
 	}
-
-	resp := router.channel.Request("router.createWebRtcTransport", internal, reqData)
-
 	var data *webrtcTransportData
-	if err = resp.Unmarshal(&data); err != nil {
+	if err = router.channel.Request(method, internal, reqData).Unmarshal(&data); err != nil {
 		return
 	}
+	transport = router.createTransport(internal, data, options.AppData).(*WebRtcTransport)
 
-	iTransport := router.createTransport(internal, data, options.AppData)
+	if options.WebRtcServer != nil {
+		options.WebRtcServer.handleWebRtcTransport(transport)
+	}
 
-	return iTransport.(*WebRtcTransport), nil
+	return
 }
 
 /**
@@ -849,6 +877,9 @@ func (router *Router) createTransport(internal internalData, data, appData inter
 
 	router.transports.Store(transport.Id(), transport)
 	transport.On("@close", func() {
+		router.transports.Delete(transport.Id())
+	})
+	transport.On("@listenserverclose", func() {
 		router.transports.Delete(transport.Id())
 	})
 	transport.On("@newproducer", func(producer *Producer) {
