@@ -61,7 +61,7 @@ func override(dst, src interface{}) error {
 	)
 }
 
-func syncMapLen(m *sync.Map) (len int) {
+func syncMapLen(m sync.Map) (len int) {
 	m.Range(func(key, val interface{}) bool {
 		len++
 		return true

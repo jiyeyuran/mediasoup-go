@@ -62,12 +62,12 @@ func TestCreateRouter_Succeeds(t *testing.T) {
 	routerDump, _ := router.Dump()
 
 	assert.Equal(t, router.Id(), routerDump.Id)
-	assert.Equal(t, 1, syncMapLen(&worker.routers))
+	assert.Equal(t, 1, syncMapLen(worker.routers))
 
 	worker.Close()
 
 	assert.True(t, router.Closed())
-	assert.Equal(t, 0, syncMapLen(&worker.routers))
+	assert.Equal(t, 0, syncMapLen(worker.routers))
 }
 
 func TestCreateRouter_InvalidStateError(t *testing.T) {

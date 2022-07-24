@@ -83,7 +83,7 @@ func (c *Channel) Request(method string, internal internalData, data ...interfac
 	c.sents.Store(id, sent)
 	defer c.sents.Delete(id)
 
-	size := syncMapLen(&c.sents)
+	size := syncMapLen(c.sents)
 	timeout := 1000 * (15 + (0.1 * float64(size)))
 	timer := time.NewTimer(time.Duration(timeout) * time.Millisecond)
 	defer timer.Stop()
