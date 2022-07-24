@@ -310,13 +310,13 @@ func NewWorker(options ...Option) (worker *Worker, err error) {
 
 	doneCh := make(chan error)
 
-	channel.Once(strconv.Itoa(pid), func(event string) {
+	channel.AddTargetHandler(strconv.Itoa(pid), func(event string) {
 		if atomic.CompareAndSwapUint32(&worker.spawnDone, 0, 1) && event == "running" {
 			logger.Debug("worker process running [pid:%d]", pid)
 			worker.Emit("@success")
 			close(doneCh)
 		}
-	})
+	}, listenOnce())
 	worker.Once("@failure", func(err error) { doneCh <- err })
 
 	go worker.wait(child)

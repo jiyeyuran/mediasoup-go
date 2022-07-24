@@ -291,8 +291,8 @@ func (producer *Producer) Close() (err error) {
 		producer.logger.Debug("close()")
 
 		// Remove notification subscriptions.
-		producer.channel.RemoveAllListeners(producer.Id())
-		producer.payloadChannel.RemoveAllListeners(producer.Id())
+		producer.channel.RemoveTargetHandler(producer.Id())
+		producer.payloadChannel.RemoveTargetHandler(producer.Id())
 
 		response := producer.channel.Request("producer.close", producer.internal)
 
@@ -317,8 +317,8 @@ func (producer *Producer) transportClosed() {
 		producer.logger.Debug("transportClosed()")
 
 		// Remove notification subscriptions.
-		producer.channel.RemoveAllListeners(producer.Id())
-		producer.payloadChannel.RemoveAllListeners(producer.Id())
+		producer.channel.RemoveTargetHandler(producer.Id())
+		producer.payloadChannel.RemoveTargetHandler(producer.Id())
 
 		producer.SafeEmit("transportclose")
 		producer.RemoveAllListeners()
@@ -422,7 +422,7 @@ func (producer *Producer) Send(rtpPacket []byte) error {
 }
 
 func (producer *Producer) handleWorkerNotifications() {
-	producer.channel.On(producer.Id(), func(event string, data []byte) {
+	producer.channel.AddTargetHandler(producer.Id(), func(event string, data []byte) {
 		switch event {
 		case "score":
 			producer.score = []ProducerScore{}

@@ -278,8 +278,8 @@ func (transport *Transport) Close() {
 		transport.logger.Debug("close()")
 
 		// Remove notification subscriptions.
-		transport.channel.RemoveAllListeners(transport.Id())
-		transport.payloadChannel.RemoveAllListeners(transport.Id())
+		transport.channel.RemoveTargetHandler(transport.Id())
+		transport.payloadChannel.RemoveTargetHandler(transport.Id())
 
 		transport.channel.Request("transport.close", transport.internal)
 
@@ -332,8 +332,8 @@ func (transport *Transport) routerClosed() {
 		transport.logger.Debug("routerClosed()")
 
 		// Remove notification subscriptions.
-		transport.channel.RemoveAllListeners(transport.Id())
-		transport.payloadChannel.RemoveAllListeners(transport.Id())
+		transport.channel.RemoveTargetHandler(transport.Id())
+		transport.payloadChannel.RemoveTargetHandler(transport.Id())
 
 		transport.producers.Range(func(key, value interface{}) bool {
 			producer := value.(*Producer)
@@ -383,8 +383,8 @@ func (transport *Transport) listenServerClosed() {
 	transport.logger.Debug("listenServerClosed()")
 
 	// Remove notification subscriptions.
-	transport.channel.RemoveAllListeners(transport.Id())
-	transport.payloadChannel.RemoveAllListeners(transport.Id())
+	transport.channel.RemoveTargetHandler(transport.Id())
+	transport.payloadChannel.RemoveTargetHandler(transport.Id())
 
 	// Close every Producer.
 	transport.producers.Range(func(key, value interface{}) bool {

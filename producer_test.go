@@ -477,11 +477,11 @@ func (suite *ProducerTestingSuite) TestProducerEmitsScore() {
 
 	videoProducer.On("score", onScore.Fn())
 
-	channel.Emit(videoProducer.Id(), "score",
+	channel.emit(videoProducer.Id(), "score",
 		[]byte(`[ { "ssrc": 11, "score": 10 } ]`))
-	channel.Emit(videoProducer.Id(), "score",
+	channel.emit(videoProducer.Id(), "score",
 		[]byte(`[ { "ssrc": 11, "score": 9 }, { "ssrc": 22, "score": 8 } ]`))
-	channel.Emit(videoProducer.Id(), "score",
+	channel.emit(videoProducer.Id(), "score",
 		[]byte(`[ { "ssrc": 11, "score": 9 }, { "ssrc": 22, "score": 9 } ]`))
 
 	suite.Equal(3, onScore.CalledTimes())

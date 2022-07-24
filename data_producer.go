@@ -169,8 +169,8 @@ func (p *DataProducer) Close() (err error) {
 		p.logger.Debug("close()")
 
 		// Remove notification subscriptions.
-		p.channel.RemoveAllListeners(p.Id())
-		p.payloadChannel.RemoveAllListeners(p.Id())
+		p.channel.RemoveTargetHandler(p.Id())
+		p.payloadChannel.RemoveTargetHandler(p.Id())
 
 		response := p.channel.Request("dataProducer.close", p.internal)
 

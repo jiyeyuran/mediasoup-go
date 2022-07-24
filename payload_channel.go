@@ -3,6 +3,7 @@ package mediasoup
 import (
 	"encoding/json"
 	"errors"
+	"runtime/debug"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -10,16 +11,23 @@ import (
 	"github.com/jiyeyuran/mediasoup-go/netcodec"
 )
 
+type notifyInfo struct {
+	requestData []byte
+	payloadData []byte
+	respCh      chan workerResponse
+}
+
 type PayloadChannel struct {
-	IEventEmitter
 	locker              sync.Mutex
 	codec               netcodec.Codec
 	logger              Logger
 	closed              int32
 	nextId              int64
 	sents               sync.Map
-	pendingNotification *pendingNotification
+	listeners           sync.Map
+	pendingNotification *notification
 	sentChan            chan sentInfo
+	notifyChan          chan notifyInfo
 	closeCh             chan struct{}
 }
 
@@ -29,26 +37,25 @@ func newPayloadChannel(codec netcodec.Codec) *PayloadChannel {
 	logger.Debug("constructor()")
 
 	channel := &PayloadChannel{
-		IEventEmitter: NewEventEmitter(),
-		logger:        logger,
-		codec:         codec,
-		sentChan:      make(chan sentInfo),
-		closeCh:       make(chan struct{}),
+		logger:     logger,
+		codec:      codec,
+		sentChan:   make(chan sentInfo),
+		notifyChan: make(chan notifyInfo),
+		closeCh:    make(chan struct{}),
 	}
 
 	return channel
 }
 
 func (c *PayloadChannel) Start() {
+	go c.runWriteLoop()
 	go c.runReadLoop()
 }
 
 func (c *PayloadChannel) Close() {
 	if atomic.CompareAndSwapInt32(&c.closed, 0, 1) {
 		c.logger.Debug("close()")
-
 		close(c.closeCh)
-		c.RemoveAllListeners()
 	}
 }
 
@@ -56,26 +63,33 @@ func (c *PayloadChannel) Closed() bool {
 	return atomic.LoadInt32(&c.closed) > 0
 }
 
+func (c *PayloadChannel) AddTargetHandler(targetId string, handler interface{}, options ...listenerOption) {
+	c.listeners.Store(targetId, newInternalListener(handler, options...))
+}
+
+func (c *PayloadChannel) RemoveTargetHandler(targetId string) {
+	c.listeners.Delete(targetId)
+}
+
 func (c *PayloadChannel) Notify(event string, internal internalData, data interface{}, payload []byte) (err error) {
 	if c.Closed() {
-		err = NewInvalidStateError("PayloadChannel closed")
-		return
+		return NewInvalidStateError("PayloadChannel closed")
 	}
 	notification := workerNotification{
 		Event:    event,
 		Internal: internal,
 		Data:     data,
 	}
-	rawData, _ := json.Marshal(notification)
+	requestData, _ := json.Marshal(notification)
 
-	if len(rawData) > NS_MESSAGE_MAX_LEN {
+	if len(requestData) > NS_MESSAGE_MAX_LEN {
 		return errors.New("PayloadChannel request too big")
 	}
 	if len(payload) > NS_PAYLOAD_MAX_LEN {
 		return errors.New("PayloadChannel payload too big")
 	}
 
-	return c.writeAll(rawData, payload)
+	return c.writeAll(requestData, payload)
 }
 
 func (c *PayloadChannel) Request(method string, internal internalData, data interface{}, payload []byte) (rsp workerResponse) {
@@ -88,15 +102,26 @@ func (c *PayloadChannel) Request(method string, internal internalData, data inte
 
 	c.logger.Debug("request() [method:%s, id:%d]", method, id)
 
+	request := workerRequest{
+		Id:       id,
+		Method:   method,
+		Internal: internal,
+		Data:     data,
+	}
+	requestData, _ := json.Marshal(request)
+
+	if len(requestData) > NS_MESSAGE_MAX_LEN {
+		return workerResponse{err: errors.New("PayloadChannel request too big")}
+	}
+	if len(payload) > NS_PAYLOAD_MAX_LEN {
+		return workerResponse{err: errors.New("PayloadChannel payload too big")}
+	}
+
 	sent := sentInfo{
-		request: workerRequest{
-			Id:       id,
-			Method:   method,
-			Internal: internal,
-			Data:     data,
-		},
-		payload: payload,
-		respCh:  make(chan workerResponse),
+		method:      method,
+		requestData: requestData,
+		payloadData: payload,
+		respCh:      make(chan workerResponse),
 	}
 	size := syncMapLen(c.sents)
 
@@ -130,6 +155,17 @@ func (c *PayloadChannel) Request(method string, internal internalData, data inte
 	return
 }
 
+func (c *PayloadChannel) runWriteLoop() {
+	defer c.Close()
+
+	for sentInfo := range c.sentChan {
+		if err := c.writeAll(sentInfo.requestData, sentInfo.payloadData); err != nil {
+			sentInfo.respCh <- workerResponse{err: err}
+			break
+		}
+	}
+}
+
 func (c *PayloadChannel) writeAll(data, payload []byte) (err error) {
 	c.locker.Lock()
 	defer c.locker.Unlock()
@@ -143,29 +179,6 @@ func (c *PayloadChannel) writeAll(data, payload []byte) (err error) {
 		}
 	}
 	return
-}
-
-func (c *PayloadChannel) runWriteLoop() {
-	defer c.Close()
-
-	for sentInfo := range c.sentChan {
-		data, _ := json.Marshal(sentInfo.request)
-		payload := sentInfo.payload
-		respCh := sentInfo.respCh
-
-		if len(data) > NS_MESSAGE_MAX_LEN {
-			respCh <- workerResponse{err: errors.New("PayloadChannel request too big")}
-			continue
-		}
-		if len(payload) > NS_PAYLOAD_MAX_LEN {
-			respCh <- workerResponse{err: errors.New("PayloadChannel payload too big")}
-			continue
-		}
-		if err := c.writeAll(data, sentInfo.payload); err != nil {
-			respCh <- workerResponse{err: err}
-			break
-		}
-	}
 }
 
 func (c *PayloadChannel) runReadLoop() {
@@ -182,10 +195,9 @@ func (c *PayloadChannel) runReadLoop() {
 }
 
 func (c *PayloadChannel) processPayload(payload []byte) {
-	if c.pendingNotification != nil {
-		notification := c.pendingNotification
-		c.SafeEmit(notification.TargetId, notification.Event, notification.Data, payload)
+	if notify := c.pendingNotification; c.pendingNotification != nil {
 		c.pendingNotification = nil
+		c.emit(notify.TargetId, notify.Event, notify.Data, payload)
 		return
 	}
 
@@ -200,7 +212,7 @@ func (c *PayloadChannel) processPayload(payload []byte) {
 		TargetId string `json:"targetId,omitempty"`
 		Event    string `json:"event,omitempty"`
 
-		// response or notification  data
+		// response or notification data
 		Data json.RawMessage `json:"data,omitempty"`
 	}
 	if err := json.Unmarshal(payload, &msg); err != nil {
@@ -215,14 +227,13 @@ func (c *PayloadChannel) processPayload(payload []byte) {
 			return
 		}
 		sent := value.(sentInfo)
-		request := sent.request
 
 		if msg.Accepted {
-			c.logger.Debug("request succeeded [method:%s, id:%d]", request.Method, request.Id)
+			c.logger.Debug("request succeeded [method:%s, id:%d]", sent.method, msg.Id)
 
 			sent.respCh <- workerResponse{data: msg.Data}
 		} else if len(msg.Error) > 0 {
-			c.logger.Warn("request failed [method:%s, id:%d]: %s", request.Method, request.Id, msg.Reason)
+			c.logger.Warn("request failed [method:%s, id:%d]: %s", sent.method, msg.Id, msg.Reason)
 
 			if msg.Error == "TypeError" {
 				sent.respCh <- workerResponse{err: NewTypeError(msg.Reason)}
@@ -230,10 +241,10 @@ func (c *PayloadChannel) processPayload(payload []byte) {
 				sent.respCh <- workerResponse{err: errors.New(msg.Reason)}
 			}
 		} else {
-			c.logger.Error("received response is not accepted nor rejected [method:%s, id:%s]", request.Method, request.Id)
+			c.logger.Error("received response is not accepted nor rejected [method:%s, id:%s]", sent.method, msg.Id)
 		}
 	} else if len(msg.TargetId) > 0 && len(msg.Event) > 0 {
-		c.pendingNotification = &pendingNotification{
+		c.pendingNotification = &notification{
 			TargetId: msg.TargetId,
 			Event:    msg.Event,
 			Data:     msg.Data,
@@ -241,4 +252,26 @@ func (c *PayloadChannel) processPayload(payload []byte) {
 	} else {
 		c.logger.Error("received message is not a response nor a notification")
 	}
+}
+
+// emit notifcation
+func (c *PayloadChannel) emit(targetId, event string, data, payload []byte) {
+	val, ok := c.listeners.Load(targetId)
+	if !ok {
+		c.logger.Warn("no listener on target: %s", targetId)
+		return
+	}
+	listener := val.(*intervalListener)
+
+	defer func() {
+		if listener.once {
+			c.listeners.Delete(targetId)
+		}
+		if r := recover(); r != nil {
+			c.logger.Error("notification handler panic: %s, stack: %s", r, debug.Stack())
+		}
+	}()
+
+	// may panic
+	listener.Call(event, data, payload)
 }

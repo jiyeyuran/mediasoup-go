@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"runtime/debug"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -12,15 +13,15 @@ import (
 )
 
 type Channel struct {
-	IEventEmitter
-	logger   Logger
-	codec    netcodec.Codec
-	closed   int32
-	pid      int
-	nextId   int64
-	sents    sync.Map
-	sentChan chan sentInfo
-	closeCh  chan struct{}
+	logger    Logger
+	codec     netcodec.Codec
+	closed    int32
+	pid       int
+	nextId    int64
+	sents     sync.Map
+	listeners sync.Map
+	sentChan  chan sentInfo
+	closeCh   chan struct{}
 }
 
 func newChannel(codec netcodec.Codec, pid int) *Channel {
@@ -29,12 +30,11 @@ func newChannel(codec netcodec.Codec, pid int) *Channel {
 	logger.Debug("constructor()")
 
 	channel := &Channel{
-		IEventEmitter: NewEventEmitter(),
-		logger:        logger,
-		codec:         codec,
-		pid:           pid,
-		sentChan:      make(chan sentInfo),
-		closeCh:       make(chan struct{}),
+		logger:   logger,
+		codec:    codec,
+		pid:      pid,
+		sentChan: make(chan sentInfo),
+		closeCh:  make(chan struct{}),
 	}
 
 	return channel
@@ -48,15 +48,20 @@ func (c *Channel) Start() {
 func (c *Channel) Close() {
 	if atomic.CompareAndSwapInt32(&c.closed, 0, 1) {
 		c.logger.Debug("close()")
-
-		close(c.sentChan)
 		close(c.closeCh)
-		c.RemoveAllListeners()
 	}
 }
 
 func (c *Channel) Closed() bool {
 	return atomic.LoadInt32(&c.closed) > 0
+}
+
+func (c *Channel) AddTargetHandler(targetId string, handler interface{}, options ...listenerOption) {
+	c.listeners.Store(targetId, newInternalListener(handler, options...))
+}
+
+func (c *Channel) RemoveTargetHandler(targetId string) {
+	c.listeners.Delete(targetId)
 }
 
 func (c *Channel) Request(method string, internal internalData, data ...interface{}) (rsp workerResponse) {
@@ -69,16 +74,24 @@ func (c *Channel) Request(method string, internal internalData, data ...interfac
 
 	c.logger.Debug("request() [method:%s, id:%d]", method, id)
 
-	sent := sentInfo{
-		request: workerRequest{
-			Id:       id,
-			Method:   method,
-			Internal: internal,
-		},
-		respCh: make(chan workerResponse),
+	request := workerRequest{
+		Id:       id,
+		Method:   method,
+		Internal: internal,
 	}
 	if len(data) > 0 {
-		sent.request.Data = data[0]
+		request.Data = data[0]
+	}
+	requestData, _ := json.Marshal(request)
+
+	if len(requestData) > NS_MESSAGE_MAX_LEN {
+		return workerResponse{err: errors.New("Channel request too big")}
+	}
+
+	sent := sentInfo{
+		method:      method,
+		requestData: requestData,
+		respCh:      make(chan workerResponse),
 	}
 	size := syncMapLen(c.sents)
 
@@ -116,15 +129,8 @@ func (c *Channel) runWriteLoop() {
 	defer c.Close()
 
 	for sentInfo := range c.sentChan {
-		data, _ := json.Marshal(sentInfo.request)
-		respCh := sentInfo.respCh
-
-		if len(data) > NS_MESSAGE_MAX_LEN {
-			respCh <- workerResponse{err: errors.New("Channel request too big")}
-			continue
-		}
-		if err := c.codec.WritePayload(data); err != nil {
-			respCh <- workerResponse{err: err}
+		if err := c.codec.WritePayload(sentInfo.requestData); err != nil {
+			sentInfo.respCh <- workerResponse{err: err}
 			break
 		}
 	}
@@ -185,14 +191,13 @@ func (c *Channel) processMessage(nsPayload []byte) {
 			return
 		}
 		sent := value.(sentInfo)
-		request := sent.request
 
 		if msg.Accepted {
-			c.logger.Debug("request succeeded [method:%s, id:%d]", request.Method, request.Id)
+			c.logger.Debug("request succeeded [method:%s, id:%d]", sent.method, msg.Id)
 
 			sent.respCh <- workerResponse{data: msg.Data}
 		} else if len(msg.Error) > 0 {
-			c.logger.Warn("request failed [method:%s, id:%d]: %s", request.Method, request.Id, msg.Reason)
+			c.logger.Warn("request failed [method:%s, id:%d]: %s", sent.method, msg.Id, msg.Reason)
 
 			if msg.Error == "TypeError" {
 				sent.respCh <- workerResponse{err: NewTypeError(msg.Reason)}
@@ -200,7 +205,7 @@ func (c *Channel) processMessage(nsPayload []byte) {
 				sent.respCh <- workerResponse{err: errors.New(msg.Reason)}
 			}
 		} else {
-			c.logger.Error("received response is not accepted nor rejected [method:%s, id:%s]", request.Method, request.Id)
+			c.logger.Error("received response is not accepted nor rejected [method:%s, id:%s]", sent.method, msg.Id)
 		}
 	} else if msg.TargetId != nil && len(msg.Event) > 0 {
 		var targetId string
@@ -213,8 +218,30 @@ func (c *Channel) processMessage(nsPayload []byte) {
 		default:
 			targetId = fmt.Sprintf("%v", v)
 		}
-		c.SafeEmit(targetId, msg.Event, msg.Data)
+		c.emit(targetId, msg.Event, msg.Data)
 	} else {
 		c.logger.Error("received message is not a response nor a notification")
 	}
+}
+
+// emit notifcation
+func (c *Channel) emit(targetId, event string, data []byte) {
+	val, ok := c.listeners.Load(targetId)
+	if !ok {
+		c.logger.Warn("no listener on target: %s", targetId)
+		return
+	}
+	listener := val.(*intervalListener)
+
+	defer func() {
+		if listener.once {
+			c.listeners.Delete(targetId)
+		}
+		if r := recover(); r != nil {
+			c.logger.Error("notification handler panic: %s, stack: %s", r, debug.Stack())
+		}
+	}()
+
+	// may panic
+	listener.Call(event, data)
 }

@@ -112,24 +112,23 @@ func (suite *DirectTransportTestingSuite) TestDataProducerSendSucceeds() {
 		}
 
 		lastRecvMessageId++
-
 		suite.Equal(lastRecvMessageId, id)
 	})
 
 	for {
 		lastSentMessageId++
 
-		data := []byte(fmt.Sprintf("%d", lastSentMessageId))
+		text := fmt.Sprintf("%d", lastSentMessageId)
 
 		if lastSentMessageId < numMessages/2 {
-			err := dataProducer.SendText(string(data))
+			err := dataProducer.SendText(text)
 			suite.NoError(err)
 		} else {
-			err := dataProducer.Send(data)
+			err := dataProducer.Send([]byte(text))
 			suite.NoError(err)
 		}
 
-		sentMessageBytes += len(data)
+		sentMessageBytes += len(text)
 
 		if lastSentMessageId == numMessages {
 			break
@@ -138,7 +137,7 @@ func (suite *DirectTransportTestingSuite) TestDataProducerSendSucceeds() {
 
 	select {
 	case <-done:
-	case <-time.NewTimer(2 * time.Duration(numMessages) * time.Millisecond).C:
+	case <-time.NewTimer(time.Second).C:
 		suite.FailNow("timeout")
 	}
 
