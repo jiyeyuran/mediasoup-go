@@ -486,8 +486,7 @@ func (w *Worker) Close() {
 func (w *Worker) Dump() (dump WorkerDump, err error) {
 	w.logger.Debug("dump()")
 
-	err = w.channel.Request("worker.dump", nil).Unmarshal(&dump)
-
+	err = w.channel.Request("worker.dump", internalData{}).Unmarshal(&dump)
 	return
 }
 
@@ -497,9 +496,8 @@ func (w *Worker) Dump() (dump WorkerDump, err error) {
 func (w *Worker) GetResourceUsage() (usage WorkerResourceUsage, err error) {
 	w.logger.Debug("getResourceUsage()")
 
-	resp := w.channel.Request("worker.getResourceUsage", nil)
+	resp := w.channel.Request("worker.getResourceUsage", internalData{})
 	err = resp.Unmarshal(&usage)
-
 	return
 }
 
@@ -507,7 +505,7 @@ func (w *Worker) GetResourceUsage() (usage WorkerResourceUsage, err error) {
 func (w *Worker) UpdateSettings(settings WorkerUpdateableSettings) error {
 	w.logger.Debug("updateSettings()")
 
-	return w.channel.Request("worker.updateSettings", nil, settings).Err()
+	return w.channel.Request("worker.updateSettings", internalData{}, settings).Err()
 }
 
 // Create a WebRtcServer.

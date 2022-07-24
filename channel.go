@@ -11,42 +11,6 @@ import (
 	"github.com/jiyeyuran/mediasoup-go/netcodec"
 )
 
-const (
-	// netstring length for a 4194304 bytes payload.
-	NS_MESSAGE_MAX_LEN = 4194308
-	NS_PAYLOAD_MAX_LEN = 4194304
-)
-
-// Response from worker
-type workerResponse struct {
-	data json.RawMessage
-	err  error
-}
-
-func (r workerResponse) Unmarshal(v interface{}) error {
-	if r.err != nil {
-		return r.err
-	}
-	if len(r.data) == 0 {
-		return nil
-	}
-	return json.Unmarshal([]byte(r.data), v)
-}
-
-func (r workerResponse) Data() []byte {
-	return []byte(r.data)
-}
-
-func (r workerResponse) Err() error {
-	return r.err
-}
-
-type sentInfo struct {
-	id     int64
-	method string
-	respCh chan workerResponse
-}
-
 type Channel struct {
 	IEventEmitter
 	logger   Logger
@@ -55,7 +19,7 @@ type Channel struct {
 	pid      int
 	nextId   int64
 	sents    sync.Map
-	sentsLen int64
+	sentChan chan sentInfo
 	closeCh  chan struct{}
 }
 
@@ -69,6 +33,7 @@ func newChannel(codec netcodec.Codec, pid int) *Channel {
 		logger:        logger,
 		codec:         codec,
 		pid:           pid,
+		sentChan:      make(chan sentInfo),
 		closeCh:       make(chan struct{}),
 	}
 
@@ -76,6 +41,7 @@ func newChannel(codec netcodec.Codec, pid int) *Channel {
 }
 
 func (c *Channel) Start() {
+	go c.runWriteLoop()
 	go c.runReadLoop()
 }
 
@@ -83,6 +49,7 @@ func (c *Channel) Close() {
 	if atomic.CompareAndSwapInt32(&c.closed, 0, 1) {
 		c.logger.Debug("close()")
 
+		close(c.sentChan)
 		close(c.closeCh)
 		c.RemoveAllListeners()
 	}
@@ -92,7 +59,7 @@ func (c *Channel) Closed() bool {
 	return atomic.LoadInt32(&c.closed) > 0
 }
 
-func (c *Channel) Request(method string, internal interface{}, data ...interface{}) (rsp workerResponse) {
+func (c *Channel) Request(method string, internal internalData, data ...interface{}) (rsp workerResponse) {
 	if c.Closed() {
 		rsp.err = NewInvalidStateError("PayloadChannel closed")
 		return
@@ -103,52 +70,63 @@ func (c *Channel) Request(method string, internal interface{}, data ...interface
 	c.logger.Debug("request() [method:%s, id:%d]", method, id)
 
 	sent := sentInfo{
-		id:     id,
-		method: method,
+		request: workerRequest{
+			Id:       id,
+			Method:   method,
+			Internal: internal,
+		},
 		respCh: make(chan workerResponse),
 	}
-	c.sents.Store(id, sent)
-
-	size := atomic.AddInt64(&c.sentsLen, 1)
-
-	defer func() {
-		c.sents.Delete(id)
-		atomic.AddInt64(&c.sentsLen, -1)
-	}()
-
-	req := H{
-		"id":       id,
-		"method":   method,
-		"internal": internal,
-	}
 	if len(data) > 0 {
-		req["data"] = data[0]
+		sent.request.Data = data[0]
 	}
-	rawData, _ := json.Marshal(req)
+	c.sents.Store(id, sent)
+	defer c.sents.Delete(id)
 
-	if len(rawData) > NS_MESSAGE_MAX_LEN {
-		rsp.err = errors.New("Channel request too big")
-		return
-	}
-	err := c.codec.WritePayload(rawData)
-	if err != nil {
-		rsp.err = err
-		return
-	}
+	size := syncMapLen(&c.sents)
 	timeout := 1000 * (15 + (0.1 * float64(size)))
 	timer := time.NewTimer(time.Duration(timeout) * time.Millisecond)
 	defer timer.Stop()
 
+	// send request
 	select {
-	case rsp = <-sent.respCh:
-		return
+	case c.sentChan <- sent:
 	case <-timer.C:
 		rsp.err = errors.New("Channel request timeout")
 	case <-c.closeCh:
 		rsp.err = NewInvalidStateError("Channel closed")
 	}
+	if rsp.err != nil {
+		return
+	}
 
+	// wait response
+	select {
+	case rsp = <-sent.respCh:
+	case <-timer.C:
+		rsp.err = errors.New("Channel request timeout")
+	case <-c.closeCh:
+		rsp.err = NewInvalidStateError("Channel closed")
+	}
 	return
+}
+
+func (c *Channel) runWriteLoop() {
+	defer c.Close()
+
+	for sentInfo := range c.sentChan {
+		data, _ := json.Marshal(sentInfo.request)
+		respCh := sentInfo.respCh
+
+		if len(data) > NS_MESSAGE_MAX_LEN {
+			respCh <- workerResponse{err: errors.New("Channel request too big")}
+			continue
+		}
+		if err := c.codec.WritePayload(data); err != nil {
+			respCh <- workerResponse{err: err}
+			break
+		}
+	}
 }
 
 func (c *Channel) runReadLoop() {
@@ -206,13 +184,14 @@ func (c *Channel) processMessage(nsPayload []byte) {
 			return
 		}
 		sent := value.(sentInfo)
+		request := sent.request
 
 		if msg.Accepted {
-			c.logger.Debug("request succeeded [method:%s, id:%d]", sent.method, sent.id)
+			c.logger.Debug("request succeeded [method:%s, id:%d]", request.Method, request.Id)
 
 			sent.respCh <- workerResponse{data: msg.Data}
 		} else if len(msg.Error) > 0 {
-			c.logger.Warn("request failed [method:%s, id:%d]: %s", sent.method, sent.id, msg.Reason)
+			c.logger.Warn("request failed [method:%s, id:%d]: %s", request.Method, request.Id, msg.Reason)
 
 			if msg.Error == "TypeError" {
 				sent.respCh <- workerResponse{err: NewTypeError(msg.Reason)}
@@ -220,7 +199,7 @@ func (c *Channel) processMessage(nsPayload []byte) {
 				sent.respCh <- workerResponse{err: errors.New(msg.Reason)}
 			}
 		} else {
-			c.logger.Error("received response is not accepted nor rejected [method:%s, id:%s]", sent.method, sent.id)
+			c.logger.Error("received response is not accepted nor rejected [method:%s, id:%s]", request.Method, request.Id)
 		}
 	} else if msg.TargetId != nil && len(msg.Event) > 0 {
 		var targetId string
