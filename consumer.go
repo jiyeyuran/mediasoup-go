@@ -159,9 +159,10 @@ type consumerParams struct {
 }
 
 type consumerData struct {
-	Kind          MediaKind
-	Type          ConsumerType
-	RtpParameters RtpParameters
+	ProducerId    string        `json:"producerId,omitempty"`
+	Kind          MediaKind     `json:"kind,omitempty"`
+	Type          ConsumerType  `json:"type,omitempty"`
+	RtpParameters RtpParameters `json:"rtpParameters,omitempty"`
 }
 
 /**
@@ -246,7 +247,7 @@ func (consumer *Consumer) ConsumerId() string {
 
 // Associated Producer id.
 func (consumer *Consumer) ProducerId() string {
-	return consumer.internal.ProducerId
+	return consumer.data.ProducerId
 }
 
 // Whether the Consumer is closed.

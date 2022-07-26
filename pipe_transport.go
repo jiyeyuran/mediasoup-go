@@ -251,12 +251,21 @@ func (transport *PipeTransport) Consume(options ConsumerOptions) (consumer *Cons
 	internal.ConsumerId = uuid.NewString()
 	internal.ProducerId = producerId
 
-	reqData := H{
-		"kind":                   producer.Kind(),
-		"rtpParameters":          rtpParameters,
-		"type":                   "pipe",
-		"consumableRtpEncodings": producer.ConsumableRtpParameters().Encodings,
+	data := consumerData{
+		ProducerId:    producerId,
+		Kind:          producer.Kind(),
+		RtpParameters: rtpParameters,
+		Type:          "pipe",
 	}
+
+	reqData := struct {
+		consumerData
+		ConsumableRtpEncodings []RtpEncodingParameters `json:"consumableRtpEncodings"`
+	}{
+		consumerData:           data,
+		ConsumableRtpEncodings: producer.ConsumableRtpParameters().Encodings,
+	}
+
 	resp := transport.channel.Request("transport.consume", internal, reqData)
 
 	var status struct {
@@ -267,14 +276,9 @@ func (transport *PipeTransport) Consume(options ConsumerOptions) (consumer *Cons
 		return
 	}
 
-	consumerData := consumerData{
-		Kind:          producer.Kind(),
-		RtpParameters: rtpParameters,
-		Type:          "pipe",
-	}
 	consumer = newConsumer(consumerParams{
 		internal:       internal,
-		data:           consumerData,
+		data:           data,
 		channel:        transport.channel,
 		payloadChannel: transport.payloadChannel,
 		appData:        appData,

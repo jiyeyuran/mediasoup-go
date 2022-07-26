@@ -632,20 +632,31 @@ func (transport *Transport) Consume(options ConsumerOptions) (consumer *Consumer
 	internal.ConsumerId = uuid.NewString()
 	internal.ProducerId = producerId
 
-	typ := producer.Type()
+	tp := producer.Type()
 
 	if options.Pipe {
-		typ = "pipe"
+		tp = "pipe"
 	}
 
-	reqData := H{
-		"kind":                   producer.Kind(),
-		"rtpParameters":          rtpParameters,
-		"type":                   typ,
-		"consumableRtpEncodings": producer.ConsumableRtpParameters().Encodings,
-		"paused":                 paused,
-		"preferredLayers":        preferredLayers,
+	data := consumerData{
+		ProducerId:    producerId,
+		Kind:          producer.Kind(),
+		RtpParameters: rtpParameters,
+		Type:          tp,
 	}
+
+	reqData := struct {
+		consumerData
+		ConsumableRtpEncodings []RtpEncodingParameters `json:"consumableRtpEncodings"`
+		Paused                 bool                    `json:"paused"`
+		PreferredLayers        *ConsumerLayers         `json:"preferredLayers,omitempty"`
+	}{
+		consumerData:           data,
+		ConsumableRtpEncodings: producer.ConsumableRtpParameters().Encodings,
+		Paused:                 paused,
+		PreferredLayers:        preferredLayers,
+	}
+
 	resp := transport.channel.Request("transport.consume", internal, reqData)
 
 	var status struct {
@@ -657,14 +668,9 @@ func (transport *Transport) Consume(options ConsumerOptions) (consumer *Consumer
 		return
 	}
 
-	consumerData := consumerData{
-		Kind:          producer.Kind(),
-		RtpParameters: rtpParameters,
-		Type:          typ,
-	}
 	consumer = newConsumer(consumerParams{
 		internal:        internal,
-		data:            consumerData,
+		data:            data,
 		channel:         transport.channel,
 		payloadChannel:  transport.payloadChannel,
 		appData:         appData,
@@ -827,6 +833,7 @@ func (transport *Transport) ConsumeData(options DataConsumerOptions) (dataConsum
 	internal.DataProducerId = dataProducerId
 
 	reqData := H{
+		"dataProducerId":       dataProducerId,
 		"type":                 typ,
 		"sctpStreamParameters": sctpStreamParameters,
 		"label":                dataProducer.Label(),

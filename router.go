@@ -316,11 +316,6 @@ func (router *Router) CreateWebRtcTransport(option WebRtcTransportOptions) (tran
 	internal := router.internal
 	internal.TransportId = uuid.NewString()
 
-	if options.WebRtcServer != nil {
-		method = "router.createWebRtcTransportWithServer"
-		internal.WebRtcServerId = option.WebRtcServer.Id()
-	}
-
 	reqData := H{
 		"listenIps":                       options.ListenIps,
 		"enableUdp":                       options.EnableUdp,
@@ -334,6 +329,13 @@ func (router *Router) CreateWebRtcTransport(option WebRtcTransportOptions) (tran
 		"sctpSendBufferSize":              options.SctpSendBufferSize,
 		"isDataChannel":                   true,
 	}
+
+	if options.WebRtcServer != nil {
+		method = "router.createWebRtcTransportWithServer"
+		internal.WebRtcServerId = option.WebRtcServer.Id()
+		reqData["webRtcServerId"] = option.WebRtcServer.Id()
+	}
+
 	var data *webrtcTransportData
 	if err = router.channel.Request(method, internal, reqData).Unmarshal(&data); err != nil {
 		return

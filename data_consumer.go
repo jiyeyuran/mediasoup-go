@@ -70,10 +70,11 @@ type dataConsumerParams struct {
 }
 
 type dataConsumerData struct {
-	Type                 DataConsumerType
-	SctpStreamParameters *SctpStreamParameters
-	Label                string
-	Protocol             string
+	DataProducerId       string                `json:"dataProducerId,omitempty"`
+	Type                 DataConsumerType      `json:"type,omitempty"`
+	SctpStreamParameters *SctpStreamParameters `json:"sctpStreamParameters,omitempty"`
+	Label                string                `json:"label,omitempty"`
+	Protocol             string                `json:"protocol,omitempty"`
 }
 
 /**
@@ -136,7 +137,7 @@ func (c *DataConsumer) Id() string {
 
 // Associated DataProducer id.
 func (c *DataConsumer) DataProducerId() string {
-	return c.internal.DataProducerId
+	return c.data.DataProducerId
 }
 
 // Whether the DataConsumer is closed.
