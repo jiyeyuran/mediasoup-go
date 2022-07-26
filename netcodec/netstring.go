@@ -19,15 +19,20 @@ const (
 	PARSE_END
 )
 
-type NetstringCodec struct {
-	w io.Writer
-	r *bufio.Reader
+type BufferReader struct {
+	*bufio.Reader
+	io.Closer
 }
 
-func NewNetstringCodec(w io.Writer, r io.Reader) Codec {
+type NetstringCodec struct {
+	w io.WriteCloser
+	r *BufferReader
+}
+
+func NewNetstringCodec(w io.WriteCloser, r io.ReadCloser) Codec {
 	return &NetstringCodec{
 		w: w,
-		r: bufio.NewReader(r),
+		r: &BufferReader{Reader: bufio.NewReader(r), Closer: r},
 	}
 }
 
@@ -74,4 +79,14 @@ func (c NetstringCodec) ReadPayload() (payload []byte, err error) {
 		return
 	}
 	return
+}
+
+func (c *NetstringCodec) Close() (err error) {
+	err1 := c.w.Close()
+	err2 := c.r.Close()
+
+	if err1 != nil {
+		return err1
+	}
+	return err2
 }

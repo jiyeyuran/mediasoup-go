@@ -7,13 +7,13 @@ import (
 )
 
 type NetLVCodec struct {
-	w            io.Writer
-	r            io.Reader
+	w            io.WriteCloser
+	r            io.ReadCloser
 	nativeEndian binary.ByteOrder
 	mu           sync.Mutex
 }
 
-func NewNetLVCodec(w io.Writer, r io.Reader, nativeEndian binary.ByteOrder) Codec {
+func NewNetLVCodec(w io.WriteCloser, r io.ReadCloser, nativeEndian binary.ByteOrder) Codec {
 	return &NetLVCodec{
 		w:            w,
 		r:            r,
@@ -43,4 +43,14 @@ func (c *NetLVCodec) ReadPayload() (payload []byte, err error) {
 	payload = make([]byte, payloadLen)
 	_, err = io.ReadFull(c.r, payload)
 	return
+}
+
+func (c *NetLVCodec) Close() (err error) {
+	err1 := c.w.Close()
+	err2 := c.r.Close()
+
+	if err1 != nil {
+		return err1
+	}
+	return err2
 }

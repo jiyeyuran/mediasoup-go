@@ -39,16 +39,10 @@ var testRouterMediaCodecs = []*RtpCodecCapability{
 func TestCreateRouter_Succeeds(t *testing.T) {
 	worker := CreateTestWorker()
 
-	onObserverNewRouter := NewMockFunc(t)
-	worker.Observer().Once("newrouter", onObserverNewRouter.Fn())
-
 	router, err := worker.CreateRouter(RouterOptions{
 		MediaCodecs: testRouterMediaCodecs,
 	})
 	assert.NoError(t, err)
-
-	onObserverNewRouter.ExpectCalledTimes(1)
-	onObserverNewRouter.ExpectCalledWith(router)
 	assert.False(t, router.Closed())
 
 	dump, _ := worker.Dump()

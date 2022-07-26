@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"strconv"
@@ -170,7 +171,6 @@ type Option func(w *WorkerSettings)
  * @emits @failure - (error: Error)
  */
 type Worker struct {
-	IEventEmitter
 	// Worker logger.
 	logger Logger
 	// Worker process PID.
@@ -181,19 +181,18 @@ type Worker struct {
 	payloadChannel *PayloadChannel
 	// Closed flag.
 	closed uint32
-	// Died flag.
-	died bool
 	// Custom app data.
 	appData interface{}
 	// WebRtcServers map
 	webRtcServers sync.Map
 	// Routers map.
 	routers sync.Map
-	// Observer instance.
-	observer IEventEmitter
-
-	// spawnDone indices child is started
-	spawnDone uint32
+	// child is the worker process
+	child *exec.Cmd
+	// lastErr indices worker process stopped unexpectly
+	lastErr error
+	// waitCh notify worker process stopped expectly or not
+	waitCh chan error
 }
 
 func NewWorker(options ...Option) (worker *Worker, err error) {
@@ -213,31 +212,50 @@ func NewWorker(options ...Option) (worker *Worker, err error) {
 
 	logger.Debug("constructor()")
 
-	producerReader, producerWriter, err := os.Pipe()
-	if err != nil {
-		return
-	}
-	consumerReader, consumerWriter, err := os.Pipe()
-	if err != nil {
-		return
-	}
-	payloadProducerReader, payloadProducerWriter, err := os.Pipe()
-	if err != nil {
-		return
-	}
-	payloadConsumerReader, payloadConsumerWriter, err := os.Pipe()
-	if err != nil {
-		return
-	}
 	var (
 		channelCodec, payloadChannelCodec netcodec.Codec
 		workerVersion                     = settings.WorkerVersion
 	)
+
 	defautVerionFormatted, _ := version.NewVersion(defaultWorkerVersion)
 	workerVersionFormatted, err := version.NewVersion(workerVersion)
 	if err != nil {
-		return
+		return nil, err
 	}
+
+	var closeIfError []io.Closer
+	defer func() {
+		if err != nil {
+			for i := len(closeIfError) - 1; i >= 0; i-- {
+				closeIfError[i].Close()
+			}
+		}
+	}()
+
+	producerReader, producerWriter, err := os.Pipe()
+	if err != nil {
+		return nil, err
+	}
+	closeIfError = append(closeIfError, producerReader, producerWriter)
+
+	consumerReader, consumerWriter, err := os.Pipe()
+	if err != nil {
+		return nil, err
+	}
+	closeIfError = append(closeIfError, consumerReader, consumerWriter)
+
+	payloadProducerReader, payloadProducerWriter, err := os.Pipe()
+	if err != nil {
+		return nil, err
+	}
+	closeIfError = append(closeIfError, payloadProducerReader, payloadProducerWriter)
+
+	payloadConsumerReader, payloadConsumerWriter, err := os.Pipe()
+	if err != nil {
+		return nil, err
+	}
+	closeIfError = append(closeIfError, payloadConsumerReader, payloadConsumerWriter)
+
 	// use netstring codec for old mediasoup-worker version
 	if workerVersionFormatted.LessThan(defautVerionFormatted) {
 		channelCodec = netcodec.NewNetstringCodec(producerWriter, consumerReader)
@@ -259,21 +277,70 @@ func NewWorker(options ...Option) (worker *Worker, err error) {
 	child.ExtraFiles = []*os.File{producerReader, consumerWriter, payloadProducerReader, payloadConsumerWriter}
 	child.Env = []string{"MEDIASOUP_VERSION=" + workerVersion}
 
+	// pipe is closed by cmd
 	stderr, err := child.StderrPipe()
 	if err != nil {
-		return
+		return nil, err
 	}
+	// pipe is closed by cmd
 	stdout, err := child.StdoutPipe()
 	if err != nil {
-		return
-	}
-	if err = child.Start(); err != nil {
-		return
+		return nil, err
 	}
 
+	// notify the worker process is running or stopped with error
+	doneCh := make(chan error)
+	// spawnDone indices the worker process is started
+	spawnDone := uint32(0)
+
+	// start worker process
+	if err = child.Start(); err != nil {
+		return nil, err
+	}
+
+	// the worker process id
 	pid := child.Process.Pid
 	channel := newChannel(channelCodec, pid)
 	payloadChannel := newPayloadChannel(payloadChannelCodec)
+
+	channel.AddTargetHandler(strconv.Itoa(pid), func(event string) {
+		if atomic.CompareAndSwapUint32(&spawnDone, 0, 1) && event == "running" {
+			logger.Debug("worker process running [pid:%d]", pid)
+			close(doneCh)
+		}
+	}, listenOnce())
+
+	// start to read channel data
+	channel.Start()
+	// start to read payload channel data
+	payloadChannel.Start()
+
+	closeIfError = append(closeIfError, channel, payloadChannel)
+
+	worker = &Worker{
+		logger:         logger,
+		pid:            pid,
+		channel:        channel,
+		payloadChannel: payloadChannel,
+		appData:        settings.AppData,
+		child:          child,
+		waitCh:         make(chan error, 1),
+	}
+
+	go worker.wait(child, &spawnDone, doneCh)
+
+	waitTimer := time.NewTimer(time.Second)
+	defer waitTimer.Stop()
+
+	select {
+	case err = <-doneCh:
+	case <-waitTimer.C:
+		err = errors.New("channel timeout")
+	}
+	if err != nil {
+		return nil, err
+	}
+
 	workerLogger := NewLogger(fmt.Sprintf("worker[pid:%d]", pid))
 
 	go func() {
@@ -298,69 +365,19 @@ func NewWorker(options ...Option) (worker *Worker, err error) {
 		}
 	}()
 
-	worker = &Worker{
-		IEventEmitter:  NewEventEmitter(),
-		logger:         logger,
-		pid:            pid,
-		channel:        channel,
-		payloadChannel: payloadChannel,
-		appData:        settings.AppData,
-		observer:       NewEventEmitter(),
-	}
-
-	doneCh := make(chan error)
-
-	channel.AddTargetHandler(strconv.Itoa(pid), func(event string) {
-		if atomic.CompareAndSwapUint32(&worker.spawnDone, 0, 1) && event == "running" {
-			logger.Debug("worker process running [pid:%d]", pid)
-			worker.Emit("@success")
-			close(doneCh)
-		}
-	}, listenOnce())
-	worker.Once("@failure", func(err error) { doneCh <- err })
-
-	go worker.wait(child)
-
-	// start to read channel data
-	channel.Start()
-	// start to read payload channel data
-	payloadChannel.Start()
-
-	waitTimer := time.NewTimer(time.Second)
-	defer waitTimer.Stop()
-
-	select {
-	case err = <-doneCh:
-	case <-waitTimer.C:
-		err = errors.New("channel timeout")
-	}
-
-	return
+	return worker, nil
 }
 
-func (w *Worker) wait(child *exec.Cmd) {
-	if w.Closed() {
-		return
-	}
-
-	// clean up unix descriptors
-	defer func() {
-		w.channel.Close()
-		w.payloadChannel.Close()
-		for _, extraFile := range child.ExtraFiles {
-			extraFile.Close()
-		}
-	}()
-
-	var code int
-	var signal = os.Interrupt
+func (w *Worker) wait(child *exec.Cmd, spawnDone *uint32, doneCh chan error) {
+	var (
+		code   int
+		signal = os.Interrupt
+	)
 
 	if exiterr, ok := child.Wait().(*exec.ExitError); ok {
 		// The worker has exited with an exit code != 0
 		if status, ok := exiterr.Sys().(syscall.WaitStatus); ok {
-			code = status.ExitStatus()
-
-			if status.Signaled() {
+			if code = status.ExitStatus(); status.Signaled() {
 				signal = status.Signal()
 			} else {
 				signal = status.StopSignal()
@@ -368,56 +385,41 @@ func (w *Worker) wait(child *exec.Cmd) {
 		}
 	}
 
-	if atomic.CompareAndSwapUint32(&w.spawnDone, 0, 1) {
+	if atomic.CompareAndSwapUint32(spawnDone, 0, 1) {
 		if code == 42 {
-			w.logger.Error("worker process failed due to wrong settings [pid:%d]", w.pid)
-
-			w.Close()
-			w.Emit("@failure", NewTypeError("wrong settings"))
+			doneCh <- NewTypeError("worker process failed due to wrong settings [pid:%d]", w.pid)
 		} else {
-			w.logger.Error("worker process failed unexpectedly [pid:%d, code:%d, signal:%s]",
-				w.pid, code, signal)
-
-			w.Close()
-			w.Emit("@failure", fmt.Errorf(`[pid:%d, code:%d, signal:%s]`, w.pid, code, signal))
+			doneCh <- fmt.Errorf(`worker process failed unexpectedly [pid:%d, code:%d, signal:%s]`, w.pid, code, signal)
 		}
-	} else {
-		w.logger.Error("worker process died unexpectedly [pid:%d, code:%d, signal:%s]", w.pid, code, signal)
-		w.workerDied(fmt.Errorf("[pid:%d, code:%d, signal:%s]", w.pid, code, signal))
+	} else if !w.Closed() {
+		w.lastErr = fmt.Errorf("worker process died unexpectedly [pid:%d, code:%d, signal:%s]", w.pid, code, signal)
+		w.Close()
 	}
 }
 
-/**
- * Worker process identifier (PID).
- */
+// Wait blocks until the worker process is stopped
+func (w *Worker) Wait() error {
+	return <-w.waitCh
+}
+
+// Pid is the worker process identifier.
 func (w *Worker) Pid() int {
 	return w.pid
 }
 
-/**
- * Whether the Worker is closed.
- */
+// Closed indices if the worker process is closed
 func (w *Worker) Closed() bool {
 	return atomic.LoadUint32(&w.closed) > 0
 }
 
-/**
- * Whether the Worker is died.
- */
+// Died indices if the worker process died
 func (w *Worker) Died() bool {
-	return w.died
+	return w.lastErr != nil
 }
 
-/**
- * App custom data.
- */
+// AppData returns the custom app data.
 func (w *Worker) AppData() interface{} {
 	return w.appData
-}
-
-// Observer
-func (w *Worker) Observer() IEventEmitter {
-	return w.observer
 }
 
 // Just for testing purposes.
@@ -438,9 +440,7 @@ func (w *Worker) routersForTesting() (routers []*Router) {
 	return
 }
 
-/**
- * Close the Worker.
- */
+// Close terminal the worker process and all allocated resouces
 func (w *Worker) Close() {
 	if !atomic.CompareAndSwapUint32(&w.closed, 0, 1) {
 		return
@@ -462,6 +462,11 @@ func (w *Worker) Close() {
 	// Close the PayloadChannel instance.
 	w.payloadChannel.Close()
 
+	// close all pipes
+	for _, file := range w.child.ExtraFiles {
+		file.Close()
+	}
+
 	// Close every Router.
 	w.routers.Range(func(key, value interface{}) bool {
 		router := value.(*Router)
@@ -478,11 +483,11 @@ func (w *Worker) Close() {
 	})
 	w.webRtcServers = sync.Map{}
 
-	// Emit observer event.
-	w.observer.SafeEmit("close")
+	// notify caller
+	w.waitCh <- w.lastErr
 }
 
-// Dump Worker.
+// Dump returns the resources allocated by the worker.
 func (w *Worker) Dump() (dump WorkerDump, err error) {
 	w.logger.Debug("dump()")
 
@@ -491,7 +496,7 @@ func (w *Worker) Dump() (dump WorkerDump, err error) {
 }
 
 /**
- * Get mediasoup-worker process resource usage.
+ * GetResourceUsage returns the worker process resource usage.
  */
 func (w *Worker) GetResourceUsage() (usage WorkerResourceUsage, err error) {
 	w.logger.Debug("getResourceUsage()")
@@ -501,14 +506,14 @@ func (w *Worker) GetResourceUsage() (usage WorkerResourceUsage, err error) {
 	return
 }
 
-// UpdateSettings Update settings.
+// UpdateSettings updates settings.
 func (w *Worker) UpdateSettings(settings WorkerUpdateableSettings) error {
 	w.logger.Debug("updateSettings()")
 
 	return w.channel.Request("worker.updateSettings", internalData{}, settings).Err()
 }
 
-// Create a WebRtcServer.
+// CreateWebRtcServer creates a WebRtcServer.
 func (w *Worker) CreateWebRtcServer(options WebRtcServerOptions) (webRtcServer *WebRtcServer, err error) {
 	w.logger.Debug("createWebRtcServer()")
 
@@ -528,9 +533,6 @@ func (w *Worker) CreateWebRtcServer(options WebRtcServerOptions) (webRtcServer *
 	webRtcServer.On("@close", func() {
 		w.webRtcServers.Delete(webRtcServer.Id())
 	})
-
-	// Emit observer event.
-	w.observer.SafeEmit("newwebrtcserver", webRtcServer)
 	return
 }
 
@@ -562,42 +564,5 @@ func (w *Worker) CreateRouter(options RouterOptions) (router *Router, err error)
 	router.On("@close", func() {
 		w.routers.Delete(internal.RouterId)
 	})
-	// Emit observer event.
-	w.observer.SafeEmit("newrouter", router)
-
 	return
-}
-
-func (w *Worker) workerDied(err error) {
-	if !atomic.CompareAndSwapUint32(&w.closed, 0, 1) {
-		return
-	}
-	w.died = true
-	w.logger.Debug(`died() [error:%s]`, err)
-
-	// Close the Channel instance.
-	w.channel.Close()
-
-	// Close the PayloadChannel instance.
-	w.payloadChannel.Close()
-
-	// Close every Router.
-	w.routers.Range(func(key, value interface{}) bool {
-		value.(*Router).workerClosed()
-		return true
-	})
-	w.routers = sync.Map{}
-
-	// Close every WebRtcServer.
-	w.webRtcServers.Range(func(key, value interface{}) bool {
-		webRtcServer := value.(*WebRtcServer)
-		webRtcServer.workerClosed()
-		return true
-	})
-	w.webRtcServers = sync.Map{}
-
-	w.SafeEmit("died", err)
-
-	// Emit observer event.
-	w.observer.SafeEmit("close")
 }

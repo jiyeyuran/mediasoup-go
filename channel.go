@@ -45,11 +45,13 @@ func (c *Channel) Start() {
 	go c.runReadLoop()
 }
 
-func (c *Channel) Close() {
+func (c *Channel) Close() error {
 	if atomic.CompareAndSwapInt32(&c.closed, 0, 1) {
 		c.logger.Debug("close()")
 		close(c.closeCh)
+		return c.codec.Close()
 	}
+	return nil
 }
 
 func (c *Channel) Closed() bool {
@@ -128,10 +130,15 @@ func (c *Channel) Request(method string, internal internalData, data ...interfac
 func (c *Channel) runWriteLoop() {
 	defer c.Close()
 
-	for sentInfo := range c.sentChan {
-		if err := c.codec.WritePayload(sentInfo.requestData); err != nil {
-			sentInfo.respCh <- workerResponse{err: err}
-			break
+	for {
+		select {
+		case sentInfo := <-c.sentChan:
+			if err := c.codec.WritePayload(sentInfo.requestData); err != nil {
+				sentInfo.respCh <- workerResponse{err: err}
+				break
+			}
+		case <-c.closeCh:
+			return
 		}
 	}
 }

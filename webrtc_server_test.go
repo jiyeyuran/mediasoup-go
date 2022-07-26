@@ -19,10 +19,6 @@ type WebRtcServerTestingSuite struct {
 func TestWorkerCreateWebRtcServer(t *testing.T) {
 	t.Run("succeeds", func(t *testing.T) {
 		worker := CreateTestWorker()
-		onObserverNewWebRtcServer := NewMockFunc(t)
-
-		worker.Observer().Once("newwebrtcserver", onObserverNewWebRtcServer.Fn())
-
 		port1 := GetFreeUdpPort()
 		port2 := GetFreeTcpPort()
 
@@ -34,9 +30,6 @@ func TestWorkerCreateWebRtcServer(t *testing.T) {
 			AppData: H{"foo": 123},
 		})
 		require.NoError(t, err)
-
-		assert.Equal(t, 1, onObserverNewWebRtcServer.CalledTimes())
-		onObserverNewWebRtcServer.ExpectCalledWith(webRtcServer)
 		assert.Equal(t, H{"foo": 123}, webRtcServer.AppData())
 
 		dump, err := worker.Dump()

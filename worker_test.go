@@ -1,6 +1,7 @@
 package mediasoup
 
 import (
+	"errors"
 	"os"
 	"runtime"
 	"syscall"
@@ -8,15 +9,15 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
+var errType = errors.New("")
 var worker *Worker
 
 func init() {
 	os.Setenv("DEBUG_COLORS", "false")
 	DefaultLevel = WarnLevel
-	// WorkerBin = "../mediasoup/worker/out/Release/mediasoup-worker"
+	WorkerBin = "../mediasoup/worker/out/Release/mediasoup-worker"
 	worker = CreateTestWorker()
 }
 
@@ -41,8 +42,6 @@ func TestCreateWorker_Succeeds(t *testing.T) {
 	assert.True(t, worker.Closed())
 
 	worker = CreateTestWorker(
-		WithLogLevel(WorkerLogLevel_Debug),
-		WithLogTags([]WorkerLogTag{WorkerLogTag_INFO}),
 		WithRtcMinPort(0),
 		WithRtcMaxPort(9999),
 		WithDtlsCert("testdata/dtls-cert.pem", "testdata/dtls-key.pem"),
@@ -119,13 +118,10 @@ func TestWorkerGetResourceUsage_Succeeds(t *testing.T) {
 
 func TestWorkerClose_Succeeds(t *testing.T) {
 	worker := CreateTestWorker(WithLogLevel("warn"))
-
-	onObserverClose := NewMockFunc(t)
-	worker.Observer().Once("close", onObserverClose.Fn())
-
+	fn := asyncRun(worker.Wait)
 	worker.Close()
 
-	onObserverClose.ExpectCalledTimes(1)
+	assert.True(t, fn.Finished())
 	assert.True(t, worker.Closed())
 }
 
@@ -133,31 +129,13 @@ func TestWorkerEmitsDied(t *testing.T) {
 	signals := []os.Signal{os.Interrupt, syscall.SIGTERM, os.Kill}
 
 	for _, signal := range signals {
-
 		worker := CreateTestWorker(WithLogLevel("warn"))
+		fn := asyncRun(worker.Wait, withWaitTimeout(time.Millisecond*250))
 
-		onObserverClose := NewMockFunc(t)
-		worker.Observer().Once("close", onObserverClose.Fn())
-
-		process, err := os.FindProcess(worker.Pid())
-		assert.NoError(t, err)
-
-		diedCh := make(chan struct{})
-		worker.On("died", func() {
-			require.Zero(t, len(onObserverClose.results), `observer "close" event emitted before worker "died" event`)
-			require.True(t, worker.Closed(), "worker.closed is false")
-			close(diedCh)
-		})
-
+		process, _ := os.FindProcess(worker.Pid())
 		process.Signal(signal)
 
-		select {
-		case <-diedCh:
-		case <-time.NewTimer(time.Second).C:
-			t.Fatalf("timeout signal: %s", signal)
-		}
-
-		onObserverClose.ExpectCalledTimes(1)
+		assert.IsType(t, errType, fn.Out(0))
 		assert.True(t, worker.Closed())
 		assert.True(t, worker.Died())
 	}
@@ -166,14 +144,11 @@ func TestWorkerEmitsDied(t *testing.T) {
 func TestWorkerProcessIgnoreSignals(t *testing.T) {
 	// Windows doesn't have some signals such as SIGPIPE, SIGALRM, SIGUSR1, SIGUSR2
 	// so we just skip this test in Windows.
-	if runtime.GOOS == "windows" {
+	if runtime.GOOS != "windows" {
 		return
 	}
-
 	worker := CreateTestWorker(WithLogLevel("warn"))
-
-	onObserverDied := NewMockFunc(t)
-	worker.On("died", onObserverDied.Fn())
+	fn := asyncRun(worker.Wait)
 
 	process, err := os.FindProcess(worker.Pid())
 	assert.NoError(t, err)
@@ -184,9 +159,7 @@ func TestWorkerProcessIgnoreSignals(t *testing.T) {
 	// process.Signal(syscall.SIGUSR1)
 	// process.Signal(syscall.SIGUSR2)
 
-	time.Sleep(10 * time.Millisecond)
-
-	onObserverDied.ExpectCalledTimes(0)
+	assert.False(t, fn.Finished())
 	assert.False(t, worker.Closed())
 	worker.Close()
 }

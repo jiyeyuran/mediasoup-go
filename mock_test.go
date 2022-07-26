@@ -1,6 +1,7 @@
 package mediasoup
 
 import (
+	"reflect"
 	"testing"
 	"time"
 
@@ -90,4 +91,78 @@ func (w *MockFunc) wait() {
 			return
 		}
 	}
+}
+
+type wrapOption func(*asyncResult)
+
+func withWaitTimeout(d time.Duration) wrapOption {
+	return func(w *asyncResult) {
+		w.waitTimeout = d
+	}
+}
+
+func asyncRun(fn interface{}, options ...wrapOption) *asyncResult {
+	w := &asyncResult{
+		doneCh:      make(chan []reflect.Value, 1),
+		waitTimeout: 10 * time.Millisecond,
+	}
+	for _, o := range options {
+		o(w)
+	}
+
+	go func() {
+		fnVal := reflect.ValueOf(fn)
+		w.doneCh <- fnVal.Call(nil)
+	}()
+
+	return w
+}
+
+type asyncResult struct {
+	done        bool
+	doneCh      chan []reflect.Value
+	outs        []interface{}
+	waitTimeout time.Duration
+	waited      bool
+}
+
+func (w *asyncResult) Finished() bool {
+	w.mayWait()
+	return w.done
+}
+
+func (w *asyncResult) Out(i int) interface{} {
+	w.mayWait()
+	if len(w.outs)-1 < i {
+		return nil
+	}
+	return w.outs[i]
+}
+
+func (w *asyncResult) mayWait() {
+	if w.waited {
+		return
+	}
+
+	var waitCh <-chan time.Time
+
+	if w.waitTimeout > 0 {
+		waitTimer := time.NewTimer(w.waitTimeout)
+		waitCh = waitTimer.C
+
+		defer waitTimer.Stop()
+	}
+
+	select {
+	case outs := <-w.doneCh:
+		w.done = true
+		for _, out := range outs {
+			w.outs = append(w.outs, out.Interface())
+		}
+
+	case <-waitCh:
+
+	}
+
+	w.waited = true
 }
