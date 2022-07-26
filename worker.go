@@ -189,8 +189,8 @@ type Worker struct {
 	routers sync.Map
 	// child is the worker process
 	child *exec.Cmd
-	// lastErr indices worker process stopped unexpectly
-	lastErr error
+	// diedErr indices worker process stopped unexpectly
+	diedErr error
 	// waitCh notify worker process stopped expectly or not
 	waitCh chan error
 }
@@ -387,12 +387,17 @@ func (w *Worker) wait(child *exec.Cmd, spawnDone *uint32, doneCh chan error) {
 
 	if atomic.CompareAndSwapUint32(spawnDone, 0, 1) {
 		if code == 42 {
-			doneCh <- NewTypeError("worker process failed due to wrong settings [pid:%d]", w.pid)
+			err := NewTypeError("worker process failed due to wrong settings [pid:%d]", w.pid)
+			w.logger.Error(err.Error())
+			doneCh <- err
 		} else {
-			doneCh <- fmt.Errorf(`worker process failed unexpectedly [pid:%d, code:%d, signal:%s]`, w.pid, code, signal)
+			err := fmt.Errorf(`worker process failed unexpectedly [pid:%d, code:%d, signal:%s]`, w.pid, code, signal)
+			w.logger.Error(err.Error())
+			doneCh <- err
 		}
 	} else if !w.Closed() {
-		w.lastErr = fmt.Errorf("worker process died unexpectedly [pid:%d, code:%d, signal:%s]", w.pid, code, signal)
+		w.diedErr = fmt.Errorf("worker process died unexpectedly [pid:%d, code:%d, signal:%s]", w.pid, code, signal)
+		w.logger.Error(w.diedErr.Error())
 		w.Close()
 	}
 }
@@ -414,7 +419,7 @@ func (w *Worker) Closed() bool {
 
 // Died indices if the worker process died
 func (w *Worker) Died() bool {
-	return w.lastErr != nil
+	return w.diedErr != nil
 }
 
 // AppData returns the custom app data.
@@ -484,7 +489,7 @@ func (w *Worker) Close() {
 	w.webRtcServers = sync.Map{}
 
 	// notify caller
-	w.waitCh <- w.lastErr
+	w.waitCh <- w.diedErr
 }
 
 // Dump returns the resources allocated by the worker.
