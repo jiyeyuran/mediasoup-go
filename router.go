@@ -162,7 +162,7 @@ func (router *Router) AppData() interface{} {
 	return router.appData
 }
 
-// Observer return
+// Observer returns the observer instance.
 func (router *Router) Observer() IEventEmitter {
 	return router.observer
 }
@@ -180,62 +180,53 @@ func (router *Router) transportsForTesting() map[string]ITransport {
 }
 
 // Close the Router.
-func (router *Router) Close() {
-	if atomic.CompareAndSwapUint32(&router.closed, 0, 1) {
-		router.logger.Debug("close()")
+func (router *Router) Close() (err error) {
+	router.logger.Debug("close()")
 
-		router.channel.Request("router.close", router.internal)
-
-		// Close every Transport.
-		router.transports.Range(func(key, value interface{}) bool {
-			value.(ITransport).routerClosed()
-			return true
-		})
-
-		// Close every RtpObserver.
-		router.rtpObservers.Range(func(key, value interface{}) bool {
-			value.(IRtpObserver).routerClosed()
-			return true
-		})
-
-		router.Emit("@close")
-		router.RemoveAllListeners()
-
-		// Emit observer event.
-		router.observer.SafeEmit("close")
-		router.observer.RemoveAllListeners()
+	if !atomic.CompareAndSwapUint32(&router.closed, 0, 1) {
+		return
 	}
+	if err = router.channel.Request("router.close", router.internal).Err(); err != nil {
+		return
+	}
+	router.close()
+	router.Emit("@close")
+	return
 }
 
 func (router *Router) workerClosed() {
-	if atomic.CompareAndSwapUint32(&router.closed, 0, 1) {
-		router.logger.Debug("workerClosed()")
+	router.logger.Debug("workerClosed()")
 
-		// Close every Transport.
-		router.transports.Range(func(key, value interface{}) bool {
-			value.(ITransport).routerClosed()
-			return true
-		})
-		router.transports = sync.Map{}
-
-		// Clear the Producers map.
-		router.producers = sync.Map{}
-
-		// Close every RtpObserver.
-		router.rtpObservers.Range(func(key, value interface{}) bool {
-			value.(IRtpObserver).routerClosed()
-			return true
-		})
-		router.rtpObservers = sync.Map{}
-
-		// Clear map of Router/PipeTransports.
-		router.mapRouterPipeTransports = sync.Map{}
-
-		router.Emit("workerclose")
-
-		// Emit observer event.
-		router.observer.SafeEmit("close")
+	if !atomic.CompareAndSwapUint32(&router.closed, 0, 1) {
+		return
 	}
+	router.close()
+	router.Emit("workerclose")
+}
+
+func (router *Router) close() {
+	// Close every Transport.
+	router.transports.Range(func(key, value interface{}) bool {
+		value.(ITransport).routerClosed()
+		return true
+	})
+	router.transports = sync.Map{}
+
+	// Clear the Producers map.
+	router.producers = sync.Map{}
+
+	// Close every RtpObserver.
+	router.rtpObservers.Range(func(key, value interface{}) bool {
+		value.(IRtpObserver).routerClosed()
+		return true
+	})
+	router.rtpObservers = sync.Map{}
+
+	// Clear map of Router/PipeTransports.
+	router.mapRouterPipeTransports = sync.Map{}
+
+	// Emit observer event.
+	router.observer.Emit("close")
 }
 
 // Dump Router.
@@ -519,7 +510,7 @@ func (router *Router) PipeToRouter(option PipeToRouterOptions) (result *PipeToRo
 	var localPipeTransport, remotePipeTransport *PipeTransport
 
 	if value, ok := router.mapRouterPipeTransports.Load(options.Router); ok {
-		pipeTransportPair := value.([]*PipeTransport)
+		pipeTransportPair := value.([2]*PipeTransport)
 		localPipeTransport, remotePipeTransport = pipeTransportPair[0], pipeTransportPair[1]
 	} else {
 		// Here we may have to create a new PipeTransport pair to connect source and
@@ -528,13 +519,12 @@ func (router *Router) PipeToRouter(option PipeToRouterOptions) (result *PipeToRo
 		// simultaneous calls to router1.pipeToRouter({ producerId: xxx, router: router2 })
 		// would end up generating two pairs of PipeTranports. To prevent that, let's
 		// use singleflight.
-		keys := []string{router.Id(), options.Router.Id()}
-		sort.Strings(keys)
-		v, err, _ := pipeRouterGroup.Do(strings.Join(keys, ""), func() (result interface{}, err error) {
+		routerPairIds := []string{router.Id(), options.Router.Id()}
+		sort.Strings(routerPairIds)
+		key := strings.Join(routerPairIds, "_")
+		v, err, _ := pipeRouterGroup.Do(key, func() (result interface{}, err error) {
 			defer func() {
 				if err != nil {
-					router.logger.Error("pipeToRouter() | error creating PipeTransport pair:%s", err)
-
 					if localPipeTransport != nil {
 						localPipeTransport.Close()
 					}
@@ -562,6 +552,7 @@ func (router *Router) PipeToRouter(option PipeToRouterOptions) (result *PipeToRo
 				return err
 			})
 			if err = errgroup.Wait(); err != nil {
+				router.logger.Error("pipeToRouter() | error creating PipeTransport pair:%s", err)
 				return
 			}
 			errgroup.Go(func() error {
@@ -579,19 +570,22 @@ func (router *Router) PipeToRouter(option PipeToRouterOptions) (result *PipeToRo
 				})
 			})
 			if err = errgroup.Wait(); err != nil {
+				router.logger.Error("pipeToRouter() | error connecting PipeTransport pair:%s", err)
 				return
 			}
-			return []*PipeTransport{localPipeTransport, remotePipeTransport}, nil
+			return []interface{}{router, [2]*PipeTransport{localPipeTransport, remotePipeTransport}}, nil
 		})
 		if err != nil {
 			return nil, err
 		}
-		pipeTransportPair := v.([]*PipeTransport)
+		result := v.([]interface{})
+		actualRouter := result[0].(*Router)
+		pipeTransportPair := result[1].([2]*PipeTransport)
 		// swap local and remote PipeTransport if pipeTransportPair is shared from the other router
-		if localPipeTransport == nil && remotePipeTransport == nil {
-			localPipeTransport, remotePipeTransport = pipeTransportPair[1], pipeTransportPair[0]
+		if actualRouter != router {
+			pipeTransportPair[0], pipeTransportPair[1] = pipeTransportPair[1], pipeTransportPair[0]
 		}
-		router.addPipeTransportPair(options.Router, []*PipeTransport{localPipeTransport, remotePipeTransport})
+		localPipeTransport, remotePipeTransport = router.addPipeTransportPair(options.Router, pipeTransportPair)
 	}
 
 	if producer != nil {
@@ -600,8 +594,6 @@ func (router *Router) PipeToRouter(option PipeToRouterOptions) (result *PipeToRo
 
 		defer func() {
 			if err != nil {
-				router.logger.Error("pipeToRouter() | error creating pipe Consumer/Producer pair:%s", err)
-
 				if pipeConsumer != nil {
 					pipeConsumer.Close()
 				}
@@ -615,6 +607,7 @@ func (router *Router) PipeToRouter(option PipeToRouterOptions) (result *PipeToRo
 			ProducerId: options.ProducerId,
 		})
 		if err != nil {
+			router.logger.Error("pipeToRouter() | error creating pipe Consumer:%s", err)
 			return
 		}
 		pipeProducer, err = remotePipeTransport.Produce(ProducerOptions{
@@ -625,11 +618,13 @@ func (router *Router) PipeToRouter(option PipeToRouterOptions) (result *PipeToRo
 			AppData:       producer.AppData(),
 		})
 		if err != nil {
+			router.logger.Error("pipeToRouter() | error creating pipe Producer:%s", err)
 			return
 		}
 		// Ensure that the producer has not been closed in the meanwhile.
 		if producer.Closed() {
 			err = NewInvalidStateError("original Producer closed")
+			router.logger.Error("pipeToRouter() | error:%s", err)
 			return
 		}
 
@@ -642,6 +637,7 @@ func (router *Router) PipeToRouter(option PipeToRouterOptions) (result *PipeToRo
 				err = pipeProducer.Resume()
 			}
 			if err != nil {
+				router.logger.Error("pipeToRouter() | error pause or resume producer:%s", err)
 				return
 			}
 		}
@@ -667,8 +663,6 @@ func (router *Router) PipeToRouter(option PipeToRouterOptions) (result *PipeToRo
 
 		defer func() {
 			if err != nil {
-				router.logger.Error("pipeToRouter() | error creating pipe DataConsumer/DataProducer pair:%s", err)
-
 				if pipeDataConsumer != nil {
 					pipeDataConsumer.Close()
 				}
@@ -682,6 +676,7 @@ func (router *Router) PipeToRouter(option PipeToRouterOptions) (result *PipeToRo
 			DataProducerId: options.DataProducerId,
 		})
 		if err != nil {
+			router.logger.Error("pipeToRouter() | error creating pipe DataConsumer pair:%s", err)
 			return
 		}
 		pipeDataProducer, err = remotePipeTransport.ProduceData(DataProducerOptions{
@@ -692,11 +687,13 @@ func (router *Router) PipeToRouter(option PipeToRouterOptions) (result *PipeToRo
 			AppData:              dataProducer.AppData(),
 		})
 		if err != nil {
+			router.logger.Error("pipeToRouter() | error creating pipe DataProducer pair:%s", err)
 			return
 		}
 		// Ensure that the dataProducer has not been closed in the meanwhile.
 		if dataProducer.Closed() {
 			err = NewInvalidStateError("original DataProducer closed")
+			router.logger.Error("pipeToRouter() | error:%s", err)
 			return
 		}
 
@@ -709,21 +706,33 @@ func (router *Router) PipeToRouter(option PipeToRouterOptions) (result *PipeToRo
 			PipeDataConsumer: pipeDataConsumer,
 			PipeDataProducer: pipeDataProducer,
 		}
-		return
 	}
 	return
 }
 
-func (router *Router) addPipeTransportPair(key *Router, pipeTransportPair []*PipeTransport) {
-	if _, loaded := router.mapRouterPipeTransports.LoadOrStore(key, pipeTransportPair); loaded {
-		return
+func (router *Router) addPipeTransportPair(key *Router, pipeTransportPair [2]*PipeTransport) (*PipeTransport, *PipeTransport) {
+	if val, loaded := router.mapRouterPipeTransports.LoadOrStore(key, pipeTransportPair); loaded {
+		oldPipeTransportPair := val.([2]*PipeTransport)
+
+		// close useless pipeTransport pair
+		for i, transport := range pipeTransportPair {
+			if transport != oldPipeTransportPair[i] {
+				transport.Close()
+			}
+		}
+
+		pipeTransportPair = oldPipeTransportPair
+		router.logger.Warn("router: %s, pipeTransport exists, use the old pair", router.Id())
 	}
+
 	localPipeTransport, remotePipeTransport := pipeTransportPair[0], pipeTransportPair[1]
 
 	localPipeTransport.Observer().On("close", func() {
 		remotePipeTransport.Close()
 		router.mapRouterPipeTransports.Delete(key)
 	})
+
+	return localPipeTransport, remotePipeTransport
 }
 
 // CreateActiveSpeakerObserver create an ActiveSpeakerObserver

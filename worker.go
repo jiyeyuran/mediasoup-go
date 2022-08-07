@@ -171,6 +171,7 @@ type Option func(w *WorkerSettings)
  * @emits @failure - (error: Error)
  */
 type Worker struct {
+	IEventEmitter
 	// Worker logger.
 	logger Logger
 	// Worker process PID.
@@ -193,6 +194,9 @@ type Worker struct {
 	diedErr error
 	// waitCh notify worker process stopped expectly or not
 	waitCh chan error
+
+	// Observer instance.
+	observer IEventEmitter
 }
 
 func NewWorker(options ...Option) (worker *Worker, err error) {
@@ -303,12 +307,12 @@ func NewWorker(options ...Option) (worker *Worker, err error) {
 	channel := newChannel(channelCodec, pid)
 	payloadChannel := newPayloadChannel(payloadChannelCodec)
 
-	channel.AddTargetHandler(strconv.Itoa(pid), func(event string) {
+	channel.Once(strconv.Itoa(pid), func(event string) {
 		if atomic.CompareAndSwapUint32(&spawnDone, 0, 1) && event == "running" {
 			logger.Debug("worker process running [pid:%d]", pid)
 			close(doneCh)
 		}
-	}, listenOnce())
+	})
 
 	// start to read channel data
 	channel.Start()
@@ -318,6 +322,7 @@ func NewWorker(options ...Option) (worker *Worker, err error) {
 	closeIfError = append(closeIfError, channel, payloadChannel)
 
 	worker = &Worker{
+		IEventEmitter:  NewEventEmitter(),
 		logger:         logger,
 		pid:            pid,
 		channel:        channel,
@@ -325,6 +330,7 @@ func NewWorker(options ...Option) (worker *Worker, err error) {
 		appData:        settings.AppData,
 		child:          child,
 		waitCh:         make(chan error, 1),
+		observer:       NewEventEmitter(),
 	}
 
 	go worker.wait(child, &spawnDone, doneCh)
@@ -427,6 +433,11 @@ func (w *Worker) AppData() interface{} {
 	return w.appData
 }
 
+// Observer return
+func (w *Worker) Observer() IEventEmitter {
+	return w.observer
+}
+
 // Just for testing purposes.
 func (w *Worker) webRtcServersForTesting() (servers []*WebRtcServer) {
 	w.webRtcServers.Range(func(key, value interface{}) bool {
@@ -490,6 +501,11 @@ func (w *Worker) Close() {
 
 	// notify caller
 	w.waitCh <- w.diedErr
+
+	if w.diedErr != nil {
+		w.Emit("died", w.diedErr)
+	}
+	w.observer.Emit("close")
 }
 
 // Dump returns the resources allocated by the worker.
@@ -538,6 +554,10 @@ func (w *Worker) CreateWebRtcServer(options WebRtcServerOptions) (webRtcServer *
 	webRtcServer.On("@close", func() {
 		w.webRtcServers.Delete(webRtcServer.Id())
 	})
+
+	// Emit observer event.
+	w.observer.Emit("newwebrtcserver", webRtcServer)
+
 	return
 }
 
@@ -569,5 +589,9 @@ func (w *Worker) CreateRouter(options RouterOptions) (router *Router, err error)
 	router.On("@close", func() {
 		w.routers.Delete(internal.RouterId)
 	})
+
+	// Emit observer event.
+	w.observer.Emit("newrouter", router)
+
 	return
 }

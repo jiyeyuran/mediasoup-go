@@ -1,6 +1,9 @@
 package mediasoup
 
-import "sync/atomic"
+import (
+	"sync"
+	"sync/atomic"
+)
 
 type DataProducerOptions struct {
 	/**
@@ -76,6 +79,7 @@ type dataProducerData struct {
  */
 type DataProducer struct {
 	IEventEmitter
+	mu             sync.Mutex
 	logger         Logger
 	internal       internalData
 	data           dataProducerData
@@ -169,8 +173,8 @@ func (p *DataProducer) Close() (err error) {
 		p.logger.Debug("close()")
 
 		// Remove notification subscriptions.
-		p.channel.RemoveTargetHandler(p.Id())
-		p.payloadChannel.RemoveTargetHandler(p.Id())
+		p.channel.RemoveAllListeners(p.Id())
+		p.payloadChannel.RemoveAllListeners(p.Id())
 
 		response := p.channel.Request("dataProducer.close", p.internal)
 

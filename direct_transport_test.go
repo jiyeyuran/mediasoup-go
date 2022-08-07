@@ -3,6 +3,7 @@ package mediasoup
 import (
 	"fmt"
 	"strconv"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -89,61 +90,32 @@ func (suite *DirectTransportTestingSuite) TestDataProducerSendSucceeds() {
 		DataProducerId: dataProducer.Id(),
 	})
 	const numMessages = 200
-	var sentMessageBytes = 0
-	var recvMessageBytes = 0
-	var lastSentMessageId = 0
-	var lastRecvMessageId = 0
-
-	done := make(chan struct{})
+	var sentMessageBytes int
+	var recvMessages uint32
 
 	dataConsumer.On("message", func(payload []byte, ppid int) {
-		recvMessageBytes += len(payload)
-		id, err := strconv.Atoi(string(payload))
-		suite.NoError(err)
+		atomic.AddUint32(&recvMessages, 1)
 
-		if id == numMessages {
-			close(done)
-		}
-
-		if id < numMessages/2 {
+		if id, _ := strconv.Atoi(string(payload)); id < numMessages/2 {
 			suite.EqualValues(PPID_WEBRTC_STRING, ppid)
 		} else {
 			suite.EqualValues(PPID_WEBRTC_BINARY, ppid)
 		}
-
-		lastRecvMessageId++
-		suite.Equal(lastRecvMessageId, id)
 	})
 
-	for {
-		lastSentMessageId++
+	for i := 0; i < numMessages; i++ {
+		text := fmt.Sprintf("%d", i)
 
-		text := fmt.Sprintf("%d", lastSentMessageId)
-
-		if lastSentMessageId < numMessages/2 {
-			err := dataProducer.SendText(text)
-			suite.NoError(err)
+		if i < numMessages/2 {
+			suite.NoError(dataProducer.SendText(text))
 		} else {
-			err := dataProducer.Send([]byte(text))
-			suite.NoError(err)
+			suite.NoError(dataProducer.Send([]byte(text)))
 		}
-
 		sentMessageBytes += len(text)
-
-		if lastSentMessageId == numMessages {
-			break
-		}
 	}
 
-	select {
-	case <-done:
-	case <-time.NewTimer(time.Second).C:
-		suite.FailNow("timeout")
-	}
-
-	suite.EqualValues(lastSentMessageId, numMessages)
-	suite.EqualValues(lastRecvMessageId, numMessages)
-	suite.EqualValues(sentMessageBytes, recvMessageBytes)
+	time.Sleep(time.Millisecond * 50)
+	suite.EqualValues(recvMessages, numMessages)
 
 	dataProducerStats, err := dataProducer.GetStats()
 	suite.NoError(err)

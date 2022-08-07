@@ -303,7 +303,7 @@ func (transport *PipeTransport) Consume(options ConsumerOptions) (consumer *Cons
 }
 
 func (transport *PipeTransport) handleWorkerNotifications() {
-	transport.channel.AddTargetHandler(transport.Id(), func(event string, data []byte) {
+	transport.channel.On(transport.Id(), func(event string, data []byte) {
 		switch event {
 		case "sctpstatechange":
 			var result struct {

@@ -325,8 +325,8 @@ func (consumer *Consumer) Close() (err error) {
 		consumer.logger.Debug("close()")
 
 		// Remove notification subscriptions.
-		consumer.channel.RemoveTargetHandler(consumer.internal.ConsumerId)
-		consumer.payloadChannel.RemoveTargetHandler(consumer.internal.ConsumerId)
+		consumer.channel.RemoveAllListeners(consumer.internal.ConsumerId)
+		consumer.payloadChannel.RemoveAllListeners(consumer.internal.ConsumerId)
 
 		response := consumer.channel.Request("consumer.close", consumer.internal)
 		if err = response.Err(); err != nil {
@@ -349,8 +349,8 @@ func (consumer *Consumer) transportClosed() {
 		consumer.logger.Debug("transportClosed()")
 
 		// Remove notification subscriptions.
-		consumer.channel.RemoveTargetHandler(consumer.internal.ConsumerId)
-		consumer.payloadChannel.RemoveTargetHandler(consumer.internal.ConsumerId)
+		consumer.channel.RemoveAllListeners(consumer.internal.ConsumerId)
+		consumer.payloadChannel.RemoveAllListeners(consumer.internal.ConsumerId)
 
 		consumer.SafeEmit("transportclose")
 		consumer.RemoveAllListeners()
@@ -491,12 +491,12 @@ func (consumer *Consumer) EnableTraceEvent(types ...ConsumerTraceEventType) erro
 }
 
 func (consumer *Consumer) handleWorkerNotifications() {
-	consumer.channel.AddTargetHandler(consumer.Id(), func(event string, data []byte) {
+	consumer.channel.On(consumer.Id(), func(event string, data []byte) {
 		switch event {
 		case "producerclose":
 			if atomic.CompareAndSwapUint32(&consumer.closed, 0, 1) {
-				consumer.channel.RemoveTargetHandler(consumer.internal.ConsumerId)
-				consumer.payloadChannel.RemoveTargetHandler(consumer.internal.ConsumerId)
+				consumer.channel.RemoveAllListeners(consumer.internal.ConsumerId)
+				consumer.payloadChannel.RemoveAllListeners(consumer.internal.ConsumerId)
 
 				consumer.Emit("@producerclose")
 				consumer.SafeEmit("producerclose")
@@ -584,7 +584,7 @@ func (consumer *Consumer) handleWorkerNotifications() {
 		}
 	})
 
-	consumer.payloadChannel.AddTargetHandler(consumer.Id(), func(event string, data, payload []byte) {
+	consumer.payloadChannel.On(consumer.Id(), func(event string, data, payload []byte) {
 		switch event {
 		case "rtp":
 			if consumer.Closed() {

@@ -275,7 +275,7 @@ func (transport *PlainTransport) Connect(options TransportConnectOptions) (err e
 }
 
 func (transport *PlainTransport) handleWorkerNotifications() {
-	transport.channel.AddTargetHandler(transport.Id(), func(event string, data []byte) {
+	transport.channel.On(transport.Id(), func(event string, data []byte) {
 		switch event {
 		case "tuple":
 			var result struct {

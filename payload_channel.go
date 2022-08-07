@@ -3,7 +3,7 @@ package mediasoup
 import (
 	"encoding/json"
 	"errors"
-	"runtime/debug"
+	"fmt"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -18,16 +18,15 @@ type notifyInfo struct {
 }
 
 type PayloadChannel struct {
+	IEventEmitter
 	locker              sync.Mutex
 	codec               netcodec.Codec
 	logger              Logger
 	closed              int32
 	nextId              int64
 	sents               sync.Map
-	listeners           sync.Map
 	pendingNotification *notification
 	sentChan            chan sentInfo
-	notifyChan          chan notifyInfo
 	closeCh             chan struct{}
 }
 
@@ -37,11 +36,11 @@ func newPayloadChannel(codec netcodec.Codec) *PayloadChannel {
 	logger.Debug("constructor()")
 
 	channel := &PayloadChannel{
-		logger:     logger,
-		codec:      codec,
-		sentChan:   make(chan sentInfo),
-		notifyChan: make(chan notifyInfo),
-		closeCh:    make(chan struct{}),
+		IEventEmitter: NewEventEmitter(),
+		logger:        logger,
+		codec:         codec,
+		sentChan:      make(chan sentInfo),
+		closeCh:       make(chan struct{}),
 	}
 
 	return channel
@@ -63,14 +62,6 @@ func (c *PayloadChannel) Close() error {
 
 func (c *PayloadChannel) Closed() bool {
 	return atomic.LoadInt32(&c.closed) > 0
-}
-
-func (c *PayloadChannel) AddTargetHandler(targetId string, handler interface{}, options ...listenerOption) {
-	c.listeners.Store(targetId, newInternalListener(handler, options...))
-}
-
-func (c *PayloadChannel) RemoveTargetHandler(targetId string) {
-	c.listeners.Delete(targetId)
 }
 
 func (c *PayloadChannel) Notify(event string, internal internalData, data interface{}, payload []byte) (err error) {
@@ -125,22 +116,19 @@ func (c *PayloadChannel) Request(method string, internal internalData, data inte
 		payloadData: payload,
 		respCh:      make(chan workerResponse),
 	}
-	size := syncMapLen(c.sents)
-
 	c.sents.Store(id, sent)
 	defer c.sents.Delete(id)
 
-	timeout := 1000 * (15 + (0.1 * float64(size)))
-	timer := time.NewTimer(time.Duration(timeout) * time.Millisecond)
+	timer := time.NewTimer(3 * time.Second)
 	defer timer.Stop()
 
 	// send request
 	select {
 	case c.sentChan <- sent:
 	case <-timer.C:
-		rsp.err = errors.New("PayloadChannel request timeout")
+		rsp.err = fmt.Errorf("PayloadChannel request timeout, id: %d, method: %s", id, method)
 	case <-c.closeCh:
-		rsp.err = NewInvalidStateError("PayloadChannel closed")
+		rsp.err = NewInvalidStateError("PayloadChannel closed, id: %d, method: %s", id, method)
 	}
 	if rsp.err != nil {
 		return
@@ -150,9 +138,9 @@ func (c *PayloadChannel) Request(method string, internal internalData, data inte
 	select {
 	case rsp = <-sent.respCh:
 	case <-timer.C:
-		rsp.err = errors.New("PayloadChannel request timeout")
+		rsp.err = fmt.Errorf("PayloadChannel response timeout, id: %d, method: %s", id, method)
 	case <-c.closeCh:
-		rsp.err = NewInvalidStateError("PayloadChannel closed")
+		rsp.err = NewInvalidStateError("PayloadChannel closed, id: %d, method: %s", id, method)
 	}
 	return
 }
@@ -202,9 +190,9 @@ func (c *PayloadChannel) runReadLoop() {
 }
 
 func (c *PayloadChannel) processPayload(payload []byte) {
-	if notify := c.pendingNotification; c.pendingNotification != nil {
+	if notify := c.pendingNotification; notify != nil {
 		c.pendingNotification = nil
-		c.emit(notify.TargetId, notify.Event, notify.Data, payload)
+		go c.SafeEmit(notify.TargetId, notify.Event, notify.Data, payload)
 		return
 	}
 
@@ -259,26 +247,4 @@ func (c *PayloadChannel) processPayload(payload []byte) {
 	} else {
 		c.logger.Error("received message is not a response nor a notification")
 	}
-}
-
-// emit notifcation
-func (c *PayloadChannel) emit(targetId, event string, data, payload []byte) {
-	val, ok := c.listeners.Load(targetId)
-	if !ok {
-		c.logger.Warn("no listener on target: %s", targetId)
-		return
-	}
-	listener := val.(*intervalListener)
-
-	defer func() {
-		if listener.once {
-			c.listeners.Delete(targetId)
-		}
-		if r := recover(); r != nil {
-			c.logger.Error("notification handler panic: %s, stack: %s", r, debug.Stack())
-		}
-	}()
-
-	// may panic
-	listener.Call(event, data, payload)
 }

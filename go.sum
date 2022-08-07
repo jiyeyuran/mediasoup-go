@@ -10,12 +10,6 @@ github.com/hashicorp/go-version v1.4.0 h1:aAQzgqIrRKRa7w75CKpbBxYsmUoPjzVm1W59ca
 github.com/hashicorp/go-version v1.4.0/go.mod h1:fltr4n8CU8Ke44wwGCBoEymUuxUHl09ZGVZPK5anwXA=
 github.com/imdario/mergo v0.3.11 h1:3tnifQM4i+fbajXKBHXWEH+KvNHqojZ778UH75j3bGA=
 github.com/imdario/mergo v0.3.11/go.mod h1:jmQim1M+e3UYxmgPu/WyfjB3N3VflVyUjjjwH0dnCYA=
-github.com/jiyeyuran/go-eventemitter v1.4.0 h1:D15+ykniW6GbYRgyJwa5X2t3fx/nJWv6k502F+Wfm6w=
-github.com/jiyeyuran/go-eventemitter v1.4.0/go.mod h1:8l80Tzn7/W5Hzo6VkOhkB5gNpPTiBC/RnxB2CkhVWVY=
-github.com/jiyeyuran/go-eventemitter v1.4.1 h1:aXsF9OfVHjSnh/x13n5qLgpvT7BhDN9uApFY6TVtH18=
-github.com/jiyeyuran/go-eventemitter v1.4.1/go.mod h1:8l80Tzn7/W5Hzo6VkOhkB5gNpPTiBC/RnxB2CkhVWVY=
-github.com/jiyeyuran/go-eventemitter v1.4.2 h1:dz6rEVqknw2RAT83+/XLEWcOj4sZ6/GvQzlL46OoxV8=
-github.com/jiyeyuran/go-eventemitter v1.4.2/go.mod h1:8l80Tzn7/W5Hzo6VkOhkB5gNpPTiBC/RnxB2CkhVWVY=
 github.com/kr/pretty v0.1.0/go.mod h1:dAy3ld7l9f0ibDNOQOHHMYYIIbhfbHSm3C4ZsoJORNo=
 github.com/kr/pty v1.1.1/go.mod h1:pFQYn66WHrOpPYNljwOMqo10TkYh1fy3cYio2l3bCsQ=
 github.com/kr/text v0.1.0 h1:45sCR5RtlFHMR4UwH9sdQ5TC8v0qDQCHnXt+kaKSTVE=

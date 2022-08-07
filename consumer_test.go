@@ -681,9 +681,9 @@ func (suite *ConsumerTestingSuite) TestConsumerEmitsScore() {
 
 	channel := audioConsumer.channel
 
-	channel.emit(audioConsumer.Id(), "score", []byte(`{"producerScore": 10, "score": 9}`))
-	channel.emit(audioConsumer.Id(), "score", []byte(`{"producerScore": 9, "score": 9}`))
-	channel.emit(audioConsumer.Id(), "score", []byte(`{"producerScore": 8, "score": 8}`))
+	channel.Emit(audioConsumer.Id(), "score", []byte(`{"producerScore": 10, "score": 9}`))
+	channel.Emit(audioConsumer.Id(), "score", []byte(`{"producerScore": 9, "score": 9}`))
+	channel.Emit(audioConsumer.Id(), "score", []byte(`{"producerScore": 8, "score": 8}`))
 
 	onScore.ExpectCalledTimes(3)
 	suite.Equal(ConsumerScore{ProducerScore: 8, Score: 8}, audioConsumer.Score())

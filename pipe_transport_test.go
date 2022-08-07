@@ -720,8 +720,8 @@ func (suite *PipeTransportTestingSuite) TestPipeToRouter() {
 		})
 		suite.NoError(group.Wait())
 
-		suite.Equal(1, syncMapLen(pipeTransportsA))
-		suite.Equal(1, syncMapLen(pipeTransportsB))
+		suite.EqualValues(1, syncMapLen(pipeTransportsA))
+		suite.EqualValues(1, syncMapLen(pipeTransportsB))
 
 		var pipeTransportA, pipeTransportB *PipeTransport
 
@@ -739,7 +739,7 @@ func (suite *PipeTransportTestingSuite) TestPipeToRouter() {
 		routerA.Close()
 
 		time.Sleep(time.Millisecond * 10)
-		suite.Equal(0, syncMapLen(pipeTransportsA))
-		suite.Equal(0, syncMapLen(pipeTransportsB))
+		suite.EqualValues(0, syncMapLen(pipeTransportsA))
+		suite.EqualValues(0, syncMapLen(pipeTransportsB))
 	})
 }

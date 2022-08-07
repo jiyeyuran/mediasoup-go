@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"runtime/debug"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -13,15 +12,15 @@ import (
 )
 
 type Channel struct {
-	logger    Logger
-	codec     netcodec.Codec
-	closed    int32
-	pid       int
-	nextId    int64
-	sents     sync.Map
-	listeners sync.Map
-	sentChan  chan sentInfo
-	closeCh   chan struct{}
+	IEventEmitter
+	logger   Logger
+	codec    netcodec.Codec
+	closed   int32
+	pid      int
+	nextId   int64
+	sents    sync.Map
+	sentChan chan sentInfo
+	closeCh  chan struct{}
 }
 
 func newChannel(codec netcodec.Codec, pid int) *Channel {
@@ -30,11 +29,12 @@ func newChannel(codec netcodec.Codec, pid int) *Channel {
 	logger.Debug("constructor()")
 
 	channel := &Channel{
-		logger:   logger,
-		codec:    codec,
-		pid:      pid,
-		sentChan: make(chan sentInfo),
-		closeCh:  make(chan struct{}),
+		IEventEmitter: NewEventEmitter(),
+		logger:        logger,
+		codec:         codec,
+		pid:           pid,
+		sentChan:      make(chan sentInfo),
+		closeCh:       make(chan struct{}),
 	}
 
 	return channel
@@ -56,14 +56,6 @@ func (c *Channel) Close() error {
 
 func (c *Channel) Closed() bool {
 	return atomic.LoadInt32(&c.closed) > 0
-}
-
-func (c *Channel) AddTargetHandler(targetId string, handler interface{}, options ...listenerOption) {
-	c.listeners.Store(targetId, newInternalListener(handler, options...))
-}
-
-func (c *Channel) RemoveTargetHandler(targetId string) {
-	c.listeners.Delete(targetId)
 }
 
 func (c *Channel) Request(method string, internal internalData, data ...interface{}) (rsp workerResponse) {
@@ -95,22 +87,19 @@ func (c *Channel) Request(method string, internal internalData, data ...interfac
 		requestData: requestData,
 		respCh:      make(chan workerResponse),
 	}
-	size := syncMapLen(c.sents)
-
 	c.sents.Store(id, sent)
 	defer c.sents.Delete(id)
 
-	timeout := 1000 * (15 + (0.1 * float64(size)))
-	timer := time.NewTimer(time.Duration(timeout) * time.Millisecond)
+	timer := time.NewTimer(time.Duration(3000) * time.Millisecond)
 	defer timer.Stop()
 
 	// send request
 	select {
 	case c.sentChan <- sent:
 	case <-timer.C:
-		rsp.err = errors.New("Channel request timeout")
+		rsp.err = fmt.Errorf("Channel request timeout, id: %d, method: %s", id, method)
 	case <-c.closeCh:
-		rsp.err = NewInvalidStateError("Channel closed")
+		rsp.err = NewInvalidStateError("Channel closed, id: %d, method: %s", id, method)
 	}
 	if rsp.err != nil {
 		return
@@ -120,9 +109,9 @@ func (c *Channel) Request(method string, internal internalData, data ...interfac
 	select {
 	case rsp = <-sent.respCh:
 	case <-timer.C:
-		rsp.err = errors.New("Channel request timeout")
+		rsp.err = fmt.Errorf("Channel response timeout, id: %d, method: %s", id, method)
 	case <-c.closeCh:
-		rsp.err = NewInvalidStateError("Channel closed")
+		rsp.err = NewInvalidStateError("Channel closed, id: %d, method: %s", id, method)
 	}
 	return
 }
@@ -225,30 +214,8 @@ func (c *Channel) processMessage(nsPayload []byte) {
 		default:
 			targetId = fmt.Sprintf("%v", v)
 		}
-		c.emit(targetId, msg.Event, msg.Data)
+		go c.SafeEmit(targetId, msg.Event, msg.Data)
 	} else {
 		c.logger.Error("received message is not a response nor a notification")
 	}
-}
-
-// emit notifcation
-func (c *Channel) emit(targetId, event string, data []byte) {
-	val, ok := c.listeners.Load(targetId)
-	if !ok {
-		c.logger.Warn("no listener on target: %s", targetId)
-		return
-	}
-	listener := val.(*intervalListener)
-
-	defer func() {
-		if listener.once {
-			c.listeners.Delete(targetId)
-		}
-		if r := recover(); r != nil {
-			c.logger.Error("notification handler panic: %s, stack: %s", r, debug.Stack())
-		}
-	}()
-
-	// may panic
-	listener.Call(event, data)
 }

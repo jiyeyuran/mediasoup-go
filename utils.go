@@ -6,6 +6,7 @@ import (
 	"math/rand"
 	"reflect"
 	"sync"
+	"sync/atomic"
 	"time"
 	"unsafe"
 
@@ -61,9 +62,9 @@ func override(dst, src interface{}) error {
 	)
 }
 
-func syncMapLen(m sync.Map) (len int) {
+func syncMapLen(m sync.Map) (len uint32) {
 	m.Range(func(key, val interface{}) bool {
-		len++
+		atomic.AddUint32(&len, 1)
 		return true
 	})
 	return

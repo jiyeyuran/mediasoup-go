@@ -102,7 +102,6 @@ func (s *WebRtcServer) Close() {
 		webRtcTransport := value.(*WebRtcTransport)
 		webRtcTransport.listenServerClosed()
 
-		s.logger.Warn("webrtctransportunhandled: %v", s.observer.ListenerCount("webrtctransportunhandled"))
 		// Emit observer event.
 		s.observer.SafeEmit("webrtctransportunhandled", webRtcTransport)
 		return true

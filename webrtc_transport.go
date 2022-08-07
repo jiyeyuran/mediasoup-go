@@ -430,7 +430,7 @@ func (transport *WebRtcTransport) RestartIce() (iceParameters IceParameters, err
 }
 
 func (transport *WebRtcTransport) handleWorkerNotifications() {
-	transport.channel.AddTargetHandler(transport.Id(), func(event string, data []byte) {
+	transport.channel.On(transport.Id(), func(event string, data []byte) {
 		switch event {
 		case "icestatechange":
 			var result struct {

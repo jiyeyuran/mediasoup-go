@@ -86,7 +86,7 @@ func (transport *DirectTransport) SendRtcp(rtcpPacket []byte) error {
 }
 
 func (transport *DirectTransport) handleWorkerNotifications() {
-	transport.channel.AddTargetHandler(transport.Id(), func(event string, data TransportTraceEventData) {
+	transport.channel.On(transport.Id(), func(event string, data TransportTraceEventData) {
 		switch event {
 		case "trace":
 			transport.SafeEmit("trace", data)
@@ -99,7 +99,7 @@ func (transport *DirectTransport) handleWorkerNotifications() {
 		}
 	})
 
-	transport.payloadChannel.AddTargetHandler(transport.Id(), func(event string, data, payload []byte) {
+	transport.payloadChannel.On(transport.Id(), func(event string, data, payload []byte) {
 		switch event {
 		case "rtcp":
 			if transport.Closed() {
