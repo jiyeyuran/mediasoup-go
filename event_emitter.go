@@ -6,6 +6,8 @@ import (
 	"reflect"
 	"runtime/debug"
 	"sync"
+
+	"github.com/go-logr/logr"
 )
 
 type IEventEmitter interface {
@@ -42,7 +44,7 @@ type IEventEmitter interface {
 type EventEmitter struct {
 	mu        sync.Mutex
 	listeners map[string][]*intervalListener
-	logger    Logger
+	logger    logr.Logger
 }
 
 func NewEventEmitter() IEventEmitter {
@@ -93,7 +95,7 @@ func (e *EventEmitter) Emit(event string, args ...interface{}) bool {
 func (e *EventEmitter) SafeEmit(event string, args ...interface{}) bool {
 	defer func() {
 		if r := recover(); r != nil {
-			e.logger.Error("emit: %v\n\n%s", r, debug.Stack())
+			e.logger.Error(fmt.Errorf("%v", r), "emit panic", "stack", debug.Stack())
 		}
 	}()
 

@@ -3,6 +3,8 @@ package mediasoup
 import (
 	"sync"
 	"sync/atomic"
+
+	"github.com/go-logr/logr"
 )
 
 type WebRtcServerListenInfo struct {
@@ -36,7 +38,7 @@ type webrtcServerParams struct {
 
 type WebRtcServer struct {
 	IEventEmitter
-	logger           Logger
+	logger           logr.Logger
 	internal         internalData
 	channel          *Channel
 	closed           uint32
@@ -47,7 +49,7 @@ type WebRtcServer struct {
 
 func NewWebRtcServer(params webrtcServerParams) *WebRtcServer {
 	logger := NewLogger("WebRtcServer")
-	logger.Debug("constructor()")
+	logger.V(1).Info("constructor()")
 
 	return &WebRtcServer{
 		IEventEmitter: NewEventEmitter(),
@@ -94,7 +96,7 @@ func (s *WebRtcServer) Close() {
 	if !atomic.CompareAndSwapUint32(&s.closed, 0, 1) {
 		return
 	}
-	s.logger.Debug("close()")
+	s.logger.V(1).Info("close()")
 
 	s.channel.Request("webRtcServer.close", s.internal)
 
@@ -121,7 +123,7 @@ func (s *WebRtcServer) workerClosed() {
 	if !atomic.CompareAndSwapUint32(&s.closed, 0, 1) {
 		return
 	}
-	s.logger.Debug("workerClosed()")
+	s.logger.V(1).Info("workerClosed()")
 
 	// NOTE: No need to close WebRtcTransports since they are closed by their
 	// respective Router parents.
@@ -135,7 +137,7 @@ func (s *WebRtcServer) workerClosed() {
 
 // Dump WebRtcServer.
 func (s *WebRtcServer) Dump() (data WebRtcServerDump, err error) {
-	s.logger.Debug("dump()")
+	s.logger.V(1).Info("dump()")
 	err = s.channel.Request("webRtcServer.dump", s.internal).Unmarshal(&data)
 	return
 }

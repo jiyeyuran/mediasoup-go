@@ -1,6 +1,10 @@
 package mediasoup
 
-import "encoding/json"
+import (
+	"encoding/json"
+
+	"github.com/go-logr/logr"
+)
 
 type AudioLevelObserverOptions struct {
 	/**
@@ -49,7 +53,7 @@ type AudioLevelObserverVolume struct {
 
 type AudioLevelObserver struct {
 	IRtpObserver
-	logger Logger
+	logger logr.Logger
 }
 
 /**
@@ -101,7 +105,7 @@ func (o *AudioLevelObserver) handleWorkerNotifications(params rtpObserverParams)
 			events := []eventInfo{}
 
 			if err := json.Unmarshal(data, &events); err != nil {
-				o.logger.Error(`unmarshal events failed: %s`, err)
+				o.logger.Error(err, "unmarshal events failed")
 				break
 			}
 
@@ -126,7 +130,7 @@ func (o *AudioLevelObserver) handleWorkerNotifications(params rtpObserverParams)
 			// Emit observer event.
 			o.Observer().SafeEmit("silence")
 		default:
-			o.logger.Error(`ignoring unknown event "%s"`, event)
+			o.logger.Error(nil, "ignoring unknown event", "event", event)
 		}
 	})
 }

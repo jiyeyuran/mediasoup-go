@@ -14,6 +14,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/go-logr/logr"
 	"github.com/google/uuid"
 	"github.com/hashicorp/go-version"
 	"github.com/jiyeyuran/mediasoup-go/netcodec"
@@ -173,7 +174,7 @@ type Option func(w *WorkerSettings)
 type Worker struct {
 	IEventEmitter
 	// Worker logger.
-	logger Logger
+	logger logr.Logger
 	// Worker process PID.
 	pid int
 	// Channel instance.
@@ -214,7 +215,7 @@ func NewWorker(options ...Option) (worker *Worker, err error) {
 		option(settings)
 	}
 
-	logger.Debug("constructor()")
+	logger.V(1).Info("constructor()")
 
 	var (
 		channelCodec, payloadChannelCodec netcodec.Codec
@@ -275,7 +276,7 @@ func NewWorker(options ...Option) (worker *Worker, err error) {
 		bin = wrappedArgs[0]
 		args = append(wrappedArgs[1:], args...)
 	}
-	logger.Debug("spawning worker process: %s %s", bin, strings.Join(args, " "))
+	logger.V(1).Info("spawning worker process", "bin", bin, "args", strings.Join(args, " "))
 
 	child := exec.Command(bin, args...)
 	child.ExtraFiles = []*os.File{producerReader, consumerWriter, payloadProducerReader, payloadConsumerWriter}
@@ -309,7 +310,7 @@ func NewWorker(options ...Option) (worker *Worker, err error) {
 
 	channel.Once(strconv.Itoa(pid), func(event string) {
 		if atomic.CompareAndSwapUint32(&spawnDone, 0, 1) && event == "running" {
-			logger.Debug("worker process running [pid:%d]", pid)
+			logger.V(1).Info("worker process running", "pid", pid)
 			close(doneCh)
 		}
 	})
@@ -356,7 +357,7 @@ func NewWorker(options ...Option) (worker *Worker, err error) {
 			if err != nil {
 				break
 			}
-			workerLogger.Error("(stderr) %s", line)
+			workerLogger.Error(nil, "(stderr) "+string(line))
 		}
 	}()
 
@@ -367,7 +368,7 @@ func NewWorker(options ...Option) (worker *Worker, err error) {
 			if err != nil {
 				break
 			}
-			workerLogger.Debug("(stdout) %s", line)
+			workerLogger.V(1).Info("(stdout) " + string(line))
 		}
 	}()
 
@@ -393,17 +394,17 @@ func (w *Worker) wait(child *exec.Cmd, spawnDone *uint32, doneCh chan error) {
 
 	if atomic.CompareAndSwapUint32(spawnDone, 0, 1) {
 		if code == 42 {
-			err := NewTypeError("worker process failed due to wrong settings [pid:%d]", w.pid)
-			w.logger.Error(err.Error())
+			err := NewTypeError("worker process failed due to wrong settings")
+			w.logger.Error(err, "process failed", "pid", w.pid)
 			doneCh <- err
 		} else {
-			err := fmt.Errorf(`worker process failed unexpectedly [pid:%d, code:%d, signal:%s]`, w.pid, code, signal)
-			w.logger.Error(err.Error())
+			err := errors.New("worker process failed unexpectedly")
+			w.logger.Error(err, "process failed", "pid", w.pid, "code", code, "signal", signal)
 			doneCh <- err
 		}
 	} else if !w.Closed() {
-		w.diedErr = fmt.Errorf("worker process died unexpectedly [pid:%d, code:%d, signal:%s]", w.pid, code, signal)
-		w.logger.Error(w.diedErr.Error())
+		w.diedErr = errors.New("worker process died unexpectedly")
+		w.logger.Error(w.diedErr, "process died", "pid", w.pid, "code", code, "signal", signal)
 		w.Close()
 	}
 }
@@ -462,7 +463,7 @@ func (w *Worker) Close() {
 		return
 	}
 
-	w.logger.Debug("close()")
+	w.logger.V(1).Info("close()")
 
 	// Kill the worker process.
 	if pid := w.Pid(); pid > 0 {
@@ -510,7 +511,7 @@ func (w *Worker) Close() {
 
 // Dump returns the resources allocated by the worker.
 func (w *Worker) Dump() (dump WorkerDump, err error) {
-	w.logger.Debug("dump()")
+	w.logger.V(1).Info("dump()")
 
 	err = w.channel.Request("worker.dump", internalData{}).Unmarshal(&dump)
 	return
@@ -520,7 +521,7 @@ func (w *Worker) Dump() (dump WorkerDump, err error) {
  * GetResourceUsage returns the worker process resource usage.
  */
 func (w *Worker) GetResourceUsage() (usage WorkerResourceUsage, err error) {
-	w.logger.Debug("getResourceUsage()")
+	w.logger.V(1).Info("getResourceUsage()")
 
 	resp := w.channel.Request("worker.getResourceUsage", internalData{})
 	err = resp.Unmarshal(&usage)
@@ -529,14 +530,14 @@ func (w *Worker) GetResourceUsage() (usage WorkerResourceUsage, err error) {
 
 // UpdateSettings updates settings.
 func (w *Worker) UpdateSettings(settings WorkerUpdateableSettings) error {
-	w.logger.Debug("updateSettings()")
+	w.logger.V(1).Info("updateSettings()")
 
 	return w.channel.Request("worker.updateSettings", internalData{}, settings).Err()
 }
 
 // CreateWebRtcServer creates a WebRtcServer.
 func (w *Worker) CreateWebRtcServer(options WebRtcServerOptions) (webRtcServer *WebRtcServer, err error) {
-	w.logger.Debug("createWebRtcServer()")
+	w.logger.V(1).Info("createWebRtcServer()")
 
 	internal := internalData{WebRtcServerId: uuid.NewString()}
 	reqData := H{"listenInfos": options.ListenInfos}
@@ -563,7 +564,7 @@ func (w *Worker) CreateWebRtcServer(options WebRtcServerOptions) (webRtcServer *
 
 // CreateRouter creates a router.
 func (w *Worker) CreateRouter(options RouterOptions) (router *Router, err error) {
-	w.logger.Debug("createRouter()")
+	w.logger.V(1).Info("createRouter()")
 
 	internal := internalData{RouterId: uuid.NewString()}
 

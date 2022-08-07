@@ -8,6 +8,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-logr/logr"
+	"github.com/go-logr/zerologr"
+	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -15,8 +18,16 @@ var errType = errors.New("")
 var worker *Worker
 
 func init() {
-	os.Setenv("DEBUG_COLORS", "false")
-	DefaultLevel = WarnLevel
+	zerolog.TimeFieldFormat = time.RFC3339Nano
+	zl := zerolog.New(zerolog.NewConsoleWriter(func(w *zerolog.ConsoleWriter) {
+		w.NoColor = true
+		w.TimeFormat = "2006-01-02 15:04:05.000000"
+	})).With().Caller().Timestamp().Logger().Level(zerolog.InfoLevel)
+
+	NewLogger = func(scope string) logr.Logger {
+		return zerologr.New(&zl).WithName(scope)
+	}
+
 	WorkerBin = "../mediasoup/worker/out/Release/mediasoup-worker"
 	worker = CreateTestWorker()
 }

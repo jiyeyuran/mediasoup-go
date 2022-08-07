@@ -1,6 +1,10 @@
 package mediasoup
 
-import "encoding/json"
+import (
+	"encoding/json"
+
+	"github.com/go-logr/logr"
+)
 
 type ActiveSpeakerObserverOptions struct {
 	Interval int `json:"interval"`
@@ -13,7 +17,7 @@ type ActiveSpeakerObserverActivity struct {
 
 type ActiveSpeakerObserver struct {
 	IRtpObserver
-	logger Logger
+	logger logr.Logger
 }
 
 func newActiveSpeakerObserver(params rtpObserverParams) *ActiveSpeakerObserver {
@@ -44,7 +48,7 @@ func (o *ActiveSpeakerObserver) handleWorkerNotifications(params rtpObserverPara
 			event := eventInfo{}
 
 			if err := json.Unmarshal(data, &event); err != nil {
-				o.logger.Error(`unmarshal events failed: %s`, err)
+				o.logger.Error(err, "unmarshal events failed")
 				break
 			}
 
@@ -57,7 +61,7 @@ func (o *ActiveSpeakerObserver) handleWorkerNotifications(params rtpObserverPara
 			o.Observer().SafeEmit("dominantspeaker", dominantSpeaker)
 
 		default:
-			o.logger.Error(`ignoring unknown event "%s"`, event)
+			o.logger.Error(nil, "ignoring unknown event", "event", event)
 		}
 	})
 }

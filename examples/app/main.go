@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"log"
 
 	"github.com/jiyeyuran/mediasoup-go"
 	"github.com/jiyeyuran/mediasoup-go/h264"
@@ -55,18 +56,18 @@ func main() {
 		panic(err)
 	}
 	worker.On("died", func(err error) {
-		logger.Error("%s", err)
+		log.Printf("died: %s", err)
 	})
 
 	dump, _ := worker.Dump()
-	logger.Debug("dump: %+v", dump)
+	log.Printf("dump: %+v", dump)
 
 	usage, err := worker.GetResourceUsage()
 	if err != nil {
 		panic(err)
 	}
 	data, _ := json.Marshal(usage)
-	logger.Debug("usage: %s", data)
+	log.Printf("usage: %s", data)
 
 	router, err := worker.CreateRouter(mediasoup.RouterOptions{
 		MediaCodecs: []*mediasoup.RtpCodecCapability{
@@ -186,7 +187,7 @@ func main() {
 
 	consumerDump, _ := consumer.Dump()
 	data, _ = json.Marshal(consumerDump)
-	logger.Debug("consumer, %s", data)
+	log.Printf("consumer, %s", data)
 
 	wait := make(chan struct{})
 	<-wait

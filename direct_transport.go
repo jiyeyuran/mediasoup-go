@@ -1,5 +1,7 @@
 package mediasoup
 
+import "github.com/go-logr/logr"
+
 type DirectTransportOptions struct {
 	/**
 	 * Maximum allowed size for direct messages sent from DataProducers.
@@ -22,7 +24,7 @@ type directTransportData struct{}
  */
 type DirectTransport struct {
 	ITransport
-	logger         Logger
+	logger         logr.Logger
 	internal       internalData
 	channel        *Channel
 	payloadChannel *PayloadChannel
@@ -66,7 +68,7 @@ func (transport *DirectTransport) Observer() IEventEmitter {
  * @override
  */
 func (transport *DirectTransport) Connect(TransportConnectOptions) error {
-	transport.logger.Debug("connect()")
+	transport.logger.V(1).Info("connect()")
 
 	return nil
 }
@@ -95,7 +97,7 @@ func (transport *DirectTransport) handleWorkerNotifications() {
 			transport.Observer().SafeEmit("trace", data)
 
 		default:
-			transport.logger.Error(`ignoring unknown event "%s" in channel listener`, event)
+			transport.logger.Error(nil, "ignoring unknown event in channel listener", "event", event)
 		}
 	})
 
@@ -112,7 +114,7 @@ func (transport *DirectTransport) handleWorkerNotifications() {
 			transport.Observer().SafeEmit("rtcp", payload)
 
 		default:
-			transport.logger.Error(`ignoring unknown event "%s" in payload channel listener`, event)
+			transport.logger.Error(nil, "ignoring unknown event in payload channel listener", "event", event)
 		}
 	})
 }

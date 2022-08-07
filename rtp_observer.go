@@ -3,6 +3,8 @@ package mediasoup
 import (
 	"sync"
 	"sync/atomic"
+
+	"github.com/go-logr/logr"
 )
 
 type IRtpObserver interface {
@@ -28,7 +30,7 @@ type IRtpObserver interface {
  */
 type RtpObserver struct {
 	IEventEmitter
-	logger          Logger
+	logger          logr.Logger
 	internal        internalData
 	channel         *Channel
 	payloadChannel  *PayloadChannel
@@ -51,7 +53,7 @@ type rtpObserverParams struct {
 func newRtpObserver(params rtpObserverParams) IRtpObserver {
 	logger := NewLogger("RtpObserver")
 
-	logger.Debug("constructor()")
+	logger.V(1).Info("constructor()")
 
 	return &RtpObserver{
 		IEventEmitter: NewEventEmitter(),
@@ -116,7 +118,7 @@ func (o *RtpObserver) Observer() IEventEmitter {
  */
 func (o *RtpObserver) Close() {
 	if atomic.CompareAndSwapUint32(&o.closed, 0, 1) {
-		o.logger.Debug("close()")
+		o.logger.V(1).Info("close()")
 
 		// Remove notification subscriptions.
 		o.channel.RemoveAllListeners(o.internal.RtpObserverId)
@@ -138,7 +140,7 @@ func (o *RtpObserver) Close() {
  */
 func (o *RtpObserver) routerClosed() {
 	if atomic.CompareAndSwapUint32(&o.closed, 0, 1) {
-		o.logger.Debug("routerClosed()")
+		o.logger.V(1).Info("routerClosed()")
 
 		// Remove notification subscriptions.
 		o.channel.RemoveAllListeners(o.internal.RtpObserverId)
@@ -160,7 +162,7 @@ func (o *RtpObserver) Pause() {
 	o.locker.Lock()
 	defer o.locker.Unlock()
 
-	o.logger.Debug("pause()")
+	o.logger.V(1).Info("pause()")
 
 	wasPaused := o.paused
 
@@ -181,7 +183,7 @@ func (o *RtpObserver) Resume() {
 	o.locker.Lock()
 	defer o.locker.Unlock()
 
-	o.logger.Debug("resume()")
+	o.logger.V(1).Info("resume()")
 
 	wasPaused := o.paused
 
@@ -202,7 +204,7 @@ func (o *RtpObserver) AddProducer(producerId string) {
 	o.locker.Lock()
 	defer o.locker.Unlock()
 
-	o.logger.Debug("addProducer()")
+	o.logger.V(1).Info("addProducer()")
 
 	producer := o.getProducerById(producerId)
 	internal := o.internal
@@ -221,7 +223,7 @@ func (o *RtpObserver) RemoveProducer(producerId string) {
 	o.locker.Lock()
 	defer o.locker.Unlock()
 
-	o.logger.Debug("removeProducer()")
+	o.logger.V(1).Info("removeProducer()")
 
 	producer := o.getProducerById(producerId)
 	internal := o.internal

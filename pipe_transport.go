@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/go-logr/logr"
 	"github.com/google/uuid"
 )
 
@@ -90,7 +91,7 @@ func (data *pipeTransortData) SetSctpState(sctpState SctpState) {
  */
 type PipeTransport struct {
 	ITransport
-	logger          Logger
+	logger          logr.Logger
 	internal        internalData
 	data            *pipeTransortData
 	channel         *Channel
@@ -206,7 +207,7 @@ func (transport *PipeTransport) routerClosed() {
  * @override
  */
 func (transport *PipeTransport) Connect(options TransportConnectOptions) (err error) {
-	transport.logger.Debug("connect()")
+	transport.logger.V(1).Info("connect()")
 
 	reqData := TransportConnectOptions{
 		Ip:             options.Ip,
@@ -234,7 +235,7 @@ func (transport *PipeTransport) Connect(options TransportConnectOptions) (err er
  * @override
  */
 func (transport *PipeTransport) Consume(options ConsumerOptions) (consumer *Consumer, err error) {
-	transport.logger.Debug("consume()")
+	transport.logger.V(1).Info("consume()")
 
 	producerId := options.ProducerId
 	appData := options.AppData
@@ -328,7 +329,7 @@ func (transport *PipeTransport) handleWorkerNotifications() {
 			transport.Observer().SafeEmit("trace", result)
 
 		default:
-			transport.logger.Error(`ignoring unknown event "%s"`, event)
+			transport.logger.Error(nil, "ignoring unknown event", "event", event)
 		}
 	})
 }

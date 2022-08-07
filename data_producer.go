@@ -3,6 +3,8 @@ package mediasoup
 import (
 	"sync"
 	"sync/atomic"
+
+	"github.com/go-logr/logr"
 )
 
 type DataProducerOptions struct {
@@ -80,7 +82,7 @@ type dataProducerData struct {
 type DataProducer struct {
 	IEventEmitter
 	mu             sync.Mutex
-	logger         Logger
+	logger         logr.Logger
 	internal       internalData
 	data           dataProducerData
 	channel        *Channel
@@ -93,7 +95,7 @@ type DataProducer struct {
 func newDataProducer(params dataProducerParams) *DataProducer {
 	logger := NewLogger("DataProducer")
 
-	logger.Debug("constructor()")
+	logger.V(1).Info("constructor()")
 
 	if params.appData == nil {
 		params.appData = H{}
@@ -170,7 +172,7 @@ func (p *DataProducer) Observer() IEventEmitter {
 // Close the DataProducer.
 func (p *DataProducer) Close() (err error) {
 	if atomic.CompareAndSwapUint32(&p.closed, 0, 1) {
-		p.logger.Debug("close()")
+		p.logger.V(1).Info("close()")
 
 		// Remove notification subscriptions.
 		p.channel.RemoveAllListeners(p.Id())
@@ -179,7 +181,7 @@ func (p *DataProducer) Close() (err error) {
 		response := p.channel.Request("dataProducer.close", p.internal)
 
 		if err = response.Err(); err != nil {
-			p.logger.Error("dataProducer close error: %s", err)
+			p.logger.Error(err, "dataProducer close failed")
 		}
 
 		p.Emit("@close")
@@ -195,7 +197,7 @@ func (p *DataProducer) Close() (err error) {
 // Transport was closed.
 func (p *DataProducer) transportClosed() {
 	if atomic.CompareAndSwapUint32(&p.closed, 0, 1) {
-		p.logger.Debug("transportClosed()")
+		p.logger.V(1).Info("transportClosed()")
 
 		p.SafeEmit("transportclose")
 		p.RemoveAllListeners()
@@ -208,7 +210,7 @@ func (p *DataProducer) transportClosed() {
 
 // Dump DataConsumer.
 func (p *DataProducer) Dump() (dump DataProducerDump, err error) {
-	p.logger.Debug("dump()")
+	p.logger.V(1).Info("dump()")
 
 	resp := p.channel.Request("dataProducer.dump", p.internal)
 	err = resp.Unmarshal(&dump)
@@ -217,7 +219,7 @@ func (p *DataProducer) Dump() (dump DataProducerDump, err error) {
 
 // Get DataConsumer stats.
 func (p *DataProducer) GetStats() (stats []*DataProducerStat, err error) {
-	p.logger.Debug("getStats()")
+	p.logger.V(1).Info("getStats()")
 
 	resp := p.channel.Request("dataProducer.getStats", p.internal)
 	err = resp.Unmarshal(&stats)

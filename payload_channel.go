@@ -8,6 +8,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/go-logr/logr"
 	"github.com/jiyeyuran/mediasoup-go/netcodec"
 )
 
@@ -21,7 +22,7 @@ type PayloadChannel struct {
 	IEventEmitter
 	locker              sync.Mutex
 	codec               netcodec.Codec
-	logger              Logger
+	logger              logr.Logger
 	closed              int32
 	nextId              int64
 	sents               sync.Map
@@ -33,7 +34,7 @@ type PayloadChannel struct {
 func newPayloadChannel(codec netcodec.Codec) *PayloadChannel {
 	logger := NewLogger("PayloadChannel")
 
-	logger.Debug("constructor()")
+	logger.V(1).Info("constructor()")
 
 	channel := &PayloadChannel{
 		IEventEmitter: NewEventEmitter(),
@@ -53,7 +54,7 @@ func (c *PayloadChannel) Start() {
 
 func (c *PayloadChannel) Close() error {
 	if atomic.CompareAndSwapInt32(&c.closed, 0, 1) {
-		c.logger.Debug("close()")
+		c.logger.V(1).Info("close()")
 		close(c.closeCh)
 		return c.codec.Close()
 	}
@@ -93,7 +94,7 @@ func (c *PayloadChannel) Request(method string, internal internalData, data inte
 	id := atomic.AddInt64(&c.nextId, 1)
 	atomic.CompareAndSwapInt64(&c.nextId, 4294967295, 1)
 
-	c.logger.Debug("request() [method:%s, id:%d]", method, id)
+	c.logger.V(1).Info("request()", "method", method, "id", id)
 
 	request := workerRequest{
 		Id:       id,
@@ -182,7 +183,7 @@ func (c *PayloadChannel) runReadLoop() {
 	for {
 		payload, err := c.codec.ReadPayload()
 		if err != nil {
-			c.logger.Error("PayloadChannel error: %s", err)
+			c.logger.Error(err, "PayloadChannel error failed")
 			break
 		}
 		c.processPayload(payload)
@@ -211,24 +212,24 @@ func (c *PayloadChannel) processPayload(payload []byte) {
 		Data json.RawMessage `json:"data,omitempty"`
 	}
 	if err := json.Unmarshal(payload, &msg); err != nil {
-		c.logger.Error("received response unmarshal failed [id:%d], data: %s, err: %s", msg.Id, payload, err)
+		c.logger.Error(err, "received response unmarshal failed", "id", msg.Id, "payload", payload)
 		return
 	}
 
 	if msg.Id > 0 {
 		value, ok := c.sents.Load(msg.Id)
 		if !ok {
-			c.logger.Error("received response does not match any sent request [id:%d]", msg.Id)
+			c.logger.Error(nil, "received response does not match any sent request", "id", msg.Id)
 			return
 		}
 		sent := value.(sentInfo)
 
 		if msg.Accepted {
-			c.logger.Debug("request succeeded [method:%s, id:%d]", sent.method, msg.Id)
+			c.logger.V(1).Info("request succeeded", "method", sent.method, "id", msg.Id)
 
 			sent.respCh <- workerResponse{data: msg.Data}
 		} else if len(msg.Error) > 0 {
-			c.logger.Warn("request failed [method:%s, id:%d]: %s", sent.method, msg.Id, msg.Reason)
+			c.logger.Error(errors.New(msg.Reason), "request failed", "method", sent.method, "id", msg.Id)
 
 			if msg.Error == "TypeError" {
 				sent.respCh <- workerResponse{err: NewTypeError(msg.Reason)}
@@ -236,7 +237,7 @@ func (c *PayloadChannel) processPayload(payload []byte) {
 				sent.respCh <- workerResponse{err: errors.New(msg.Reason)}
 			}
 		} else {
-			c.logger.Error("received response is not accepted nor rejected [method:%s, id:%s]", sent.method, msg.Id)
+			c.logger.Error(nil, "received response is not accepted nor rejected", "method", sent.method, "id", msg.Id)
 		}
 	} else if len(msg.TargetId) > 0 && len(msg.Event) > 0 {
 		c.pendingNotification = &notification{
@@ -245,6 +246,6 @@ func (c *PayloadChannel) processPayload(payload []byte) {
 			Data:     msg.Data,
 		}
 	} else {
-		c.logger.Error("received message is not a response nor a notification")
+		c.logger.Error(nil, "received message is not a response nor a notification")
 	}
 }

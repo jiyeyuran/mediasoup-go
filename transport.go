@@ -6,6 +6,7 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"github.com/go-logr/logr"
 	"github.com/google/uuid"
 )
 
@@ -169,7 +170,7 @@ type transportParams struct {
 	getRouterRtpCapabilities func() RtpCapabilities
 	getProducerById          func(string) *Producer
 	getDataProducerById      func(string) *DataProducer
-	logger                   Logger
+	logger                   logr.Logger
 }
 
 /**
@@ -183,7 +184,7 @@ type transportParams struct {
  */
 type Transport struct {
 	IEventEmitter
-	logger Logger
+	logger logr.Logger
 	// Internal data.
 	internal internalData
 	// Transport data. This is set by the subclass.
@@ -225,7 +226,7 @@ type Transport struct {
 }
 
 func newTransport(params transportParams) ITransport {
-	params.logger.Debug("constructor()")
+	params.logger.V(1).Info("constructor()")
 
 	transport := &Transport{
 		IEventEmitter:            NewEventEmitter(),
@@ -275,7 +276,7 @@ func (transport *Transport) Observer() IEventEmitter {
 // Close the Transport.
 func (transport *Transport) Close() {
 	if atomic.CompareAndSwapUint32(&transport.closed, 0, 1) {
-		transport.logger.Debug("close()")
+		transport.logger.V(1).Info("close()")
 
 		// Remove notification subscriptions.
 		transport.channel.RemoveAllListeners(transport.Id())
@@ -329,7 +330,7 @@ func (transport *Transport) Close() {
  */
 func (transport *Transport) routerClosed() {
 	if atomic.CompareAndSwapUint32(&transport.closed, 0, 1) {
-		transport.logger.Debug("routerClosed()")
+		transport.logger.V(1).Info("routerClosed()")
 
 		// Remove notification subscriptions.
 		transport.channel.RemoveAllListeners(transport.Id())
@@ -380,7 +381,7 @@ func (transport *Transport) listenServerClosed() {
 	if !atomic.CompareAndSwapUint32(&transport.closed, 0, 1) {
 		return
 	}
-	transport.logger.Debug("listenServerClosed()")
+	transport.logger.V(1).Info("listenServerClosed()")
 
 	// Remove notification subscriptions.
 	transport.channel.RemoveAllListeners(transport.Id())
@@ -435,7 +436,7 @@ func (transport *Transport) listenServerClosed() {
 
 // Dump Transport.
 func (transport *Transport) Dump() (data *TransportDump, err error) {
-	transport.logger.Debug("dump()")
+	transport.logger.V(1).Info("dump()")
 
 	resp := transport.channel.Request("transport.dump", transport.internal)
 	err = resp.Unmarshal(&data)
@@ -445,7 +446,7 @@ func (transport *Transport) Dump() (data *TransportDump, err error) {
 
 // Get Transport stats.
 func (transport *Transport) GetStats() (stat []*TransportStat, err error) {
-	transport.logger.Debug("getStats()")
+	transport.logger.V(1).Info("getStats()")
 
 	resp := transport.channel.Request("transport.getStats", transport.internal)
 	err = resp.Unmarshal(&stat)
@@ -464,7 +465,7 @@ func (transport *Transport) Connect(TransportConnectOptions) error {
  * Set maximum incoming bitrate for receiving media.
  */
 func (transport *Transport) SetMaxIncomingBitrate(bitrate int) error {
-	transport.logger.Debug("SetMaxIncomingBitrate() [bitrate:%d]", bitrate)
+	transport.logger.V(1).Info("SetMaxIncomingBitrate()", "bitrate", bitrate)
 
 	resp := transport.channel.Request(
 		"transport.setMaxIncomingBitrate", transport.internal, H{"bitrate": bitrate})
@@ -476,7 +477,7 @@ func (transport *Transport) SetMaxIncomingBitrate(bitrate int) error {
  * Create a Producer.
  */
 func (transport *Transport) Produce(options ProducerOptions) (producer *Producer, err error) {
-	transport.logger.Debug("produce()")
+	transport.logger.V(1).Info("produce()")
 
 	id := options.Id
 	kind := options.Kind
@@ -588,7 +589,7 @@ func (transport *Transport) Produce(options ProducerOptions) (producer *Producer
  * Create a Consumer.
  */
 func (transport *Transport) Consume(options ConsumerOptions) (consumer *Consumer, err error) {
-	transport.logger.Debug("consume()")
+	transport.logger.V(1).Info("consume()")
 
 	producerId := options.ProducerId
 	rtpCapabilities := options.RtpCapabilities
@@ -620,7 +621,7 @@ func (transport *Transport) Consume(options ConsumerOptions) (consumer *Consumer
 
 			// We use up to 8 bytes for MID (string).
 			if maxMid := uint32(100000000); transport.nextMidForConsumers == maxMid {
-				transport.logger.Error(`consume() | reaching max MID value "%d"`, maxMid)
+				transport.logger.Error(nil, "consume() | reaching max MID value", "mid", maxMid)
 				transport.nextMidForConsumers = 0
 			}
 
@@ -698,7 +699,7 @@ func (transport *Transport) Consume(options ConsumerOptions) (consumer *Consumer
  * Create a DataProducer.
  */
 func (transport *Transport) ProduceData(options DataProducerOptions) (dataProducer *DataProducer, err error) {
-	transport.logger.Debug("produceData()")
+	transport.logger.V(1).Info("produceData()")
 
 	id := options.Id
 	sctpStreamParameters := options.SctpStreamParameters
@@ -721,8 +722,8 @@ func (transport *Transport) ProduceData(options DataProducerOptions) (dataProduc
 		typ = DataProducerType_Direct
 
 		if sctpStreamParameters != nil {
-			transport.logger.Warn(
-				"produceData() | sctpStreamParameters are ignored when producing data on a DirectTransport")
+			transport.logger.Info(
+				"produceData() | sctpStreamParameters are ignored when producing data on a DirectTransport", "warn", true)
 		}
 	} else {
 		typ = DataProducerType_Sctp
@@ -776,7 +777,7 @@ func (transport *Transport) ProduceData(options DataProducerOptions) (dataProduc
  * Create a DataConsumer.
  */
 func (transport *Transport) ConsumeData(options DataConsumerOptions) (dataConsumer *DataConsumer, err error) {
-	transport.logger.Debug("consumeData()")
+	transport.logger.V(1).Info("consumeData()")
 
 	dataProducerId := options.DataProducerId
 	ordered := options.Ordered
@@ -799,8 +800,9 @@ func (transport *Transport) ConsumeData(options DataConsumerOptions) (dataConsum
 		typ = DataProducerType_Direct
 
 		if ordered != nil || maxPacketLifeTime > 0 || maxRetransmits > 0 {
-			transport.logger.Warn(
-				"consumeData() | ordered, maxPacketLifeTime and maxRetransmits are ignored when consuming data on a DirectTransport")
+			transport.logger.Info(
+				"consumeData() | ordered, maxPacketLifeTime and maxRetransmits are ignored when consuming data on a DirectTransport",
+				"warn", true)
 		}
 	} else {
 		typ = DataProducerType_Sctp
@@ -884,7 +886,7 @@ func (transport *Transport) ConsumeData(options DataConsumerOptions) (dataConsum
  * Enable 'trace' event.
  */
 func (transport *Transport) EnableTraceEvent(types ...TransportTraceEventType) error {
-	transport.logger.Debug("pause()")
+	transport.logger.V(1).Info("pause()")
 
 	if types == nil {
 		types = []TransportTraceEventType{}

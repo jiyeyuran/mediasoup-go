@@ -5,6 +5,8 @@ import (
 	"reflect"
 	"sync"
 	"sync/atomic"
+
+	"github.com/go-logr/logr"
 )
 
 type ConsumerOptions struct {
@@ -181,7 +183,7 @@ type consumerData struct {
 type Consumer struct {
 	IEventEmitter
 	locker          sync.Mutex
-	logger          Logger
+	logger          logr.Logger
 	internal        internalData
 	data            consumerData
 	channel         *Channel
@@ -200,7 +202,7 @@ type Consumer struct {
 func newConsumer(params consumerParams) *Consumer {
 	logger := NewLogger("Consumer")
 
-	logger.Debug("constructor()")
+	logger.V(1).Info("constructor()")
 
 	if params.appData == nil {
 		params.appData = H{}
@@ -322,7 +324,7 @@ func (consumer *Consumer) Observer() IEventEmitter {
 // Close the Consumer.
 func (consumer *Consumer) Close() (err error) {
 	if atomic.CompareAndSwapUint32(&consumer.closed, 0, 1) {
-		consumer.logger.Debug("close()")
+		consumer.logger.V(1).Info("close()")
 
 		// Remove notification subscriptions.
 		consumer.channel.RemoveAllListeners(consumer.internal.ConsumerId)
@@ -330,7 +332,7 @@ func (consumer *Consumer) Close() (err error) {
 
 		response := consumer.channel.Request("consumer.close", consumer.internal)
 		if err = response.Err(); err != nil {
-			consumer.logger.Error("consumer close error: %s", err)
+			consumer.logger.Error(err, "consumer close failed")
 		}
 
 		consumer.Emit("@close")
@@ -346,7 +348,7 @@ func (consumer *Consumer) Close() (err error) {
 // Transport was closed.
 func (consumer *Consumer) transportClosed() {
 	if atomic.CompareAndSwapUint32(&consumer.closed, 0, 1) {
-		consumer.logger.Debug("transportClosed()")
+		consumer.logger.V(1).Info("transportClosed()")
 
 		// Remove notification subscriptions.
 		consumer.channel.RemoveAllListeners(consumer.internal.ConsumerId)
@@ -363,7 +365,7 @@ func (consumer *Consumer) transportClosed() {
 
 // Dump Consumer.
 func (consumer *Consumer) Dump() (dump *ConsumerDump, err error) {
-	consumer.logger.Debug("dump()")
+	consumer.logger.V(1).Info("dump()")
 
 	resp := consumer.channel.Request("consumer.dump", consumer.internal)
 	err = resp.Unmarshal(&dump)
@@ -373,7 +375,7 @@ func (consumer *Consumer) Dump() (dump *ConsumerDump, err error) {
 
 // Get Consumer stats.
 func (consumer *Consumer) GetStats() (stats []*ConsumerStat, err error) {
-	consumer.logger.Debug("getStats()")
+	consumer.logger.V(1).Info("getStats()")
 
 	resp := consumer.channel.Request("consumer.getStats", consumer.internal)
 	err = resp.Unmarshal(&stats)
@@ -386,7 +388,7 @@ func (consumer *Consumer) Pause() (err error) {
 	consumer.locker.Lock()
 	defer consumer.locker.Unlock()
 
-	consumer.logger.Debug("pause()")
+	consumer.logger.V(1).Info("pause()")
 
 	wasPaused := consumer.paused || consumer.producerPaused
 
@@ -411,7 +413,7 @@ func (consumer *Consumer) Resume() (err error) {
 	consumer.locker.Lock()
 	defer consumer.locker.Unlock()
 
-	consumer.logger.Debug("resume()")
+	consumer.logger.V(1).Info("resume()")
 
 	wasPaused := consumer.paused || consumer.producerPaused
 
@@ -433,7 +435,7 @@ func (consumer *Consumer) Resume() (err error) {
 
 // Set preferred video layers.
 func (consumer *Consumer) SetPreferredLayers(layers ConsumerLayers) (err error) {
-	consumer.logger.Debug("setPreferredLayers()")
+	consumer.logger.V(1).Info("setPreferredLayers()")
 
 	response := consumer.channel.Request("consumer.setPreferredLayers", consumer.internal, layers)
 	err = response.Unmarshal(&consumer.preferredLayers)
@@ -443,7 +445,7 @@ func (consumer *Consumer) SetPreferredLayers(layers ConsumerLayers) (err error) 
 
 // Set priority.
 func (consumer *Consumer) SetPriority(priority uint32) (err error) {
-	consumer.logger.Debug("setPriority()")
+	consumer.logger.V(1).Info("setPriority()")
 
 	response := consumer.channel.Request("consumer.setPriority", consumer.internal, H{"priority": priority})
 
@@ -461,14 +463,14 @@ func (consumer *Consumer) SetPriority(priority uint32) (err error) {
 
 // Unset priority.
 func (consumer *Consumer) UnsetPriority() (err error) {
-	consumer.logger.Debug("unsetPriority()")
+	consumer.logger.V(1).Info("unsetPriority()")
 
 	return consumer.SetPriority(1)
 }
 
 // Request a key frame to the Producer.
 func (consumer *Consumer) RequestKeyFrame() error {
-	consumer.logger.Debug("requestKeyFrame()")
+	consumer.logger.V(1).Info("requestKeyFrame()")
 
 	response := consumer.channel.Request("consumer.requestKeyFrame", consumer.internal)
 
@@ -479,7 +481,7 @@ func (consumer *Consumer) RequestKeyFrame() error {
  * Enable 'trace' event.
  */
 func (consumer *Consumer) EnableTraceEvent(types ...ConsumerTraceEventType) error {
-	consumer.logger.Debug("enableTraceEvent()")
+	consumer.logger.V(1).Info("enableTraceEvent()")
 
 	if types == nil {
 		types = []ConsumerTraceEventType{}
@@ -580,7 +582,7 @@ func (consumer *Consumer) handleWorkerNotifications() {
 			consumer.observer.SafeEmit("trace", trace)
 
 		default:
-			consumer.logger.Error(`ignoring unknown event "%s" in channel listener`, event)
+			consumer.logger.Error(nil, "ignoring unknown event in channel listener", "event", event)
 		}
 	})
 
@@ -593,7 +595,7 @@ func (consumer *Consumer) handleWorkerNotifications() {
 			consumer.SafeEmit("rtp", payload)
 
 		default:
-			consumer.logger.Error(`ignoring unknown event "%s" in payload channel listener`, event)
+			consumer.logger.Error(nil, "ignoring unknown event in payload channel listener", "event", event)
 		}
 	})
 }

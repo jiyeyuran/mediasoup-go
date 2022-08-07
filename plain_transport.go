@@ -3,6 +3,8 @@ package mediasoup
 import (
 	"encoding/json"
 	"sync"
+
+	"github.com/go-logr/logr"
 )
 
 type PlainTransportOptions struct {
@@ -121,7 +123,7 @@ func (data *plainTransportData) SetSrtpParameters(srtpParameters *SrtpParameters
  */
 type PlainTransport struct {
 	ITransport
-	logger   Logger
+	logger   logr.Logger
 	internal internalData
 	data     *plainTransportData
 	channel  *Channel
@@ -242,7 +244,7 @@ func (transport *PlainTransport) routerClosed() {
  * @override
  */
 func (transport *PlainTransport) Connect(options TransportConnectOptions) (err error) {
-	transport.logger.Debug("connect()")
+	transport.logger.V(1).Info("connect()")
 
 	reqData := TransportConnectOptions{
 		Ip:             options.Ip,
@@ -326,7 +328,7 @@ func (transport *PlainTransport) handleWorkerNotifications() {
 			transport.Observer().SafeEmit("trace", result)
 
 		default:
-			transport.logger.Error(`ignoring unknown event "%s"`, event)
+			transport.logger.Error(nil, "ignoring unknown event", "event", event)
 		}
 	})
 }

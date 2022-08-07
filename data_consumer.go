@@ -3,6 +3,8 @@ package mediasoup
 import (
 	"encoding/json"
 	"sync/atomic"
+
+	"github.com/go-logr/logr"
 )
 
 type DataConsumerOptions struct {
@@ -89,7 +91,7 @@ type dataConsumerData struct {
  */
 type DataConsumer struct {
 	IEventEmitter
-	logger Logger
+	logger logr.Logger
 	// {
 	// 	routerId: string;
 	// 	transportId: string;
@@ -108,7 +110,7 @@ type DataConsumer struct {
 func newDataConsumer(params dataConsumerParams) *DataConsumer {
 	logger := NewLogger("DataConsumer")
 
-	logger.Debug("constructor()")
+	logger.V(1).Info("constructor()")
 
 	if params.appData == nil {
 		params.appData = H{}
@@ -190,7 +192,7 @@ func (c *DataConsumer) Observer() IEventEmitter {
 // Close the DataConsumer.
 func (c *DataConsumer) Close() (err error) {
 	if atomic.CompareAndSwapUint32(&c.closed, 0, 1) {
-		c.logger.Debug("close()")
+		c.logger.V(1).Info("close()")
 
 		// Remove notification subscriptions.
 		c.channel.RemoveAllListeners(c.Id())
@@ -199,7 +201,7 @@ func (c *DataConsumer) Close() (err error) {
 		response := c.channel.Request("dataConsumer.close", c.internal)
 
 		if err = response.Err(); err != nil {
-			c.logger.Error("dataConsumer close error: %s", err)
+			c.logger.Error(err, "dataConsumer close failed")
 		}
 
 		c.Emit("@close")
@@ -215,7 +217,7 @@ func (c *DataConsumer) Close() (err error) {
 // Transport was closed.
 func (c *DataConsumer) transportClosed() {
 	if atomic.CompareAndSwapUint32(&c.closed, 0, 1) {
-		c.logger.Debug("transportClosed()")
+		c.logger.V(1).Info("transportClosed()")
 
 		// Remove notification subscriptions.
 		c.channel.RemoveAllListeners(c.Id())
@@ -232,7 +234,7 @@ func (c *DataConsumer) transportClosed() {
 
 // Dump DataConsumer.
 func (c *DataConsumer) Dump() (data DataConsumerDump, err error) {
-	c.logger.Debug("dump()")
+	c.logger.V(1).Info("dump()")
 
 	resp := c.channel.Request("dataConsumer.dump", c.internal)
 	err = resp.Unmarshal(&data)
@@ -242,7 +244,7 @@ func (c *DataConsumer) Dump() (data DataConsumerDump, err error) {
 
 // Get DataConsumer stats.
 func (c *DataConsumer) GetStats() (stats []*DataConsumerStat, err error) {
-	c.logger.Debug("getStats()")
+	c.logger.V(1).Info("getStats()")
 
 	resp := c.channel.Request("dataConsumer.getStats", c.internal)
 	err = resp.Unmarshal(&stats)
@@ -254,7 +256,7 @@ func (c *DataConsumer) GetStats() (stats []*DataConsumerStat, err error) {
  * Set buffered amount low threshold.
  */
 func (c *DataConsumer) SetBufferedAmountLowThreshold(threshold int) error {
-	c.logger.Debug("setBufferedAmountLowThreshold() [threshold:%s]", threshold)
+	c.logger.V(1).Info("setBufferedAmountLowThreshold() [threshold:%s]", threshold)
 
 	resp := c.channel.Request("dataConsumer.setBufferedAmountLowThreshold", c.internal, H{
 		"threshold": threshold,
@@ -320,7 +322,7 @@ func (c *DataConsumer) SendText(message string) error {
  * Get buffered amount size.
  */
 func (c *DataConsumer) GetBufferedAmount() (bufferedAmount int64, err error) {
-	c.logger.Debug("getBufferedAmount()")
+	c.logger.V(1).Info("getBufferedAmount()")
 
 	resp := c.channel.Request("dataConsumer.getBufferedAmount", c.internal)
 
@@ -360,7 +362,7 @@ func (c *DataConsumer) handleWorkerNotifications() {
 			c.SafeEmit("bufferedamountlow", result.BufferAmount)
 
 		default:
-			c.logger.Error(`ignoring unknown event "%s" in channel listener`, event)
+			c.logger.Error(nil, "ignoring unknown event in channel listener", "event", event)
 		}
 	})
 
@@ -378,7 +380,7 @@ func (c *DataConsumer) handleWorkerNotifications() {
 			c.SafeEmit("message", payload, result.Ppid)
 
 		default:
-			c.logger.Error(`ignoring unknown event "%s" in payload channel listener`, event)
+			c.logger.Error(nil, "ignoring unknown event in payload channel listener", "event", event)
 		}
 	})
 }

@@ -6,6 +6,7 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"github.com/go-logr/logr"
 	"github.com/google/uuid"
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/sync/singleflight"
@@ -111,7 +112,7 @@ type routerParams struct {
  */
 type Router struct {
 	IEventEmitter
-	logger                  Logger
+	logger                  logr.Logger
 	internal                internalData
 	data                    routerData
 	channel                 *Channel
@@ -128,7 +129,7 @@ type Router struct {
 
 func newRouter(params routerParams) *Router {
 	logger := NewLogger("Router")
-	logger.Debug("constructor()")
+	logger.V(1).Info("constructor()")
 
 	return &Router{
 		IEventEmitter:  NewEventEmitter(),
@@ -181,7 +182,7 @@ func (router *Router) transportsForTesting() map[string]ITransport {
 
 // Close the Router.
 func (router *Router) Close() (err error) {
-	router.logger.Debug("close()")
+	router.logger.V(1).Info("close()")
 
 	if !atomic.CompareAndSwapUint32(&router.closed, 0, 1) {
 		return
@@ -195,7 +196,7 @@ func (router *Router) Close() (err error) {
 }
 
 func (router *Router) workerClosed() {
-	router.logger.Debug("workerClosed()")
+	router.logger.V(1).Info("workerClosed()")
 
 	if !atomic.CompareAndSwapUint32(&router.closed, 0, 1) {
 		return
@@ -231,7 +232,7 @@ func (router *Router) close() {
 
 // Dump Router.
 func (router *Router) Dump() (data *RouterDump, err error) {
-	router.logger.Debug("dump()")
+	router.logger.V(1).Info("dump()")
 
 	resp := router.channel.Request("router.dump", router.internal)
 	err = resp.Unmarshal(&data)
@@ -241,7 +242,7 @@ func (router *Router) Dump() (data *RouterDump, err error) {
 
 // Producers returns available producers on the router.
 func (router *Router) Producers() []*Producer {
-	router.logger.Debug("Producers()")
+	router.logger.V(1).Info("Producers()")
 	producers := make([]*Producer, 0)
 	router.producers.Range(func(key, value interface{}) bool {
 		producer, ok := value.(*Producer)
@@ -255,7 +256,7 @@ func (router *Router) Producers() []*Producer {
 
 // Producers returns available producers on the router.
 func (router *Router) DataProducers() []*DataProducer {
-	router.logger.Debug("DataProducers()")
+	router.logger.V(1).Info("DataProducers()")
 	dataProducers := make([]*DataProducer, 0)
 	router.dataProducers.Range(func(key, value interface{}) bool {
 		dataProducer, ok := value.(*DataProducer)
@@ -269,7 +270,7 @@ func (router *Router) DataProducers() []*DataProducer {
 
 // Transports returns available transports on the router.
 func (router *Router) Transports() []ITransport {
-	router.logger.Debug("Transports()")
+	router.logger.V(1).Info("Transports()")
 	transports := make([]ITransport, 0)
 	router.transports.Range(func(key, value interface{}) bool {
 		transport, ok := value.(ITransport)
@@ -301,7 +302,7 @@ func (router *Router) CreateWebRtcTransport(option WebRtcTransportOptions) (tran
 		return
 	}
 
-	router.logger.Debug("createWebRtcTransport()")
+	router.logger.V(1).Info("createWebRtcTransport()")
 
 	method := "router.createWebRtcTransport"
 	internal := router.internal
@@ -355,7 +356,7 @@ func (router *Router) CreatePlainTransport(option PlainTransportOptions) (transp
 		return
 	}
 
-	router.logger.Debug("createPlainTransport()")
+	router.logger.V(1).Info("createPlainTransport()")
 
 	internal := router.internal
 	internal.TransportId = uuid.NewString()
@@ -397,7 +398,7 @@ func (router *Router) CreatePipeTransport(option PipeTransportOptions) (transpor
 		return
 	}
 
-	router.logger.Debug("createPipeTransport()")
+	router.logger.V(1).Info("createPipeTransport()")
 
 	internal := router.internal
 	internal.TransportId = uuid.NewString()
@@ -437,7 +438,7 @@ func (router *Router) CreateDirectTransport(params ...DirectTransportOptions) (t
 		}
 	}
 
-	router.logger.Debug("createDirectTransport()")
+	router.logger.V(1).Info("createDirectTransport()")
 
 	internal := router.internal
 	internal.TransportId = uuid.NewString()
@@ -459,7 +460,7 @@ func (router *Router) CreateDirectTransport(params ...DirectTransportOptions) (t
  * Pipes the given Producer or DataProducer into another Router in same host.
  */
 func (router *Router) PipeToRouter(option PipeToRouterOptions) (result *PipeToRouterResult, err error) {
-	router.logger.Debug("pipeToRouter()")
+	router.logger.V(1).Info("pipeToRouter()")
 
 	options := &PipeToRouterOptions{
 		ListenIp: TransportListenIp{
@@ -552,7 +553,7 @@ func (router *Router) PipeToRouter(option PipeToRouterOptions) (result *PipeToRo
 				return err
 			})
 			if err = errgroup.Wait(); err != nil {
-				router.logger.Error("pipeToRouter() | error creating PipeTransport pair:%s", err)
+				router.logger.Error(err, "pipeToRouter() | error creating PipeTransport pair")
 				return
 			}
 			errgroup.Go(func() error {
@@ -570,7 +571,7 @@ func (router *Router) PipeToRouter(option PipeToRouterOptions) (result *PipeToRo
 				})
 			})
 			if err = errgroup.Wait(); err != nil {
-				router.logger.Error("pipeToRouter() | error connecting PipeTransport pair:%s", err)
+				router.logger.Error(err, "pipeToRouter() | error connecting PipeTransport pair")
 				return
 			}
 			return []interface{}{router, [2]*PipeTransport{localPipeTransport, remotePipeTransport}}, nil
@@ -607,7 +608,7 @@ func (router *Router) PipeToRouter(option PipeToRouterOptions) (result *PipeToRo
 			ProducerId: options.ProducerId,
 		})
 		if err != nil {
-			router.logger.Error("pipeToRouter() | error creating pipe Consumer:%s", err)
+			router.logger.Error(err, "pipeToRouter() | error creating pipe Consumer")
 			return
 		}
 		pipeProducer, err = remotePipeTransport.Produce(ProducerOptions{
@@ -618,13 +619,13 @@ func (router *Router) PipeToRouter(option PipeToRouterOptions) (result *PipeToRo
 			AppData:       producer.AppData(),
 		})
 		if err != nil {
-			router.logger.Error("pipeToRouter() | error creating pipe Producer:%s", err)
+			router.logger.Error(err, "pipeToRouter() | error creating pipe Producer")
 			return
 		}
 		// Ensure that the producer has not been closed in the meanwhile.
 		if producer.Closed() {
 			err = NewInvalidStateError("original Producer closed")
-			router.logger.Error("pipeToRouter() | error:%s", err)
+			router.logger.Error(err, "pipeToRouter() | failed")
 			return
 		}
 
@@ -637,7 +638,7 @@ func (router *Router) PipeToRouter(option PipeToRouterOptions) (result *PipeToRo
 				err = pipeProducer.Resume()
 			}
 			if err != nil {
-				router.logger.Error("pipeToRouter() | error pause or resume producer:%s", err)
+				router.logger.Error(err, "pipeToRouter() | error pause or resume producer")
 				return
 			}
 		}
@@ -676,7 +677,7 @@ func (router *Router) PipeToRouter(option PipeToRouterOptions) (result *PipeToRo
 			DataProducerId: options.DataProducerId,
 		})
 		if err != nil {
-			router.logger.Error("pipeToRouter() | error creating pipe DataConsumer pair:%s", err)
+			router.logger.Error(err, "pipeToRouter() | error creating pipe DataConsumer pair")
 			return
 		}
 		pipeDataProducer, err = remotePipeTransport.ProduceData(DataProducerOptions{
@@ -687,13 +688,13 @@ func (router *Router) PipeToRouter(option PipeToRouterOptions) (result *PipeToRo
 			AppData:              dataProducer.AppData(),
 		})
 		if err != nil {
-			router.logger.Error("pipeToRouter() | error creating pipe DataProducer pair:%s", err)
+			router.logger.Error(err, "pipeToRouter() | error creating pipe DataProducer pair")
 			return
 		}
 		// Ensure that the dataProducer has not been closed in the meanwhile.
 		if dataProducer.Closed() {
 			err = NewInvalidStateError("original DataProducer closed")
-			router.logger.Error("pipeToRouter() | error:%s", err)
+			router.logger.Error(err, "pipeToRouter() | failed")
 			return
 		}
 
@@ -712,6 +713,7 @@ func (router *Router) PipeToRouter(option PipeToRouterOptions) (result *PipeToRo
 
 func (router *Router) addPipeTransportPair(key *Router, pipeTransportPair [2]*PipeTransport) (*PipeTransport, *PipeTransport) {
 	if val, loaded := router.mapRouterPipeTransports.LoadOrStore(key, pipeTransportPair); loaded {
+		router.logger.Info("pipeTransport exists, use the old pair", "router", router.Id(), "warn", true)
 		oldPipeTransportPair := val.([2]*PipeTransport)
 
 		// close useless pipeTransport pair
@@ -721,8 +723,7 @@ func (router *Router) addPipeTransportPair(key *Router, pipeTransportPair [2]*Pi
 			}
 		}
 
-		pipeTransportPair = oldPipeTransportPair
-		router.logger.Warn("router: %s, pipeTransport exists, use the old pair", router.Id())
+		return oldPipeTransportPair[0], oldPipeTransportPair[1]
 	}
 
 	localPipeTransport, remotePipeTransport := pipeTransportPair[0], pipeTransportPair[1]
@@ -737,7 +738,7 @@ func (router *Router) addPipeTransportPair(key *Router, pipeTransportPair [2]*Pi
 
 // CreateActiveSpeakerObserver create an ActiveSpeakerObserver
 func (router *Router) CreateActiveSpeakerObserver(options ...func(*ActiveSpeakerObserverOptions)) (activeSpeakerObserver *ActiveSpeakerObserver, err error) {
-	router.logger.Debug("createActiveSpeakerObserver()")
+	router.logger.V(1).Info("createActiveSpeakerObserver()")
 
 	o := &ActiveSpeakerObserverOptions{
 		Interval: 300,
@@ -778,7 +779,7 @@ func (router *Router) CreateActiveSpeakerObserver(options ...func(*ActiveSpeaker
  * Create an AudioLevelObserver.
  */
 func (router *Router) CreateAudioLevelObserver(options ...func(o *AudioLevelObserverOptions)) (audioLevelObserver *AudioLevelObserver, err error) {
-	router.logger.Debug("createAudioLevelObserver()")
+	router.logger.V(1).Info("createAudioLevelObserver()")
 
 	o := NewAudioLevelObserverOptions()
 
@@ -820,12 +821,11 @@ func (router *Router) CreateAudioLevelObserver(options ...func(o *AudioLevelObse
  * Check whether the given RTP capabilities can consume the given Producer.
  */
 func (router *Router) CanConsume(producerId string, rtpCapabilities RtpCapabilities) bool {
-	router.logger.Debug("CanConsume()")
+	router.logger.V(1).Info("CanConsume()")
 
 	value, ok := router.producers.Load(producerId)
 	if !ok {
-		router.logger.Error(`canConsume() | Producer with id "%s" not found`, producerId)
-
+		router.logger.Error(nil, "canConsume() | Producer is not found", "id", producerId)
 		return false
 	}
 
@@ -833,7 +833,7 @@ func (router *Router) CanConsume(producerId string, rtpCapabilities RtpCapabilit
 	ok, err := canConsume(producer.ConsumableRtpParameters(), rtpCapabilities)
 
 	if err != nil {
-		router.logger.Error("canConsume() | unexpected error: %s", err)
+		router.logger.Error(err, "canConsume() | unexpected error")
 	}
 
 	return ok

@@ -3,6 +3,8 @@ package mediasoup
 import (
 	"encoding/json"
 	"sync"
+
+	"github.com/go-logr/logr"
 )
 
 type WebRtcTransportOptions struct {
@@ -212,7 +214,7 @@ func (data *webrtcTransportData) SetSctpState(sctpState SctpState) {
  */
 type WebRtcTransport struct {
 	ITransport
-	logger         Logger
+	logger         logr.Logger
 	internal       internalData
 	data           *webrtcTransportData
 	channel        *Channel
@@ -393,7 +395,7 @@ func (transport *WebRtcTransport) webRtcServerClosed() {
  * @override
  */
 func (transport *WebRtcTransport) Connect(options TransportConnectOptions) (err error) {
-	transport.logger.Debug("connect()")
+	transport.logger.V(1).Info("connect()")
 
 	reqData := TransportConnectOptions{DtlsParameters: options.DtlsParameters}
 	resp := transport.channel.Request("transport.connect", transport.internal, reqData)
@@ -415,7 +417,7 @@ func (transport *WebRtcTransport) Connect(options TransportConnectOptions) (err 
  * Restart ICE.
  */
 func (transport *WebRtcTransport) RestartIce() (iceParameters IceParameters, err error) {
-	transport.logger.Debug("restartIce()")
+	transport.logger.V(1).Info("restartIce()")
 
 	resp := transport.channel.Request("transport.restartIce", transport.internal)
 
@@ -497,7 +499,7 @@ func (transport *WebRtcTransport) handleWorkerNotifications() {
 			transport.Observer().SafeEmit("trace", result)
 
 		default:
-			transport.logger.Error(`ignoring unknown event "%s"`, event)
+			transport.logger.Error(nil, "ignoring unknown event", "event", event)
 		}
 	})
 }

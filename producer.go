@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"sync"
 	"sync/atomic"
+
+	"github.com/go-logr/logr"
 )
 
 type ProducerOptions struct {
@@ -185,7 +187,7 @@ type producerParams struct {
 type Producer struct {
 	IEventEmitter
 	locker         sync.Mutex
-	logger         Logger
+	logger         logr.Logger
 	internal       internalData
 	data           producerData
 	channel        *Channel
@@ -200,7 +202,7 @@ type Producer struct {
 func newProducer(params producerParams) *Producer {
 	logger := NewLogger("Producer")
 
-	logger.Debug("constructor()")
+	logger.V(1).Info("constructor()")
 
 	if params.appData == nil {
 		params.appData = H{}
@@ -288,7 +290,7 @@ func (producer *Producer) Observer() IEventEmitter {
 // Close the Producer.
 func (producer *Producer) Close() (err error) {
 	if atomic.CompareAndSwapUint32(&producer.closed, 0, 1) {
-		producer.logger.Debug("close()")
+		producer.logger.V(1).Info("close()")
 
 		// Remove notification subscriptions.
 		producer.channel.RemoveAllListeners(producer.Id())
@@ -297,7 +299,7 @@ func (producer *Producer) Close() (err error) {
 		response := producer.channel.Request("producer.close", producer.internal)
 
 		if err = response.Err(); err != nil {
-			producer.logger.Error("producer close error: %s", err)
+			producer.logger.Error(err, "producer close error failed")
 		}
 
 		producer.Emit("@close")
@@ -314,7 +316,7 @@ func (producer *Producer) Close() (err error) {
 // Transport was closed.
 func (producer *Producer) transportClosed() {
 	if atomic.CompareAndSwapUint32(&producer.closed, 0, 1) {
-		producer.logger.Debug("transportClosed()")
+		producer.logger.V(1).Info("transportClosed()")
 
 		// Remove notification subscriptions.
 		producer.channel.RemoveAllListeners(producer.Id())
@@ -331,7 +333,7 @@ func (producer *Producer) transportClosed() {
 
 // Dump Producer.
 func (producer *Producer) Dump() (dump ProducerDump, err error) {
-	producer.logger.Debug("dump()")
+	producer.logger.V(1).Info("dump()")
 
 	resp := producer.channel.Request("producer.dump", producer.internal)
 	err = resp.Unmarshal(&dump)
@@ -341,7 +343,7 @@ func (producer *Producer) Dump() (dump ProducerDump, err error) {
 
 // Get Producer stats.
 func (producer *Producer) GetStats() (stats []*ProducerStat, err error) {
-	producer.logger.Debug("getStats()")
+	producer.logger.V(1).Info("getStats()")
 
 	resp := producer.channel.Request("producer.getStats", producer.internal)
 	err = resp.Unmarshal(&stats)
@@ -354,7 +356,7 @@ func (producer *Producer) Pause() (err error) {
 	producer.locker.Lock()
 	defer producer.locker.Unlock()
 
-	producer.logger.Debug("pause()")
+	producer.logger.V(1).Info("pause()")
 
 	wasPaused := producer.paused
 
@@ -379,7 +381,7 @@ func (producer *Producer) Resume() (err error) {
 	producer.locker.Lock()
 	defer producer.locker.Unlock()
 
-	producer.logger.Debug("resume()")
+	producer.logger.V(1).Info("resume()")
 
 	wasPaused := producer.paused
 
@@ -403,7 +405,7 @@ func (producer *Producer) Resume() (err error) {
  * Enable 'trace' event.
  */
 func (producer *Producer) EnableTraceEvent(types ...ProducerTraceEventType) error {
-	producer.logger.Debug("enableTraceEvent()")
+	producer.logger.V(1).Info("enableTraceEvent()")
 
 	if types == nil {
 		types = []ProducerTraceEventType{}
@@ -455,7 +457,7 @@ func (producer *Producer) handleWorkerNotifications() {
 			producer.observer.SafeEmit("trace", trace)
 
 		default:
-			producer.logger.Error(`ignoring unknown event "%s"`, event)
+			producer.logger.Error(nil, "ignoring unknown event", "event", event)
 		}
 	})
 }
