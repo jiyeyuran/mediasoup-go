@@ -127,6 +127,10 @@ func (e *EventEmitter) RemoveAllListeners(events ...string) {
 	if e.listeners == nil {
 		return
 	}
+	if len(events) == 0 {
+		e.listeners = nil
+		return
+	}
 	for _, event := range events {
 		delete(e.listeners, event)
 	}
