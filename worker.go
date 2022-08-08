@@ -504,9 +504,9 @@ func (w *Worker) Close() {
 	w.waitCh <- w.diedErr
 
 	if w.diedErr != nil {
-		w.Emit("died", w.diedErr)
+		w.SafeEmit("died", w.diedErr)
 	}
-	w.observer.Emit("close")
+	w.observer.SafeEmit("close")
 }
 
 // Dump returns the resources allocated by the worker.
@@ -557,7 +557,7 @@ func (w *Worker) CreateWebRtcServer(options WebRtcServerOptions) (webRtcServer *
 	})
 
 	// Emit observer event.
-	w.observer.Emit("newwebrtcserver", webRtcServer)
+	w.observer.SafeEmit("newwebrtcserver", webRtcServer)
 
 	return
 }
@@ -592,7 +592,7 @@ func (w *Worker) CreateRouter(options RouterOptions) (router *Router, err error)
 	})
 
 	// Emit observer event.
-	w.observer.Emit("newrouter", router)
+	w.observer.SafeEmit("newrouter", router)
 
 	return
 }

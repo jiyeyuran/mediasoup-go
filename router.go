@@ -227,7 +227,7 @@ func (router *Router) close() {
 	router.mapRouterPipeTransports = sync.Map{}
 
 	// Emit observer event.
-	router.observer.Emit("close")
+	router.observer.SafeEmit("close")
 }
 
 // Dump Router.
