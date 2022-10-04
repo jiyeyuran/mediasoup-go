@@ -20,16 +20,11 @@ import (
 	"github.com/jiyeyuran/mediasoup-go/netcodec"
 )
 
-const (
-	// From this version to up, mediasoup-worker uses LV protocol to communicate with wrappers.
-	defaultWorkerVersion = "3.9.0"
-)
-
 var (
-	// Deprecated, use WithWorkerBin option
+	// WorkerBin indicates the worker binary path
 	WorkerBin = getDefaultWorkerBin()
-	// Deprecated, use WithWorkerVersion option
-	WorkerVersion = getDefaultWorkerVersion()
+	// WorkerVersion indicates the worker binary version
+	WorkerVersion = os.Getenv("MEDIASOUP_WORKER_VERSION")
 )
 
 func getDefaultWorkerBin() string {
@@ -38,14 +33,6 @@ func getDefaultWorkerBin() string {
 		return workerBin
 	}
 	return "/usr/local/lib/node_modules/mediasoup/worker/out/Release/mediasoup-worker"
-}
-
-func getDefaultWorkerVersion() string {
-	workerVersion := os.Getenv("MEDIASOUP_WORKER_VERSION")
-	if len(workerVersion) > 0 {
-		return workerVersion
-	}
-	return defaultWorkerVersion
 }
 
 type WorkerLogLevel string
@@ -217,15 +204,20 @@ func NewWorker(options ...Option) (worker *Worker, err error) {
 
 	logger.V(1).Info("constructor()")
 
-	var (
-		channelCodec, payloadChannelCodec netcodec.Codec
-		workerVersion                     = settings.WorkerVersion
-	)
+	var isLVCodec bool
 
-	defautVerionFormatted, _ := version.NewVersion(defaultWorkerVersion)
-	workerVersionFormatted, err := version.NewVersion(workerVersion)
-	if err != nil {
-		return nil, err
+	if len(settings.WorkerVersion) > 0 {
+		// From this version to up, mediasoup-worker uses LV protocol to communicate with wrappers.
+		lvVerion, _ := version.NewVersion("3.9.0")
+		workerVersion, err := version.NewVersion(settings.WorkerVersion)
+		if err != nil {
+			return nil, err
+		}
+		isLVCodec = workerVersion.GreaterThanOrEqual(lvVerion)
+	} else {
+		if isLVCodec, err = detectNetCodec(settings, netcodec.NewNetLVCodec); err != nil {
+			return nil, err
+		}
 	}
 
 	var closeIfError []io.Closer
@@ -261,14 +253,16 @@ func NewWorker(options ...Option) (worker *Worker, err error) {
 	}
 	closeIfError = append(closeIfError, payloadConsumerReader, payloadConsumerWriter)
 
-	// use netstring codec for old mediasoup-worker version
-	if workerVersionFormatted.LessThan(defautVerionFormatted) {
-		channelCodec = netcodec.NewNetstringCodec(producerWriter, consumerReader)
-		payloadChannelCodec = netcodec.NewNetstringCodec(payloadProducerWriter, payloadConsumerReader)
+	var newCodec func(w io.WriteCloser, r io.ReadCloser) netcodec.Codec
+
+	if isLVCodec {
+		newCodec = netcodec.NewNetLVCodec
 	} else {
-		channelCodec = netcodec.NewNetLVCodec(producerWriter, consumerReader, hostByteOrder())
-		payloadChannelCodec = netcodec.NewNetLVCodec(payloadProducerWriter, payloadConsumerReader, hostByteOrder())
+		newCodec = netcodec.NewNetStringCodec
 	}
+
+	channelCodec := newCodec(producerWriter, consumerReader)
+	payloadChannelCodec := newCodec(payloadProducerWriter, payloadConsumerReader)
 
 	bin := settings.WorkerBin
 	args := settings.Args()
@@ -280,7 +274,7 @@ func NewWorker(options ...Option) (worker *Worker, err error) {
 
 	child := exec.Command(bin, args...)
 	child.ExtraFiles = []*os.File{producerReader, consumerWriter, payloadProducerReader, payloadConsumerWriter}
-	child.Env = []string{"MEDIASOUP_VERSION=" + workerVersion}
+	child.Env = []string{"MEDIASOUP_VERSION=" + settings.WorkerVersion}
 
 	// pipe is closed by cmd
 	stderr, err := child.StderrPipe()

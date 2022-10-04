@@ -24,19 +24,19 @@ type BufferReader struct {
 	io.Closer
 }
 
-type NetstringCodec struct {
+type NetStringCodec struct {
 	w io.WriteCloser
 	r *BufferReader
 }
 
-func NewNetstringCodec(w io.WriteCloser, r io.ReadCloser) Codec {
-	return &NetstringCodec{
+func NewNetStringCodec(w io.WriteCloser, r io.ReadCloser) Codec {
+	return &NetStringCodec{
 		w: w,
 		r: &BufferReader{Reader: bufio.NewReader(r), Closer: r},
 	}
 }
 
-func (c NetstringCodec) WritePayload(payload []byte) error {
+func (c NetStringCodec) WritePayload(payload []byte) error {
 	length := strconv.Itoa(len(payload))
 
 	buffer := make([]byte, 0, len(length)+len(payload)+2)
@@ -49,7 +49,7 @@ func (c NetstringCodec) WritePayload(payload []byte) error {
 	return err
 }
 
-func (c NetstringCodec) ReadPayload() (payload []byte, err error) {
+func (c NetStringCodec) ReadPayload() (payload []byte, err error) {
 	begin, err := c.r.ReadString(SEPARATOR_SYMBOL)
 	if err != nil {
 		return
@@ -81,7 +81,7 @@ func (c NetstringCodec) ReadPayload() (payload []byte, err error) {
 	return
 }
 
-func (c *NetstringCodec) Close() (err error) {
+func (c *NetStringCodec) Close() (err error) {
 	err1 := c.w.Close()
 	err2 := c.r.Close()
 
