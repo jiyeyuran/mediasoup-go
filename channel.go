@@ -14,20 +14,36 @@ import (
 
 type Channel struct {
 	IEventEmitter
-	logger   logr.Logger
-	codec    netcodec.Codec
-	closed   int32
-	pid      int
-	nextId   int64
-	sents    sync.Map
-	sentChan chan sentInfo
-	closeCh  chan struct{}
+	logger     logr.Logger
+	codec      netcodec.Codec
+	closed     int32
+	pid        int
+	nextId     int64
+	sents      sync.Map
+	sentChan   chan sentInfo
+	closeCh    chan struct{}
+	newMethods map[string]string
 }
 
-func newChannel(codec netcodec.Codec, pid int) *Channel {
+func newChannel(codec netcodec.Codec, pid int, useNewCloseMethods bool) *Channel {
 	logger := NewLogger("Channel")
 
 	logger.V(1).Info("constructor()")
+
+	var newMethods map[string]string
+
+	if useNewCloseMethods {
+		newMethods = map[string]string{
+			"webRtcServer.close": "worker.closeWebRtcServer",
+			"router.close":       "worker.closeRouter",
+			"transport.close":    "router.closeTransport",
+			"rtpObserver.close":  "router.closeRtpObserver",
+			"producer.close":     "transport.closeProducer",
+			"consumer.close":     "transport.closeConsumer",
+			"dataProducer.close": "transport.closeDataProducer",
+			"dataConsumer.close": "transport.closeDataConsumer",
+		}
+	}
 
 	channel := &Channel{
 		IEventEmitter: NewEventEmitter(),
@@ -36,6 +52,7 @@ func newChannel(codec netcodec.Codec, pid int) *Channel {
 		pid:           pid,
 		sentChan:      make(chan sentInfo),
 		closeCh:       make(chan struct{}),
+		newMethods:    newMethods,
 	}
 
 	return channel
@@ -66,6 +83,12 @@ func (c *Channel) Request(method string, internal internalData, data ...interfac
 	}
 	id := atomic.AddInt64(&c.nextId, 1)
 	atomic.CompareAndSwapInt64(&c.nextId, 4294967295, 1)
+
+	if c.newMethods != nil {
+		if v, ok := c.newMethods[method]; ok {
+			method = v
+		}
+	}
 
 	c.logger.V(1).Info("request()", "method", method, "id", id)
 

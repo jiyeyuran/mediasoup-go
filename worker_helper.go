@@ -1,6 +1,7 @@
 package mediasoup
 
 import (
+	"bytes"
 	"encoding/json"
 	"io"
 	"os"
@@ -11,7 +12,15 @@ import (
 	"github.com/jiyeyuran/mediasoup-go/netcodec"
 )
 
-func detectNetCodec(settings *WorkerSettings, newCodec func(io.WriteCloser, io.ReadCloser) netcodec.Codec) (ok bool, err error) {
+func detectNewCloseMethods(workerBin string) bool {
+	data, err := os.ReadFile(workerBin)
+	if err != nil {
+		return false
+	}
+	return bytes.Contains(data, []byte("worker.closeRouter"))
+}
+
+func detectNetCodec(settings *WorkerSettings, newCodec func(io.WriteCloser, io.ReadCloser) netcodec.Codec) (ok bool) {
 	bin := settings.WorkerBin
 	args := settings.Args()
 	if wrappedArgs := strings.Fields(settings.WorkerBin); len(wrappedArgs) > 1 {
@@ -72,7 +81,7 @@ func detectNetCodec(settings *WorkerSettings, newCodec func(io.WriteCloser, io.R
 	for {
 		data, err := codec.ReadPayload()
 		if err != nil {
-			return false, nil
+			return false
 		}
 		if len(data) > 0 && data[0] != '{' {
 			continue
@@ -82,8 +91,8 @@ func detectNetCodec(settings *WorkerSettings, newCodec func(io.WriteCloser, io.R
 			Event    string `json:"event,omitempty"`
 		}
 		if err = json.Unmarshal(data, &msg); err != nil {
-			return false, nil
+			return false
 		}
-		return msg.TargetId == child.Process.Pid, nil
+		return msg.TargetId == child.Process.Pid
 	}
 }

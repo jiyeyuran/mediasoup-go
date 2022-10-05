@@ -204,20 +204,28 @@ func NewWorker(options ...Option) (worker *Worker, err error) {
 
 	logger.V(1).Info("constructor()")
 
-	var isLVCodec bool
+	var (
+		useLVCodec         bool
+		useNewCloseMethods bool
+		workerVersion      = settings.WorkerVersion
+	)
 
-	if len(settings.WorkerVersion) > 0 {
-		// From this version to up, mediasoup-worker uses LV protocol to communicate with wrappers.
-		lvVerion, _ := version.NewVersion("3.9.0")
-		workerVersion, err := version.NewVersion(settings.WorkerVersion)
+	if len(workerVersion) == 0 {
+		useLVCodec = detectNetCodec(settings, netcodec.NewNetLVCodec)
+		useNewCloseMethods = detectNewCloseMethods(settings.WorkerBin)
+		workerVersion = "0.0.0"
+	} else {
+		formatedWorkerVersion, err := version.NewVersion(workerVersion)
 		if err != nil {
 			return nil, err
 		}
-		isLVCodec = workerVersion.GreaterThanOrEqual(lvVerion)
-	} else {
-		if isLVCodec, err = detectNetCodec(settings, netcodec.NewNetLVCodec); err != nil {
-			return nil, err
-		}
+		// From this version to up, mediasoup-worker uses LV protocol to communicate with wrappers.
+		usingLVVerion, _ := version.NewVersion("3.9.0")
+		useLVCodec = formatedWorkerVersion.GreaterThanOrEqual(usingLVVerion)
+
+		// From this version to up, mediasoup-worker uses new close methods to interact with wrappers.
+		usingNewCloseMethodsVerion, _ := version.NewVersion("3.10.6")
+		useNewCloseMethods = formatedWorkerVersion.GreaterThanOrEqual(usingNewCloseMethodsVerion)
 	}
 
 	var closeIfError []io.Closer
@@ -255,7 +263,7 @@ func NewWorker(options ...Option) (worker *Worker, err error) {
 
 	var newCodec func(w io.WriteCloser, r io.ReadCloser) netcodec.Codec
 
-	if isLVCodec {
+	if useLVCodec {
 		newCodec = netcodec.NewNetLVCodec
 	} else {
 		newCodec = netcodec.NewNetStringCodec
@@ -274,7 +282,7 @@ func NewWorker(options ...Option) (worker *Worker, err error) {
 
 	child := exec.Command(bin, args...)
 	child.ExtraFiles = []*os.File{producerReader, consumerWriter, payloadProducerReader, payloadConsumerWriter}
-	child.Env = []string{"MEDIASOUP_VERSION=" + settings.WorkerVersion}
+	child.Env = []string{"MEDIASOUP_VERSION=" + workerVersion}
 
 	// pipe is closed by cmd
 	stderr, err := child.StderrPipe()
@@ -299,7 +307,7 @@ func NewWorker(options ...Option) (worker *Worker, err error) {
 
 	// the worker process id
 	pid := child.Process.Pid
-	channel := newChannel(channelCodec, pid)
+	channel := newChannel(channelCodec, pid, useNewCloseMethods)
 	payloadChannel := newPayloadChannel(payloadChannelCodec)
 
 	channel.Once(strconv.Itoa(pid), func(event string) {
