@@ -200,7 +200,7 @@ func (c *PayloadChannel) runReadLoop() {
 	for {
 		payload, err := c.codec.ReadPayload()
 		if err != nil {
-			c.logger.Error(err, "PayloadChannel error failed")
+			c.logger.Error(err, "read failed")
 			break
 		}
 		c.processPayload(payload)

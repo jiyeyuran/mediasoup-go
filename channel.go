@@ -74,7 +74,7 @@ func (c *Channel) Closed() bool {
 
 func (c *Channel) Request(method string, internal internalData, data ...interface{}) (rsp workerResponse) {
 	if c.Closed() {
-		rsp.err = NewInvalidStateError("PayloadChannel closed")
+		rsp.err = NewInvalidStateError("Channel closed")
 		return
 	}
 	id := atomic.AddInt64(&c.nextId, 1)

@@ -9,7 +9,8 @@ import (
 var (
 	// default zerolog
 	zl = zerolog.New(zerolog.NewConsoleWriter(func(w *zerolog.ConsoleWriter) {
-		w.TimeFormat = "2006-01-02 15:04:05.000000"
+		w.NoColor = true
+		w.TimeFormat = "2006-01-02 15:04:05.999"
 	})).With().Caller().Timestamp().Logger().Level(zerolog.InfoLevel)
 
 	// NewLogger defines function to create logger instance.
@@ -17,3 +18,7 @@ var (
 		return zerologr.New(&zl).WithName(scope)
 	}
 )
+
+func init() {
+	zerolog.TimeFieldFormat = "2006-01-02T15:04:05.999Z07:00"
+}
