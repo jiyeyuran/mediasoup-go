@@ -309,6 +309,7 @@ func (router *Router) CreateWebRtcTransport(option WebRtcTransportOptions) (tran
 	internal.TransportId = uuid.NewString()
 
 	reqData := H{
+		"transportId":                     internal.TransportId,
 		"listenIps":                       options.ListenIps,
 		"enableUdp":                       options.EnableUdp,
 		"enableTcp":                       options.EnableTcp,
@@ -324,7 +325,6 @@ func (router *Router) CreateWebRtcTransport(option WebRtcTransportOptions) (tran
 
 	if options.WebRtcServer != nil {
 		method = "router.createWebRtcTransportWithServer"
-		internal.WebRtcServerId = option.WebRtcServer.Id()
 		reqData["webRtcServerId"] = option.WebRtcServer.Id()
 	}
 
@@ -361,6 +361,7 @@ func (router *Router) CreatePlainTransport(option PlainTransportOptions) (transp
 	internal := router.internal
 	internal.TransportId = uuid.NewString()
 	reqData := H{
+		"transportId":        internal.TransportId,
 		"listenIp":           options.ListenIp,
 		"rtcpMux":            options.RtcpMux,
 		"comedia":            options.Comedia,
@@ -403,6 +404,7 @@ func (router *Router) CreatePipeTransport(option PipeTransportOptions) (transpor
 	internal := router.internal
 	internal.TransportId = uuid.NewString()
 	reqData := H{
+		"transportId":        internal.TransportId,
 		"listenIp":           options.ListenIp,
 		"enableSctp":         options.EnableSctp,
 		"numSctpStreams":     options.NumSctpStreams,
@@ -442,7 +444,11 @@ func (router *Router) CreateDirectTransport(params ...DirectTransportOptions) (t
 
 	internal := router.internal
 	internal.TransportId = uuid.NewString()
-	reqData := H{"direct": true, "maxMessageSize": options.MaxMessageSize}
+	reqData := H{
+		"transportId":    internal.TransportId,
+		"direct":         true,
+		"maxMessageSize": options.MaxMessageSize,
+	}
 
 	resp := router.channel.Request("router.createDirectTransport", internal, reqData)
 
@@ -749,8 +755,12 @@ func (router *Router) CreateActiveSpeakerObserver(options ...func(*ActiveSpeaker
 
 	internal := router.internal
 	internal.RtpObserverId = uuid.NewString()
+	reqData := H{
+		"rtpObserverId": internal.RtpObserverId,
+		"interval":      o.Interval,
+	}
 
-	resp := router.channel.Request("router.createActiveSpeakerObserver", internal, o)
+	resp := router.channel.Request("router.createActiveSpeakerObserver", internal, reqData)
 	if err = resp.Err(); err != nil {
 		return
 	}
@@ -789,8 +799,13 @@ func (router *Router) CreateAudioLevelObserver(options ...func(o *AudioLevelObse
 
 	internal := router.internal
 	internal.RtpObserverId = uuid.NewString()
-
-	resp := router.channel.Request("router.createAudioLevelObserver", internal, o)
+	reqData := H{
+		"rtpObserverId": internal.RtpObserverId,
+		"maxEntries":    o.MaxEntries,
+		"threshold":     o.Threshold,
+		"interval":      o.Interval,
+	}
+	resp := router.channel.Request("router.createAudioLevelObserver", internal, reqData)
 	if err = resp.Err(); err != nil {
 		return
 	}

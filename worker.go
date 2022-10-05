@@ -542,7 +542,10 @@ func (w *Worker) CreateWebRtcServer(options WebRtcServerOptions) (webRtcServer *
 	w.logger.V(1).Info("createWebRtcServer()")
 
 	internal := internalData{WebRtcServerId: uuid.NewString()}
-	reqData := H{"listenInfos": options.ListenInfos}
+	reqData := H{
+		"webRtcServerId": internal.WebRtcServerId,
+		"listenInfos":    options.ListenInfos,
+	}
 	err = w.channel.Request("worker.createWebRtcServer", internal, reqData).Err()
 	if err != nil {
 		return
@@ -569,8 +572,10 @@ func (w *Worker) CreateRouter(options RouterOptions) (router *Router, err error)
 	w.logger.V(1).Info("createRouter()")
 
 	internal := internalData{RouterId: uuid.NewString()}
-
-	rsp := w.channel.Request("worker.createRouter", internal, nil)
+	reqData := H{
+		"routerId": internal.RouterId,
+	}
+	rsp := w.channel.Request("worker.createRouter", internal, reqData)
 	if err = rsp.Err(); err != nil {
 		return
 	}
