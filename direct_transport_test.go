@@ -97,9 +97,9 @@ func (suite *DirectTransportTestingSuite) TestDataProducerSendSucceeds() {
 		atomic.AddUint32(&recvMessages, 1)
 
 		if id, _ := strconv.Atoi(string(payload)); id < numMessages/2 {
-			suite.EqualValues(PPID_WEBRTC_STRING, ppid)
+			suite.EqualValues(51, ppid)
 		} else {
-			suite.EqualValues(PPID_WEBRTC_BINARY, ppid)
+			suite.EqualValues(53, ppid)
 		}
 	})
 

@@ -178,7 +178,9 @@ func (p *DataProducer) Close() (err error) {
 		p.channel.RemoveAllListeners(p.Id())
 		p.payloadChannel.RemoveAllListeners(p.Id())
 
-		response := p.channel.Request("dataProducer.close", p.internal)
+		reqData := H{"dataProducerId": p.internal.DataProducerId}
+
+		response := p.channel.Request("transport.closeDataProducer", p.internal, reqData)
 
 		if err = response.Err(); err != nil {
 			p.logger.Error(err, "dataProducer close failed")
@@ -230,7 +232,7 @@ func (p *DataProducer) GetStats() (stats []*DataProducerStat, err error) {
 /**
  * Send data.
  */
-func (p *DataProducer) Send(data []byte, ppid ...int) (err error) {
+func (p *DataProducer) Send(data []byte) (err error) {
 	/*
 	 * +-------------------------------+----------+
 	 * | Value                         | SCTP     |
@@ -246,38 +248,26 @@ func (p *DataProducer) Send(data []byte, ppid ...int) (err error) {
 	 * | WebRTC Binary Empty           | 57       |
 	 * +-------------------------------+----------+
 	 */
-	ppidVal := 0
+	ppid := "53"
 
-	if len(ppid) == 0 {
-		if len(data) > 0 {
-			ppidVal = PPID_WEBRTC_BINARY
-		} else {
-			ppidVal = 57
-		}
-	} else {
-		ppidVal = ppid[0]
+	if len(data) == 0 {
+		ppid, data = "57", make([]byte, 1)
 	}
 
-	if ppidVal == 56 || ppidVal == 57 {
-		data = make([]byte, 1)
-	}
-
-	notifData := H{"ppid": ppidVal}
-
-	return p.payloadChannel.Notify("dataProducer.send", p.internal, notifData, data)
+	return p.payloadChannel.Notify("dataProducer.send", p.internal, ppid, data)
 }
 
 /**
  * Send text.
  */
 func (p *DataProducer) SendText(message string) error {
-	ppid := PPID_WEBRTC_STRING
+	ppid, payload := "51", []byte(message)
 
-	if len(message) == 0 {
-		ppid = 56
+	if len(payload) == 0 {
+		ppid, payload = "56", []byte{' '}
 	}
 
-	return p.Send([]byte(message), ppid)
+	return p.payloadChannel.Notify("dataProducer.send", p.internal, ppid, payload)
 }
 
 func (p *DataProducer) handleWorkerNotifications() {

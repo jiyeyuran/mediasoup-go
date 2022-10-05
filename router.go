@@ -187,7 +187,11 @@ func (router *Router) Close() (err error) {
 	if !atomic.CompareAndSwapUint32(&router.closed, 0, 1) {
 		return
 	}
-	if err = router.channel.Request("router.close", router.internal).Err(); err != nil {
+
+	reqData := H{"routerId": router.internal.RouterId}
+
+	resp := router.channel.Request("worker.closeRouter", router.internal, reqData)
+	if err = resp.Err(); err != nil {
 		return
 	}
 	router.close()

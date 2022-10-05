@@ -2,11 +2,6 @@ package mediasoup
 
 import "encoding/json"
 
-const (
-	PPID_WEBRTC_STRING int = 51
-	PPID_WEBRTC_BINARY int = 53
-)
-
 type WorkerDump struct {
 	Pid             int      `json:"pid,omitempty"`
 	RouterIds       []string `json:"routerIds,omitempty"`

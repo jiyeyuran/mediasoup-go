@@ -98,7 +98,9 @@ func (s *WebRtcServer) Close() {
 	}
 	s.logger.V(1).Info("close()")
 
-	s.channel.Request("webRtcServer.close", s.internal)
+	reqData := H{"webRtcServerId": s.internal.WebRtcServerId}
+
+	s.channel.Request("worker.closeWebRtcServer", s.internal, reqData)
 
 	s.webRtcTransports.Range(func(key, value interface{}) bool {
 		webRtcTransport := value.(*WebRtcTransport)

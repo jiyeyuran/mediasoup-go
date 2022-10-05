@@ -250,7 +250,6 @@ func (transport *PipeTransport) Consume(options ConsumerOptions) (consumer *Cons
 	rtpParameters := getPipeConsumerRtpParameters(producer.ConsumableRtpParameters(), transport.data.Rtx)
 	internal := transport.internal
 	internal.ConsumerId = uuid.NewString()
-	internal.ProducerId = producerId
 
 	data := consumerData{
 		ProducerId:    producerId,
@@ -261,9 +260,11 @@ func (transport *PipeTransport) Consume(options ConsumerOptions) (consumer *Cons
 
 	reqData := struct {
 		consumerData
+		ConsumerId             string                  `json:"consumerId"`
 		ConsumableRtpEncodings []RtpEncodingParameters `json:"consumableRtpEncodings"`
 	}{
 		consumerData:           data,
+		ConsumerId:             internal.ConsumerId,
 		ConsumableRtpEncodings: producer.ConsumableRtpParameters().Encodings,
 	}
 

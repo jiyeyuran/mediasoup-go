@@ -124,7 +124,9 @@ func (o *RtpObserver) Close() {
 		o.channel.RemoveAllListeners(o.internal.RtpObserverId)
 		o.payloadChannel.RemoveAllListeners(o.internal.RtpObserverId)
 
-		o.channel.Request("rtpObserver.close", o.internal)
+		reqData := H{"rtpObserverId": o.internal.RtpObserverId}
+
+		o.channel.Request("router.closeRtpObserver", o.internal, reqData)
 
 		o.Emit("@close")
 		o.RemoveAllListeners()

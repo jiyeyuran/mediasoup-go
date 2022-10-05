@@ -25,8 +25,8 @@ type PipeTransportTestingSuite struct {
 }
 
 func (suite *PipeTransportTestingSuite) SetupTest() {
-	suite.router1 = CreateRouter()
-	suite.router2 = CreateRouter()
+	suite.router1 = CreateRouter(CreateTestWorker())
+	suite.router2 = CreateRouter(CreateTestWorker())
 
 	suite.transport1, _ = suite.router1.CreateWebRtcTransport(WebRtcTransportOptions{
 		ListenIps: []TransportListenIp{
@@ -629,8 +629,8 @@ func (suite *PipeTransportTestingSuite) TestDataProducerCloseIsTransmittedToPipe
 func (suite *PipeTransportTestingSuite) TestPipeToRouter() {
 	t := suite.T()
 	t.Run(`router.pipeToRouter() called twice generates a single PipeTransport pair`, func(t *testing.T) {
-		routerA := CreateRouter()
-		routerB := CreateRouter()
+		routerA := CreateRouter(CreateTestWorker())
+		routerB := CreateRouter(CreateTestWorker())
 		defer routerA.Close()
 		defer routerB.Close()
 
@@ -669,8 +669,8 @@ func (suite *PipeTransportTestingSuite) TestPipeToRouter() {
 	})
 
 	t.Run("router.pipeToRouter() called in two Routers passing one to each other as argument generates a single a single PipeTransport pair", func(t *testing.T) {
-		routerA := CreateRouter()
-		routerB := CreateRouter()
+		routerA := CreateRouter(CreateTestWorker())
+		routerB := CreateRouter(CreateTestWorker())
 		defer routerB.Close()
 
 		transportA, _ := routerA.CreateWebRtcTransport(WebRtcTransportOptions{

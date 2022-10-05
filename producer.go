@@ -296,7 +296,8 @@ func (producer *Producer) Close() (err error) {
 		producer.channel.RemoveAllListeners(producer.Id())
 		producer.payloadChannel.RemoveAllListeners(producer.Id())
 
-		response := producer.channel.Request("producer.close", producer.internal)
+		reqData := H{"producerId": producer.internal.ProducerId}
+		response := producer.channel.Request("transport.closeProducer", producer.internal, reqData)
 
 		if err = response.Err(); err != nil {
 			producer.logger.Error(err, "producer close error failed")
@@ -420,7 +421,7 @@ func (producer *Producer) EnableTraceEvent(types ...ProducerTraceEventType) erro
  * Send RTP packet (just valid for Producers created on a DirectTransport).
  */
 func (producer *Producer) Send(rtpPacket []byte) error {
-	return producer.payloadChannel.Notify("producer.send", producer.internal, nil, rtpPacket)
+	return producer.payloadChannel.Notify("producer.send", producer.internal, "", rtpPacket)
 }
 
 func (producer *Producer) handleWorkerNotifications() {

@@ -21,10 +21,10 @@ import (
 )
 
 var (
-	// WorkerBin indicates the worker binary path
+	// WorkerBin indicates the worker binary path, prefer WithWorkerBin
 	WorkerBin = getDefaultWorkerBin()
-	// WorkerVersion indicates the worker binary version
-	WorkerVersion = os.Getenv("MEDIASOUP_WORKER_VERSION")
+	// WorkerVersion indicates the worker binary version, prefer WithWorkerVersion
+	WorkerVersion = getDefaultWorkerVersion()
 )
 
 func getDefaultWorkerBin() string {
@@ -33,6 +33,10 @@ func getDefaultWorkerBin() string {
 		return workerBin
 	}
 	return "/usr/local/lib/node_modules/mediasoup/worker/out/Release/mediasoup-worker"
+}
+
+func getDefaultWorkerVersion() string {
+	return os.Getenv("MEDIASOUP_WORKER_VERSION")
 }
 
 type WorkerLogLevel string
@@ -205,14 +209,14 @@ func NewWorker(options ...Option) (worker *Worker, err error) {
 	logger.V(1).Info("constructor()")
 
 	var (
-		useLVCodec         bool
-		useNewCloseMethods bool
-		workerVersion      = settings.WorkerVersion
+		useLVCodec    bool
+		useHandlerID  bool
+		workerVersion = settings.WorkerVersion
 	)
 
 	if len(workerVersion) == 0 {
 		useLVCodec = detectNetCodec(settings, netcodec.NewNetLVCodec)
-		useNewCloseMethods = detectNewCloseMethods(settings.WorkerBin)
+		useHandlerID = detectNewCloseMethods(settings.WorkerBin)
 		workerVersion = "0.0.0"
 	} else {
 		formatedWorkerVersion, err := version.NewVersion(workerVersion)
@@ -225,7 +229,7 @@ func NewWorker(options ...Option) (worker *Worker, err error) {
 
 		// From this version to up, mediasoup-worker uses new close methods to interact with wrappers.
 		usingNewCloseMethodsVerion, _ := version.NewVersion("3.10.6")
-		useNewCloseMethods = formatedWorkerVersion.GreaterThanOrEqual(usingNewCloseMethodsVerion)
+		useHandlerID = formatedWorkerVersion.GreaterThanOrEqual(usingNewCloseMethodsVerion)
 	}
 
 	var closeIfError []io.Closer
@@ -307,8 +311,8 @@ func NewWorker(options ...Option) (worker *Worker, err error) {
 
 	// the worker process id
 	pid := child.Process.Pid
-	channel := newChannel(channelCodec, pid, useNewCloseMethods)
-	payloadChannel := newPayloadChannel(payloadChannelCodec)
+	channel := newChannel(channelCodec, pid, useHandlerID)
+	payloadChannel := newPayloadChannel(payloadChannelCodec, useHandlerID)
 
 	channel.Once(strconv.Itoa(pid), func(event string) {
 		if atomic.CompareAndSwapUint32(&spawnDone, 0, 1) && event == "running" {

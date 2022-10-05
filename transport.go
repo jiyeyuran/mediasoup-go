@@ -282,7 +282,9 @@ func (transport *Transport) Close() {
 		transport.channel.RemoveAllListeners(transport.Id())
 		transport.payloadChannel.RemoveAllListeners(transport.Id())
 
-		transport.channel.Request("transport.close", transport.internal)
+		reqData := H{"transportId": transport.internal.TransportId}
+
+		transport.channel.Request("router.closeTransport", transport.internal, reqData)
 
 		transport.producers.Range(func(key, value interface{}) bool {
 			producer := value.(*Producer)
@@ -539,6 +541,7 @@ func (transport *Transport) Produce(options ProducerOptions) (producer *Producer
 	internal.ProducerId = id
 
 	reqData := H{
+		"producerId":           id,
 		"kind":                 kind,
 		"rtpParameters":        rtpParameters,
 		"rtpMapping":           rtpMapping,
@@ -631,7 +634,6 @@ func (transport *Transport) Consume(options ConsumerOptions) (consumer *Consumer
 
 	internal := transport.internal
 	internal.ConsumerId = uuid.NewString()
-	internal.ProducerId = producerId
 
 	tp := producer.Type()
 
@@ -648,14 +650,18 @@ func (transport *Transport) Consume(options ConsumerOptions) (consumer *Consumer
 
 	reqData := struct {
 		consumerData
+		ConsumerId             string                  `json:"consumerId"`
 		ConsumableRtpEncodings []RtpEncodingParameters `json:"consumableRtpEncodings"`
 		Paused                 bool                    `json:"paused"`
 		PreferredLayers        *ConsumerLayers         `json:"preferredLayers,omitempty"`
+		IgnoreDtx              bool                    `json:"ignoreDtx,omitempty"`
 	}{
 		consumerData:           data,
+		ConsumerId:             internal.ConsumerId,
 		ConsumableRtpEncodings: producer.ConsumableRtpParameters().Encodings,
 		Paused:                 paused,
 		PreferredLayers:        preferredLayers,
+		IgnoreDtx:              options.IgnoreDtx,
 	}
 
 	resp := transport.channel.Request("transport.consume", internal, reqData)
@@ -737,12 +743,11 @@ func (transport *Transport) ProduceData(options DataProducerOptions) (dataProduc
 	internal.DataProducerId = id
 
 	reqData := H{
-		"type":     typ,
-		"label":    label,
-		"protocol": protocol,
-	}
-	if sctpStreamParameters != nil {
-		reqData["sctpStreamParameters"] = sctpStreamParameters
+		"dataProducerId":       id,
+		"type":                 typ,
+		"sctpStreamParameters": sctpStreamParameters,
+		"label":                label,
+		"protocol":             protocol,
 	}
 	resp := transport.channel.Request("transport.produceData", internal, reqData)
 
@@ -835,6 +840,7 @@ func (transport *Transport) ConsumeData(options DataConsumerOptions) (dataConsum
 	internal.DataProducerId = dataProducerId
 
 	reqData := H{
+		"dataConsumerId":       internal.DataConsumerId,
 		"dataProducerId":       dataProducerId,
 		"type":                 typ,
 		"sctpStreamParameters": sctpStreamParameters,
@@ -899,7 +905,7 @@ func (transport *Transport) EnableTraceEvent(types ...TransportTraceEventType) e
 
 func (transport *Transport) getNextSctpStreamId() (sctpStreamId int, err error) {
 	if transport.data.sctpParameters.MIS == 0 {
-		err = NewTypeError("missing data.sctpParameters.MIS")
+		err = NewTypeError("missing sctpParameters.MIS")
 		return
 	}
 

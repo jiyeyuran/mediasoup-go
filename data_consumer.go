@@ -198,7 +198,9 @@ func (c *DataConsumer) Close() (err error) {
 		c.channel.RemoveAllListeners(c.Id())
 		c.payloadChannel.RemoveAllListeners(c.Id())
 
-		response := c.channel.Request("dataConsumer.close", c.internal)
+		reqData := H{"dataConsumerId": c.internal.DataConsumerId}
+
+		response := c.channel.Request("transport.closeDataConsumer", c.internal, reqData)
 
 		if err = response.Err(); err != nil {
 			c.logger.Error(err, "dataConsumer close failed")
@@ -268,7 +270,7 @@ func (c *DataConsumer) SetBufferedAmountLowThreshold(threshold int) error {
 /**
  * Send data.
  */
-func (c *DataConsumer) Send(data []byte, ppid ...int) (err error) {
+func (c *DataConsumer) Send(data []byte) (err error) {
 	/*
 	 * +-------------------------------+----------+
 	 * | Value                         | SCTP     |
@@ -284,23 +286,13 @@ func (c *DataConsumer) Send(data []byte, ppid ...int) (err error) {
 	 * | WebRTC Binary Empty           | 57       |
 	 * +-------------------------------+----------+
 	 */
-	ppidVal := 0
+	ppid := "53"
 
-	if len(ppid) == 0 {
-		if len(data) > 0 {
-			ppidVal = 53
-		} else {
-			ppidVal = 57
-		}
-	} else {
-		ppidVal = ppid[0]
+	if len(data) == 0 {
+		ppid, data = "57", make([]byte, 1)
 	}
 
-	if ppidVal == 56 || ppidVal == 57 {
-		data = make([]byte, 1)
-	}
-
-	resp := c.payloadChannel.Request("dataConsumer.send", c.internal, H{"ppid": ppid}, data)
+	resp := c.payloadChannel.Request("dataConsumer.send", c.internal, ppid, data)
 
 	return resp.Err()
 }
@@ -309,13 +301,14 @@ func (c *DataConsumer) Send(data []byte, ppid ...int) (err error) {
  * Send text.
  */
 func (c *DataConsumer) SendText(message string) error {
-	ppid := 51
+	ppid, payload := "51", []byte(message)
 
-	if len(message) == 0 {
-		ppid = 56
+	if len(payload) == 0 {
+		ppid, payload = "56", []byte{' '}
 	}
 
-	return c.Send([]byte(message), ppid)
+	resp := c.payloadChannel.Request("dataConsumer.send", c.internal, ppid, payload)
+	return resp.Err()
 }
 
 /**

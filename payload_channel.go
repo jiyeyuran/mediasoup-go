@@ -29,9 +29,10 @@ type PayloadChannel struct {
 	pendingNotification *notification
 	sentChan            chan sentInfo
 	closeCh             chan struct{}
+	useHandlerID        bool
 }
 
-func newPayloadChannel(codec netcodec.Codec) *PayloadChannel {
+func newPayloadChannel(codec netcodec.Codec, useHandlerID bool) *PayloadChannel {
 	logger := NewLogger("PayloadChannel")
 
 	logger.V(1).Info("constructor()")
@@ -42,6 +43,7 @@ func newPayloadChannel(codec netcodec.Codec) *PayloadChannel {
 		codec:         codec,
 		sentChan:      make(chan sentInfo),
 		closeCh:       make(chan struct{}),
+		useHandlerID:  useHandlerID,
 	}
 
 	return channel
@@ -65,28 +67,36 @@ func (c *PayloadChannel) Closed() bool {
 	return atomic.LoadInt32(&c.closed) > 0
 }
 
-func (c *PayloadChannel) Notify(event string, internal internalData, data interface{}, payload []byte) (err error) {
+func (c *PayloadChannel) Notify(event string, internal internalData, data string, payload []byte) (err error) {
 	if c.Closed() {
 		return NewInvalidStateError("PayloadChannel closed")
 	}
-	notification := workerNotification{
-		Event:    event,
-		Internal: internal,
-		Data:     data,
-	}
-	requestData, _ := json.Marshal(notification)
 
-	if len(requestData) > NS_MESSAGE_MAX_LEN {
-		return errors.New("PayloadChannel request too big")
+	var request []byte
+
+	if c.useHandlerID {
+		request = []byte(fmt.Sprintf("n:%s:%s:%s", event, internal.HandlerID(event), data))
+	} else {
+		rawData, _ := json.Marshal(H{"ppid": data})
+		notification := workerNotification{
+			Event:    event,
+			Internal: internal,
+			Data:     rawData,
+		}
+		request, _ = json.Marshal(notification)
+	}
+
+	if len(request) > NS_MESSAGE_MAX_LEN {
+		return errors.New("PayloadChannel notification too big")
 	}
 	if len(payload) > NS_PAYLOAD_MAX_LEN {
 		return errors.New("PayloadChannel payload too big")
 	}
 
-	return c.writeAll(requestData, payload)
+	return c.writeAll(request, payload)
 }
 
-func (c *PayloadChannel) Request(method string, internal internalData, data interface{}, payload []byte) (rsp workerResponse) {
+func (c *PayloadChannel) Request(method string, internal internalData, data string, payload []byte) (rsp workerResponse) {
 	if c.Closed() {
 		rsp.err = NewInvalidStateError("PayloadChannel closed")
 		return
@@ -96,15 +106,22 @@ func (c *PayloadChannel) Request(method string, internal internalData, data inte
 
 	c.logger.V(1).Info("request()", "method", method, "id", id)
 
-	request := workerRequest{
-		Id:       id,
-		Method:   method,
-		Internal: internal,
-		Data:     data,
-	}
-	requestData, _ := json.Marshal(request)
+	var request []byte
 
-	if len(requestData) > NS_MESSAGE_MAX_LEN {
+	if c.useHandlerID {
+		handlerID := internal.HandlerID(method)
+		request = []byte(fmt.Sprintf("r:%d:%s:%s:%s", id, method, handlerID, data))
+	} else {
+		rawData, _ := json.Marshal(H{"ppid": data})
+		request, _ = json.Marshal(workerRequest{
+			Id:       id,
+			Method:   method,
+			Internal: internal,
+			Data:     rawData,
+		})
+	}
+
+	if len(request) > NS_MESSAGE_MAX_LEN {
 		return workerResponse{err: errors.New("PayloadChannel request too big")}
 	}
 	if len(payload) > NS_PAYLOAD_MAX_LEN {
@@ -112,10 +129,10 @@ func (c *PayloadChannel) Request(method string, internal internalData, data inte
 	}
 
 	sent := sentInfo{
-		method:      method,
-		requestData: requestData,
-		payloadData: payload,
-		respCh:      make(chan workerResponse),
+		method:  method,
+		request: request,
+		payload: payload,
+		respCh:  make(chan workerResponse),
 	}
 	c.sents.Store(id, sent)
 	defer c.sents.Delete(id)
@@ -152,7 +169,7 @@ func (c *PayloadChannel) runWriteLoop() {
 	for {
 		select {
 		case sentInfo := <-c.sentChan:
-			if err := c.writeAll(sentInfo.requestData, sentInfo.payloadData); err != nil {
+			if err := c.writeAll(sentInfo.request, sentInfo.payload); err != nil {
 				sentInfo.respCh <- workerResponse{err: err}
 				break
 			}

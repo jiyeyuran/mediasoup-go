@@ -14,36 +14,22 @@ import (
 
 type Channel struct {
 	IEventEmitter
-	logger     logr.Logger
-	codec      netcodec.Codec
-	closed     int32
-	pid        int
-	nextId     int64
-	sents      sync.Map
-	sentChan   chan sentInfo
-	closeCh    chan struct{}
-	newMethods map[string]string
+	logger          logr.Logger
+	codec           netcodec.Codec
+	closed          int32
+	pid             int
+	nextId          int64
+	sents           sync.Map
+	sentChan        chan sentInfo
+	closeCh         chan struct{}
+	useHandlerID    bool
+	oldCloseMethods map[string]string
 }
 
-func newChannel(codec netcodec.Codec, pid int, useNewCloseMethods bool) *Channel {
+func newChannel(codec netcodec.Codec, pid int, useHandlerID bool) *Channel {
 	logger := NewLogger("Channel")
 
 	logger.V(1).Info("constructor()")
-
-	var newMethods map[string]string
-
-	if useNewCloseMethods {
-		newMethods = map[string]string{
-			"webRtcServer.close": "worker.closeWebRtcServer",
-			"router.close":       "worker.closeRouter",
-			"transport.close":    "router.closeTransport",
-			"rtpObserver.close":  "router.closeRtpObserver",
-			"producer.close":     "transport.closeProducer",
-			"consumer.close":     "transport.closeConsumer",
-			"dataProducer.close": "transport.closeDataProducer",
-			"dataConsumer.close": "transport.closeDataConsumer",
-		}
-	}
 
 	channel := &Channel{
 		IEventEmitter: NewEventEmitter(),
@@ -52,7 +38,17 @@ func newChannel(codec netcodec.Codec, pid int, useNewCloseMethods bool) *Channel
 		pid:           pid,
 		sentChan:      make(chan sentInfo),
 		closeCh:       make(chan struct{}),
-		newMethods:    newMethods,
+		useHandlerID:  useHandlerID,
+		oldCloseMethods: map[string]string{
+			"worker.closeWebRtcServer":    "webRtcServer.close",
+			"worker.closeRouter":          "router.close",
+			"router.closeTransport":       "transport.close",
+			"router.closeRtpObserver":     "rtpObserver.close",
+			"transport.closeProducer":     "producer.close",
+			"transport.closeConsumer":     "consumer.close",
+			"transport.closeDataProducer": "dataProducer.close",
+			"transport.closeDataConsumer": "dataConsumer.close",
+		},
 	}
 
 	return channel
@@ -84,32 +80,46 @@ func (c *Channel) Request(method string, internal internalData, data ...interfac
 	id := atomic.AddInt64(&c.nextId, 1)
 	atomic.CompareAndSwapInt64(&c.nextId, 4294967295, 1)
 
-	if c.newMethods != nil {
-		if v, ok := c.newMethods[method]; ok {
+	if !c.useHandlerID {
+		if v, ok := c.oldCloseMethods[method]; ok {
 			method = v
 		}
 	}
 
 	c.logger.V(1).Info("request()", "method", method, "id", id)
 
-	request := workerRequest{
-		Id:       id,
-		Method:   method,
-		Internal: internal,
-	}
-	if len(data) > 0 {
-		request.Data = data[0]
-	}
-	requestData, _ := json.Marshal(request)
+	var (
+		rawData []byte
+		request []byte
+	)
 
-	if len(requestData) > NS_MESSAGE_MAX_LEN {
+	if len(data) > 0 {
+		if rawData, rsp.err = json.Marshal(data[0]); rsp.err != nil {
+			return
+		}
+	} else {
+		rawData, _ = json.Marshal(nil)
+	}
+
+	if c.useHandlerID {
+		request = []byte(fmt.Sprintf("%d:%s:%s:%s", id, method, internal.HandlerID(method), rawData))
+	} else {
+		request, _ = json.Marshal(workerRequest{
+			Id:       id,
+			Method:   method,
+			Internal: internal,
+			Data:     rawData,
+		})
+	}
+
+	if len(request) > NS_MESSAGE_MAX_LEN {
 		return workerResponse{err: errors.New("Channel request too big")}
 	}
 
 	sent := sentInfo{
-		method:      method,
-		requestData: requestData,
-		respCh:      make(chan workerResponse),
+		method:  method,
+		request: request,
+		respCh:  make(chan workerResponse),
 	}
 	c.sents.Store(id, sent)
 	defer c.sents.Delete(id)
@@ -146,7 +156,7 @@ func (c *Channel) runWriteLoop() {
 	for {
 		select {
 		case sentInfo := <-c.sentChan:
-			if err := c.codec.WritePayload(sentInfo.requestData); err != nil {
+			if err := c.codec.WritePayload(sentInfo.request); err != nil {
 				sentInfo.respCh <- workerResponse{err: err}
 				break
 			}

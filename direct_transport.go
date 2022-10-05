@@ -84,7 +84,7 @@ func (transport *DirectTransport) setMaxIncomingBitrate(bitrate int) error {
  * Send RTCP packet.
  */
 func (transport *DirectTransport) SendRtcp(rtcpPacket []byte) error {
-	return transport.payloadChannel.Notify("transport.sendRtcp", transport.internal, nil, rtcpPacket)
+	return transport.payloadChannel.Notify("transport.sendRtcp", transport.internal, "", rtcpPacket)
 }
 
 func (transport *DirectTransport) handleWorkerNotifications() {
