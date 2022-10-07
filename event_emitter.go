@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
-	"runtime/debug"
 	"sync"
 
 	"github.com/go-logr/logr"
@@ -40,6 +39,9 @@ type IEventEmitter interface {
 
 	// RemoveAllListeners removes all listeners, or those of the specified eventNames.
 	RemoveAllListeners(eventNames ...string)
+
+	// ListenerCount returns total number of all listeners, or those of the specified eventNames.
+	ListenerCount(eventNames ...string) int
 }
 
 type EventEmitter struct {
@@ -94,13 +96,31 @@ func (e *EventEmitter) Emit(event string, args ...interface{}) bool {
 }
 
 func (e *EventEmitter) SafeEmit(event string, args ...interface{}) bool {
-	defer func() {
-		if r := recover(); r != nil {
-			e.logger.Error(fmt.Errorf("%v", r), "emit panic", "stack", debug.Stack())
-		}
-	}()
+	e.mu.Lock()
+	if e.listeners == nil {
+		e.mu.Unlock()
+		return false
+	}
+	listeners := e.listeners[event]
+	e.mu.Unlock()
 
-	return e.Emit(event, args...)
+	call := func(listener *intervalListener) {
+		defer func() {
+			if r := recover(); r != nil {
+				e.logger.Error(fmt.Errorf("%v", r), "emit panic")
+			}
+		}()
+		// may panic
+		listener.Call(args...)
+	}
+
+	for _, listener := range listeners {
+		if listener.once != nil {
+			e.Off(event, listener.listenerValue.Interface())
+		}
+		call(listener)
+	}
+	return len(listeners) > 0
 }
 
 func (e *EventEmitter) Off(event string, listener interface{}) {
@@ -125,16 +145,29 @@ func (e *EventEmitter) RemoveAllListeners(events ...string) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
-	if e.listeners == nil {
-		return
-	}
-	if len(events) == 0 {
+	if e.listeners == nil || len(events) == 0 {
 		e.listeners = nil
 		return
 	}
 	for _, event := range events {
 		delete(e.listeners, event)
 	}
+}
+
+func (e *EventEmitter) ListenerCount(events ...string) (total int) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	if e.listeners == nil || len(events) == 0 {
+		for _, listeners := range e.listeners {
+			total += len(listeners)
+		}
+		return
+	}
+	for _, event := range events {
+		total += len(e.listeners[event])
+	}
+	return
 }
 
 type intervalListener struct {
