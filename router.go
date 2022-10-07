@@ -12,81 +12,58 @@ import (
 	"golang.org/x/sync/singleflight"
 )
 
+// pipeRouterGroup is a singleflight group to avoid pipe the same routers pair
+// at the same time.
 var pipeRouterGroup = &singleflight.Group{}
 
+// RouterOptions define options to create a router.
 type RouterOptions struct {
-	/**
-	 * Router media codecs.
-	 */
+	// MediaCodecs defines Router media codecs.
 	MediaCodecs []*RtpCodecCapability `json:"mediaCodecs,omitempty"`
 
-	/**
-	 * Custom application data.
-	 */
+	// AppData is custom application data.
 	AppData interface{} `json:"appData,omitempty"`
 }
 
+// PipeToRouterOptions define options to pipe an another router.
 type PipeToRouterOptions struct {
-	/**
-	 * The id of the Producer to consume.
-	 */
+	// ProducerId is the id of the Producer to consume.
 	ProducerId string `json:"producerId,omitempty"`
 
-	/**
-	 * The id of the DataProducer to consume.
-	 */
+	// DataProducerId is the id of the DataProducer to consume.
 	DataProducerId string `json:"dataProducerId,omitempty"`
 
-	/**
-	 * Target Router instance.
-	 */
+	// Router is the target Router instance.
 	Router *Router `json:"router,omitempty"`
 
-	/**
-	 * IP used in the PipeTransport pair. Default '127.0.0.1'.
-	 */
+	// ListenIp is the ip used in the PipeTransport pair. Default '127.0.0.1'.
 	ListenIp TransportListenIp `json:"listenIp,omitempty"`
 
-	/**
-	 * Create a SCTP association. Default false.
-	 */
+	// Create a SCTP association. Default false.
 	EnableSctp bool `json:"enableSctp,omitempty"`
 
-	/**
-	 * SCTP streams number.
-	 */
+	// NumSctpStreams define SCTP streams number.
 	NumSctpStreams NumSctpStreams `json:"numSctpStreams,omitempty"`
 
-	/**
-	 * Enable RTX and NACK for RTP retransmission.
-	 */
+	// EnableRtx enable RTX and NACK for RTP retransmission.
 	EnableRtx bool `json:"enableRtx,omitempty"`
 
-	/**
-	 * Enable SRTP.
-	 */
+	// EnableSrtp enable SRTP.
 	EnableSrtp bool `json:"enableSrtp,omitempty"`
 }
 
+// PipeToRouterResult is the result to piping router.
 type PipeToRouterResult struct {
-	/**
-	 * The Consumer created in the current Router.
-	 */
+	// PipeConsumer is the Consumer created in the current Router.
 	PipeConsumer *Consumer
 
-	/**
-	 * The Producer created in the target Router.
-	 */
+	// PipeConsumer is the Producer created in the target Router.
 	PipeProducer *Producer
 
-	/**
-	 * The DataConsumer created in the current Router.
-	 */
+	// PipeDataConsumer is the DataConsumer created in the current Router.
 	PipeDataConsumer *DataConsumer
 
-	/**
-	 * The DataProducer created in the target Router.
-	 */
+	// PipeDataProducer is the DataProducer created in the target Router.
 	PipeDataProducer *DataProducer
 }
 
@@ -105,11 +82,11 @@ type routerParams struct {
 	appData        interface{}
 }
 
-/**
- * Router
- * @emits workerclose
- * @emits @close
- */
+// Router enables injection, selection and forwarding of media streams through
+// Transport instances created on it.
+//
+// - @emits workerclose
+// - @emits @close
 type Router struct {
 	IEventEmitter
 	logger                  logr.Logger
@@ -143,17 +120,17 @@ func newRouter(params routerParams) *Router {
 	}
 }
 
-// Router id
+// Id returns Router id
 func (router *Router) Id() string {
 	return router.internal.RouterId
 }
 
-// Whether the Router is closed.
+// Closed returns whether the Router is closed.
 func (router *Router) Closed() bool {
 	return atomic.LoadUint32(&router.closed) > 0
 }
 
-// RTC capabilities of the Router.
+// RtpCapabilities returns RTC capabilities of the Router.
 func (router *Router) RtpCapabilities() RtpCapabilities {
 	return router.data.RtpCapabilities
 }
@@ -164,11 +141,15 @@ func (router *Router) AppData() interface{} {
 }
 
 // Observer returns the observer instance.
+//
+// - @emits close
+// - @emits newrtpobserver - (observer IRtpObserver)
+// - @emits newtransport - (transport ITransport)
 func (router *Router) Observer() IEventEmitter {
 	return router.observer
 }
 
-// Just for testing purposes.
+// transportsForTesting returns all transports in map. Just for testing purposes.
 func (router *Router) transportsForTesting() map[string]ITransport {
 	transports := make(map[string]ITransport)
 
@@ -258,7 +239,7 @@ func (router *Router) Producers() []*Producer {
 	return producers
 }
 
-// Producers returns available producers on the router.
+// DataProducers returns available producers on the router.
 func (router *Router) DataProducers() []*DataProducer {
 	router.logger.V(1).Info("DataProducers()")
 	dataProducers := make([]*DataProducer, 0)
@@ -286,9 +267,7 @@ func (router *Router) Transports() []ITransport {
 	return transports
 }
 
-/**
- * Create a WebRtcTransport.
- */
+// CreateWebRtcTransport create a WebRtcTransport.
 func (router *Router) CreateWebRtcTransport(option WebRtcTransportOptions) (transport *WebRtcTransport, err error) {
 	options := &WebRtcTransportOptions{
 		EnableUdp:                       Bool(true),
@@ -345,9 +324,7 @@ func (router *Router) CreateWebRtcTransport(option WebRtcTransportOptions) (tran
 	return
 }
 
-/**
- * Create a PlainTransport.
- */
+// CreatePlainTransport create a PlainTransport.
 func (router *Router) CreatePlainTransport(option PlainTransportOptions) (transport *PlainTransport, err error) {
 	options := &PlainTransportOptions{
 		RtcpMux:            Bool(true),
@@ -390,9 +367,7 @@ func (router *Router) CreatePlainTransport(option PlainTransportOptions) (transp
 	return iTransport.(*PlainTransport), nil
 }
 
-/**
- * Create a PipeTransport.
- */
+// CreatePipeTransport create a PipeTransport.
 func (router *Router) CreatePipeTransport(option PipeTransportOptions) (transport *PipeTransport, err error) {
 	options := &PipeTransportOptions{
 		NumSctpStreams:     NumSctpStreams{OS: 1024, MIS: 1024},
@@ -431,9 +406,7 @@ func (router *Router) CreatePipeTransport(option PipeTransportOptions) (transpor
 	return iTransport.(*PipeTransport), nil
 }
 
-/**
- * Create a DirectTransport.
- */
+// CreateDirectTransport create a DirectTransport.
 func (router *Router) CreateDirectTransport(params ...DirectTransportOptions) (transport *DirectTransport, err error) {
 	options := &DirectTransportOptions{
 		MaxMessageSize: 262144,
@@ -466,9 +439,7 @@ func (router *Router) CreateDirectTransport(params ...DirectTransportOptions) (t
 	return iTransport.(*DirectTransport), nil
 }
 
-/**
- * Pipes the given Producer or DataProducer into another Router in same host.
- */
+// PipeToRouter pipes the given Producer or DataProducer into another Router in same host.
 func (router *Router) PipeToRouter(option PipeToRouterOptions) (result *PipeToRouterResult, err error) {
 	router.logger.V(1).Info("pipeToRouter()")
 
@@ -721,9 +692,10 @@ func (router *Router) PipeToRouter(option PipeToRouterOptions) (result *PipeToRo
 	return
 }
 
-func (router *Router) addPipeTransportPair(key *Router, pipeTransportPair [2]*PipeTransport) (*PipeTransport, *PipeTransport) {
-	if val, loaded := router.mapRouterPipeTransports.LoadOrStore(key, pipeTransportPair); loaded {
-		router.logger.Info("pipeTransport exists, use the old pair", "router", router.Id(), "warn", true)
+// addPipeTransportPair add PipeTransport pair for the another router
+func (router *Router) addPipeTransportPair(anotherRouter *Router, pipeTransportPair [2]*PipeTransport) (*PipeTransport, *PipeTransport) {
+	if val, loaded := router.mapRouterPipeTransports.LoadOrStore(anotherRouter, pipeTransportPair); loaded {
+		router.logger.Info("pipeTransport exists, use the old pair", "router", anotherRouter.Id(), "warn", true)
 		oldPipeTransportPair := val.([2]*PipeTransport)
 
 		// close useless pipeTransport pair
@@ -740,7 +712,7 @@ func (router *Router) addPipeTransportPair(key *Router, pipeTransportPair [2]*Pi
 
 	localPipeTransport.Observer().On("close", func() {
 		remotePipeTransport.Close()
-		router.mapRouterPipeTransports.Delete(key)
+		router.mapRouterPipeTransports.Delete(anotherRouter)
 	})
 
 	return localPipeTransport, remotePipeTransport
@@ -789,13 +761,15 @@ func (router *Router) CreateActiveSpeakerObserver(options ...func(*ActiveSpeaker
 	return
 }
 
-/**
- * Create an AudioLevelObserver.
- */
+// CreateAudioLevelObserver create an AudioLevelObserver.
 func (router *Router) CreateAudioLevelObserver(options ...func(o *AudioLevelObserverOptions)) (audioLevelObserver *AudioLevelObserver, err error) {
 	router.logger.V(1).Info("createAudioLevelObserver()")
 
-	o := NewAudioLevelObserverOptions()
+	o := AudioLevelObserverOptions{
+		MaxEntries: 1,
+		Threshold:  -80,
+		Interval:   1000,
+	}
 
 	for _, option := range options {
 		option(&o)
@@ -836,9 +810,7 @@ func (router *Router) CreateAudioLevelObserver(options ...func(o *AudioLevelObse
 	return
 }
 
-/**
- * Check whether the given RTP capabilities can consume the given Producer.
- */
+// CanConsume check whether the given RTP capabilities can consume the given Producer.
 func (router *Router) CanConsume(producerId string, rtpCapabilities RtpCapabilities) bool {
 	router.logger.V(1).Info("CanConsume()")
 
@@ -858,9 +830,7 @@ func (router *Router) CanConsume(producerId string, rtpCapabilities RtpCapabilit
 	return ok
 }
 
-/**
- * Create a Transport interface.
- */
+// createTransport create a Transport interface.
 func (router *Router) createTransport(internal internalData, data, appData interface{}) (transport ITransport) {
 	if appData == nil {
 		appData = H{}

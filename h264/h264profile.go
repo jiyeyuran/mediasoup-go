@@ -47,10 +47,8 @@ func NewProfileLevelId(profile, level byte) ProfileLevelId {
 	}
 }
 
-/**
- * Returns canonical string representation as three hex bytes of the profile
- * level id, or returns nothing for invalid profile level ids.
- */
+// String returns canonical string representation as three hex bytes of the profile
+// level id, or returns nothing for invalid profile level ids.
 func (profileLevelId ProfileLevelId) String() string {
 	// Handle special case level == 1b.
 	if profileLevelId.Level == Level1_b {
@@ -91,7 +89,7 @@ func (profileLevelId ProfileLevelId) String() string {
 	return fmt.Sprintf("%s%02x", profileIdcIopString, profileLevelId.Level)
 }
 
-// Default ProfileLevelId.
+// DefaultProfileLevelId.
 //
 // TODO: The default should really be profile Baseline and level 1 according to
 // the spec: https://tools.ietf.org/html/rfc6184#section-8.1. In order to not
@@ -106,11 +104,11 @@ var DefaultProfileLevelId = ProfileLevelId{
 	Level:   Level3_1,
 }
 
-// For level_idc=11 and profile_idc=0x42, 0x4D, or 0x58, the constraint set3
+// ConstraintSet3Flag for level_idc=11 and profile_idc=0x42, 0x4D, or 0x58, the constraint set3
 // flag specifies if level 1b or level 1.1 is used.
 const ConstraintSet3Flag byte = 0x10
 
-// Class for matching bit patterns such as "x1xx0000" where "x" is allowed to be
+// BitPattern is class for matching bit patterns such as "x1xx0000" where "x" is allowed to be
 // either 0 or 1.
 type BitPattern struct {
 	mask        byte
@@ -128,7 +126,7 @@ func (b BitPattern) isMatch(value byte) bool {
 	return b.maskedValue == (value & b.mask)
 }
 
-// Class for converting between profile_idc/profile_iop to Profile.
+// ProfilePattern is class for converting between profile_idc/profile_iop to Profile.
 type ProfilePattern struct {
 	profileIdc byte
 	profileIop BitPattern
@@ -147,7 +145,7 @@ func NewProfilePattern(
 	}
 }
 
-// This is from https://tools.ietf.org/html/rfc6184#section-8.1.
+// ProfilePatterns is from https://tools.ietf.org/html/rfc6184#section-8.1.
 var ProfilePatterns = []ProfilePattern{
 	{0x42, NewBitPattern("x1xx0000"), ProfileConstrainedBaseline},
 	{0x4D, NewBitPattern("1xxx0000"), ProfileConstrainedBaseline},
@@ -159,13 +157,10 @@ var ProfilePatterns = []ProfilePattern{
 	{0x64, NewBitPattern("00001100"), ProfileConstrainedHigh},
 }
 
-/**
- * Parse profile level id that is represented as a string of 3 hex bytes.
- * Nothing will be returned if the string is not a recognized H264 profile
- * level id.
- *
- * @param str - profile-level-id value as a string of 3 hex bytes.
- */
+// ParseProfileLevelId parse profile level id that is represented as a string of 3 hex bytes.
+// Nothing will be returned if the string is not a recognized H264 profile level id.
+//
+// @param str - profile-level-id value as a string of 3 hex bytes.
 func ParseProfileLevelId(str string) (profileLevelId *ProfileLevelId) {
 	// The string should consist of 3 bytes in hexadecimal format.
 	if len(str) != 6 {
@@ -212,11 +207,8 @@ func ParseProfileLevelId(str string) (profileLevelId *ProfileLevelId) {
 	return
 }
 
-/**
- * Parse profile level id that is represented as a string of 3 hex bytes
- * A default profile level id will be returned if profile level id is empty.
- *
- */
+// ParseSdpProfileLevelId parse profile level id that is represented as a string of 3 hex bytes.
+// A default profile level id will be returned if profile level id is empty.
 func ParseSdpProfileLevelId(profileLevelIdStr string) *ProfileLevelId {
 	if len(profileLevelIdStr) == 0 {
 		return &DefaultProfileLevelId
@@ -224,11 +216,8 @@ func ParseSdpProfileLevelId(profileLevelIdStr string) *ProfileLevelId {
 	return ParseProfileLevelId(profileLevelIdStr)
 }
 
-/**
- * Returns true if the parameters have the same H264 profile, i.e. the same
- * H264 profile (Baseline, High, etc).
- *
- */
+// IsSameProfile returns true if the parameters have the same H264 profile, i.e. the same
+// H264 profile (Baseline, High, etc).
 func IsSameProfile(profileLevelIdStr1, profileLevelIdStr2 string) bool {
 	profileLevelId1 := ParseSdpProfileLevelId(profileLevelIdStr1)
 	profileLevelId2 := ParseSdpProfileLevelId(profileLevelIdStr2)
@@ -243,28 +232,24 @@ type RtpParameter struct {
 	LevelAsymmetryAllowed int    `json:"level-asymmetry-allowed,omitempty"`
 }
 
-/**
- * Generate codec parameters that will be used as answer in an SDP negotiation
- * based on local supported parameters and remote offered parameters. Both
- * local_supported_params and remote_offered_params represent sendrecv media
- * descriptions, i.e they are a mix of both encode and decode capabilities. In
- * theory, when the profile in local_supported_params represent a strict superset
- * of the profile in remote_offered_params, we could limit the profile in the
- * answer to the profile in remote_offered_params.
- *
- * However, to simplify the code, each supported H264 profile should be listed
- * explicitly in the list of local supported codecs, even if they are redundant.
- * Then each local codec in the list should be tested one at a time against the
- * remote codec, and only when the profiles are equal should this func be
- * called. Therefore, this func does not need to handle profile intersection,
- * and the profile of local_supported_params and remote_offered_params must be
- * equal before calling this func. The parameters that are used when
- * negotiating are the level part of profile-level-id and level-asymmetry-allowed.
- *
- * @returns Canonical string representation as three hex bytes of the
- *   profile level id, or null if no one of the params have profile-level-id.
- *
- */
+// GenerateProfileLevelIdForAnswer generate codec parameters that will be used as answer in an SDP
+// negotiation based on local supported parameters and remote offered parameters. Both
+// local_supported_params and remote_offered_params represent sendrecv media descriptions, i.e they
+// are a mix of both encode and decode capabilities. In theory, when the profile in
+// local_supported_params represent a strict superset of the profile in remote_offered_params, we
+// could limit the profile in the answer to the profile in remote_offered_params.
+//
+// However, to simplify the code, each supported H264 profile should be listed
+// explicitly in the list of local supported codecs, even if they are redundant.
+// Then each local codec in the list should be tested one at a time against the
+// remote codec, and only when the profiles are equal should this func be
+// called. Therefore, this func does not need to handle profile intersection,
+// and the profile of local_supported_params and remote_offered_params must be
+// equal before calling this func. The parameters that are used when
+// negotiating are the level part of profile-level-id and level-asymmetry-allowed.
+//
+// @returns Canonical string representation as three hex bytes of the
+// profile level id, or null if no one of the params have profile-level-id.
 func GenerateProfileLevelIdForAnswer(
 	localSupportedParams,
 	remoteOfferedParams RtpParameter,
@@ -315,9 +300,9 @@ func GenerateProfileLevelIdForAnswer(
 	return profileLevelId.String(), nil
 }
 
-// Convert a string of 8 characters into a byte where the positions containing
-// character c will have their bit set. For example, c = "x", str = "x1xx0000"
-// will return 0b10110000.
+// byteMaskString convert a string of 8 characters into a byte where the positions containing
+// character c will have their bit set. For example, c = "x", str = "x1xx0000" will return
+// 0b10110000.
 func byteMaskString(c byte, str string) (mask byte) {
 	length := len(str)
 
@@ -330,7 +315,7 @@ func byteMaskString(c byte, str string) (mask byte) {
 	return
 }
 
-// Compare H264 levels and handle the level 1b case.
+// isLessLevel compare H264 levels and handle the level 1b case.
 func isLessLevel(a, b byte) bool {
 	if a == Level1_b {
 		return b != Level1 && b != Level1_b

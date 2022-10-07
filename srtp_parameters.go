@@ -1,23 +1,15 @@
 package mediasoup
 
-/**
- * SRTP parameters.
- */
+// SrtpParameters defines SRTP parameters.
 type SrtpParameters struct {
-	/**
-	 * Encryption and authentication transforms to be used.
-	 */
+	//Encryption and authentication transforms to be used.
 	CryptoSuite SrtpCryptoSuite `json:"cryptoSuite"`
 
-	/**
-	 * SRTP keying material (master key and salt) in Base64.
-	 */
+	// SRTP keying material (master key and salt) in Base64.
 	KeyBase64 string `json:"keyBase64"`
 }
 
-/**
- * SRTP crypto suite.
- */
+// SrtpCryptoSuite defines SRTP crypto suite.
 type SrtpCryptoSuite string
 
 const (

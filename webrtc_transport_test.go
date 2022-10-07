@@ -327,7 +327,7 @@ func (suite *WebRtcTransportTestingSuite) TestEvents_Succeeds() {
 	onIceStateChange.ExpectCalledWith("completed")
 
 	onIceSelectedTuple := NewMockFunc(suite.T())
-	iceSelectedTuple := TransportTuple{
+	iceSelectedTuple := &TransportTuple{
 		LocalIp:    "1.1.1.1",
 		LocalPort:  1111,
 		RemoteIp:   "2.2.2.2",

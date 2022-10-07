@@ -6,60 +6,44 @@ import (
 	"github.com/go-logr/logr"
 )
 
+// AudioLevelObserverOptions define options to create an AudioLevelObserver.
 type AudioLevelObserverOptions struct {
-	/**
-	 * Maximum int of entries in the 'volumes”' event. Default 1.
-	 */
+	// MaxEntries is maximum int of entries in the 'volumes”' event. Default 1.
 	MaxEntries int `json:"maxEntries"`
 
-	/**
-	 * Minimum average volume (in dBvo from -127 to 0) for entries in the
-	 * 'volumes' event.	Default -80.
-	 */
+	// Threshold is minimum average volume (in dBvo from -127 to 0) for entries in the
+	// "volumes" event.	Default -80.
 	Threshold int `json:"threshold"`
 
-	/**
-	 * Interval in ms for checking audio volumes. Default 1000.
-	 */
+	// Interval in ms for checking audio volumes. Default 1000.
 	Interval int `json:"interval"`
 
-	/**
-	 * Custom application data.
-	 */
+	// AppData is custom application data.
 	AppData interface{} `json:"appData,omitempty"`
 }
 
-func NewAudioLevelObserverOptions() AudioLevelObserverOptions {
-	return AudioLevelObserverOptions{
-		MaxEntries: 1,
-		Threshold:  -80,
-		Interval:   1000,
-		AppData:    H{},
-	}
-}
-
 type AudioLevelObserverVolume struct {
-	/**
-	 * The audio producer instance.
-	 */
+	// Producer is the audio producer instance.
 	Producer *Producer
 
-	/**
-	 * The average volume (in dBvo from -127 to 0) of the audio producer in the
-	 * last interval.
-	 */
+	// Volume is the average volume (in dBvo from -127 to 0) of the audio producer in the
+	// last interval.
 	Volume int
 }
 
+// AudioLevelObserver monitors the volume of the selected audio producers. It just handles audio
+// producers (if AddProducer() is called with a video producer it will fail).
+//
+// Audio levels are read from an RTP header extension. No decoding of audio data is done. See
+// RFC6464 for more information.
+//
+// - @emits volumes - (volumes []AudioLevelObserverVolume)
+// - @emits silence
 type AudioLevelObserver struct {
 	IRtpObserver
 	logger logr.Logger
 }
 
-/**
- * @emits volumes - (volumes: AudioLevelObserverVolume[])
- * @emits silence
- */
 func newAudioLevelObserver(params rtpObserverParams) *AudioLevelObserver {
 	o := &AudioLevelObserver{
 		IRtpObserver: newRtpObserver(params),
@@ -71,17 +55,15 @@ func newAudioLevelObserver(params rtpObserverParams) *AudioLevelObserver {
 	return o
 }
 
-/**
- * Observer.
- *
- * @emits close
- * @emits pause
- * @emits resume
- * @emits addproducer - (producer: Producer)
- * @emits removeproducer - (producer: Producer)
- * @emits volumes - (volumes: AudioLevelObserverVolume[])
- * @emits silence
- */
+// Observer.
+//
+// - @emits close
+// - @emits pause
+// - @emits resume
+// - @emits addproducer - (producer *Producer)
+// - @emits removeproducer - (producer *Producer)
+// - @emits volumes - (volumes []AudioLevelObserverVolume)
+// - @emits silence
 func (o *AudioLevelObserver) Observer() IEventEmitter {
 	return o.IRtpObserver.Observer()
 }
@@ -105,7 +87,7 @@ func (o *AudioLevelObserver) handleWorkerNotifications(params rtpObserverParams)
 			events := []eventInfo{}
 
 			if err := json.Unmarshal(data, &events); err != nil {
-				o.logger.Error(err, "unmarshal events failed")
+				o.logger.Error(err, "unmarshal events volumes", "data", json.RawMessage(data))
 				break
 			}
 

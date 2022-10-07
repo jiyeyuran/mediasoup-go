@@ -8,42 +8,29 @@ import (
 	"github.com/go-logr/logr"
 )
 
+// ProducerOptions define options to create a producer.
 type ProducerOptions struct {
-	/**
-	 * Producer id (just for Router.pipeToRouter() method).
-	 */
+	// Id is the producer id (just for Router.pipeToRouter() method).
 	Id string `json:"id,omitempty"`
 
-	/**
-	 * Media kind ('audio' or 'video').
-	 */
+	// Kind is media kind ("audio" or "video").
 	Kind MediaKind `json:"kind,omitempty"`
 
-	/**
-	 * RTP parameters defining what the endpoint is sending.
-	 */
+	// RtpParameters define what the endpoint is sending.
 	RtpParameters RtpParameters `json:"rtpParameters,omitempty"`
 
-	/**
-	 * Whether the producer must start in paused mode. Default false.
-	 */
+	// Paused define whether the producer must start in paused mode. Default false.
 	Paused bool `json:"paused,omitempty"`
 
-	/**
-	 * Just for video. Time (in ms) before asking the sender for a new key frame
-	 * after having asked a previous one. Default 0.
-	 */
+	// KeyFrameRequestDelay is just used for video. Time (in ms) before asking
+	// the sender for a new key frame after having asked a previous one. Default 0.
 	KeyFrameRequestDelay uint32 `json:"keyFrameRequestDelay,omitempty"`
 
-	/**
-	 * Custom application data.
-	 */
+	// AppData is custom application data.
 	AppData interface{} `json:"appData,omitempty"`
 }
 
-/**
- * Valid types for 'trace' event.
- */
+// ProducerTraceEventType define the type for "trace" event.
 type ProducerTraceEventType string
 
 const (
@@ -54,104 +41,61 @@ const (
 	ProducerTraceEventType_Fir      ProducerTraceEventType = "fir"
 )
 
-/**
- * 'trace' event data.
- */
+// ProducerTraceEventData define "trace" event data.
 type ProducerTraceEventData struct {
-	/**
-	 * Trace type.
-	 */
+	// Type is the trace type.
 	Type ProducerTraceEventType `json:"type,omitempty"`
 
-	/**
-	 * Event timestamp.
-	 */
+	// Timestamp is event timestamp.
 	Timestamp uint32 `json:"timestamp,omitempty"`
 
-	/**
-	 * Event direction, "in" | "out".
-	 */
+	// Direction is event direction, "in" | "out".
 	Direction string `json:"direction,omitempty"`
 
-	/**
-	 * Per type information.
-	 */
+	// Info is per type information.
 	Info H `json:"info,omitempty"`
 }
 
+// ProducerScore define "score" event data
 type ProducerScore struct {
-	/**
-	 * SSRC of the RTP stream.
-	 */
+	// Ssrc of the RTP stream.
 	Ssrc uint32 `json:"ssrc,omitempty"`
 
-	/**
-	 * RID of the RTP stream.
-	 */
+	// Rid of the RTP stream.
 	Rid string `json:"rid,omitempty"`
 
-	/**
-	 * The score of the RTP stream.
-	 */
+	// Score of the RTP stream.
 	Score uint32 `json:"score"`
 }
 
+// ProducerVideoOrientation define "videoorientationchange" event data
 type ProducerVideoOrientation struct {
-	/**
-	 * Whether the source is a video camera.
-	 */
+	// Camera define whether the source is a video camera.
 	Camera bool `json:"Camera,omitempty"`
 
-	/**
-	 * Whether the video source is flipped.
-	 */
+	// Flip define whether the video source is flipped.
 	Flip bool `json:"flip,omitempty"`
 
-	/**
-	 * Rotation degrees (0, 90, 180 or 270).
-	 */
+	// Rotation degrees (0, 90, 180 or 270).
 	Rotation uint32 `json:"rotation"`
 }
 
+// ProducerStat define the statistic info of a producer
 type ProducerStat struct {
-	// Common to all RtpStreams.
-	Type                 string  `json:"type,omitempty"`
-	Timestamp            int64   `json:"timestamp,omitempty"`
-	Ssrc                 uint32  `json:"ssrc,omitempty"`
-	RtxSsrc              uint32  `json:"rtxSsrc,omitempty"`
-	Rid                  string  `json:"rid,omitempty"`
-	Kind                 string  `json:"kind,omitempty"`
-	MimeType             string  `json:"mimeType,omitempty"`
-	PacketsLost          uint32  `json:"packetsLost,omitempty"`
-	FractionLost         uint32  `json:"fractionLost,omitempty"`
-	PacketsDiscarded     uint32  `json:"packetsDiscarded,omitempty"`
-	PacketsRetransmitted uint32  `json:"packetsRetransmitted,omitempty"`
-	PacketsRepaired      uint32  `json:"packetsRepaired,omitempty"`
-	NackCount            uint32  `json:"nackCount,omitempty"`
-	NackPacketCount      uint32  `json:"nackPacketCount,omitempty"`
-	PliCount             uint32  `json:"pliCount,omitempty"`
-	FirCount             uint32  `json:"firCount,omitempty"`
-	Score                uint32  `json:"score,omitempty"`
-	PacketCount          int64   `json:"packetCount,omitempty"`
-	ByteCount            int64   `json:"byteCount,omitempty"`
-	Bitrate              uint32  `json:"bitrate,omitempty"`
-	RoundTripTime        float32 `json:"roundTripTime,omitempty"`
-	RtxPacketsDiscarded  uint32  `json:"rtxPacketsDiscarded,omitempty"`
-
-	// RtpStreamRecv specific.
-	Jitter         uint32 `json:"jitter,omitempty"`
-	BitrateByLayer H      `json:"bitrateByLayer,omitempty"`
+	ConsumerStat
+	// Jitter is the jitter buffer.
+	Jitter uint32 `json:"jitter,omitempty"`
+	// BitrateByLayer is a map of bitrate of each layer (such as {"0.0": 100, "1.0": 500})
+	BitrateByLayer map[string]uint32 `json:"bitrateByLayer,omitempty"`
 }
 
-/**
- * Producer type.
- */
-type ProducerType = ConsumerType
+// ProducerType define Producer type.
+type ProducerType string
 
 const (
-	ProducerType_Simple    ProducerType = ConsumerType_Simple
-	ProducerType_Simulcast              = ConsumerType_Simulcast
-	ProducerType_Svc                    = ConsumerType_Svc
+	ProducerType_Simple    ProducerType = "simple"
+	ProducerType_Simulcast ProducerType = "simulcast"
+	ProducerType_Svc       ProducerType = "svc"
 )
 
 type producerData struct {
@@ -162,12 +106,7 @@ type producerData struct {
 }
 
 type producerParams struct {
-	// Internal data.
-	// {
-	// 	 routerId: string;
-	// 	 transportId: string;
-	// 	 producerId: string;
-	// };
+	// internal uses with routerId, transportId, producerId
 	internal       internalData
 	data           producerData
 	channel        *Channel
@@ -176,14 +115,14 @@ type producerParams struct {
 	paused         bool
 }
 
-/**
- * Producer
- * @emits transportclose
- * @emits score - (score: ProducerScore[])
- * @emits videoorientationchange - (videoOrientation: ProducerVideoOrientation)
- * @emits trace - (trace: ProducerTraceEventData)
- * @emits @close
- */
+// Producer represents an audio or video source being injected into a mediasoup router.
+// It's created on top of a transport that defines how the media packets are carried.
+//
+// - @emits transportclose
+// - @emits score - (scores []ProducerScore)
+// - @emits videoorientationchange - (videoOrientation *ProducerVideoOrientation)
+// - @emits trace - (trace *ProducerTraceEventData)
+// - @emits @close
 type Producer struct {
 	IEventEmitter
 	locker         sync.Mutex
@@ -225,37 +164,37 @@ func newProducer(params producerParams) *Producer {
 	return producer
 }
 
-// Producer id
+// Id returns producer id
 func (producer *Producer) Id() string {
 	return producer.internal.ProducerId
 }
 
-// Whether the Producer is closed.
+// Closed returns whether the Producer is closed.
 func (producer *Producer) Closed() bool {
 	return atomic.LoadUint32(&producer.closed) > 0
 }
 
-// Media kind.
+// Kind returns media kind.
 func (producer *Producer) Kind() MediaKind {
 	return producer.data.Kind
 }
 
-// RTP parameters.
+// RtpParameters returns RTP parameters.
 func (producer *Producer) RtpParameters() RtpParameters {
 	return producer.data.RtpParameters
 }
 
-// Producer type.
+// Type returns producer type.
 func (producer *Producer) Type() ProducerType {
 	return producer.data.Type
 }
 
-// Consumable RTP parameters.
+// ConsumableRtpParameters returns consumable RTP parameters.
 func (producer *Producer) ConsumableRtpParameters() RtpParameters {
 	return producer.data.ConsumableRtpParameters
 }
 
-// Whether the Producer is paused.
+// Paused returns whether the Producer is paused.
 func (producer *Producer) Paused() bool {
 	producer.locker.Lock()
 	defer producer.locker.Unlock()
@@ -263,31 +202,29 @@ func (producer *Producer) Paused() bool {
 	return producer.paused
 }
 
-// Producer score list.
+// Score returns producer score list.
 func (producer *Producer) Score() []ProducerScore {
 	return producer.score
 }
 
-// App custom data.
+// AppData returns app custom data.
 func (producer *Producer) AppData() interface{} {
 	return producer.appData
 }
 
-/**
- * Observer.
- *
- * @emits close
- * @emits pause
- * @emits resume
- * @emits score - (score: ProducerScore[])
- * @emits videoorientationchange - (videoOrientation: ProducerVideoOrientation)
- * @emits trace - (trace: ProducerTraceEventData)
- */
+// Observer.
+//
+// - @emits close
+// - @emits pause
+// - @emits resume
+// - @emits score - (scores []ProducerScore)
+// - @emits videoorientationchange - (videoOrientation *ProducerVideoOrientation)
+// - @emits trace - (trace *ProducerTraceEventData)
 func (producer *Producer) Observer() IEventEmitter {
 	return producer.observer
 }
 
-// Close the Producer.
+// Close the producer.
 func (producer *Producer) Close() (err error) {
 	if atomic.CompareAndSwapUint32(&producer.closed, 0, 1) {
 		producer.logger.V(1).Info("close()")
@@ -314,7 +251,7 @@ func (producer *Producer) Close() (err error) {
 	return
 }
 
-// Transport was closed.
+// transportClosed is called when transport was closed.
 func (producer *Producer) transportClosed() {
 	if atomic.CompareAndSwapUint32(&producer.closed, 0, 1) {
 		producer.logger.V(1).Info("transportClosed()")
@@ -332,7 +269,7 @@ func (producer *Producer) transportClosed() {
 	}
 }
 
-// Dump Producer.
+// Dump producer.
 func (producer *Producer) Dump() (dump ProducerDump, err error) {
 	producer.logger.V(1).Info("dump()")
 
@@ -342,7 +279,7 @@ func (producer *Producer) Dump() (dump ProducerDump, err error) {
 	return
 }
 
-// Get Producer stats.
+// GetStats returns producer stats.
 func (producer *Producer) GetStats() (stats []*ProducerStat, err error) {
 	producer.logger.V(1).Info("getStats()")
 
@@ -352,7 +289,7 @@ func (producer *Producer) GetStats() (stats []*ProducerStat, err error) {
 	return
 }
 
-// Pause the Producer.
+// Pause the producer.
 func (producer *Producer) Pause() (err error) {
 	producer.locker.Lock()
 	defer producer.locker.Unlock()
@@ -377,7 +314,7 @@ func (producer *Producer) Pause() (err error) {
 	return
 }
 
-// Resume the Producer.
+// Resume the producer.
 func (producer *Producer) Resume() (err error) {
 	producer.locker.Lock()
 	defer producer.locker.Unlock()
@@ -402,9 +339,7 @@ func (producer *Producer) Resume() (err error) {
 	return
 }
 
-/**
- * Enable 'trace' event.
- */
+// EnableTraceEvent enable "trace" event.
 func (producer *Producer) EnableTraceEvent(types ...ProducerTraceEventType) error {
 	producer.logger.V(1).Info("enableTraceEvent()")
 
@@ -417,30 +352,38 @@ func (producer *Producer) EnableTraceEvent(types ...ProducerTraceEventType) erro
 	return result.Err()
 }
 
-/**
- * Send RTP packet (just valid for Producers created on a DirectTransport).
- */
+// Send RTP packet (just valid for Producers created on a DirectTransport).
 func (producer *Producer) Send(rtpPacket []byte) error {
 	return producer.payloadChannel.Notify("producer.send", producer.internal, "", rtpPacket)
 }
 
 func (producer *Producer) handleWorkerNotifications() {
+	logger := producer.logger
+
 	producer.channel.On(producer.Id(), func(event string, data []byte) {
 		switch event {
 		case "score":
-			producer.score = []ProducerScore{}
+			score := []ProducerScore{}
 
-			json.Unmarshal([]byte(data), &producer.score)
+			if err := json.Unmarshal([]byte(data), &score); err != nil {
+				logger.Error(err, "failed to unmarshal score", "data", json.RawMessage(data))
+				return
+			}
 
-			producer.SafeEmit("score", producer.score)
+			producer.score = score
+
+			producer.SafeEmit("score", score)
 
 			// Emit observer event.
-			producer.observer.SafeEmit("score", producer.score)
+			producer.observer.SafeEmit("score", score)
 
 		case "videoorientationchange":
-			orientation := ProducerVideoOrientation{}
+			orientation := &ProducerVideoOrientation{}
 
-			json.Unmarshal([]byte(data), &orientation)
+			if err := json.Unmarshal([]byte(data), &orientation); err != nil {
+				logger.Error(err, "failed to unmarshal orientation", "data", json.RawMessage(data))
+				return
+			}
 
 			producer.SafeEmit("videoorientationchange", orientation)
 
@@ -448,9 +391,12 @@ func (producer *Producer) handleWorkerNotifications() {
 			producer.observer.SafeEmit("videoorientationchange", orientation)
 
 		case "trace":
-			var trace ProducerTraceEventData
+			var trace *ProducerTraceEventData
 
-			json.Unmarshal(data, &trace)
+			if err := json.Unmarshal([]byte(data), &trace); err != nil {
+				logger.Error(err, "failed to unmarshal trace", "data", json.RawMessage(data))
+				return
+			}
 
 			producer.SafeEmit("trace", trace)
 
@@ -458,7 +404,7 @@ func (producer *Producer) handleWorkerNotifications() {
 			producer.observer.SafeEmit("trace", trace)
 
 		default:
-			producer.logger.Error(nil, "ignoring unknown event", "event", event)
+			logger.Error(nil, "ignoring unknown event", "event", event)
 		}
 	})
 }

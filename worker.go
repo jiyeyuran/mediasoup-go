@@ -39,6 +39,7 @@ func getDefaultWorkerVersion() string {
 	return os.Getenv("MEDIASOUP_WORKER_VERSION")
 }
 
+// WorkerLogLevel controls log level in mediasoup-worker
 type WorkerLogLevel string
 
 const (
@@ -48,6 +49,7 @@ const (
 	WorkerLogLevel_None  WorkerLogLevel = "none"
 )
 
+// WorkerLogTag controls which tag of logs should display in mediasoup-worker
 type WorkerLogTag string
 
 const (
@@ -66,102 +68,66 @@ const (
 	WorkerLogTag_Message   WorkerLogTag = "message"
 )
 
-/**
- * An object with the fields of the uv_rusage_t struct.
- *
- * - http//docs.libuv.org/en/v1.x/misc.html#c.uv_rusage_t
- * - https//linux.die.net/man/2/getrusage
- */
+// WorkerResourceUsage is an object with the fields of the uv_rusage_t struct.
+//
+// - http//docs.libuv.org/en/v1.x/misc.html#c.uv_rusage_t
+// - https//linux.die.net/man/2/getrusage
 type WorkerResourceUsage struct {
-	/**
-	 * User CPU time used (in ms).
-	 */
-	RU_Utime int64 `json:"ru_utime"`
+	// User CPU time used (in ms).
+	Utime int64 `json:"ru_utime"`
 
-	/**
-	 * System CPU time used (in ms).
-	 */
-	RU_Stime int64 `json:"ru_stime"`
+	// System CPU time used (in ms).
+	Stime int64 `json:"ru_stime"`
 
-	/**
-	 * Maximum resident set size.
-	 */
-	RU_Maxrss int64 `json:"ru_maxrss"`
+	// Maximum resident set size.
+	Maxrss int64 `json:"ru_maxrss"`
 
-	/**
-	 * Integral shared memory size.
-	 */
-	RU_Ixrss int64 `json:"ru_ixrss"`
+	// Integral shared memory size.
+	Ixrss int64 `json:"ru_ixrss"`
 
-	/**
-	 * Integral unshared data size.
-	 */
-	RU_Idrss int64 `json:"ru_idrss"`
+	// Integral unshared data size.
+	Idrss int64 `json:"ru_idrss"`
 
-	/**
-	 * Integral unshared stack size.
-	 */
-	RU_Isrss int64 `json:"ru_isrss"`
+	// Integral unshared stack size.
+	Isrss int64 `json:"ru_isrss"`
 
-	/**
-	 * Page reclaims (soft page faults).
-	 */
-	RU_Minflt int64 `json:"ru_minflt"`
+	// Page reclaims (soft page faults).
+	Minflt int64 `json:"ru_minflt"`
 
-	/**
-	 * Page faults (hard page faults).
-	 */
-	RU_Majflt int64 `json:"ru_majflt"`
+	// Page faults (hard page faults).
+	Majflt int64 `json:"ru_majflt"`
 
-	/**
-	 * Swaps.
-	 */
-	RU_Nswap int64 `json:"ru_nswap"`
+	// Swaps.
+	Nswap int64 `json:"ru_nswap"`
 
-	/**
-	 * Block input operations.
-	 */
-	RU_Inblock int64 `json:"ru_inblock"`
+	// Block input operations.
+	Inblock int64 `json:"ru_inblock"`
 
-	/**
-	 * Block output operations.
-	 */
-	RU_Oublock int64 `json:"ru_oublock"`
+	// Block output operations.
+	Oublock int64 `json:"ru_oublock"`
 
-	/**
-	 * IPC messages sent.
-	 */
-	RU_Msgsnd int64 `json:"ru_msgsnd"`
+	// IPC messages sent.
+	Msgsnd int64 `json:"ru_msgsnd"`
 
-	/**
-	 * IPC messages received.
-	 */
-	RU_Msgrcv int64 `json:"ru_msgrcv"`
+	// IPC messages received.
+	Msgrcv int64 `json:"ru_msgrcv"`
 
-	/**
-	 * Signals received.
-	 */
-	RU_Nsignals int64 `json:"ru_nsignals"`
+	// Signals received.
+	Nsignals int64 `json:"ru_nsignals"`
 
-	/**
-	 * Voluntary context switches.
-	 */
-	RU_Nvcsw int64 `json:"ru_nvcsw"`
+	// Voluntary context switches.
+	Nvcsw int64 `json:"ru_nvcsw"`
 
-	/**
-	 * Involuntary context switches.
-	 */
-	RU_Nivcsw int64 `json:"ru_nivcsw"`
+	// Involuntary context switches.
+	Nivcsw int64 `json:"ru_nivcsw"`
 }
 
 type Option func(w *WorkerSettings)
 
-/**
- * Worker
- * @emits died - (error: Error)
- * @emits @success
- * @emits @failure - (error: Error)
- */
+// Worker represents a mediasoup C++ subprocess that runs in a single CPU core and handles Router
+// instances.
+//
+// - @emits died - (err error)
 type Worker struct {
 	IEventEmitter
 	// Worker logger.
@@ -321,9 +287,8 @@ func NewWorker(options ...Option) (worker *Worker, err error) {
 		}
 	})
 
-	// start to read channel data
+	// start channel after setting up a listener on pid
 	channel.Start()
-	// start to read payload channel data
 	payloadChannel.Start()
 
 	closeIfError = append(closeIfError, channel, payloadChannel)
@@ -420,17 +385,17 @@ func (w *Worker) Wait() error {
 	return <-w.waitCh
 }
 
-// Pid is the worker process identifier.
+// Pid returns the worker process identifier.
 func (w *Worker) Pid() int {
 	return w.pid
 }
 
-// Closed indices if the worker process is closed
+// Closed returns if the worker process is closed
 func (w *Worker) Closed() bool {
 	return atomic.LoadUint32(&w.closed) > 0
 }
 
-// Died indices if the worker process died
+// Died returns if the worker process died
 func (w *Worker) Died() bool {
 	return w.diedErr != nil
 }
@@ -440,7 +405,11 @@ func (w *Worker) AppData() interface{} {
 	return w.appData
 }
 
-// Observer return
+// Observer returns an IEventEmitter
+
+// - @emits close
+// - @emits newwebrtcserver - (webRtcServer *WebRtcServer)
+// - @emits newrouter - (router *Router)
 func (w *Worker) Observer() IEventEmitter {
 	return w.observer
 }
@@ -523,9 +492,7 @@ func (w *Worker) Dump() (dump WorkerDump, err error) {
 	return
 }
 
-/**
- * GetResourceUsage returns the worker process resource usage.
- */
+// GetResourceUsage returns the worker process resource usage.
 func (w *Worker) GetResourceUsage() (usage WorkerResourceUsage, err error) {
 	w.logger.V(1).Info("getResourceUsage()")
 
@@ -535,7 +502,7 @@ func (w *Worker) GetResourceUsage() (usage WorkerResourceUsage, err error) {
 }
 
 // UpdateSettings updates settings.
-func (w *Worker) UpdateSettings(settings WorkerUpdateableSettings) error {
+func (w *Worker) UpdateSettings(settings WorkerUpdatableSettings) error {
 	w.logger.V(1).Info("updateSettings()")
 
 	return w.channel.Request("worker.updateSettings", internalData{}, settings).Err()

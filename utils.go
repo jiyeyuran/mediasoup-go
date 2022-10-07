@@ -17,25 +17,6 @@ func init() {
 
 type H map[string]interface{}
 
-type ptrTransformers struct{}
-
-// overwrites pointer type
-func (ptrTransformers) Transformer(tp reflect.Type) func(dst, src reflect.Value) error {
-	if tp.Kind() == reflect.Ptr {
-		return func(dst, src reflect.Value) error {
-			if !src.IsNil() {
-				if dst.CanSet() {
-					dst.Set(src)
-				} else {
-					dst = src
-				}
-			}
-			return nil
-		}
-	}
-	return nil
-}
-
 func Bool(b bool) *bool {
 	return &b
 }
@@ -66,4 +47,23 @@ func syncMapLen(m sync.Map) (len uint32) {
 		return true
 	})
 	return
+}
+
+type ptrTransformers struct{}
+
+// overwrites pointer type
+func (ptrTransformers) Transformer(tp reflect.Type) func(dst, src reflect.Value) error {
+	if tp.Kind() == reflect.Ptr {
+		return func(dst, src reflect.Value) error {
+			if !src.IsNil() {
+				if dst.CanSet() {
+					dst.Set(src)
+				} else {
+					dst = src
+				}
+			}
+			return nil
+		}
+	}
+	return nil
 }

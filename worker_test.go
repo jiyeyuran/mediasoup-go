@@ -8,8 +8,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-logr/logr"
-	"github.com/go-logr/zerologr"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -17,10 +15,6 @@ var errType = errors.New("")
 var worker *Worker
 
 func init() {
-	NewLogger = func(scope string) logr.Logger {
-		return zerologr.New(&zl).WithName(scope)
-	}
-
 	WorkerBin = "../mediasoup/worker/out/Release/mediasoup-worker"
 	worker = CreateTestWorker()
 }
@@ -74,14 +68,14 @@ func TestCreateWorker_TypeError(t *testing.T) {
 
 func TestWorkerUpdateSettings_Succeeds(t *testing.T) {
 	worker := CreateTestWorker()
-	err := worker.UpdateSettings(WorkerUpdateableSettings{LogLevel: "debug", LogTags: []WorkerLogTag{"ice"}})
+	err := worker.UpdateSettings(WorkerUpdatableSettings{LogLevel: "debug", LogTags: []WorkerLogTag{"ice"}})
 	assert.NoError(t, err)
 	worker.Close()
 }
 
 func TestWorkerUpdateSettings_TypeError(t *testing.T) {
 	worker := CreateTestWorker()
-	err := worker.UpdateSettings(WorkerUpdateableSettings{LogLevel: "chicken"})
+	err := worker.UpdateSettings(WorkerUpdatableSettings{LogLevel: "chicken"})
 	assert.IsType(t, TypeError{}, err)
 	worker.Close()
 }
@@ -90,7 +84,7 @@ func TestWorkerUpdateSettings_InvalidStateError(t *testing.T) {
 	worker := CreateTestWorker()
 	worker.Close()
 
-	err := worker.UpdateSettings(WorkerUpdateableSettings{LogLevel: "error"})
+	err := worker.UpdateSettings(WorkerUpdatableSettings{LogLevel: "error"})
 	assert.IsType(t, InvalidStateError{}, err)
 }
 

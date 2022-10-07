@@ -7,42 +7,34 @@ import (
 	"github.com/go-logr/logr"
 )
 
+// DataConsumerOptions define options to create a DataConsumer.
 type DataConsumerOptions struct {
-	/**
-	 * The id of the DataProducer to consume.
-	 */
+	// DataProducerId is the id of the DataProducer to consume.
 	DataProducerId string `json:"dataProducerId,omitempty"`
 
-	/**
-	 * Just if consuming over SCTP.
-	 * Whether data messages must be received in order. If true the messages will
-	 * be sent reliably. Defaults to the value in the DataProducer if it has type
-	 * 'sctp' or to true if it has type 'direct'.
-	 */
+	// Ordered define just if consuming over SCTP.
+	// Whether data messages must be received in order. If true the messages will
+	// be sent reliably. Defaults to the value in the DataProducer if it has type
+	// "sctp" or to true if it has type "direct".
 	Ordered *bool `json:"ordered,omitempty"`
 
-	/**
-	 * Just if consuming over SCTP.
-	 * When ordered is false indicates the time (in milliseconds) after which a
-	 * SCTP packet will stop being retransmitted. Defaults to the value in the
-	 * DataProducer if it has type 'sctp' or unset if it has type 'direct'.
-	 */
+	// MaxPacketLifeTime define just if consuming over SCTP.
+	// When ordered is false indicates the time (in milliseconds) after which a
+	// SCTP packet will stop being retransmitted. Defaults to the value in the
+	// DataProducer if it has type 'sctp' or unset if it has type 'direct'.
 	MaxPacketLifeTime uint16 `json:"maxPacketLifeTime,omitempty"`
 
-	/**
-	 * Just if consuming over SCTP.
-	 * When ordered is false indicates the maximum number of times a packet will
-	 * be retransmitted. Defaults to the value in the DataProducer if it has type
-	 * 'sctp' or unset if it has type 'direct'.
-	 */
+	// MaxRetransmits define just if consuming over SCTP.
+	// When ordered is false indicates the maximum number of times a packet will
+	// be retransmitted. Defaults to the value in the DataProducer if it has type
+	// 'sctp' or unset if it has type 'direct'.
 	MaxRetransmits uint16 `json:"maxRetransmits,omitempty"`
 
-	/**
-	 * Custom application data.
-	 */
+	// AppData is custom application data.
 	AppData interface{} `json:"appData,omitempty"`
 }
 
+// DataConsumerStat define the statistic info for DataConsumer.
 type DataConsumerStat struct {
 	Type           string `json:"type,omitempty"`
 	Timestamp      int64  `json:"timestamp,omitempty"`
@@ -53,9 +45,7 @@ type DataConsumerStat struct {
 	BufferedAmount uint32 `json:"bufferedAmount,omitempty"`
 }
 
-/**
- * DataConsumer type.
- */
+// DataConsumerType define DataConsumer type.
 type DataConsumerType string
 
 const (
@@ -79,25 +69,22 @@ type dataConsumerData struct {
 	Protocol             string                `json:"protocol,omitempty"`
 }
 
-/**
- * DataConsumer
- * @emits transportclose
- * @emits dataproducerclose
- * @emits message - (message: Buffer, ppid: number)
- * @emits sctpsendbufferfull
- * @emits bufferedamountlow - (bufferedAmount: number)
- * @emits @close
- * @emits @dataproducerclose
- */
+// DataConsumer represents an endpoint capable of receiving data messages from a mediasoup Router.
+// A data consumer can use SCTP (AKA DataChannel) to receive those messages, or can directly
+// receive them in the golang application if the data consumer was created on top of a
+// DirectTransport.
+//
+// - @emits transportclose
+// - @emits dataproducerclose
+// - @emits message - (message []bytee, ppid int)
+// - @emits sctpsendbufferfull
+// - @emits bufferedamountlow - (bufferedAmount int64)
+// - @emits @close
+// - @emits @dataproducerclose
 type DataConsumer struct {
 	IEventEmitter
 	logger logr.Logger
-	// {
-	// 	routerId: string;
-	// 	transportId: string;
-	// 	dataProducerId: string;
-	// 	dataConsumerId: string;
-	// };
+	// internal uses routerId, transportId, dataProducerId, dataConsumerId
 	internal       internalData
 	data           dataConsumerData
 	channel        *Channel
@@ -132,59 +119,53 @@ func newDataConsumer(params dataConsumerParams) *DataConsumer {
 	return consumer
 }
 
-// DataConsumer id
+// Id returns DataConsumer id
 func (c *DataConsumer) Id() string {
 	return c.internal.DataConsumerId
 }
 
-// Associated DataProducer id.
+// DataProducerId returns the associated DataProducer id.
 func (c *DataConsumer) DataProducerId() string {
 	return c.data.DataProducerId
 }
 
-// Whether the DataConsumer is closed.
+// Closed returns whether the DataConsumer is closed.
 func (c *DataConsumer) Closed() bool {
 	return atomic.LoadUint32(&c.closed) > 0
 }
 
-// DataConsumer type.
+// Type returns DataConsumer type.
 func (c *DataConsumer) Type() DataConsumerType {
 	return c.data.Type
 }
 
-/**
- * SCTP stream parameters.
- */
+// SctpStreamParameters returns SCTP stream parameters.
 func (c *DataConsumer) SctpStreamParameters() *SctpStreamParameters {
 	return c.data.SctpStreamParameters
 }
 
-/**
- * DataChannel label.
- */
+// Label returns DataChannel label.
 func (c *DataConsumer) Label() string {
 	return c.data.Label
 }
 
-/**
- * DataChannel protocol.
- */
+// Protocol returns DataChannel protocol.
 func (c *DataConsumer) Protocol() string {
 	return c.data.Protocol
 }
 
-/**
- * App custom data.
- */
+// AppData returns app custom data.
 func (c *DataConsumer) AppData() interface{} {
 	return c.appData
 }
 
-/**
- * Observer.
- *
- * @emits close
- */
+// Observer.
+//
+// - @emits close
+// - @emits dataproducerclose
+// - @emits sctpsendbufferfull
+// - @emits message - (message []bytee, ppid int)
+// - @emits bufferedamountlow - (bufferAmount int64)
 func (c *DataConsumer) Observer() IEventEmitter {
 	return c.observer
 }
@@ -216,7 +197,7 @@ func (c *DataConsumer) Close() (err error) {
 	return
 }
 
-// Transport was closed.
+// transportClosed is called when transport was closed.
 func (c *DataConsumer) transportClosed() {
 	if atomic.CompareAndSwapUint32(&c.closed, 0, 1) {
 		c.logger.V(1).Info("transportClosed()")
@@ -244,7 +225,7 @@ func (c *DataConsumer) Dump() (data DataConsumerDump, err error) {
 	return
 }
 
-// Get DataConsumer stats.
+// GetStats returns DataConsumer stats.
 func (c *DataConsumer) GetStats() (stats []*DataConsumerStat, err error) {
 	c.logger.V(1).Info("getStats()")
 
@@ -254,9 +235,7 @@ func (c *DataConsumer) GetStats() (stats []*DataConsumerStat, err error) {
 	return
 }
 
-/**
- * Set buffered amount low threshold.
- */
+// SetBufferedAmountLowThreshold set buffered amount low threshold.
 func (c *DataConsumer) SetBufferedAmountLowThreshold(threshold int) error {
 	c.logger.V(1).Info("setBufferedAmountLowThreshold() [threshold:%s]", threshold)
 
@@ -267,11 +246,9 @@ func (c *DataConsumer) SetBufferedAmountLowThreshold(threshold int) error {
 	return resp.Err()
 }
 
-/**
- * Send data.
- */
+// Send data.
 func (c *DataConsumer) Send(data []byte) (err error) {
-	/*
+	/**
 	 * +-------------------------------+----------+
 	 * | Value                         | SCTP     |
 	 * |                               | PPID     |
@@ -297,9 +274,7 @@ func (c *DataConsumer) Send(data []byte) (err error) {
 	return resp.Err()
 }
 
-/**
- * Send text.
- */
+// SendText send text.
 func (c *DataConsumer) SendText(message string) error {
 	ppid, payload := "51", []byte(message)
 
@@ -311,9 +286,7 @@ func (c *DataConsumer) SendText(message string) error {
 	return resp.Err()
 }
 
-/**
- * Get buffered amount size.
- */
+// GetBufferedAmount returns buffered amount size.
 func (c *DataConsumer) GetBufferedAmount() (bufferedAmount int64, err error) {
 	c.logger.V(1).Info("getBufferedAmount()")
 
@@ -350,7 +323,10 @@ func (c *DataConsumer) handleWorkerNotifications() {
 			var result struct {
 				BufferAmount int64
 			}
-			json.Unmarshal(data, &result)
+			if err := json.Unmarshal([]byte(data), &result); err != nil {
+				c.logger.Error(err, "failed to unmarshal bufferedamountlow", "data", json.RawMessage(data))
+				return
+			}
 
 			c.SafeEmit("bufferedamountlow", result.BufferAmount)
 
@@ -368,7 +344,10 @@ func (c *DataConsumer) handleWorkerNotifications() {
 			var result struct {
 				Ppid int
 			}
-			json.Unmarshal(data, &result)
+			if err := json.Unmarshal([]byte(data), &result); err != nil {
+				c.logger.Error(err, "failed to unmarshal message", "data", json.RawMessage(data))
+				return
+			}
 
 			c.SafeEmit("message", payload, result.Ppid)
 

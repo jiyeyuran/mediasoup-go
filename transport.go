@@ -33,21 +33,14 @@ type ITransport interface {
 }
 
 type TransportListenIp struct {
-	/**
-	 * Listening IPv4 or IPv6.
-	 */
+	// Listening IPv4 or IPv6.
 	Ip string `json:"ip,omitempty"`
 
-	/**
-	 * Announced IPv4 or IPv6 (useful when running mediasoup behind NAT with
-	 * private IP).
-	 */
+	// Announced IPv4 or IPv6 (useful when running mediasoup behind NAT with private IP).
 	AnnouncedIp string `json:"announcedIp,omitempty"`
 }
 
-/**
- * Transport protocol.
- */
+// Transport protocol.
 type TransportProtocol string
 
 const (
@@ -71,21 +64,16 @@ type TransportTuple struct {
 }
 
 type TransportTraceEventData struct {
-	/**
-	 * Trace type.
-	 */
+	// Trace type.
 	Type TransportTraceEventType `json:"type,omitempty"`
-	/**
-	 * Event timestamp.
-	 */
+
+	// Event timestamp.
 	Timestamp int64 `json:"timestamp,omitempty"`
-	/**
-	 * Event direction.
-	 */
+
+	// Event direction.
 	Direction string `json:"direction,omitempty"`
-	/**
-	 * Per type information.
-	 */
+
+	// Per type information.
 	Info interface{} `json:"info,omitempty"`
 }
 
@@ -158,10 +146,7 @@ type transportData struct {
 }
 
 type transportParams struct {
-	// {
-	// 	routerId: string;
-	// 	transportId: string;
-	// };
+	// routerId, transportId
 	internal                 internalData
 	data                     interface{}
 	channel                  *Channel
@@ -173,15 +158,14 @@ type transportParams struct {
 	logger                   logr.Logger
 }
 
-/**
- * Transport
- * @emits routerclose
- * @emits @close
- * @emits @newproducer - (producer: Producer)
- * @emits @producerclose - (producer: Producer)
- * @emits @newdataproducer - (dataProducer: DataProducer)
- * @emits @dataproducerclose - (dataProducer: DataProducer)
- */
+// Transport is a base class inherited by PlainTransport, PipeTransport, DirectTransport and WebRtcTransport.
+//
+// - @emits routerclose
+// - @emits @close
+// - @emits @newproducer - (producer *Producer)
+// - @emits @producerclose - (producer *Producer)
+// - @emits @newdataproducer - (dataProducer *DataProducer)
+// - @emits @dataproducerclose - (dataProducer *DataProducer)
 type Transport struct {
 	IEventEmitter
 	logger logr.Logger
@@ -245,30 +229,28 @@ func newTransport(params transportParams) ITransport {
 	return transport
 }
 
-// Transport id
+// Id returns Transport id
 func (transport *Transport) Id() string {
 	return transport.internal.TransportId
 }
 
-// Whether the Transport is closed.
+// Closed returns Whether the Transport is closed.
 func (transport *Transport) Closed() bool {
 	return atomic.LoadUint32(&transport.closed) > 0
 }
 
-// App custom data.
+// AppData returns app custom data.
 func (transport *Transport) AppData() interface{} {
 	return transport.appData
 }
 
-/**
- * Observer.
- *
- * @emits close
- * @emits newproducer - (producer: Producer)
- * @emits newconsumer - (producer: Producer)
- * @emits newdataproducer - (dataProducer: DataProducer)
- * @emits newdataconsumer - (dataProducer: DataProducer)
- */
+// Observer returns an EventEmitter object.
+//
+// - @emits close
+// - @emits newproducer - (producer *Producer)
+// - @emits newconsumer - (producer *Producer)
+// - @emits newdataproducer - (dataProducer *DataProducer)
+// - @emits newdataconsumer - (dataProducer *DataProducer)
 func (transport *Transport) Observer() IEventEmitter {
 	return transport.observer
 }
@@ -325,11 +307,7 @@ func (transport *Transport) Close() {
 	}
 }
 
-/**
- * Router was closed.
- *
- * @virtual
- */
+// routerClosed is called when Router was closed.
 func (transport *Transport) routerClosed() {
 	if atomic.CompareAndSwapUint32(&transport.closed, 0, 1) {
 		transport.logger.V(1).Info("routerClosed()")
@@ -377,8 +355,8 @@ func (transport *Transport) routerClosed() {
 	}
 }
 
-// listenServerClosed Listen server was closed (this just happens in WebRtcTransports when their
-// associated WebRtcServer is closed).
+// listenServerClosed is called when listen server was closed (this just happens
+// in WebRtcTransports when their associated WebRtcServer is closed).
 func (transport *Transport) listenServerClosed() {
 	if !atomic.CompareAndSwapUint32(&transport.closed, 0, 1) {
 		return
@@ -446,7 +424,7 @@ func (transport *Transport) Dump() (data *TransportDump, err error) {
 	return
 }
 
-// Get Transport stats.
+// GetStats returns the Transport stats.
 func (transport *Transport) GetStats() (stat []*TransportStat, err error) {
 	transport.logger.V(1).Info("getStats()")
 
@@ -456,16 +434,12 @@ func (transport *Transport) GetStats() (stat []*TransportStat, err error) {
 	return
 }
 
-/**
- * Provide the Transport remote parameters.
- */
+// Connect provide the Transport remote parameters.
 func (transport *Transport) Connect(TransportConnectOptions) error {
 	return errors.New("method not implemented in the subclass")
 }
 
-/**
- * Set maximum incoming bitrate for receiving media.
- */
+// SetMaxIncomingBitrate set maximum incoming bitrate for receiving media.
 func (transport *Transport) SetMaxIncomingBitrate(bitrate int) error {
 	transport.logger.V(1).Info("SetMaxIncomingBitrate()", "bitrate", bitrate)
 
@@ -475,9 +449,7 @@ func (transport *Transport) SetMaxIncomingBitrate(bitrate int) error {
 	return resp.Err()
 }
 
-/**
- * Create a Producer.
- */
+// Produce creates a Producer.
 func (transport *Transport) Produce(options ProducerOptions) (producer *Producer, err error) {
 	transport.logger.V(1).Info("produce()")
 
@@ -507,19 +479,18 @@ func (transport *Transport) Produce(options ProducerOptions) (producer *Producer
 		rtpParameters.Encodings = []RtpEncodingParameters{{}}
 	}
 
-	// Don"t do this in PipeTransports since there we must keep CNAME value in each Producer.
+	// Don't do this in PipeTransports since there we must keep CNAME value in each Producer.
 	if transport.data.transportType != TransportType_Pipe {
-		// If CNAME is given and we don"t have yet a CNAME for Producers in this
-		// Transport, take it.
+		// If CNAME is given and we don't have yet a CNAME for Producers in this Transport, take it.
 		if len(transport.cnameForProducers) == 0 && len(rtpParameters.Rtcp.Cname) > 0 {
 			transport.cnameForProducers = rtpParameters.Rtcp.Cname
 		} else if len(transport.cnameForProducers) == 0 {
-			// Otherwise if we don"t have yet a CNAME for Producers and the RTP parameters
+			// Otherwise if we don't have yet a CNAME for Producers and the RTP parameters
 			// do not include CNAME, create a random one.
 			transport.cnameForProducers = uuid.NewString()[:8]
 		}
 
-		// Override Producer"s CNAME.
+		// Override Producer's CNAME.
 		rtpParameters.Rtcp.Cname = transport.cnameForProducers
 	}
 
@@ -588,9 +559,7 @@ func (transport *Transport) Produce(options ProducerOptions) (producer *Producer
 	return
 }
 
-/**
- * Create a Consumer.
- */
+// Consume creates a Consumer.
 func (transport *Transport) Consume(options ConsumerOptions) (consumer *Consumer, err error) {
 	transport.logger.V(1).Info("consume()")
 
@@ -645,7 +614,7 @@ func (transport *Transport) Consume(options ConsumerOptions) (consumer *Consumer
 		ProducerId:    producerId,
 		Kind:          producer.Kind(),
 		RtpParameters: rtpParameters,
-		Type:          tp,
+		Type:          ConsumerType(tp),
 	}
 
 	reqData := struct {
@@ -701,9 +670,7 @@ func (transport *Transport) Consume(options ConsumerOptions) (consumer *Consumer
 	return
 }
 
-/**
- * Create a DataProducer.
- */
+// ProduceData creates a DataProducer.
 func (transport *Transport) ProduceData(options DataProducerOptions) (dataProducer *DataProducer, err error) {
 	transport.logger.V(1).Info("produceData()")
 
@@ -778,9 +745,7 @@ func (transport *Transport) ProduceData(options DataProducerOptions) (dataProduc
 	return
 }
 
-/**
- * Create a DataConsumer.
- */
+// ConsumeData creates a DataConsumer.
 func (transport *Transport) ConsumeData(options DataConsumerOptions) (dataConsumer *DataConsumer, err error) {
 	transport.logger.V(1).Info("consumeData()")
 
@@ -888,9 +853,7 @@ func (transport *Transport) ConsumeData(options DataConsumerOptions) (dataConsum
 	return
 }
 
-/**
- * Enable 'trace' event.
- */
+// EnableTraceEvent enables 'trace' events.
 func (transport *Transport) EnableTraceEvent(types ...TransportTraceEventType) error {
 	transport.logger.V(1).Info("pause()")
 

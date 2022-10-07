@@ -3,62 +3,44 @@ package mediasoup
 import (
 	"encoding/json"
 	"fmt"
-	"sync"
 
 	"github.com/go-logr/logr"
 	"github.com/google/uuid"
 )
 
+// PipeTransportOptions define options to create a PipeTransport
 type PipeTransportOptions struct {
-	/**
-	 * Listening IP address.
-	 */
+	// ListenIp define Listening IP address.
 	ListenIp TransportListenIp `json:"listenIp,omitempty"`
 
-	/**
-	 * Create a SCTP association. Default false.
-	 */
+	// EnableSctp define whether create a SCTP association. Default false.
 	EnableSctp bool `json:"enableSctp,omitempty"`
 
-	/**
-	 * SCTP streams number.
-	 */
+	// NumSctpStreams define SCTP streams number.
 	NumSctpStreams NumSctpStreams `json:"numSctpStreams,omitempty"`
 
-	/**
-	 * Maximum allowed size for SCTP messages sent by DataProducers.
-	 * Default 268435456.
-	 */
+	// MaxSctpMessageSize define maximum allowed size for SCTP messages sent by DataProducers.
+	// Default 268435456.
 	MaxSctpMessageSize int `json:"maxSctpMessageSize,omitempty"`
 
-	/**
-	 * Maximum SCTP send buffer used by DataConsumers.
-	 * Default 268435456.
-	 */
+	// SctpSendBufferSize define maximum SCTP send buffer used by DataConsumers.
+	// Default 268435456.
 	SctpSendBufferSize int `json:"sctpSendBufferSize,omitempty"`
 
-	/**
-	 * Enable RTX and NACK for RTP retransmission. Useful if both Routers are
-	 * located in different hosts and there is packet lost in the link. For this
-	 * to work, both PipeTransports must enable this setting. Default false.
-	 */
-	EnableRtx bool `json:"enableRtx,omitempty"`
-
-	/**
-	 * Enable SRTP. Useful to protect the RTP and RTCP traffic if both Routers
-	 * are located in different hosts. For this to work, connect() must be called
-	 * with remote SRTP parameters. Default false.
-	 */
+	// EnableSrtp enable SRTP. For this to work, connect() must be called
+	// with remote SRTP parameters. Default false.
 	EnableSrtp bool `json:"enableSrtp,omitempty"`
 
-	/**
-	 * Custom application data.
-	 */
+	// EnableRtx enable RTX and NACK for RTP retransmission. Useful if both Routers are
+	// located in different hosts and there is packet lost in the link. For this
+	// to work, both PipeTransports must enable this setting. Default false.
+	EnableRtx bool `json:"enableRtx,omitempty"`
+
+	// AppData is custom application data.
 	AppData interface{} `json:"appData,omitempty"`
 }
 
 type pipeTransortData struct {
-	locker         sync.Mutex
 	Tuple          TransportTuple  `json:"tuple,omitempty"`
 	SctpParameters SctpParameters  `json:"sctpParameters,omitempty"`
 	SctpState      SctpState       `json:"sctpState,omitempty"`
@@ -66,29 +48,12 @@ type pipeTransortData struct {
 	SrtpParameters *SrtpParameters `json:"srtpParameters,omitempty"`
 }
 
-func (data *pipeTransortData) SetTuple(tuple TransportTuple) {
-	data.locker.Lock()
-	defer data.locker.Unlock()
-	data.Tuple = tuple
-}
-
-func (data *pipeTransortData) GetSctpState() (sctpState SctpState) {
-	data.locker.Lock()
-	defer data.locker.Unlock()
-	return data.SctpState
-}
-
-func (data *pipeTransortData) SetSctpState(sctpState SctpState) {
-	data.locker.Lock()
-	defer data.locker.Unlock()
-	data.SctpState = sctpState
-}
-
-/**
- * PipeTransport
- * @emits sctpstatechange - (sctpState: SctpState)
- * @emits trace - (trace: TransportTraceEventData)
- */
+// PipeTransport represents a network path through which RTP, RTCP (optionally secured with SRTP)
+// and SCTP (DataChannel) is transmitted. Pipe transports are intented to intercommunicate two
+// Router instances collocated on the same host or on separate hosts.
+//
+// - @emits sctpstatechange - (sctpState SctpState)
+// - @emits trace - (trace *TransportTraceEventData)
 type PipeTransport struct {
 	ITransport
 	logger          logr.Logger
@@ -123,89 +88,66 @@ func newPipeTransport(params transportParams) ITransport {
 	return transport
 }
 
-/**
- * Transport tuple.
- */
+// Tuple returns transport tuple.
 func (t PipeTransport) Tuple() TransportTuple {
 	return t.data.Tuple
 }
 
-/**
- * SCTP parameters.
- */
+// SctpParameters returns SCTP parameters.
 func (t PipeTransport) SctpParameters() SctpParameters {
 	return t.data.SctpParameters
 }
 
-/**
- * SCTP state.
- */
+// SctpState returns SCTP state.
 func (t PipeTransport) SctpState() SctpState {
 	return t.data.SctpState
 }
 
-/**
- * SRTP parameters.
- */
+// SrtpParameters returns SRTP parameters.
 func (t PipeTransport) SrtpParameters() *SrtpParameters {
 	return t.data.SrtpParameters
 }
 
-/**
- * Observer.
- *
- * @override
- * @emits close
- * @emits newproducer - (producer: Producer)
- * @emits newconsumer - (consumer: Consumer)
- * @emits newdataproducer - (dataProducer: DataProducer)
- * @emits newdataconsumer - (dataConsumer: DataConsumer)
- * @emits sctpstatechange - (sctpState: SctpState)
- * @emits trace - (trace: TransportTraceEventData)
- */
+// Observer.
+//
+// - @emits close
+// - @emits newproducer - (producer *Producer)
+// - @emits newconsumer - (consumer *Consumer)
+// - @emits newdataproducer - (dataProducer *DataProducer)
+// - @emits newdataconsumer - (dataConsumer *DataConsumer)
+// - @emits sctpstatechange - (sctpState SctpState)
+// - @emits trace - (trace: TransportTraceEventData)
 func (transport *PipeTransport) Observer() IEventEmitter {
 	return transport.ITransport.Observer()
 }
 
-/**
- * Close the PipeTransport.
- *
- * @override
- */
+// Close the PipeTransport.
 func (transport *PipeTransport) Close() {
 	if transport.Closed() {
 		return
 	}
 
-	if len(transport.data.GetSctpState()) > 0 {
-		transport.data.SetSctpState(SctpState_Closed)
+	if len(transport.data.SctpState) > 0 {
+		transport.data.SctpState = SctpState_Closed
 	}
 
 	transport.ITransport.Close()
 }
 
-/**
- * Router was closed.
- *
- * @override
- */
+// routerClosed is called when router was closed.
 func (transport *PipeTransport) routerClosed() {
 	if transport.Closed() {
 		return
 	}
 
-	if len(transport.data.GetSctpState()) > 0 {
-		transport.data.SetSctpState(SctpState_Closed)
+	if len(transport.data.SctpState) > 0 {
+		transport.data.SctpState = SctpState_Closed
 	}
 
 	transport.ITransport.routerClosed()
 }
 
-/**
- * Provide the PlainTransport remote parameters.
- *
- * @override
- */
+// Connect provide the PlainTransport remote parameters.
 func (transport *PipeTransport) Connect(options TransportConnectOptions) (err error) {
 	transport.logger.V(1).Info("connect()")
 
@@ -224,16 +166,12 @@ func (transport *PipeTransport) Connect(options TransportConnectOptions) (err er
 	}
 
 	// Update data.
-	transport.data.SetTuple(data.Tuple)
+	transport.data.Tuple = data.Tuple
 
 	return nil
 }
 
-/**
- * Create a pipe Consumer.
- *
- * @override
- */
+// Consume create a pipe Consumer.
 func (transport *PipeTransport) Consume(options ConsumerOptions) (consumer *Consumer, err error) {
 	transport.logger.V(1).Info("consume()")
 
@@ -305,15 +243,21 @@ func (transport *PipeTransport) Consume(options ConsumerOptions) (consumer *Cons
 }
 
 func (transport *PipeTransport) handleWorkerNotifications() {
+	logger := transport.logger
+
 	transport.channel.On(transport.Id(), func(event string, data []byte) {
 		switch event {
 		case "sctpstatechange":
 			var result struct {
 				SctpState SctpState
 			}
-			json.Unmarshal(data, &result)
 
-			transport.data.SetSctpState(result.SctpState)
+			if err := json.Unmarshal([]byte(data), &result); err != nil {
+				logger.Error(err, "failed to unmarshal sctpstatechange", "data", json.RawMessage(data))
+				return
+			}
+
+			transport.data.SctpState = result.SctpState
 
 			transport.SafeEmit("sctpstatechange", result.SctpState)
 
@@ -321,8 +265,12 @@ func (transport *PipeTransport) handleWorkerNotifications() {
 			transport.Observer().SafeEmit("sctpstatechange", result.SctpState)
 
 		case "trace":
-			var result TransportTraceEventData
-			json.Unmarshal(data, &result)
+			var result *TransportTraceEventData
+
+			if err := json.Unmarshal([]byte(data), &result); err != nil {
+				logger.Error(err, "failed to unmarshal trace", "data", json.RawMessage(data))
+				return
+			}
 
 			transport.SafeEmit("trace", result)
 
@@ -330,7 +278,7 @@ func (transport *PipeTransport) handleWorkerNotifications() {
 			transport.Observer().SafeEmit("trace", result)
 
 		default:
-			transport.logger.Error(nil, "ignoring unknown event", "event", event)
+			logger.Error(nil, "ignoring unknown event", "event", event)
 		}
 	})
 }

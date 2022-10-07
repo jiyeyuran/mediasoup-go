@@ -10,6 +10,7 @@ import (
 	"github.com/go-logr/logr"
 )
 
+// EventEmitter defines an interface of the Event-based architecture(like EventEmitter in JavaScript).
 type IEventEmitter interface {
 	// On adds the listener function to the end of the listeners array for the event named eventName.
 	// No checks are made to see if the listener has already been added.

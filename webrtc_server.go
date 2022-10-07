@@ -31,11 +31,23 @@ type WebRtcServerOptions struct {
 
 type webrtcServerParams struct {
 	internal internalData
-	data     interface{}
 	channel  *Channel
 	appData  interface{}
 }
 
+// WebRtcServer brings the ability to listen on a single UDP/TCP port to WebRtcTransports.
+// Instead of passing listenIps to router.CreateWebRtcTransport() pass webRtcServer with an
+// instance of a WebRtcServer so the new WebRTC transport will not listen on its own IP:port(s)
+// but will have its network traffic handled by the WebRTC server instead.
+//
+// A WebRTC server exists within the context of a Worker, meaning that if your app launches N
+// workers it also needs to create N WebRTC servers listening on different ports (to not collide).
+//
+// The WebRTC transport implementation of mediasoup is ICE Lite, meaning that it does not initiate
+// ICE connections but expects ICE Binding Requests from endpoints.
+//
+// - @emits @close
+// - @emits workerclose
 type WebRtcServer struct {
 	IEventEmitter
 	logger           logr.Logger
@@ -43,7 +55,7 @@ type WebRtcServer struct {
 	channel          *Channel
 	closed           uint32
 	appData          interface{}
-	webRtcTransports sync.Map // string:WebRtcTransport
+	webRtcTransports sync.Map // string:*WebRtcTransport
 	observer         IEventEmitter
 }
 
@@ -61,12 +73,12 @@ func NewWebRtcServer(params webrtcServerParams) *WebRtcServer {
 	}
 }
 
-// Router id
+// Id returns router id.
 func (s *WebRtcServer) Id() string {
 	return s.internal.WebRtcServerId
 }
 
-// Whether the Router is closed.
+// Closed returns whether the router is closed or not.
 func (s *WebRtcServer) Closed() bool {
 	return atomic.LoadUint32(&s.closed) > 0
 }
@@ -76,11 +88,16 @@ func (s *WebRtcServer) AppData() interface{} {
 	return s.appData
 }
 
+// Observer returns an EventEmitter object.
+//
+// - @emits close
+// - @emits webrtctransporthandled - (transport *WebRtcTransport)
+// - @emits webrtctransportunhandled - (transport *WebRtcTransport)
 func (s *WebRtcServer) Observer() IEventEmitter {
 	return s.observer
 }
 
-// Just for testing purposes.
+// webRtcTransportsForTesting is used for testing purposes.
 func (s *WebRtcServer) webRtcTransportsForTesting() map[string]*WebRtcTransport {
 	transports := make(map[string]*WebRtcTransport)
 
@@ -92,6 +109,7 @@ func (s *WebRtcServer) webRtcTransportsForTesting() map[string]*WebRtcTransport 
 	return transports
 }
 
+// Close the webrtc server.
 func (s *WebRtcServer) Close() {
 	if !atomic.CompareAndSwapUint32(&s.closed, 0, 1) {
 		return
@@ -120,7 +138,7 @@ func (s *WebRtcServer) Close() {
 	s.observer.RemoveAllListeners()
 }
 
-// Worker was closed.
+// workerClosed is called when worker was closed.
 func (s *WebRtcServer) workerClosed() {
 	if !atomic.CompareAndSwapUint32(&s.closed, 0, 1) {
 		return
@@ -137,7 +155,7 @@ func (s *WebRtcServer) workerClosed() {
 	s.observer.SafeEmit("close")
 }
 
-// Dump WebRtcServer.
+// Dump returns WebRtcServer information.
 func (s *WebRtcServer) Dump() (data WebRtcServerDump, err error) {
 	s.logger.V(1).Info("dump()")
 	err = s.channel.Request("webRtcServer.dump", s.internal).Unmarshal(&data)

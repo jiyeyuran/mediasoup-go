@@ -7,14 +7,25 @@ import (
 )
 
 type ActiveSpeakerObserverOptions struct {
-	Interval int `json:"interval"`
-	AppData  H   `json:"appData,omitempty"`
+	Interval int         `json:"interval"`
+	AppData  interface{} `json:"appData,omitempty"`
 }
 
 type ActiveSpeakerObserverActivity struct {
+	// Producer is the dominant audio producer instance.
 	Producer *Producer
 }
 
+// ActiveSpeakerObserver monitors the speech activity of the selected audio producers. It just
+// handles audio producers (if addProducer() is called with a video producer it will fail).
+//
+// Implementation of Dominant Speaker Identification for Multipoint Videoconferencing by Ilana
+// Volfin and Israel Cohen. This implementation uses the RTP Audio Level extension from RFC-6464
+// for the input signal. This has been ported from DominantSpeakerIdentification.java in Jitsi.
+// Audio levels used for speech detection are read from an RTP header extension. No decoding of
+// audio data is done. See RFC6464 for more information.
+//
+// - @emits dominantspeaker - (activity *ActiveSpeakerObserverActivity)
 type ActiveSpeakerObserver struct {
 	IRtpObserver
 	logger logr.Logger
@@ -30,6 +41,9 @@ func newActiveSpeakerObserver(params rtpObserverParams) *ActiveSpeakerObserver {
 	return o
 }
 
+// Observer.
+//
+// - @emits dominantspeaker - (activity *ActiveSpeakerObserverActivity)
 func (o *ActiveSpeakerObserver) Observer() IEventEmitter {
 	return o.IRtpObserver.Observer()
 }
@@ -48,11 +62,11 @@ func (o *ActiveSpeakerObserver) handleWorkerNotifications(params rtpObserverPara
 			event := eventInfo{}
 
 			if err := json.Unmarshal(data, &event); err != nil {
-				o.logger.Error(err, "unmarshal events failed")
+				o.logger.Error(err, "unmarshal dominantspeaker failed", "data", json.RawMessage(data))
 				break
 			}
 
-			dominantSpeaker := ActiveSpeakerObserverActivity{
+			dominantSpeaker := &ActiveSpeakerObserverActivity{
 				Producer: getProducerById(event.ProducerId),
 			}
 			o.SafeEmit("dominantspeaker", dominantSpeaker)

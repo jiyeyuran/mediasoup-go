@@ -22,12 +22,10 @@ type IRtpObserver interface {
 	RemoveProducer(producerId string)
 }
 
-/**
- * RtpObserver
- * @interface
- * @emits routerclose
- * @emits @close
- */
+// RtpObserver is a base class inherited by ActiveSpeakerObserver and AudioLevelObserver.
+//
+// - @emits routerclose
+// - @emits @close
 type RtpObserver struct {
 	IEventEmitter
 	logger          logr.Logger
@@ -69,23 +67,17 @@ func newRtpObserver(params rtpObserverParams) IRtpObserver {
 	}
 }
 
-/**
- * RtpObserver id.
- */
+// Id returns RtpObserver id.
 func (o *RtpObserver) Id() string {
 	return o.internal.RtpObserverId
 }
 
-/**
- * Whether the RtpObserver is closed.
- */
+// Closed returns whether the RtpObserver is closed.
 func (o *RtpObserver) Closed() bool {
 	return atomic.LoadUint32(&o.closed) > 0
 }
 
-/**
- * Whether the RtpObserver is paused.
- */
+// Paused returns whether the RtpObserver is paused.
 func (o *RtpObserver) Paused() bool {
 	o.locker.Lock()
 	defer o.locker.Unlock()
@@ -93,29 +85,23 @@ func (o *RtpObserver) Paused() bool {
 	return o.paused
 }
 
-/**
- * App custom data.
- */
+// AppData returns app custom data.
 func (o *RtpObserver) AppData() interface{} {
 	return o.appData
 }
 
-/**
- * Observer.
- *
- * @emits close
- * @emits pause
- * @emits resume
- * @emits addproducer - (producer: Producer)
- * @emits removeproducer - (producer: Producer)
- */
+// Observer.
+//
+// - @emits close
+// - @emits pause
+// - @emits resume
+// - @emits addproducer - (producer *Producer)
+// - @emits removeproducer - (producer *Producer)
 func (o *RtpObserver) Observer() IEventEmitter {
 	return o.observer
 }
 
-/**
- * Close the RtpObserver.
- */
+// Close the RtpObserver.
 func (o *RtpObserver) Close() {
 	if atomic.CompareAndSwapUint32(&o.closed, 0, 1) {
 		o.logger.V(1).Info("close()")
@@ -137,9 +123,7 @@ func (o *RtpObserver) Close() {
 	}
 }
 
-/**
- * Router was closed.
- */
+// routerClosed is called when router was closed.
 func (o *RtpObserver) routerClosed() {
 	if atomic.CompareAndSwapUint32(&o.closed, 0, 1) {
 		o.logger.V(1).Info("routerClosed()")
@@ -157,9 +141,7 @@ func (o *RtpObserver) routerClosed() {
 	}
 }
 
-/**
- * Pause the RtpObserver.
- */
+// Pause the RtpObserver.
 func (o *RtpObserver) Pause() {
 	o.locker.Lock()
 	defer o.locker.Unlock()
@@ -178,9 +160,7 @@ func (o *RtpObserver) Pause() {
 	}
 }
 
-/**
- * Resume the RtpObserver.
- */
+// Resume the RtpObserver.
 func (o *RtpObserver) Resume() {
 	o.locker.Lock()
 	defer o.locker.Unlock()
@@ -199,9 +179,7 @@ func (o *RtpObserver) Resume() {
 	}
 }
 
-/**
- * Add a Producer to the RtpObserver.
- */
+// AddProducer add a Producer to the RtpObserver.
 func (o *RtpObserver) AddProducer(producerId string) {
 	o.locker.Lock()
 	defer o.locker.Unlock()
@@ -218,9 +196,7 @@ func (o *RtpObserver) AddProducer(producerId string) {
 	o.observer.SafeEmit("addproducer", producer)
 }
 
-/**
- * Remove a Producer from the RtpObserver.
- */
+// RemoveProducer remove a Producer from the RtpObserver.
 func (o *RtpObserver) RemoveProducer(producerId string) {
 	o.locker.Lock()
 	defer o.locker.Unlock()

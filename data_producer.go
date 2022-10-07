@@ -7,34 +7,26 @@ import (
 	"github.com/go-logr/logr"
 )
 
+// DataProducerOptions define options to create a DataProducer.
 type DataProducerOptions struct {
-	/**
-	 * DataProducer id (just for Router.pipeToRouter() method).
-	 */
+	// Id is DataProducer id (just for Router.pipeToRouter() method).
 	Id string `json:"id,omitempty"`
 
-	/**
-	 * SCTP parameters defining how the endpoint is sending the data.
-	 * Just if messages are sent over SCTP.
-	 */
+	// SctpStreamParameters define how the endpoint is sending the data.
+	// Just if messages are sent over SCTP.
 	SctpStreamParameters *SctpStreamParameters `json:"sctpStreamParameters,omitempty"`
 
-	/**
-	 * A label which can be used to distinguish this DataChannel from others.
-	 */
+	// Label can be used to distinguish this DataChannel from others.
 	Label string `json:"label,omitempty"`
 
-	/**
-	 * Name of the sub-protocol used by this DataChannel.
-	 */
+	// Protocol is the name of the sub-protocol used by this DataChannel.
 	Protocol string `json:"protocol,omitempty"`
 
-	/**
-	 * Custom application data.
-	 */
+	// AppData is custom application data.
 	AppData interface{} `json:"app_data,omitempty"`
 }
 
+// DataProducerStat define the statistic info for DataProducer.
 type DataProducerStat struct {
 	Type             string
 	Timestamp        int64
@@ -44,22 +36,16 @@ type DataProducerStat struct {
 	BytesReceived    int64
 }
 
-/**
- * DataProducer type.
- */
-type DataProducerType = DataConsumerType
+// DataProducerType define DataProducer type.
+type DataProducerType string
 
 const (
-	DataProducerType_Sctp   DataProducerType = DataConsumerType_Sctp
-	DataProducerType_Direct                  = DataConsumerType_Direct
+	DataProducerType_Sctp   DataProducerType = "sctp"
+	DataProducerType_Direct DataProducerType = "direct"
 )
 
 type dataProducerParams struct {
-	// {
-	// 	routerId: string;
-	// 	transportId: string;
-	// 	dataProducerId: string;
-	// };
+	// internal uses routerId, transportId, dataProducerId
 	internal       internalData
 	data           dataProducerData
 	channel        *Channel
@@ -74,11 +60,12 @@ type dataProducerData struct {
 	Protocol             string
 }
 
-/**
- * DataProducer
- * @emits transportclose
- * @emits @close
- */
+// DataProducer represents an endpoint capable of injecting data messages into a mediasoup Router.
+// A data producer can use SCTP (AKA DataChannel) to deliver those messages, or can directly send
+// them from the golang application if the data producer was created on top of a DirectTransport.
+//
+// - @emits transportclose
+// - @emits @close
 type DataProducer struct {
 	IEventEmitter
 	mu             sync.Mutex
@@ -117,54 +104,44 @@ func newDataProducer(params dataProducerParams) *DataProducer {
 	return p
 }
 
-// DataProducer id
+// Id returns DataProducer id
 func (p *DataProducer) Id() string {
 	return p.internal.DataProducerId
 }
 
-// Whether the DataProducer is closed.
+// Closed returns whether the DataProducer is closed.
 func (p *DataProducer) Closed() bool {
 	return atomic.LoadUint32(&p.closed) > 0
 }
 
-// DataProducer type.
-func (p *DataProducer) Type() DataConsumerType {
+// Type returns DataProducer type.
+func (p *DataProducer) Type() DataProducerType {
 	return p.data.Type
 }
 
-/**
- * SCTP stream parameters.
- */
+// SctpStreamParameters returns SCTP stream parameters.
 func (p *DataProducer) SctpStreamParameters() SctpStreamParameters {
 	return p.data.SctpStreamParameters
 }
 
-/**
- * DataChannel label.
- */
+// Label returns DataChannel label.
 func (p *DataProducer) Label() string {
 	return p.data.Label
 }
 
-/**
- * DataChannel protocol.
- */
+// Protocol returns DataChannel protocol.
 func (p *DataProducer) Protocol() string {
 	return p.data.Protocol
 }
 
-/**
- * App custom data.
- */
+// AppData returns app custom data.
 func (p *DataProducer) AppData() interface{} {
 	return p.appData
 }
 
-/**
- * Observer.
- *
- * @emits close
- */
+// Observer.
+//
+// - @emits close
 func (p *DataProducer) Observer() IEventEmitter {
 	return p.observer
 }
@@ -196,7 +173,7 @@ func (p *DataProducer) Close() (err error) {
 	return
 }
 
-// Transport was closed.
+// transportClosed is called when transport was closed.
 func (p *DataProducer) transportClosed() {
 	if atomic.CompareAndSwapUint32(&p.closed, 0, 1) {
 		p.logger.V(1).Info("transportClosed()")
@@ -219,7 +196,7 @@ func (p *DataProducer) Dump() (dump DataProducerDump, err error) {
 	return
 }
 
-// Get DataConsumer stats.
+// GetStats returns DataConsumer stats.
 func (p *DataProducer) GetStats() (stats []*DataProducerStat, err error) {
 	p.logger.V(1).Info("getStats()")
 
@@ -229,11 +206,9 @@ func (p *DataProducer) GetStats() (stats []*DataProducerStat, err error) {
 	return
 }
 
-/**
- * Send data.
- */
+// Send data.
 func (p *DataProducer) Send(data []byte) (err error) {
-	/*
+	/**
 	 * +-------------------------------+----------+
 	 * | Value                         | SCTP     |
 	 * |                               | PPID     |
@@ -257,9 +232,7 @@ func (p *DataProducer) Send(data []byte) (err error) {
 	return p.payloadChannel.Notify("dataProducer.send", p.internal, ppid, data)
 }
 
-/**
- * Send text.
- */
+// SendText send text.
 func (p *DataProducer) SendText(message string) error {
 	ppid, payload := "51", []byte(message)
 

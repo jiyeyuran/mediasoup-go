@@ -40,10 +40,8 @@ type RtpMappingEncoding struct {
 	MappedSsrc      uint32 `json:"mappedSsrc"`
 }
 
-/**
- * Validates RtpCapabilities. It may modify given data by adding missing
- * fields with default values.
- */
+// validateRtpCapabilities validates RtpCapabilities. It may modify given data by adding missing
+// fields with default values.
 func validateRtpCapabilities(params *RtpCapabilities) (err error) {
 	for _, codec := range params.Codecs {
 		if err = validateRtpCodecCapability(codec); err != nil {
@@ -60,10 +58,8 @@ func validateRtpCapabilities(params *RtpCapabilities) (err error) {
 	return
 }
 
-/**
- * Validates RtpCodecCapability. It may modify given data by adding missing
- * fields with default values.
- */
+// validateRtpCodecCapability validates RtpCodecCapability. It may modify given data by adding
+// missing fields with default values.
 func validateRtpCodecCapability(code *RtpCodecCapability) (err error) {
 	mimeType := strings.ToLower(code.MimeType)
 
@@ -93,10 +89,8 @@ func validateRtpCodecCapability(code *RtpCodecCapability) (err error) {
 	return
 }
 
-/**
- * Validates RtcpFeedback. It may modify given data by adding missing
- * fields with default values.
- */
+// validateRtcpFeedback validates RtcpFeedback. It may modify given data by adding missing
+// fields with default values.
 func validateRtcpFeedback(fb RtcpFeedback) error {
 	if len(fb.Type) == 0 {
 		return NewTypeError("missing fb.type")
@@ -104,10 +98,8 @@ func validateRtcpFeedback(fb RtcpFeedback) error {
 	return nil
 }
 
-/**
- * Validates RtpHeaderExtension. It may modify given data by adding missing
- * fields with default values.
- */
+// validateRtpHeaderExtension validates RtpHeaderExtension. It may modify given data by adding
+// missing fields with default values.
 func validateRtpHeaderExtension(ext *RtpHeaderExtension) (err error) {
 	if len(ext.Kind) > 0 && ext.Kind != MediaKind_Audio && ext.Kind != MediaKind_Video {
 		return NewTypeError("invalid ext.kind")
@@ -131,10 +123,8 @@ func validateRtpHeaderExtension(ext *RtpHeaderExtension) (err error) {
 	return
 }
 
-/**
- * Validates RtpParameters. It may modify given data by adding missing
- * fields with default values.
- */
+// validateRtpParameters validates RtpParameters. It may modify given data by adding missing
+// fields with default values.
 func validateRtpParameters(params *RtpParameters) (err error) {
 	for _, codec := range params.Codecs {
 		if err = validateRtpCodecParameters(codec); err != nil {
@@ -151,10 +141,8 @@ func validateRtpParameters(params *RtpParameters) (err error) {
 	return validateRtcpParameters(&params.Rtcp)
 }
 
-/**
- * Validates RtpCodecParameters. It may modify given data by adding missing
- * fields with default values.
- */
+// validateRtpCodecParameters validates RtpCodecParameters. It may modify given data by adding
+// missing fields with default values.
 func validateRtpCodecParameters(code *RtpCodecParameters) (err error) {
 	mimeType := strings.ToLower(code.MimeType)
 
@@ -184,10 +172,8 @@ func validateRtpCodecParameters(code *RtpCodecParameters) (err error) {
 	return
 }
 
-/**
- * Validates RtpHeaderExtension. It may modify given data by adding missing
- * fields with default values.
- */
+// validateRtpHeaderExtensionParameters validates RtpHeaderExtension. It may modify given data by
+// adding missing fields with default values.
 func validateRtpHeaderExtensionParameters(ext RtpHeaderExtensionParameters) (err error) {
 	// uri is mandatory.
 	if len(ext.Uri) == 0 {
@@ -202,10 +188,8 @@ func validateRtpHeaderExtensionParameters(ext RtpHeaderExtensionParameters) (err
 	return
 }
 
-/**
- * Validates RtcpParameters. It may modify given data by adding missing
- * fields with default values.
- */
+// validateRtcpParameters validates RtcpParameters. It may modify given data by adding missing
+// fields with default values.
 func validateRtcpParameters(rtcp *RtcpParameters) (err error) {
 	// reducedSize is optional. If unset set it to true.
 	if rtcp.ReducedSize == nil {
@@ -215,10 +199,8 @@ func validateRtcpParameters(rtcp *RtcpParameters) (err error) {
 	return
 }
 
-/**
- * Validates SctpCapabilities. It may modify given data by adding missing
- * fields with default values.
- */
+// validateSctpCapabilities validates SctpCapabilities. It may modify given data by adding missing
+// fields with default values.
 func validateSctpCapabilities(caps SctpCapabilities) (err error) {
 	// numStreams is mandatory.
 	if reflect.DeepEqual(caps.NumStreams, NumSctpStreams{}) {
@@ -228,10 +210,8 @@ func validateSctpCapabilities(caps SctpCapabilities) (err error) {
 	return validateNumSctpStreams(caps.NumStreams)
 }
 
-/**
- * Validates NumSctpStreams. It may modify given data by adding missing
- * fields with default values.
- */
+// validateNumSctpStreams validates NumSctpStreams. It may modify given data by adding missing
+// fields with default values.
 func validateNumSctpStreams(numStreams NumSctpStreams) (err error) {
 	// OS is mandatory.
 	if numStreams.OS == 0 {
@@ -245,11 +225,8 @@ func validateNumSctpStreams(numStreams NumSctpStreams) (err error) {
 	return
 }
 
-/**
- * Validates SctpParameters. It may modify given data by adding missing
- * fields with default values.
- * It throws if invalid.
- */
+// validateSctpParameters validates SctpParameters. It may modify given data by adding missing
+// fields with default values.
 func validateSctpParameters(params SctpParameters) (err error) {
 	// port is mandatory.
 	if params.Port == 0 {
@@ -273,10 +250,8 @@ func validateSctpParameters(params SctpParameters) (err error) {
 	return
 }
 
-/**
- * Validates SctpStreamParameters. It may modify given data by adding missing
- * fields with default values.
- */
+// validateSctpStreamParameters validates SctpStreamParameters. It may modify given data by adding
+// missing fields with default values.
 func validateSctpStreamParameters(params *SctpStreamParameters) (err error) {
 	if params == nil {
 		return NewTypeError("params is nil")
@@ -301,10 +276,8 @@ func validateSctpStreamParameters(params *SctpStreamParameters) (err error) {
 	return
 }
 
-/**
- * Generate RTP capabilities for the Router based on the given media codecs and
- * mediasoup supported RTP capabilities.
- */
+// generateRouterRtpCapabilities generate RTP capabilities for the Router based on the given media
+// codecs and mediasoup supported RTP capabilities.
 func generateRouterRtpCapabilities(mediaCodecs []*RtpCodecCapability) (caps RtpCapabilities, err error) {
 	clonedSupportedRtpCapabilities := GetSupportedRtpCapabilities()
 	supportedCodecs := clonedSupportedRtpCapabilities.Codecs
@@ -388,11 +361,8 @@ func generateRouterRtpCapabilities(mediaCodecs []*RtpCodecCapability) (caps RtpC
 	return
 }
 
-/**
- * Get a mapping of the codec payload, RTP header extensions and encodings from
- * the given Producer RTP parameters to the values expected by the Router.
- *
- */
+// getProducerRtpParametersMapping get a mapping of the codec payload, RTP header extensions and
+// encodings from the given Producer RTP parameters to the values expected by the Router.
 func getProducerRtpParametersMapping(params RtpParameters, caps RtpCapabilities) (rtpMapping RtpMapping, err error) {
 	// Match parameters media codecs to capabilities media codecs.
 	codecToCapCodec := map[*RtpCodecParameters]*RtpCodecCapability{}
@@ -478,11 +448,8 @@ func getProducerRtpParametersMapping(params RtpParameters, caps RtpCapabilities)
 	return
 }
 
-/**
- * Generate RTP parameters for Consumers given the RTP parameters of a Producer
- * and the RTP capabilities of the Router.
- *
- */
+// getConsumableRtpParameters generate RTP parameters for Consumers given the RTP parameters of a
+// Producer and the RTP capabilities of the Router.
 func getConsumableRtpParameters(
 	kind MediaKind,
 	params RtpParameters,
@@ -580,10 +547,7 @@ func getConsumableRtpParameters(
 	return
 }
 
-/**
- * Check whether the given RTP capabilities can consume the given Producer.
- *
- */
+// canConsume check whether the given RTP capabilities can consume the given Producer.
 func canConsume(consumableParams RtpParameters, caps RtpCapabilities) (ok bool, err error) {
 	if err = validateRtpCapabilities(&caps); err != nil {
 		return
@@ -609,14 +573,11 @@ func canConsume(consumableParams RtpParameters, caps RtpCapabilities) (ok bool, 
 	return true, nil
 }
 
-/**
- * Generate RTP parameters for a specific Consumer.
- *
- * It reduces encodings to just one and takes into account given RTP capabilities
- * to reduce codecs, codecs" RTCP feedback and header extensions, and also enables
- * or disabled RTX.
- *
- */
+// getConsumerRtpParameters generate RTP parameters for a specific Consumer.
+//
+// It reduces encodings to just one and takes into account given RTP capabilities
+// to reduce codecs, codecs" RTCP feedback and header extensions, and also enables
+// or disabled RTX.
 func getConsumerRtpParameters(consumableParams RtpParameters, caps RtpCapabilities, pipe bool) (consumerParams RtpParameters, err error) {
 	for _, capCodec := range caps.Codecs {
 		if err = validateRtpCodecCapability(capCodec); err != nil {
@@ -783,12 +744,10 @@ func getConsumerRtpParameters(consumableParams RtpParameters, caps RtpCapabiliti
 	return
 }
 
-/**
- * Generate RTP parameters for a pipe Consumer.
- *
- * It keeps all original consumable encodings and removes support for BWE. If
- * enableRtx is false, it also removes RTX and NACK support.
- */
+// getPipeConsumerRtpParameters generate RTP parameters for a pipe Consumer.
+//
+// It keeps all original consumable encodings and removes support for BWE. If
+// enableRtx is false, it also removes RTX and NACK support.
 func getPipeConsumerRtpParameters(consumableParams RtpParameters, enableRtx bool) (consumerParams RtpParameters) {
 	consumerParams.Rtcp = consumableParams.Rtcp
 
