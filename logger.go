@@ -1,21 +1,55 @@
 package mediasoup
 
 import (
+	"os"
+	"strconv"
+	"strings"
+
 	"github.com/go-logr/logr"
 	"github.com/go-logr/zerologr"
+	"github.com/gobwas/glob"
 	"github.com/rs/zerolog"
 )
 
 var (
-	// loggerImpl is a zerolog instance with console writer
-	loggerImpl = zerolog.New(zerolog.NewConsoleWriter(func(w *zerolog.ConsoleWriter) {
-		w.NoColor = true
+	// defaultLoggerImpl is a zerolog instance with console writer
+	defaultLoggerImpl = zerolog.New(zerolog.NewConsoleWriter(func(w *zerolog.ConsoleWriter) {
+		color, _ := strconv.ParseBool(os.Getenv("DEBUG_COLORS"))
+		w.NoColor = !color
 		w.TimeFormat = "2006-01-02 15:04:05.999"
-	})).With().Caller().Timestamp().Logger().Level(zerolog.InfoLevel)
+	})).With().Timestamp().Caller().Logger()
+
+	defaultLoggerLevel = zerolog.InfoLevel
 
 	// NewLogger defines function to create logger instance.
 	NewLogger = func(scope string) logr.Logger {
-		return zerologr.New(&loggerImpl).WithName(scope)
+		shouldDebug := false
+		if debug := os.Getenv("DEBUG"); len(debug) > 0 {
+			for _, part := range strings.Split(debug, ",") {
+				part := strings.TrimSpace(part)
+				if len(part) == 0 {
+					continue
+				}
+				shouldMatch := true
+				if part[0] == '-' {
+					shouldMatch = false
+					part = part[1:]
+				}
+				if g, err := glob.Compile(part); err == nil && g.Match(scope) {
+					shouldDebug = shouldMatch
+				}
+			}
+		}
+
+		level := defaultLoggerLevel
+
+		if shouldDebug {
+			level = zerolog.DebugLevel
+		}
+
+		logger := defaultLoggerImpl.Level(level)
+
+		return zerologr.New(&logger).WithName(scope)
 	}
 )
 

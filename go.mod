@@ -5,6 +5,7 @@ go 1.15
 require (
 	github.com/go-logr/logr v1.2.3
 	github.com/go-logr/zerologr v1.2.2
+	github.com/gobwas/glob v0.2.3
 	github.com/google/uuid v1.3.0
 	github.com/hashicorp/go-version v1.4.0
 	github.com/imdario/mergo v0.3.11
