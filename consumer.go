@@ -192,11 +192,7 @@ type Consumer struct {
 func newConsumer(params consumerParams) *Consumer {
 	logger := NewLogger("Consumer")
 
-	logger.V(1).Info("constructor()")
-
-	if params.appData == nil {
-		params.appData = H{}
-	}
+	logger.V(1).Info("constructor()", "internal", params.internal)
 
 	if reflect.DeepEqual(params.score, ConsumerScore{}) {
 		params.score = ConsumerScore{

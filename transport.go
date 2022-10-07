@@ -210,7 +210,7 @@ type Transport struct {
 }
 
 func newTransport(params transportParams) ITransport {
-	params.logger.V(1).Info("constructor()")
+	params.logger.V(1).Info("constructor()", "internal", params.internal)
 
 	transport := &Transport{
 		IEventEmitter:            NewEventEmitter(),

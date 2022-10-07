@@ -172,7 +172,7 @@ func NewWorker(options ...Option) (worker *Worker, err error) {
 		option(settings)
 	}
 
-	logger.V(1).Info("constructor()")
+	logger.V(1).Info("constructor()", "settings", settings)
 
 	var (
 		useLVCodec    bool

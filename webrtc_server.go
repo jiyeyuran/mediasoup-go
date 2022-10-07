@@ -61,7 +61,7 @@ type WebRtcServer struct {
 
 func NewWebRtcServer(params webrtcServerParams) *WebRtcServer {
 	logger := NewLogger("WebRtcServer")
-	logger.V(1).Info("constructor()")
+	logger.V(1).Info("constructor()", "internal", params.internal)
 
 	return &WebRtcServer{
 		IEventEmitter: NewEventEmitter(),

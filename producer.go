@@ -141,11 +141,7 @@ type Producer struct {
 func newProducer(params producerParams) *Producer {
 	logger := NewLogger("Producer")
 
-	logger.V(1).Info("constructor()")
-
-	if params.appData == nil {
-		params.appData = H{}
-	}
+	logger.V(1).Info("constructor()", "internal", params.internal)
 
 	producer := &Producer{
 		IEventEmitter:  NewEventEmitter(),

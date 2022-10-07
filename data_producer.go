@@ -82,11 +82,7 @@ type DataProducer struct {
 func newDataProducer(params dataProducerParams) *DataProducer {
 	logger := NewLogger("DataProducer")
 
-	logger.V(1).Info("constructor()")
-
-	if params.appData == nil {
-		params.appData = H{}
-	}
+	logger.V(1).Info("constructor()", "internal", params.internal)
 
 	p := &DataProducer{
 		IEventEmitter:  NewEventEmitter(),

@@ -37,7 +37,7 @@ type PayloadChannel struct {
 func newPayloadChannel(codec netcodec.Codec, useHandlerID bool) *PayloadChannel {
 	logger := NewLogger("PayloadChannel")
 
-	logger.V(1).Info("constructor()")
+	logger.V(1).Info("constructor()", "useHandlerID", useHandlerID)
 
 	channel := &PayloadChannel{
 		logger:       logger,
@@ -223,7 +223,7 @@ func (c *PayloadChannel) processPayload(payload []byte) {
 			handler.(payloadChannelSubscriber)(notify.Event, notify.Data, payload)
 			c.logger.V(1).Info("received a notification", "targetId", notify.TargetId, "event", notify.Event)
 		} else {
-			c.logger.Info("received an unhandled notification", "targetId", notify.TargetId, "event", notify.Event)
+			c.logger.V(1).Info("received an unhandled notification", "targetId", notify.TargetId, "event", notify.Event)
 		}
 		return
 	}

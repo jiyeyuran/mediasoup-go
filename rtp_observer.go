@@ -51,7 +51,7 @@ type rtpObserverParams struct {
 func newRtpObserver(params rtpObserverParams) IRtpObserver {
 	logger := NewLogger("RtpObserver")
 
-	logger.V(1).Info("constructor()")
+	logger.V(1).Info("constructor()", "internal", params.internal)
 
 	return &RtpObserver{
 		IEventEmitter: NewEventEmitter(),

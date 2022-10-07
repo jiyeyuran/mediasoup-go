@@ -97,11 +97,7 @@ type DataConsumer struct {
 func newDataConsumer(params dataConsumerParams) *DataConsumer {
 	logger := NewLogger("DataConsumer")
 
-	logger.V(1).Info("constructor()")
-
-	if params.appData == nil {
-		params.appData = H{}
-	}
+	logger.V(1).Info("constructor()", "internal", params.internal)
 
 	consumer := &DataConsumer{
 		IEventEmitter:  NewEventEmitter(),

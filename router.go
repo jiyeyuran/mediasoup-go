@@ -106,7 +106,7 @@ type Router struct {
 
 func newRouter(params routerParams) *Router {
 	logger := NewLogger("Router")
-	logger.V(1).Info("constructor()")
+	logger.V(1).Info("constructor()", "internal", params.internal)
 
 	return &Router{
 		IEventEmitter:  NewEventEmitter(),

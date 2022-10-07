@@ -118,7 +118,6 @@ func (suite *PipeTransportTestingSuite) TestRouterPipeToRouter_SucceedsWithAudio
 		ProducerScore:  10,
 		ProducerScores: []uint16{},
 	}, pipeConsumer.Score())
-	suite.Equal(H{}, pipeConsumer.AppData())
 
 	suite.Equal(suite.audioProducer.Id(), pipeProducer.Id())
 	suite.False(pipeProducer.Closed())
@@ -222,7 +221,6 @@ func (suite *PipeTransportTestingSuite) TestRouterPipeToRouter_SucceedsWithVideo
 		ProducerScore:  10,
 		ProducerScores: []uint16{},
 	}, pipeConsumer.Score())
-	suite.Equal(H{}, pipeConsumer.AppData())
 
 	suite.Equal(suite.videoProducer.Id(), pipeProducer.Id())
 	suite.False(pipeProducer.Closed())
@@ -351,7 +349,6 @@ func (suite *PipeTransportTestingSuite) TestRouterCreatePipeTransport_WithEnable
 		ProducerScore:  10,
 		ProducerScores: []uint16{},
 	}, pipeConsumer.Score())
-	suite.Equal(H{}, pipeConsumer.AppData())
 
 	pipeTransport.Close()
 }
@@ -479,7 +476,6 @@ func (suite *PipeTransportTestingSuite) TestTransportConsume_ForAPipeProducerSuc
 		ProducerScore:  0,
 		ProducerScores: []uint16{0, 0, 0},
 	}, videoConsumer.Score())
-	suite.Equal(H{}, videoConsumer.AppData())
 }
 
 func (suite *PipeTransportTestingSuite) TestProducerPauseAndProducerResumeAreTransmittedToPipeConsumer() {

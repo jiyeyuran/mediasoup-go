@@ -31,7 +31,7 @@ type Channel struct {
 func newChannel(codec netcodec.Codec, pid int, useHandlerID bool) *Channel {
 	logger := NewLogger("Channel")
 
-	logger.V(1).Info("constructor()")
+	logger.V(1).Info("constructor()", "useHandlerID", useHandlerID)
 
 	channel := &Channel{
 		logger:       logger,
@@ -262,7 +262,7 @@ func (c *Channel) processMessage(nsPayload []byte) {
 			handler.(channelSubscriber)(msg.Event, msg.Data)
 			c.logger.V(1).Info("received a notification", "targetId", targetId, "event", msg.Event)
 		} else {
-			c.logger.Info("received an unhandled notification", "targetId", targetId, "event", msg.Event)
+			c.logger.V(1).Info("received an unhandled notification", "targetId", targetId, "event", msg.Event)
 		}
 	} else {
 		c.logger.Error(nil, "received message is not a response nor a notification")
