@@ -321,7 +321,9 @@ func (suite *WebRtcTransportTestingSuite) TestEvents_Succeeds() {
 	transport.On("icestatechange", onIceStateChange.Fn())
 
 	data, _ := json.Marshal(H{"iceState": "completed"})
-	channel.Emit(transport.Id(), "icestatechange", data)
+	subscriber, _ := channel.subscribers.Load(transport.Id())
+	emit := subscriber.(channelSubscriber)
+	emit("icestatechange", data)
 
 	onIceStateChange.ExpectCalled()
 	onIceStateChange.ExpectCalledWith("completed")
@@ -336,7 +338,7 @@ func (suite *WebRtcTransportTestingSuite) TestEvents_Succeeds() {
 	}
 	data, _ = json.Marshal(H{"iceSelectedTuple": iceSelectedTuple})
 	transport.On("iceselectedtuplechange", onIceSelectedTuple.Fn())
-	channel.Emit(transport.Id(), "iceselectedtuplechange", data)
+	emit("iceselectedtuplechange", data)
 
 	onIceSelectedTuple.ExpectCalled()
 	onIceSelectedTuple.ExpectCalledWith(iceSelectedTuple)
@@ -345,7 +347,7 @@ func (suite *WebRtcTransportTestingSuite) TestEvents_Succeeds() {
 	onDtlsStateChangeFn := onDtlsStateChange.Fn()
 	transport.On("dtlsstatechange", onDtlsStateChangeFn)
 	data, _ = json.Marshal(H{"dtlsState": "connecting"})
-	channel.Emit(transport.Id(), "dtlsstatechange", data)
+	emit("dtlsstatechange", data)
 
 	onDtlsStateChange.ExpectCalledTimes(1)
 	onDtlsStateChange.ExpectCalledWith("connecting")
@@ -354,7 +356,7 @@ func (suite *WebRtcTransportTestingSuite) TestEvents_Succeeds() {
 	onDtlsStateChange.Reset()
 
 	data, _ = json.Marshal(H{"dtlsState": "connected", "dtlsRemoteCert": "ABCD"})
-	channel.Emit(transport.Id(), "dtlsstatechange", data)
+	emit("dtlsstatechange", data)
 
 	onDtlsStateChange.ExpectCalledTimes(1)
 	onDtlsStateChange.ExpectCalledWith("connected")

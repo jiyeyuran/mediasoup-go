@@ -56,7 +56,7 @@ func (o *ActiveSpeakerObserver) handleWorkerNotifications(params rtpObserverPara
 		ProducerId string `json:"producerId,omitempty"`
 	}
 
-	params.channel.On(rtpObserverId, func(event string, data []byte) {
+	params.channel.Subscribe(rtpObserverId, func(event string, data []byte) {
 		switch event {
 		case "dominantspeaker":
 			event := eventInfo{}

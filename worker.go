@@ -280,7 +280,7 @@ func NewWorker(options ...Option) (worker *Worker, err error) {
 	channel := newChannel(channelCodec, pid, useHandlerID)
 	payloadChannel := newPayloadChannel(payloadChannelCodec, useHandlerID)
 
-	channel.Once(strconv.Itoa(pid), func(event string) {
+	channel.Subscribe(strconv.Itoa(pid), func(event string, data []byte) {
 		if atomic.CompareAndSwapUint32(&spawnDone, 0, 1) && event == "running" {
 			logger.V(1).Info("worker process running", "pid", pid)
 			close(doneCh)
@@ -312,6 +312,8 @@ func NewWorker(options ...Option) (worker *Worker, err error) {
 
 	select {
 	case err = <-doneCh:
+		channel.Unsubscribe(strconv.Itoa(pid))
+
 	case <-waitTimer.C:
 		err = errors.New("channel timeout")
 	}

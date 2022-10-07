@@ -77,7 +77,7 @@ func (o *AudioLevelObserver) handleWorkerNotifications(params rtpObserverParams)
 		Volume     int    `json:"volume,omitempty"`
 	}
 
-	params.channel.On(rtpObserverId, func(event string, data []byte) {
+	params.channel.Subscribe(rtpObserverId, func(event string, data []byte) {
 		switch event {
 		case "volumes":
 			// Get the corresponding Producer instance and remove entries with

@@ -476,13 +476,12 @@ func (suite *ProducerTestingSuite) TestProducerEmitsScore() {
 	onScore := NewMockFunc(suite.T())
 
 	videoProducer.On("score", onScore.Fn())
+	subscriber, _ := channel.subscribers.Load(videoProducer.Id())
+	emit := subscriber.(channelSubscriber)
 
-	channel.Emit(videoProducer.Id(), "score",
-		[]byte(`[ { "ssrc": 11, "score": 10 } ]`))
-	channel.Emit(videoProducer.Id(), "score",
-		[]byte(`[ { "ssrc": 11, "score": 9 }, { "ssrc": 22, "score": 8 } ]`))
-	channel.Emit(videoProducer.Id(), "score",
-		[]byte(`[ { "ssrc": 11, "score": 9 }, { "ssrc": 22, "score": 9 } ]`))
+	emit("score", []byte(`[ { "ssrc": 11, "score": 10 } ]`))
+	emit("score", []byte(`[ { "ssrc": 11, "score": 9 }, { "ssrc": 22, "score": 8 } ]`))
+	emit("score", []byte(`[ { "ssrc": 11, "score": 9 }, { "ssrc": 22, "score": 9 } ]`))
 
 	suite.Equal(3, onScore.CalledTimes())
 	suite.Equal([]ProducerScore{

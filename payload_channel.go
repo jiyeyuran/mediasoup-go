@@ -12,6 +12,8 @@ import (
 	"github.com/jiyeyuran/mediasoup-go/netcodec"
 )
 
+type payloadChannelSubscriber func(event string, data, payload []byte)
+
 type notifyInfo struct {
 	requestData []byte
 	payloadData []byte
@@ -19,7 +21,6 @@ type notifyInfo struct {
 }
 
 type PayloadChannel struct {
-	IEventEmitter
 	locker              sync.Mutex
 	codec               netcodec.Codec
 	logger              logr.Logger
@@ -30,6 +31,7 @@ type PayloadChannel struct {
 	sentChan            chan sentInfo
 	closeCh             chan struct{}
 	useHandlerID        bool
+	subscribers         sync.Map
 }
 
 func newPayloadChannel(codec netcodec.Codec, useHandlerID bool) *PayloadChannel {
@@ -38,12 +40,11 @@ func newPayloadChannel(codec netcodec.Codec, useHandlerID bool) *PayloadChannel 
 	logger.V(1).Info("constructor()")
 
 	channel := &PayloadChannel{
-		IEventEmitter: NewEventEmitter(),
-		logger:        logger,
-		codec:         codec,
-		sentChan:      make(chan sentInfo),
-		closeCh:       make(chan struct{}),
-		useHandlerID:  useHandlerID,
+		logger:       logger,
+		codec:        codec,
+		sentChan:     make(chan sentInfo),
+		closeCh:      make(chan struct{}),
+		useHandlerID: useHandlerID,
 	}
 
 	return channel
@@ -163,6 +164,14 @@ func (c *PayloadChannel) Request(method string, internal internalData, data stri
 	return
 }
 
+func (c *PayloadChannel) Subscribe(targetId string, handler payloadChannelSubscriber) {
+	c.subscribers.Store(targetId, handler)
+}
+
+func (c *PayloadChannel) Unsubscribe(targetId string) {
+	c.subscribers.Delete(targetId)
+}
+
 func (c *PayloadChannel) runWriteLoop() {
 	defer c.Close()
 
@@ -210,7 +219,12 @@ func (c *PayloadChannel) runReadLoop() {
 func (c *PayloadChannel) processPayload(payload []byte) {
 	if notify := c.pendingNotification; notify != nil {
 		c.pendingNotification = nil
-		go c.SafeEmit(notify.TargetId, notify.Event, notify.Data, payload)
+		if handler, ok := c.subscribers.Load(notify.TargetId); ok {
+			handler.(payloadChannelSubscriber)(notify.Event, notify.Data, payload)
+			c.logger.V(1).Info("received a notification", "targetId", notify.TargetId, "event", notify.Event)
+		} else {
+			c.logger.Info("received an unhandled notification", "targetId", notify.TargetId, "event", notify.Event)
+		}
 		return
 	}
 

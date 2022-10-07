@@ -12,8 +12,9 @@ import (
 	"github.com/jiyeyuran/mediasoup-go/netcodec"
 )
 
+type channelSubscriber func(event string, data []byte)
+
 type Channel struct {
-	IEventEmitter
 	logger          logr.Logger
 	codec           netcodec.Codec
 	closed          int32
@@ -24,6 +25,7 @@ type Channel struct {
 	closeCh         chan struct{}
 	useHandlerID    bool
 	oldCloseMethods map[string]string
+	subscribers     sync.Map
 }
 
 func newChannel(codec netcodec.Codec, pid int, useHandlerID bool) *Channel {
@@ -32,13 +34,12 @@ func newChannel(codec netcodec.Codec, pid int, useHandlerID bool) *Channel {
 	logger.V(1).Info("constructor()")
 
 	channel := &Channel{
-		IEventEmitter: NewEventEmitter(),
-		logger:        logger,
-		codec:         codec,
-		pid:           pid,
-		sentChan:      make(chan sentInfo),
-		closeCh:       make(chan struct{}),
-		useHandlerID:  useHandlerID,
+		logger:       logger,
+		codec:        codec,
+		pid:          pid,
+		sentChan:     make(chan sentInfo),
+		closeCh:      make(chan struct{}),
+		useHandlerID: useHandlerID,
 		oldCloseMethods: map[string]string{
 			"worker.closeWebRtcServer":    "webRtcServer.close",
 			"worker.closeRouter":          "router.close",
@@ -150,6 +151,14 @@ func (c *Channel) Request(method string, internal internalData, data ...interfac
 	return
 }
 
+func (c *Channel) Subscribe(targetId string, handler channelSubscriber) {
+	c.subscribers.Store(targetId, handler)
+}
+
+func (c *Channel) Unsubscribe(targetId string) {
+	c.subscribers.Delete(targetId)
+}
+
 func (c *Channel) runWriteLoop() {
 	defer c.Close()
 
@@ -248,7 +257,13 @@ func (c *Channel) processMessage(nsPayload []byte) {
 		default:
 			targetId = fmt.Sprintf("%v", v)
 		}
-		go c.SafeEmit(targetId, msg.Event, msg.Data)
+
+		if handler, ok := c.subscribers.Load(targetId); ok {
+			handler.(channelSubscriber)(msg.Event, msg.Data)
+			c.logger.V(1).Info("received a notification", "targetId", targetId, "event", msg.Event)
+		} else {
+			c.logger.Info("received an unhandled notification", "targetId", targetId, "event", msg.Event)
+		}
 	} else {
 		c.logger.Error(nil, "received message is not a response nor a notification")
 	}

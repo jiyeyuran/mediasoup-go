@@ -528,14 +528,14 @@ func (suite *PipeTransportTestingSuite) TestProducerCloseIsTransmittedToPipeCons
 	})
 	suite.NoError(err)
 
+	observer := NewMockFunc(suite.T())
+	videoConsumer.Once("producerclose", observer.Fn())
+
 	suite.videoProducer.Close()
 
 	suite.True(suite.videoProducer.Closed())
-
-	observer := NewMockFunc(suite.T())
-	videoConsumer.Once("producerclose", observer.Fn())
-	observer.ExpectCalled()
 	suite.True(videoConsumer.Closed())
+	suite.Equal(1, observer.CalledTimes())
 }
 
 func (suite *PipeTransportTestingSuite) TestProducerPipeRouterSucceedsWithData() {

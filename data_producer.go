@@ -152,8 +152,8 @@ func (p *DataProducer) Close() (err error) {
 		p.logger.V(1).Info("close()")
 
 		// Remove notification subscriptions.
-		p.channel.RemoveAllListeners(p.Id())
-		p.payloadChannel.RemoveAllListeners(p.Id())
+		p.channel.Unsubscribe(p.Id())
+		p.payloadChannel.Unsubscribe(p.Id())
 
 		reqData := H{"dataProducerId": p.internal.DataProducerId}
 

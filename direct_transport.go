@@ -1,6 +1,10 @@
 package mediasoup
 
-import "github.com/go-logr/logr"
+import (
+	"encoding/json"
+
+	"github.com/go-logr/logr"
+)
 
 // DirectTransportOptions define options to create a DirectTransport.
 type DirectTransportOptions struct {
@@ -86,33 +90,41 @@ func (transport *DirectTransport) SendRtcp(rtcpPacket []byte) error {
 }
 
 func (transport *DirectTransport) handleWorkerNotifications() {
-	transport.channel.On(transport.Id(), func(event string, data *TransportTraceEventData) {
+	logger := transport.logger
+
+	transport.channel.Subscribe(transport.Id(), func(event string, data []byte) {
 		switch event {
 		case "trace":
-			transport.SafeEmit("trace", data)
+			var result *TransportTraceEventData
+
+			if err := json.Unmarshal([]byte(data), &result); err != nil {
+				logger.Error(err, "failed to unmarshal trace", "data", json.RawMessage(data))
+				return
+			}
+
+			transport.SafeEmit("trace", result)
 
 			// Emit observer event.
-			transport.Observer().SafeEmit("trace", data)
+			transport.Observer().SafeEmit("trace", result)
 
 		default:
-			transport.logger.Error(nil, "ignoring unknown event in channel listener", "event", event)
+			logger.Error(nil, "ignoring unknown event in channel listener", "event", event)
 		}
 	})
 
-	transport.payloadChannel.On(transport.Id(), func(event string, data, payload []byte) {
+	transport.payloadChannel.Subscribe(transport.Id(), func(event string, data, payload []byte) {
 		switch event {
 		case "rtcp":
 			if transport.Closed() {
 				return
 			}
-
 			transport.SafeEmit("rtcp", payload)
 
 			// Emit observer event.
 			transport.Observer().SafeEmit("rtcp", payload)
 
 		default:
-			transport.logger.Error(nil, "ignoring unknown event in payload channel listener", "event", event)
+			logger.Error(nil, "ignoring unknown event in payload channel listener", "event", event)
 		}
 	})
 }

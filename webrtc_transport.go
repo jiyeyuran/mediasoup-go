@@ -329,7 +329,7 @@ func (t *WebRtcTransport) RestartIce() (iceParameters IceParameters, err error) 
 func (t *WebRtcTransport) handleWorkerNotifications() {
 	logger := t.logger
 
-	t.channel.On(t.Id(), func(event string, data []byte) {
+	t.channel.Subscribe(t.Id(), func(event string, data []byte) {
 		switch event {
 		case "icestatechange":
 			var result struct {

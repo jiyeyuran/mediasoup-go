@@ -245,7 +245,7 @@ func (transport *PipeTransport) Consume(options ConsumerOptions) (consumer *Cons
 func (transport *PipeTransport) handleWorkerNotifications() {
 	logger := transport.logger
 
-	transport.channel.On(transport.Id(), func(event string, data []byte) {
+	transport.channel.Subscribe(transport.Id(), func(event string, data []byte) {
 		switch event {
 		case "sctpstatechange":
 			var result struct {

@@ -176,8 +176,8 @@ func (c *DataConsumer) Close() (err error) {
 		c.logger.V(1).Info("close()")
 
 		// Remove notification subscriptions.
-		c.channel.RemoveAllListeners(c.Id())
-		c.payloadChannel.RemoveAllListeners(c.Id())
+		c.channel.Unsubscribe(c.Id())
+		c.payloadChannel.Unsubscribe(c.Id())
 
 		reqData := H{"dataConsumerId": c.internal.DataConsumerId}
 
@@ -203,8 +203,8 @@ func (c *DataConsumer) transportClosed() {
 		c.logger.V(1).Info("transportClosed()")
 
 		// Remove notification subscriptions.
-		c.channel.RemoveAllListeners(c.Id())
-		c.payloadChannel.RemoveAllListeners(c.Id())
+		c.channel.Unsubscribe(c.Id())
+		c.payloadChannel.Unsubscribe(c.Id())
 
 		c.SafeEmit("transportclose")
 		c.RemoveAllListeners()
@@ -301,12 +301,12 @@ func (c *DataConsumer) GetBufferedAmount() (bufferedAmount int64, err error) {
 }
 
 func (c *DataConsumer) handleWorkerNotifications() {
-	c.channel.On(c.Id(), func(event string, data []byte) {
+	c.channel.Subscribe(c.Id(), func(event string, data []byte) {
 		switch event {
 		case "dataproducerclose":
 			if atomic.CompareAndSwapUint32(&c.closed, 0, 1) {
-				c.channel.RemoveAllListeners(c.internal.DataConsumerId)
-				c.payloadChannel.RemoveAllListeners(c.internal.DataConsumerId)
+				c.channel.Unsubscribe(c.internal.DataConsumerId)
+				c.payloadChannel.Unsubscribe(c.internal.DataConsumerId)
 
 				c.Emit("@dataproducerclose")
 				c.SafeEmit("dataproducerclose")
@@ -335,7 +335,7 @@ func (c *DataConsumer) handleWorkerNotifications() {
 		}
 	})
 
-	c.payloadChannel.On(c.Id(), func(event string, data, payload []byte) {
+	c.payloadChannel.Subscribe(c.Id(), func(event string, data, payload []byte) {
 		switch event {
 		case "message":
 			if c.Closed() {

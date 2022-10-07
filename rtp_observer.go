@@ -107,8 +107,8 @@ func (o *RtpObserver) Close() {
 		o.logger.V(1).Info("close()")
 
 		// Remove notification subscriptions.
-		o.channel.RemoveAllListeners(o.internal.RtpObserverId)
-		o.payloadChannel.RemoveAllListeners(o.internal.RtpObserverId)
+		o.channel.Unsubscribe(o.internal.RtpObserverId)
+		o.payloadChannel.Unsubscribe(o.internal.RtpObserverId)
 
 		reqData := H{"rtpObserverId": o.internal.RtpObserverId}
 
@@ -129,8 +129,8 @@ func (o *RtpObserver) routerClosed() {
 		o.logger.V(1).Info("routerClosed()")
 
 		// Remove notification subscriptions.
-		o.channel.RemoveAllListeners(o.internal.RtpObserverId)
-		o.payloadChannel.RemoveAllListeners(o.internal.RtpObserverId)
+		o.channel.Unsubscribe(o.internal.RtpObserverId)
+		o.payloadChannel.Unsubscribe(o.internal.RtpObserverId)
 
 		o.Emit("routerclose")
 		o.RemoveAllListeners()

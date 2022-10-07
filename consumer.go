@@ -315,8 +315,8 @@ func (consumer *Consumer) Close() (err error) {
 		consumer.logger.V(1).Info("close()")
 
 		// Remove notification subscriptions.
-		consumer.channel.RemoveAllListeners(consumer.internal.ConsumerId)
-		consumer.payloadChannel.RemoveAllListeners(consumer.internal.ConsumerId)
+		consumer.channel.Unsubscribe(consumer.internal.ConsumerId)
+		consumer.payloadChannel.Unsubscribe(consumer.internal.ConsumerId)
 
 		reqData := H{"consumerId": consumer.internal.ConsumerId}
 
@@ -341,8 +341,8 @@ func (consumer *Consumer) transportClosed() {
 		consumer.logger.V(1).Info("transportClosed()")
 
 		// Remove notification subscriptions.
-		consumer.channel.RemoveAllListeners(consumer.internal.ConsumerId)
-		consumer.payloadChannel.RemoveAllListeners(consumer.internal.ConsumerId)
+		consumer.channel.Unsubscribe(consumer.internal.ConsumerId)
+		consumer.payloadChannel.Unsubscribe(consumer.internal.ConsumerId)
 
 		consumer.SafeEmit("transportclose")
 		consumer.RemoveAllListeners()
@@ -483,12 +483,12 @@ func (consumer *Consumer) EnableTraceEvent(types ...ConsumerTraceEventType) erro
 func (consumer *Consumer) handleWorkerNotifications() {
 	logger := consumer.logger
 
-	consumer.channel.On(consumer.Id(), func(event string, data []byte) {
+	consumer.channel.Subscribe(consumer.Id(), func(event string, data []byte) {
 		switch event {
 		case "producerclose":
 			if atomic.CompareAndSwapUint32(&consumer.closed, 0, 1) {
-				consumer.channel.RemoveAllListeners(consumer.internal.ConsumerId)
-				consumer.payloadChannel.RemoveAllListeners(consumer.internal.ConsumerId)
+				consumer.channel.Unsubscribe(consumer.internal.ConsumerId)
+				consumer.payloadChannel.Unsubscribe(consumer.internal.ConsumerId)
 
 				consumer.Emit("@producerclose")
 				consumer.SafeEmit("producerclose")
@@ -585,7 +585,7 @@ func (consumer *Consumer) handleWorkerNotifications() {
 		}
 	})
 
-	consumer.payloadChannel.On(consumer.Id(), func(event string, data, payload []byte) {
+	consumer.payloadChannel.Subscribe(consumer.Id(), func(event string, data, payload []byte) {
 		switch event {
 		case "rtp":
 			if consumer.Closed() {
