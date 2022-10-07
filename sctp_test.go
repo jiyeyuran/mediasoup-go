@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net"
 	"strconv"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -123,9 +124,7 @@ func (suite *SctpTestingSuite) TestOrderedDataProducerDeliversAllSCTPMessagesToT
 			suite.EqualValues(sctp.PayloadTypeWebRTCBinary, ppid)
 		}
 
-		lastRecvMessageId++
-
-		suite.Equal(lastRecvMessageId, id)
+		suite.Equal(atomic.AddUint32(&lastRecvMessageId, 1), id)
 	})
 
 	for {
