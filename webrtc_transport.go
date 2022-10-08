@@ -140,7 +140,7 @@ type webrtcTransportData struct {
 // - @emits iceselectedtuplechange - (tuple *TransportTuple)
 // - @emits dtlsstatechange - (dtlsState DtlsState)
 // - @emits sctpstatechange - (sctpState SctpState)
-// - @emits trace - (trace TransportTraceEventData)
+// - @emits trace - (trace *TransportTraceEventData)
 type WebRtcTransport struct {
 	ITransport
 	logger         logr.Logger
@@ -183,7 +183,7 @@ func (t WebRtcTransport) IceParameters() IceParameters {
 	return t.data.IceParameters
 }
 
-// returns IceCandidates ICE candidates.
+// IceCandidates returns IceCandidates ICE candidates.
 func (t WebRtcTransport) IceCandidates() []IceCandidate {
 	return t.data.IceCandidates
 }
@@ -234,7 +234,7 @@ func (t WebRtcTransport) SctpState() SctpState {
 // - @emits iceselectedtuplechange - (tuple *TransportTuple)
 // - @emits dtlsstatechange - (dtlsState DtlsState)
 // - @emits sctpstatechange - (sctpState SctpState)
-// - @emits trace - (trace TransportTraceEventData)
+// - @emits trace - (trace *TransportTraceEventData)
 func (t *WebRtcTransport) Observer() IEventEmitter {
 	return t.ITransport.Observer()
 }

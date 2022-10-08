@@ -136,7 +136,7 @@ func (t PlainTransport) SrtpParameters() *SrtpParameters {
 // - @emits tuple - (tuple TransportTuple)
 // - @emits rtcptuple - (rtcpTuple TransportTuple)
 // - @emits sctpstatechange - (sctpState SctpState)
-// - @emits trace - (trace TransportTraceEventData)
+// - @emits trace - (trace *TransportTraceEventData)
 func (transport *PlainTransport) Observer() IEventEmitter {
 	return transport.ITransport.Observer()
 }
