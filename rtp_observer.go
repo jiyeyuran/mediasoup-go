@@ -90,7 +90,7 @@ func (o *RtpObserver) AppData() interface{} {
 	return o.appData
 }
 
-// Observer.
+// Deprecated
 //
 // - @emits close
 // - @emits pause

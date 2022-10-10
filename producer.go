@@ -215,7 +215,7 @@ func (producer *Producer) AppData() interface{} {
 	return producer.appData
 }
 
-// Observer.
+// Deprecated
 //
 // - @emits close
 // - @emits pause

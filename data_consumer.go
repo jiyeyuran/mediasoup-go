@@ -161,7 +161,7 @@ func (c *DataConsumer) AppData() interface{} {
 	return c.appData
 }
 
-// Observer.
+// Deprecated
 //
 // - @emits close
 // - @emits dataproducerclose

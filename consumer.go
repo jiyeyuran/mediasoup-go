@@ -303,7 +303,7 @@ func (consumer *Consumer) AppData() interface{} {
 	return consumer.appData
 }
 
-// Observer.
+// Deprecated
 //
 // - @emits close
 // - @emits pause

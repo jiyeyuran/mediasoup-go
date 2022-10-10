@@ -137,7 +137,7 @@ func (p *DataProducer) AppData() interface{} {
 	return p.appData
 }
 
-// Observer.
+// Deprecated
 //
 // - @emits close
 func (p *DataProducer) Observer() IEventEmitter {

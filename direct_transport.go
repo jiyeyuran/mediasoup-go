@@ -61,7 +61,7 @@ func newDirectTransport(params transportParams) ITransport {
 	return transport
 }
 
-// Observer.
+// Deprecated
 //
 // - @emits close
 // - @emits newdataproducer - (dataProducer *DataProducer)

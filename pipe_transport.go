@@ -109,7 +109,7 @@ func (t PipeTransport) SrtpParameters() *SrtpParameters {
 	return t.data.SrtpParameters
 }
 
-// Observer.
+// Deprecated
 //
 // - @emits close
 // - @emits newproducer - (producer *Producer)

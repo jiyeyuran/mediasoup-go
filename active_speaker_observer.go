@@ -42,7 +42,7 @@ func newActiveSpeakerObserver(params rtpObserverParams) *ActiveSpeakerObserver {
 	return o
 }
 
-// Observer.
+// Deprecated
 //
 // - @emits dominantspeaker - (activity *ActiveSpeakerObserverActivity)
 func (o *ActiveSpeakerObserver) Observer() IEventEmitter {

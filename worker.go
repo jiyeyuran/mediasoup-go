@@ -153,7 +153,7 @@ type Worker struct {
 	// waitCh notify worker process stopped expectly or not
 	waitCh chan error
 
-	// Observer instance.
+	// Deprecated
 	observer IEventEmitter
 
 	onNewWebRtcServer func(webRtcServer *WebRtcServer)
@@ -410,7 +410,7 @@ func (w *Worker) AppData() interface{} {
 	return w.appData
 }
 
-// Observer returns an IEventEmitter
+// Deprecated
 
 // - @emits close
 // - @emits newwebrtcserver - (webRtcServer *WebRtcServer)

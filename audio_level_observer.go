@@ -57,7 +57,7 @@ func newAudioLevelObserver(params rtpObserverParams) *AudioLevelObserver {
 	return o
 }
 
-// Observer.
+// Deprecated
 //
 // - @emits close
 // - @emits pause

@@ -227,7 +227,7 @@ func (t WebRtcTransport) SctpState() SctpState {
 	return t.data.SctpState
 }
 
-// Observer returns an EventEmitter object.
+// Deprecated
 //
 // - @emits close
 // - @emits newproducer - (producer *Producer)

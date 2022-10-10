@@ -207,7 +207,7 @@ type Transport struct {
 	sctpStreamIds []byte
 	// Next SCTP stream id.
 	nextSctpStreamId int
-	// Observer instance.
+	// Deprecated
 	observer IEventEmitter
 	// locker instance
 	locker sync.Mutex
@@ -251,7 +251,7 @@ func (transport *Transport) AppData() interface{} {
 	return transport.appData
 }
 
-// Observer returns an EventEmitter object.
+// Deprecated
 //
 // - @emits close
 // - @emits newproducer - (producer *Producer)

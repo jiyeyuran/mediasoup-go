@@ -142,7 +142,7 @@ func (router *Router) AppData() interface{} {
 	return router.appData
 }
 
-// Observer returns the observer instance.
+// Deprecated
 //
 // - @emits close
 // - @emits newrtpobserver - (observer IRtpObserver)

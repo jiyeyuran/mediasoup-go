@@ -88,7 +88,7 @@ func (s *WebRtcServer) AppData() interface{} {
 	return s.appData
 }
 
-// Observer returns an EventEmitter object.
+// Deprecated
 //
 // - @emits close
 // - @emits webrtctransporthandled - (transport *WebRtcTransport)
