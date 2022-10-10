@@ -85,13 +85,17 @@ type DataConsumer struct {
 	IEventEmitter
 	logger logr.Logger
 	// internal uses routerId, transportId, dataProducerId, dataConsumerId
-	internal       internalData
-	data           dataConsumerData
-	channel        *Channel
-	payloadChannel *PayloadChannel
-	appData        interface{}
-	closed         uint32
-	observer       IEventEmitter
+	internal             internalData
+	data                 dataConsumerData
+	channel              *Channel
+	payloadChannel       *PayloadChannel
+	appData              interface{}
+	closed               uint32
+	observer             IEventEmitter
+	onClose              func()
+	onSctpSendBufferFull func()
+	onBufferedAmountLow  func(bufferAmount uint32)
+	onMessage            func(payload []byte, ppid int)
 }
 
 func newDataConsumer(params dataConsumerParams) *DataConsumer {
@@ -186,11 +190,20 @@ func (c *DataConsumer) Close() (err error) {
 		c.Emit("@close")
 		c.RemoveAllListeners()
 
-		// Emit observer event.
-		c.observer.SafeEmit("close")
-		c.observer.RemoveAllListeners()
+		c.close()
 	}
 	return
+}
+
+// close send "close" event.
+func (c *DataConsumer) close() {
+	// Emit observer event.
+	c.observer.SafeEmit("close")
+	c.observer.RemoveAllListeners()
+
+	if handler := c.onClose; handler != nil {
+		handler()
+	}
 }
 
 // transportClosed is called when transport was closed.
@@ -205,9 +218,7 @@ func (c *DataConsumer) transportClosed() {
 		c.SafeEmit("transportclose")
 		c.RemoveAllListeners()
 
-		// Emit observer event.
-		c.observer.SafeEmit("close")
-		c.observer.RemoveAllListeners()
+		c.close()
 	}
 }
 
@@ -296,6 +307,26 @@ func (c *DataConsumer) GetBufferedAmount() (bufferedAmount int64, err error) {
 	return result.BufferAmount, err
 }
 
+// OnClose set handler on "close" event
+func (c *DataConsumer) OnClose(handler func()) {
+	c.onClose = handler
+}
+
+// OnSctpSendBufferFull set handler on "sctpsendbufferfull" event
+func (c *DataConsumer) OnSctpSendBufferFull(handler func()) {
+	c.onSctpSendBufferFull = handler
+}
+
+// OnBufferedAmountLow set handler on "bufferedamountlow" event
+func (c *DataConsumer) OnBufferedAmountLow(handler func(bufferAmount uint32)) {
+	c.onBufferedAmountLow = handler
+}
+
+// OnMessage set handler on "message" event
+func (c *DataConsumer) OnMessage(handler func(payload []byte, ppid int)) {
+	c.onMessage = handler
+}
+
 func (c *DataConsumer) handleWorkerNotifications() {
 	c.channel.Subscribe(c.Id(), func(event string, data []byte) {
 		switch event {
@@ -308,16 +339,18 @@ func (c *DataConsumer) handleWorkerNotifications() {
 				c.SafeEmit("dataproducerclose")
 				c.RemoveAllListeners()
 
-				// Emit observer event.
-				c.observer.SafeEmit("close")
-				c.observer.RemoveAllListeners()
+				c.close()
 			}
 		case "sctpsendbufferfull":
 			c.SafeEmit("sctpsendbufferfull")
 
+			if handler := c.onSctpSendBufferFull; handler != nil {
+				handler()
+			}
+
 		case "bufferedamountlow":
 			var result struct {
-				BufferAmount int64
+				BufferAmount uint32
 			}
 			if err := json.Unmarshal([]byte(data), &result); err != nil {
 				c.logger.Error(err, "failed to unmarshal bufferedamountlow", "data", json.RawMessage(data))
@@ -325,6 +358,10 @@ func (c *DataConsumer) handleWorkerNotifications() {
 			}
 
 			c.SafeEmit("bufferedamountlow", result.BufferAmount)
+
+			if handler := c.onBufferedAmountLow; handler != nil {
+				handler(result.BufferAmount)
+			}
 
 		default:
 			c.logger.Error(nil, "ignoring unknown event in channel listener", "event", event)
@@ -346,6 +383,10 @@ func (c *DataConsumer) handleWorkerNotifications() {
 			}
 
 			c.SafeEmit("message", payload, result.Ppid)
+
+			if handler := c.onMessage; handler != nil {
+				handler(payload, result.Ppid)
+			}
 
 		default:
 			c.logger.Error(nil, "ignoring unknown event in payload channel listener", "event", event)

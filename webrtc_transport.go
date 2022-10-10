@@ -143,11 +143,15 @@ type webrtcTransportData struct {
 // - @emits trace - (trace *TransportTraceEventData)
 type WebRtcTransport struct {
 	ITransport
-	logger         logr.Logger
-	internal       internalData
-	data           *webrtcTransportData
-	channel        *Channel
-	payloadChannel *PayloadChannel
+	logger                   logr.Logger
+	internal                 internalData
+	data                     *webrtcTransportData
+	channel                  *Channel
+	payloadChannel           *PayloadChannel
+	onIceStateChange         func(iceState IceState)
+	onIceSelectedTupleChange func(tuple *TransportTuple)
+	onDtlsStateChange        func(dtlsState DtlsState)
+	onSctpStateChange        func(sctpState SctpState)
 }
 
 func newWebRtcTransport(params transportParams) ITransport {
@@ -325,6 +329,26 @@ func (t *WebRtcTransport) RestartIce() (iceParameters IceParameters, err error) 
 	return result.IceParameters, nil
 }
 
+// OnIceStateChange set handler on "icestatechange" event
+func (t *WebRtcTransport) OnIceStateChange(handler func(IceState)) {
+	t.onIceStateChange = handler
+}
+
+// OnIceSelectedTupleChange set handler on "iceselectedtuplechange" event
+func (t *WebRtcTransport) OnIceSelectedTupleChange(handler func(*TransportTuple)) {
+	t.onIceSelectedTupleChange = handler
+}
+
+// OnDtlsStateChange set handler on "dtlsstatechange" event
+func (t *WebRtcTransport) OnDtlsStateChange(handler func(DtlsState)) {
+	t.onDtlsStateChange = handler
+}
+
+// OnSctpStateChange set handler on "sctpstatechange" event
+func (t *WebRtcTransport) OnSctpStateChange(handler func(SctpState)) {
+	t.onSctpStateChange = handler
+}
+
 // handleWorkerNotifications handle WebRtcTransport's notifications from worker.
 func (t *WebRtcTransport) handleWorkerNotifications() {
 	logger := t.logger
@@ -345,6 +369,10 @@ func (t *WebRtcTransport) handleWorkerNotifications() {
 			// Emit observer event.
 			t.Observer().SafeEmit("icestatechange", result.IceState)
 
+			if handler := t.onIceStateChange; handler != nil {
+				handler(result.IceState)
+			}
+
 		case "iceselectedtuplechange":
 			var result struct {
 				IceSelectedTuple *TransportTuple
@@ -360,6 +388,10 @@ func (t *WebRtcTransport) handleWorkerNotifications() {
 
 			// Emit observer event.
 			t.Observer().SafeEmit("iceselectedtuplechange", result.IceSelectedTuple)
+
+			if handler := t.onIceSelectedTupleChange; handler != nil {
+				handler(result.IceSelectedTuple)
+			}
 
 		case "dtlsstatechange":
 			var result struct {
@@ -382,6 +414,10 @@ func (t *WebRtcTransport) handleWorkerNotifications() {
 			// Emit observer event.
 			t.Observer().SafeEmit("dtlsstatechange", result.DtlsState)
 
+			if handler := t.onDtlsStateChange; handler != nil {
+				handler(result.DtlsState)
+			}
+
 		case "sctpstatechange":
 			var result struct {
 				SctpState SctpState
@@ -398,20 +434,12 @@ func (t *WebRtcTransport) handleWorkerNotifications() {
 			// Emit observer event.
 			t.Observer().SafeEmit("sctpstatechange", result.SctpState)
 
-		case "trace":
-			var result *TransportTraceEventData
-			if err := json.Unmarshal([]byte(data), &result); err != nil {
-				logger.Error(err, "failed to unmarshal trace", "data", json.RawMessage(data))
-				return
+			if handler := t.onSctpStateChange; handler != nil {
+				handler(result.SctpState)
 			}
 
-			t.SafeEmit("trace", result)
-
-			// Emit observer event.
-			t.Observer().SafeEmit("trace", result)
-
 		default:
-			t.logger.Error(nil, "ignoring unknown event", "event", event)
+			t.ITransport.handleEvent(event, data)
 		}
 	})
 }

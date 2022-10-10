@@ -2,8 +2,6 @@ package mediasoup
 
 import (
 	"encoding/json"
-	"reflect"
-	"sync"
 	"sync/atomic"
 
 	"github.com/go-logr/logr"
@@ -146,7 +144,7 @@ type consumerParams struct {
 	appData         interface{}
 	paused          bool
 	producerPaused  bool
-	score           ConsumerScore
+	score           *ConsumerScore
 	preferredLayers *ConsumerLayers
 }
 
@@ -172,7 +170,6 @@ type consumerData struct {
 // - @emits @producerclose
 type Consumer struct {
 	IEventEmitter
-	locker          sync.Mutex
 	logger          logr.Logger
 	internal        internalData
 	data            consumerData
@@ -183,10 +180,17 @@ type Consumer struct {
 	closed          uint32
 	producerPaused  bool
 	priority        uint32
-	score           ConsumerScore
+	score           *ConsumerScore
 	preferredLayers *ConsumerLayers
 	currentLayers   *ConsumerLayers // Current video layers (just for video with simulcast or SVC).
 	observer        IEventEmitter
+	onClose         func()
+	onPause         func()
+	onResume        func()
+	onScore         func(*ConsumerScore)
+	onLayersChange  func(*ConsumerLayers)
+	onTrace         func(*ConsumerTraceEventData)
+	onRtp           func([]byte)
 }
 
 func newConsumer(params consumerParams) *Consumer {
@@ -194,8 +198,10 @@ func newConsumer(params consumerParams) *Consumer {
 
 	logger.V(1).Info("constructor()", "internal", params.internal)
 
-	if reflect.DeepEqual(params.score, ConsumerScore{}) {
-		params.score = ConsumerScore{
+	score := params.score
+
+	if score == nil {
+		score = &ConsumerScore{
 			Score:          10,
 			ProducerScore:  10,
 			ProducerScores: []uint16{},
@@ -213,7 +219,7 @@ func newConsumer(params consumerParams) *Consumer {
 		paused:          params.paused,
 		producerPaused:  params.producerPaused,
 		priority:        1,
-		score:           params.score,
+		score:           score,
 		preferredLayers: params.preferredLayers,
 		observer:        NewEventEmitter(),
 	}
@@ -274,7 +280,7 @@ func (consumer *Consumer) Priority() uint32 {
 }
 
 // Score returns consumer score with consumer and consumer keys.
-func (consumer *Consumer) Score() ConsumerScore {
+func (consumer *Consumer) Score() *ConsumerScore {
 	return consumer.score
 }
 
@@ -324,11 +330,20 @@ func (consumer *Consumer) Close() (err error) {
 		consumer.Emit("@close")
 		consumer.RemoveAllListeners()
 
-		// Emit observer event.
-		consumer.observer.SafeEmit("close")
-		consumer.observer.RemoveAllListeners()
+		consumer.close()
 	}
 	return
+}
+
+// close send "close" event.
+func (consumer *Consumer) close() {
+	// Emit observer event.
+	consumer.observer.SafeEmit("close")
+	consumer.observer.RemoveAllListeners()
+
+	if handler := consumer.onClose; handler != nil {
+		handler()
+	}
 }
 
 // transportClosed is called when transport was closed.
@@ -343,9 +358,7 @@ func (consumer *Consumer) transportClosed() {
 		consumer.SafeEmit("transportclose")
 		consumer.RemoveAllListeners()
 
-		// Emit observer event.
-		consumer.observer.SafeEmit("close")
-		consumer.observer.RemoveAllListeners()
+		consumer.close()
 	}
 }
 
@@ -371,9 +384,6 @@ func (consumer *Consumer) GetStats() (stats []*ConsumerStat, err error) {
 
 // Pause the Consumer.
 func (consumer *Consumer) Pause() (err error) {
-	consumer.locker.Lock()
-	defer consumer.locker.Unlock()
-
 	consumer.logger.V(1).Info("pause()")
 
 	wasPaused := consumer.paused || consumer.producerPaused
@@ -389,6 +399,10 @@ func (consumer *Consumer) Pause() (err error) {
 	// Emit observer event.
 	if !wasPaused {
 		consumer.observer.SafeEmit("pause")
+
+		if handler := consumer.onPause; handler != nil {
+			handler()
+		}
 	}
 
 	return
@@ -396,9 +410,6 @@ func (consumer *Consumer) Pause() (err error) {
 
 // Resume the Consumer.
 func (consumer *Consumer) Resume() (err error) {
-	consumer.locker.Lock()
-	defer consumer.locker.Unlock()
-
 	consumer.logger.V(1).Info("resume()")
 
 	wasPaused := consumer.paused || consumer.producerPaused
@@ -414,6 +425,10 @@ func (consumer *Consumer) Resume() (err error) {
 	// Emit observer event.
 	if wasPaused && !consumer.producerPaused {
 		consumer.observer.SafeEmit("resume")
+
+		if handler := consumer.onResume; handler != nil {
+			handler()
+		}
 	}
 
 	return
@@ -476,6 +491,41 @@ func (consumer *Consumer) EnableTraceEvent(types ...ConsumerTraceEventType) erro
 	return response.Err()
 }
 
+// OnClose set handler on "close" event
+func (consumer *Consumer) OnClose(handler func()) {
+	consumer.onClose = handler
+}
+
+// OnPause set handler on "pause" event
+func (consumer *Consumer) OnPause(handler func()) {
+	consumer.onPause = handler
+}
+
+// OnResume set handler on "resume" event
+func (consumer *Consumer) OnResume(handler func()) {
+	consumer.onResume = handler
+}
+
+// OnScore set handler on "score" event
+func (consumer *Consumer) OnScore(handler func(score *ConsumerScore)) {
+	consumer.onScore = handler
+}
+
+// OnLayersChange set handler on "layerschange" event
+func (consumer *Consumer) OnLayersChange(handler func(layers *ConsumerLayers)) {
+	consumer.onLayersChange = handler
+}
+
+// OnTrace set handler on "trace" event
+func (consumer *Consumer) OnTrace(handler func(trace *ConsumerTraceEventData)) {
+	consumer.onTrace = handler
+}
+
+// OnRtp set handler on "rtp" event
+func (consumer *Consumer) OnRtp(handler func(data []byte)) {
+	consumer.onRtp = handler
+}
+
 func (consumer *Consumer) handleWorkerNotifications() {
 	logger := consumer.logger
 
@@ -490,15 +540,10 @@ func (consumer *Consumer) handleWorkerNotifications() {
 				consumer.SafeEmit("producerclose")
 				consumer.RemoveAllListeners()
 
-				// Emit observer event.
-				consumer.observer.SafeEmit("close")
-				consumer.observer.RemoveAllListeners()
+				consumer.close()
 			}
 
 		case "producerpause":
-			consumer.locker.Lock()
-			defer consumer.locker.Unlock()
-
 			if consumer.producerPaused {
 				break
 			}
@@ -509,15 +554,16 @@ func (consumer *Consumer) handleWorkerNotifications() {
 
 			consumer.SafeEmit("producerpause")
 
-			// Emit observer event.
 			if !wasPaused {
+				// Emit observer event.
 				consumer.observer.SafeEmit("pause")
+
+				if handler := consumer.onPause; handler != nil {
+					handler()
+				}
 			}
 
 		case "producerresume":
-			consumer.locker.Lock()
-			defer consumer.locker.Unlock()
-
 			if !consumer.producerPaused {
 				break
 			}
@@ -528,13 +574,17 @@ func (consumer *Consumer) handleWorkerNotifications() {
 
 			consumer.SafeEmit("producerresume")
 
-			// Emit observer event.
 			if wasPaused && !consumer.paused {
+				// Emit observer event.
 				consumer.observer.SafeEmit("resume")
+
+				if handler := consumer.onResume; handler != nil {
+					handler()
+				}
 			}
 
 		case "score":
-			var score ConsumerScore
+			var score *ConsumerScore
 
 			if err := json.Unmarshal([]byte(data), &score); err != nil {
 				logger.Error(err, "failed to unmarshal score", "data", json.RawMessage(data))
@@ -547,6 +597,10 @@ func (consumer *Consumer) handleWorkerNotifications() {
 
 			// Emit observer event.
 			consumer.observer.SafeEmit("score", &score)
+
+			if handler := consumer.onScore; handler != nil {
+				handler(score)
+			}
 
 		case "layerschange":
 			var layers *ConsumerLayers
@@ -563,6 +617,10 @@ func (consumer *Consumer) handleWorkerNotifications() {
 			// Emit observer event.
 			consumer.observer.SafeEmit("layerschange", layers)
 
+			if handler := consumer.onLayersChange; handler != nil {
+				handler(layers)
+			}
+
 		case "trace":
 			var trace *ConsumerTraceEventData
 
@@ -576,6 +634,10 @@ func (consumer *Consumer) handleWorkerNotifications() {
 			// Emit observer event.
 			consumer.observer.SafeEmit("trace", trace)
 
+			if handler := consumer.onTrace; handler != nil {
+				handler(trace)
+			}
+
 		default:
 			consumer.logger.Error(nil, "ignoring unknown event in channel listener", "event", event)
 		}
@@ -588,6 +650,10 @@ func (consumer *Consumer) handleWorkerNotifications() {
 				return
 			}
 			consumer.SafeEmit("rtp", payload)
+
+			if handler := consumer.onRtp; handler != nil {
+				handler(payload)
+			}
 
 		default:
 			consumer.logger.Error(nil, "ignoring unknown event in payload channel listener", "event", event)

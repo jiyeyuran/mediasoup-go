@@ -201,7 +201,7 @@ func (suite *ConsumerTestingSuite) TestTransportConsume_Succeeds() {
 	suite.Equal(ConsumerType_Simple, audioConsumer.Type())
 	suite.False(audioConsumer.Paused())
 	suite.False(audioConsumer.ProducerPaused())
-	suite.Equal(ConsumerScore{Score: 10, ProducerScore: 0, ProducerScores: []uint16{0}}, audioConsumer.Score())
+	suite.Equal(&ConsumerScore{Score: 10, ProducerScore: 0, ProducerScores: []uint16{0}}, audioConsumer.Score())
 	suite.Nil(audioConsumer.CurrentLayers())
 	suite.Nil(audioConsumer.PreferredLayers())
 	suite.Equal(H{"baz": "LOL"}, audioConsumer.AppData())
@@ -268,7 +268,7 @@ func (suite *ConsumerTestingSuite) TestTransportConsume_Succeeds() {
 	suite.True(videoConsumer.Paused())
 	suite.True(videoConsumer.ProducerPaused())
 	suite.EqualValues(1, videoConsumer.Priority())
-	suite.Equal(ConsumerScore{Score: 10, ProducerScore: 0, ProducerScores: []uint16{0, 0, 0, 0}}, videoConsumer.Score())
+	suite.Equal(&ConsumerScore{Score: 10, ProducerScore: 0, ProducerScores: []uint16{0, 0, 0, 0}}, videoConsumer.Score())
 	suite.Nil(videoConsumer.CurrentLayers())
 	suite.Equal(H{"baz": "LOL"}, videoConsumer.AppData())
 
@@ -320,7 +320,7 @@ func (suite *ConsumerTestingSuite) TestTransportConsume_Succeeds() {
 	suite.False(videoPipeConsumer.Paused())
 	suite.True(videoPipeConsumer.ProducerPaused())
 	suite.EqualValues(1, videoPipeConsumer.Priority())
-	suite.Equal(ConsumerScore{Score: 10, ProducerScore: 10, ProducerScores: []uint16{0, 0, 0, 0}}, videoPipeConsumer.Score())
+	suite.Equal(&ConsumerScore{Score: 10, ProducerScore: 10, ProducerScores: []uint16{0, 0, 0, 0}}, videoPipeConsumer.Score())
 	suite.Nil(videoPipeConsumer.PreferredLayers())
 	suite.Nil(videoPipeConsumer.CurrentLayers())
 	suite.Empty(videoPipeConsumer.AppData())
@@ -688,7 +688,7 @@ func (suite *ConsumerTestingSuite) TestConsumerEmitsScore() {
 	emit("score", []byte(`{"producerScore": 8, "score": 8}`))
 
 	onScore.ExpectCalledTimes(3)
-	suite.Equal(ConsumerScore{ProducerScore: 8, Score: 8}, audioConsumer.Score())
+	suite.Equal(&ConsumerScore{ProducerScore: 8, Score: 8}, audioConsumer.Score())
 }
 
 func (suite *ConsumerTestingSuite) TestConsumerClose() {

@@ -113,7 +113,7 @@ func (suite *PipeTransportTestingSuite) TestRouterPipeToRouter_SucceedsWithAudio
 	suite.EqualValues("pipe", pipeConsumer.Type())
 	suite.False(pipeConsumer.Paused())
 	suite.False(pipeConsumer.ProducerPaused())
-	suite.Equal(ConsumerScore{
+	suite.Equal(&ConsumerScore{
 		Score:          10,
 		ProducerScore:  10,
 		ProducerScores: []uint16{},
@@ -216,7 +216,7 @@ func (suite *PipeTransportTestingSuite) TestRouterPipeToRouter_SucceedsWithVideo
 	suite.EqualValues("pipe", pipeConsumer.Type())
 	suite.False(pipeConsumer.Paused())
 	suite.True(pipeConsumer.ProducerPaused())
-	suite.Equal(ConsumerScore{
+	suite.Equal(&ConsumerScore{
 		Score:          10,
 		ProducerScore:  10,
 		ProducerScores: []uint16{},
@@ -344,7 +344,7 @@ func (suite *PipeTransportTestingSuite) TestRouterCreatePipeTransport_WithEnable
 	suite.EqualValues("pipe", pipeConsumer.Type())
 	suite.False(pipeConsumer.Paused())
 	suite.True(pipeConsumer.ProducerPaused())
-	suite.Equal(ConsumerScore{
+	suite.Equal(&ConsumerScore{
 		Score:          10,
 		ProducerScore:  10,
 		ProducerScores: []uint16{},
@@ -471,7 +471,7 @@ func (suite *PipeTransportTestingSuite) TestTransportConsume_ForAPipeProducerSuc
 	suite.EqualValues("simulcast", videoConsumer.Type())
 	suite.False(videoConsumer.Paused())
 	suite.True(videoConsumer.ProducerPaused())
-	suite.Equal(ConsumerScore{
+	suite.Equal(&ConsumerScore{
 		Score:          10,
 		ProducerScore:  0,
 		ProducerScores: []uint16{0, 0, 0},

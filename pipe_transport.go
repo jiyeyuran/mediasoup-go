@@ -56,12 +56,13 @@ type pipeTransortData struct {
 // - @emits trace - (trace *TransportTraceEventData)
 type PipeTransport struct {
 	ITransport
-	logger          logr.Logger
-	internal        internalData
-	data            *pipeTransortData
-	channel         *Channel
-	payloadChannel  *PayloadChannel
-	getProducerById func(string) *Producer
+	logger            logr.Logger
+	internal          internalData
+	data              *pipeTransortData
+	channel           *Channel
+	payloadChannel    *PayloadChannel
+	getProducerById   func(string) *Producer
+	onSctpStateChange func(sctpState SctpState)
 }
 
 func newPipeTransport(params transportParams) ITransport {
@@ -242,6 +243,11 @@ func (transport *PipeTransport) Consume(options ConsumerOptions) (consumer *Cons
 	return
 }
 
+// OnSctpStateChange set handler on "sctpstatechange" event
+func (transport *PipeTransport) OnSctpStateChange(handler func(sctpState SctpState)) {
+	transport.onSctpStateChange = handler
+}
+
 func (transport *PipeTransport) handleWorkerNotifications() {
 	logger := transport.logger
 
@@ -264,21 +270,12 @@ func (transport *PipeTransport) handleWorkerNotifications() {
 			// Emit observer event.
 			transport.Observer().SafeEmit("sctpstatechange", result.SctpState)
 
-		case "trace":
-			var result *TransportTraceEventData
-
-			if err := json.Unmarshal([]byte(data), &result); err != nil {
-				logger.Error(err, "failed to unmarshal trace", "data", json.RawMessage(data))
-				return
+			if handler := transport.onSctpStateChange; handler != nil {
+				handler(result.SctpState)
 			}
 
-			transport.SafeEmit("trace", result)
-
-			// Emit observer event.
-			transport.Observer().SafeEmit("trace", result)
-
 		default:
-			logger.Error(nil, "ignoring unknown event", "event", event)
+			transport.ITransport.handleEvent(event, data)
 		}
 	})
 }

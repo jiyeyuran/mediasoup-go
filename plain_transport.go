@@ -73,10 +73,13 @@ type plainTransportData struct {
 // - @emits trace - (trace *TransportTraceEventData)
 type PlainTransport struct {
 	ITransport
-	logger   logr.Logger
-	internal internalData
-	data     *plainTransportData
-	channel  *Channel
+	logger            logr.Logger
+	internal          internalData
+	data              *plainTransportData
+	channel           *Channel
+	onTuple           func(tuple *TransportTuple)
+	onRtcpTuple       func(rtcpTuple *TransportTuple)
+	onSctpStateChange func(sctpState SctpState)
 }
 
 func newPlainTransport(params transportParams) ITransport {
@@ -201,6 +204,21 @@ func (transport *PlainTransport) Connect(options TransportConnectOptions) (err e
 	return nil
 }
 
+// OnTuple set handler on "tuple" event
+func (transport *PlainTransport) OnTuple(handler func(tuple *TransportTuple)) {
+	transport.onTuple = handler
+}
+
+// OnRtcpTuple set handler on "rtcptuple" event
+func (transport *PlainTransport) OnRtcpTuple(handler func(rtcpTuple *TransportTuple)) {
+	transport.onRtcpTuple = handler
+}
+
+// OnSctpStateChange set handler on "sctpstatechange" event
+func (transport *PlainTransport) OnSctpStateChange(handler func(sctpState SctpState)) {
+	transport.onSctpStateChange = handler
+}
+
 func (transport *PlainTransport) handleWorkerNotifications() {
 	logger := transport.logger
 
@@ -222,6 +240,10 @@ func (transport *PlainTransport) handleWorkerNotifications() {
 			// Emit observer event.
 			transport.Observer().SafeEmit("tuple", result.Tuple)
 
+			if handler := transport.onTuple; handler != nil {
+				handler(result.Tuple)
+			}
+
 		case "rtcptuple":
 			var result struct {
 				RtcpTuple *TransportTuple
@@ -237,6 +259,10 @@ func (transport *PlainTransport) handleWorkerNotifications() {
 
 			// Emit observer event.
 			transport.Observer().SafeEmit("rtcptuple", result.RtcpTuple)
+
+			if handler := transport.onRtcpTuple; handler != nil {
+				handler(result.RtcpTuple)
+			}
 
 		case "sctpstatechange":
 			var result struct {
@@ -254,21 +280,12 @@ func (transport *PlainTransport) handleWorkerNotifications() {
 			// Emit observer event.
 			transport.Observer().SafeEmit("sctpstatechange", result.SctpState)
 
-		case "trace":
-			var result *TransportTraceEventData
-
-			if err := json.Unmarshal([]byte(data), &result); err != nil {
-				logger.Error(err, "failed to unmarshal trace", "data", json.RawMessage(data))
-				return
+			if handler := transport.onSctpStateChange; handler != nil {
+				handler(result.SctpState)
 			}
 
-			transport.SafeEmit("trace", result)
-
-			// Emit observer event.
-			transport.Observer().SafeEmit("trace", result)
-
 		default:
-			logger.Error(nil, "ignoring unknown event", "event", event)
+			transport.ITransport.handleEvent(event, data)
 		}
 	})
 }

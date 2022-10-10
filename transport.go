@@ -1,6 +1,7 @@
 package mediasoup
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"sync"
@@ -26,10 +27,13 @@ type ITransport interface {
 	ProduceData(DataProducerOptions) (*DataProducer, error)
 	ConsumeData(DataConsumerOptions) (*DataConsumer, error)
 	EnableTraceEvent(types ...TransportTraceEventType) error
+	OnTrace(handler func(trace *TransportTraceEventData))
+	OnClose(handler func())
 
 	// internal methods
 	routerClosed()
 	listenServerClosed()
+	handleEvent(event string, data []byte)
 }
 
 type TransportListenIp struct {
@@ -207,6 +211,9 @@ type Transport struct {
 	observer IEventEmitter
 	// locker instance
 	locker sync.Mutex
+
+	onTrace func(*TransportTraceEventData)
+	onClose func()
 }
 
 func newTransport(params transportParams) ITransport {
@@ -301,9 +308,18 @@ func (transport *Transport) Close() {
 		transport.Emit("@close")
 		transport.RemoveAllListeners()
 
-		// Emit observer event.
-		transport.observer.SafeEmit("close")
-		transport.observer.RemoveAllListeners()
+		transport.close()
+	}
+}
+
+// close send "close" event
+func (transport *Transport) close() {
+	// Emit observer event.
+	transport.observer.SafeEmit("close")
+	transport.observer.RemoveAllListeners()
+
+	if handler := transport.onClose; handler != nil {
+		handler()
 	}
 }
 
@@ -349,9 +365,7 @@ func (transport *Transport) routerClosed() {
 		transport.SafeEmit("routerclose")
 		transport.RemoveAllListeners()
 
-		// Emit observer event.
-		transport.observer.SafeEmit("close")
-		transport.observer.RemoveAllListeners()
+		transport.close()
 	}
 }
 
@@ -410,8 +424,7 @@ func (transport *Transport) listenServerClosed() {
 
 	transport.SafeEmit("listenserverclose")
 
-	// Emit observer event.
-	transport.observer.SafeEmit("close")
+	transport.close()
 }
 
 // Dump Transport.
@@ -638,7 +651,7 @@ func (transport *Transport) Consume(options ConsumerOptions) (consumer *Consumer
 	var status struct {
 		Paused         bool
 		ProducerPaused bool
-		Score          ConsumerScore
+		Score          *ConsumerScore
 	}
 	if err = resp.Unmarshal(&status); err != nil {
 		return
@@ -890,4 +903,40 @@ func (transport *Transport) getNextSctpStreamId() (sctpStreamId int, err error) 
 	err = errors.New("no sctpStreamId available")
 
 	return
+}
+
+// OnTrace set handler on "trace" event
+func (transport *Transport) OnTrace(handler func(trace *TransportTraceEventData)) {
+	transport.onTrace = handler
+}
+
+// OnClose set handler on "close" event
+func (transport *Transport) OnClose(handler func()) {
+	transport.onClose = handler
+}
+
+func (transport *Transport) handleEvent(event string, data []byte) {
+	logger := transport.logger
+
+	switch event {
+	case "trace":
+		var result *TransportTraceEventData
+
+		if err := json.Unmarshal([]byte(data), &result); err != nil {
+			logger.Error(err, "failed to unmarshal trace", "data", json.RawMessage(data))
+			return
+		}
+
+		transport.SafeEmit("trace", result)
+
+		// Emit observer event.
+		transport.Observer().SafeEmit("trace", result)
+
+		if handler := transport.onTrace; handler != nil {
+			handler(result)
+		}
+
+	default:
+		logger.Error(nil, "ignoring unknown event in channel listener", "event", event)
+	}
 }

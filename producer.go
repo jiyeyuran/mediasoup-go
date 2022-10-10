@@ -125,17 +125,23 @@ type producerParams struct {
 // - @emits @close
 type Producer struct {
 	IEventEmitter
-	locker         sync.Mutex
-	logger         logr.Logger
-	internal       internalData
-	data           producerData
-	channel        *Channel
-	payloadChannel *PayloadChannel
-	appData        interface{}
-	paused         bool
-	closed         uint32
-	score          []ProducerScore
-	observer       IEventEmitter
+	locker                   sync.Mutex
+	logger                   logr.Logger
+	internal                 internalData
+	data                     producerData
+	channel                  *Channel
+	payloadChannel           *PayloadChannel
+	appData                  interface{}
+	paused                   bool
+	closed                   uint32
+	score                    []ProducerScore
+	observer                 IEventEmitter
+	onClose                  func()
+	onPause                  func()
+	onResume                 func()
+	onScore                  func([]ProducerScore)
+	onVideoOrientationChange func(*ProducerVideoOrientation)
+	onTrace                  func(*ProducerTraceEventData)
 }
 
 func newProducer(params producerParams) *Producer {
@@ -239,12 +245,21 @@ func (producer *Producer) Close() (err error) {
 		producer.Emit("@close")
 		producer.RemoveAllListeners()
 
-		// Emit observer event.
-		producer.observer.SafeEmit("close")
-		producer.observer.RemoveAllListeners()
+		producer.close()
 	}
 
 	return
+}
+
+// close send "close" event.
+func (producer *Producer) close() {
+	// Emit observer event.
+	producer.observer.SafeEmit("close")
+	producer.observer.RemoveAllListeners()
+
+	if handler := producer.onClose; handler != nil {
+		handler()
+	}
 }
 
 // transportClosed is called when transport was closed.
@@ -259,9 +274,7 @@ func (producer *Producer) transportClosed() {
 		producer.SafeEmit("transportclose")
 		producer.RemoveAllListeners()
 
-		// Emit observer event.
-		producer.observer.SafeEmit("close")
-		producer.observer.RemoveAllListeners()
+		producer.close()
 	}
 }
 
@@ -305,6 +318,10 @@ func (producer *Producer) Pause() (err error) {
 	// Emit observer event.
 	if !wasPaused {
 		producer.observer.SafeEmit("pause")
+
+		if handler := producer.onPause; handler != nil {
+			handler()
+		}
 	}
 
 	return
@@ -330,6 +347,10 @@ func (producer *Producer) Resume() (err error) {
 	// Emit observer event.
 	if wasPaused {
 		producer.observer.SafeEmit("resume")
+
+		if handler := producer.onResume; handler != nil {
+			handler()
+		}
 	}
 
 	return
@@ -353,6 +374,36 @@ func (producer *Producer) Send(rtpPacket []byte) error {
 	return producer.payloadChannel.Notify("producer.send", producer.internal, "", rtpPacket)
 }
 
+// OnClose set handler on "close" event
+func (producer *Producer) OnClose(handler func()) {
+	producer.onClose = handler
+}
+
+// OnPause set handler on "pause" event
+func (producer *Producer) OnPause(handler func()) {
+	producer.onPause = handler
+}
+
+// OnResume set handler on "resume" event
+func (producer *Producer) OnResume(handler func()) {
+	producer.onResume = handler
+}
+
+// OnScore set handler on "score" event
+func (producer *Producer) OnScore(handler func(score []ProducerScore)) {
+	producer.onScore = handler
+}
+
+// OnVideoOrientationChange set handler on "videoorientationchange" event
+func (producer *Producer) OnVideoOrientationChange(handler func(videoOrientation *ProducerVideoOrientation)) {
+	producer.onVideoOrientationChange = handler
+}
+
+// OnTrace set handler on "trace" event
+func (producer *Producer) OnTrace(handler func(trace *ProducerTraceEventData)) {
+	producer.onTrace = handler
+}
+
 func (producer *Producer) handleWorkerNotifications() {
 	logger := producer.logger
 
@@ -373,6 +424,10 @@ func (producer *Producer) handleWorkerNotifications() {
 			// Emit observer event.
 			producer.observer.SafeEmit("score", score)
 
+			if handler := producer.onScore; handler != nil {
+				handler(score)
+			}
+
 		case "videoorientationchange":
 			orientation := &ProducerVideoOrientation{}
 
@@ -386,6 +441,10 @@ func (producer *Producer) handleWorkerNotifications() {
 			// Emit observer event.
 			producer.observer.SafeEmit("videoorientationchange", orientation)
 
+			if handler := producer.onVideoOrientationChange; handler != nil {
+				handler(orientation)
+			}
+
 		case "trace":
 			var trace *ProducerTraceEventData
 
@@ -398,6 +457,10 @@ func (producer *Producer) handleWorkerNotifications() {
 
 			// Emit observer event.
 			producer.observer.SafeEmit("trace", trace)
+
+			if handler := producer.onTrace; handler != nil {
+				handler(trace)
+			}
 
 		default:
 			logger.Error(nil, "ignoring unknown event", "event", event)
