@@ -25,7 +25,7 @@ type ActiveSpeakerObserverActivity struct {
 // Audio levels used for speech detection are read from an RTP header extension. No decoding of
 // audio data is done. See RFC6464 for more information.
 //
-// - @emits dominantspeaker - (activity *ActiveSpeakerObserverActivity)
+//   - @emits dominantspeaker - (activity *ActiveSpeakerObserverActivity)
 type ActiveSpeakerObserver struct {
 	IRtpObserver
 	logger            logr.Logger
@@ -44,7 +44,7 @@ func newActiveSpeakerObserver(params rtpObserverParams) *ActiveSpeakerObserver {
 
 // Deprecated
 //
-// - @emits dominantspeaker - (activity *ActiveSpeakerObserverActivity)
+//   - @emits dominantspeaker - (activity *ActiveSpeakerObserverActivity)
 func (o *ActiveSpeakerObserver) Observer() IEventEmitter {
 	return o.IRtpObserver.Observer()
 }

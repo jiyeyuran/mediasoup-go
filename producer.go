@@ -118,11 +118,11 @@ type producerParams struct {
 // Producer represents an audio or video source being injected into a mediasoup router.
 // It's created on top of a transport that defines how the media packets are carried.
 //
-// - @emits transportclose
-// - @emits score - (scores []ProducerScore)
-// - @emits videoorientationchange - (videoOrientation *ProducerVideoOrientation)
-// - @emits trace - (trace *ProducerTraceEventData)
-// - @emits @close
+//   - @emits transportclose
+//   - @emits score - (scores []ProducerScore)
+//   - @emits videoorientationchange - (videoOrientation *ProducerVideoOrientation)
+//   - @emits trace - (trace *ProducerTraceEventData)
+//   - @emits @close
 type Producer struct {
 	IEventEmitter
 	locker                   sync.Mutex
@@ -217,12 +217,12 @@ func (producer *Producer) AppData() interface{} {
 
 // Deprecated
 //
-// - @emits close
-// - @emits pause
-// - @emits resume
-// - @emits score - (scores []ProducerScore)
-// - @emits videoorientationchange - (videoOrientation *ProducerVideoOrientation)
-// - @emits trace - (trace *ProducerTraceEventData)
+//   - @emits close
+//   - @emits pause
+//   - @emits resume
+//   - @emits score - (scores []ProducerScore)
+//   - @emits videoorientationchange - (videoOrientation *ProducerVideoOrientation)
+//   - @emits trace - (trace *ProducerTraceEventData)
 func (producer *Producer) Observer() IEventEmitter {
 	return producer.observer
 }

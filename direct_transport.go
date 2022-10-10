@@ -31,8 +31,8 @@ type directTransportData struct{}
 // by using the producer.Send(rtpPacket) and consumer.On('rtp') API (plus
 // directTransport.SendRtcp(rtcpPacket) and directTransport.On('rtcp') API).
 //
-// - @emits rtcp - (packet []byte)
-// - @emits trace - (trace *TransportTraceEventData)
+//   - @emits rtcp - (packet []byte)
+//   - @emits trace - (trace *TransportTraceEventData)
 type DirectTransport struct {
 	ITransport
 	logger         logr.Logger
@@ -63,11 +63,11 @@ func newDirectTransport(params transportParams) ITransport {
 
 // Deprecated
 //
-// - @emits close
-// - @emits newdataproducer - (dataProducer *DataProducer)
-// - @emits newdataconsumer - (dataProducer *DataProducer)
-// - @emits rtcp - (packet []byte)
-// - @emits trace - (trace: *TransportTraceEventData)
+//   - @emits close
+//   - @emits newdataproducer - (dataProducer *DataProducer)
+//   - @emits newdataconsumer - (dataProducer *DataProducer)
+//   - @emits rtcp - (packet []byte)
+//   - @emits trace - (trace: *TransportTraceEventData)
 func (transport *DirectTransport) Observer() IEventEmitter {
 	return transport.ITransport.Observer()
 }

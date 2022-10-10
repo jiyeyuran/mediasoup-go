@@ -52,8 +52,8 @@ type pipeTransortData struct {
 // and SCTP (DataChannel) is transmitted. Pipe transports are intented to intercommunicate two
 // Router instances collocated on the same host or on separate hosts.
 //
-// - @emits sctpstatechange - (sctpState SctpState)
-// - @emits trace - (trace *TransportTraceEventData)
+//   - @emits sctpstatechange - (sctpState SctpState)
+//   - @emits trace - (trace *TransportTraceEventData)
 type PipeTransport struct {
 	ITransport
 	logger            logr.Logger
@@ -111,13 +111,13 @@ func (t PipeTransport) SrtpParameters() *SrtpParameters {
 
 // Deprecated
 //
-// - @emits close
-// - @emits newproducer - (producer *Producer)
-// - @emits newconsumer - (consumer *Consumer)
-// - @emits newdataproducer - (dataProducer *DataProducer)
-// - @emits newdataconsumer - (dataConsumer *DataConsumer)
-// - @emits sctpstatechange - (sctpState SctpState)
-// - @emits trace - (trace: TransportTraceEventData)
+//   - @emits close
+//   - @emits newproducer - (producer *Producer)
+//   - @emits newconsumer - (consumer *Consumer)
+//   - @emits newdataproducer - (dataProducer *DataProducer)
+//   - @emits newdataconsumer - (dataConsumer *DataConsumer)
+//   - @emits sctpstatechange - (sctpState SctpState)
+//   - @emits trace - (trace: TransportTraceEventData)
 func (transport *PipeTransport) Observer() IEventEmitter {
 	return transport.ITransport.Observer()
 }

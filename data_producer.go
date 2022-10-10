@@ -64,8 +64,8 @@ type dataProducerData struct {
 // A data producer can use SCTP (AKA DataChannel) to deliver those messages, or can directly send
 // them from the golang application if the data producer was created on top of a DirectTransport.
 //
-// - @emits transportclose
-// - @emits @close
+//   - @emits transportclose
+//   - @emits @close
 type DataProducer struct {
 	IEventEmitter
 	mu               sync.Mutex
@@ -139,7 +139,7 @@ func (p *DataProducer) AppData() interface{} {
 
 // Deprecated
 //
-// - @emits close
+//   - @emits close
 func (p *DataProducer) Observer() IEventEmitter {
 	return p.observer
 }

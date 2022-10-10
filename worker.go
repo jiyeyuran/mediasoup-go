@@ -127,7 +127,7 @@ type Option func(w *WorkerSettings)
 // Worker represents a mediasoup C++ subprocess that runs in a single CPU core and handles Router
 // instances.
 //
-// - @emits died - (err error)
+//   - @emits died - (err error)
 type Worker struct {
 	IEventEmitter
 	// Worker logger.
@@ -411,10 +411,10 @@ func (w *Worker) AppData() interface{} {
 }
 
 // Deprecated
-
-// - @emits close
-// - @emits newwebrtcserver - (webRtcServer *WebRtcServer)
-// - @emits newrouter - (router *Router)
+//
+//   - @emits close
+//   - @emits newwebrtcserver - (webRtcServer *WebRtcServer)
+//   - @emits newrouter - (router *Router)
 func (w *Worker) Observer() IEventEmitter {
 	return w.observer
 }

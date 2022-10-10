@@ -46,8 +46,8 @@ type webrtcServerParams struct {
 // The WebRTC transport implementation of mediasoup is ICE Lite, meaning that it does not initiate
 // ICE connections but expects ICE Binding Requests from endpoints.
 //
-// - @emits @close
-// - @emits workerclose
+//   - @emits @close
+//   - @emits workerclose
 type WebRtcServer struct {
 	IEventEmitter
 	logger           logr.Logger
@@ -90,9 +90,9 @@ func (s *WebRtcServer) AppData() interface{} {
 
 // Deprecated
 //
-// - @emits close
-// - @emits webrtctransporthandled - (transport *WebRtcTransport)
-// - @emits webrtctransportunhandled - (transport *WebRtcTransport)
+//   - @emits close
+//   - @emits webrtctransporthandled - (transport *WebRtcTransport)
+//   - @emits webrtctransportunhandled - (transport *WebRtcTransport)
 func (s *WebRtcServer) Observer() IEventEmitter {
 	return s.observer
 }

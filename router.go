@@ -85,8 +85,8 @@ type routerParams struct {
 // Router enables injection, selection and forwarding of media streams through
 // Transport instances created on it.
 //
-// - @emits workerclose
-// - @emits @close
+//   - @emits workerclose
+//   - @emits @close
 type Router struct {
 	IEventEmitter
 	logger                  logr.Logger
@@ -144,9 +144,9 @@ func (router *Router) AppData() interface{} {
 
 // Deprecated
 //
-// - @emits close
-// - @emits newrtpobserver - (observer IRtpObserver)
-// - @emits newtransport - (transport ITransport)
+//   - @emits close
+//   - @emits newrtpobserver - (observer IRtpObserver)
+//   - @emits newtransport - (transport ITransport)
 func (router *Router) Observer() IEventEmitter {
 	return router.observer
 }

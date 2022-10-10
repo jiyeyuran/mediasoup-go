@@ -164,12 +164,12 @@ type transportParams struct {
 
 // Transport is a base class inherited by PlainTransport, PipeTransport, DirectTransport and WebRtcTransport.
 //
-// - @emits routerclose
-// - @emits @close
-// - @emits @newproducer - (producer *Producer)
-// - @emits @producerclose - (producer *Producer)
-// - @emits @newdataproducer - (dataProducer *DataProducer)
-// - @emits @dataproducerclose - (dataProducer *DataProducer)
+//   - @emits routerclose
+//   - @emits @close
+//   - @emits @newproducer - (producer *Producer)
+//   - @emits @producerclose - (producer *Producer)
+//   - @emits @newdataproducer - (dataProducer *DataProducer)
+//   - @emits @dataproducerclose - (dataProducer *DataProducer)
 type Transport struct {
 	IEventEmitter
 	logger logr.Logger
@@ -253,11 +253,11 @@ func (transport *Transport) AppData() interface{} {
 
 // Deprecated
 //
-// - @emits close
-// - @emits newproducer - (producer *Producer)
-// - @emits newconsumer - (producer *Producer)
-// - @emits newdataproducer - (dataProducer *DataProducer)
-// - @emits newdataconsumer - (dataProducer *DataProducer)
+//   - @emits close
+//   - @emits newproducer - (producer *Producer)
+//   - @emits newconsumer - (producer *Producer)
+//   - @emits newdataproducer - (dataProducer *DataProducer)
+//   - @emits newdataconsumer - (dataProducer *DataProducer)
 func (transport *Transport) Observer() IEventEmitter {
 	return transport.observer
 }

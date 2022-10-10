@@ -136,11 +136,11 @@ type webrtcTransportData struct {
 // The WebRTC transport implementation of mediasoup is ICE Lite, meaning that it does not initiate
 // ICE connections but expects ICE Binding Requests from endpoints.
 //
-// - @emits icestatechange - (iceState IceState)
-// - @emits iceselectedtuplechange - (tuple *TransportTuple)
-// - @emits dtlsstatechange - (dtlsState DtlsState)
-// - @emits sctpstatechange - (sctpState SctpState)
-// - @emits trace - (trace *TransportTraceEventData)
+//   - @emits icestatechange - (iceState IceState)
+//   - @emits iceselectedtuplechange - (tuple *TransportTuple)
+//   - @emits dtlsstatechange - (dtlsState DtlsState)
+//   - @emits sctpstatechange - (sctpState SctpState)
+//   - @emits trace - (trace *TransportTraceEventData)
 type WebRtcTransport struct {
 	ITransport
 	logger                   logr.Logger
@@ -229,16 +229,16 @@ func (t WebRtcTransport) SctpState() SctpState {
 
 // Deprecated
 //
-// - @emits close
-// - @emits newproducer - (producer *Producer)
-// - @emits newconsumer - (consumer *Consumer)
-// - @emits newdataproducer - (dataProducer *DataProducer)
-// - @emits newdataconsumer - (dataConsumer *DataConsumer)
-// - @emits icestatechange - (iceState IceState)
-// - @emits iceselectedtuplechange - (tuple *TransportTuple)
-// - @emits dtlsstatechange - (dtlsState DtlsState)
-// - @emits sctpstatechange - (sctpState SctpState)
-// - @emits trace - (trace *TransportTraceEventData)
+//   - @emits close
+//   - @emits newproducer - (producer *Producer)
+//   - @emits newconsumer - (consumer *Consumer)
+//   - @emits newdataproducer - (dataProducer *DataProducer)
+//   - @emits newdataconsumer - (dataConsumer *DataConsumer)
+//   - @emits icestatechange - (iceState IceState)
+//   - @emits iceselectedtuplechange - (tuple *TransportTuple)
+//   - @emits dtlsstatechange - (dtlsState DtlsState)
+//   - @emits sctpstatechange - (sctpState SctpState)
+//   - @emits trace - (trace *TransportTraceEventData)
 func (t *WebRtcTransport) Observer() IEventEmitter {
 	return t.ITransport.Observer()
 }

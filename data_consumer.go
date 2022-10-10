@@ -74,13 +74,13 @@ type dataConsumerData struct {
 // receive them in the golang application if the data consumer was created on top of a
 // DirectTransport.
 //
-// - @emits transportclose
-// - @emits dataproducerclose
-// - @emits message - (message []bytee, ppid int)
-// - @emits sctpsendbufferfull
-// - @emits bufferedamountlow - (bufferedAmount int64)
-// - @emits @close
-// - @emits @dataproducerclose
+//   - @emits transportclose
+//   - @emits dataproducerclose
+//   - @emits message - (message []bytee, ppid int)
+//   - @emits sctpsendbufferfull
+//   - @emits bufferedamountlow - (bufferedAmount int64)
+//   - @emits @close
+//   - @emits @dataproducerclose
 type DataConsumer struct {
 	IEventEmitter
 	logger logr.Logger
@@ -163,11 +163,11 @@ func (c *DataConsumer) AppData() interface{} {
 
 // Deprecated
 //
-// - @emits close
-// - @emits dataproducerclose
-// - @emits sctpsendbufferfull
-// - @emits message - (message []bytee, ppid int)
-// - @emits bufferedamountlow - (bufferAmount int64)
+//   - @emits close
+//   - @emits dataproducerclose
+//   - @emits sctpsendbufferfull
+//   - @emits message - (message []bytee, ppid int)
+//   - @emits bufferedamountlow - (bufferAmount int64)
 func (c *DataConsumer) Observer() IEventEmitter {
 	return c.observer
 }

@@ -37,8 +37,8 @@ type AudioLevelObserverVolume struct {
 // Audio levels are read from an RTP header extension. No decoding of audio data is done. See
 // RFC6464 for more information.
 //
-// - @emits volumes - (volumes []AudioLevelObserverVolume)
-// - @emits silence
+//   - @emits volumes - (volumes []AudioLevelObserverVolume)
+//   - @emits silence
 type AudioLevelObserver struct {
 	IRtpObserver
 	logger    logr.Logger
@@ -59,13 +59,13 @@ func newAudioLevelObserver(params rtpObserverParams) *AudioLevelObserver {
 
 // Deprecated
 //
-// - @emits close
-// - @emits pause
-// - @emits resume
-// - @emits addproducer - (producer *Producer)
-// - @emits removeproducer - (producer *Producer)
-// - @emits volumes - (volumes []AudioLevelObserverVolume)
-// - @emits silence
+//   - @emits close
+//   - @emits pause
+//   - @emits resume
+//   - @emits addproducer - (producer *Producer)
+//   - @emits removeproducer - (producer *Producer)
+//   - @emits volumes - (volumes []AudioLevelObserverVolume)
+//   - @emits silence
 func (o *AudioLevelObserver) Observer() IEventEmitter {
 	return o.IRtpObserver.Observer()
 }

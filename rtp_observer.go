@@ -24,8 +24,8 @@ type IRtpObserver interface {
 
 // RtpObserver is a base class inherited by ActiveSpeakerObserver and AudioLevelObserver.
 //
-// - @emits routerclose
-// - @emits @close
+//   - @emits routerclose
+//   - @emits @close
 type RtpObserver struct {
 	IEventEmitter
 	logger          logr.Logger
@@ -92,11 +92,11 @@ func (o *RtpObserver) AppData() interface{} {
 
 // Deprecated
 //
-// - @emits close
-// - @emits pause
-// - @emits resume
-// - @emits addproducer - (producer *Producer)
-// - @emits removeproducer - (producer *Producer)
+//   - @emits close
+//   - @emits pause
+//   - @emits resume
+//   - @emits addproducer - (producer *Producer)
+//   - @emits removeproducer - (producer *Producer)
 func (o *RtpObserver) Observer() IEventEmitter {
 	return o.observer
 }

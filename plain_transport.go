@@ -67,10 +67,10 @@ type plainTransportData struct {
 // PlainTransport represents a network path through which RTP, RTCP (optionally secured with SRTP)
 // and SCTP = data.hannel is transmitted.
 //
-// - @emits tuple - (tuple *TransportTuple)
-// - @emits rtcptuple - (rtcpTuple *TransportTuple)
-// - @emits sctpstatechange - (sctpState SctpState)
-// - @emits trace - (trace *TransportTraceEventData)
+//   - @emits tuple - (tuple *TransportTuple)
+//   - @emits rtcptuple - (rtcpTuple *TransportTuple)
+//   - @emits sctpstatechange - (sctpState SctpState)
+//   - @emits trace - (trace *TransportTraceEventData)
 type PlainTransport struct {
 	ITransport
 	logger            logr.Logger
@@ -131,15 +131,15 @@ func (t PlainTransport) SrtpParameters() *SrtpParameters {
 
 // Deprecated
 //
-// - @emits close
-// - @emits newproducer - (producer *Producer)
-// - @emits newconsumer - (consumer *Consumer)
-// - @emits newdataproducer - = data.roducer *DataProducer
-// - @emits newdataconsumer - = data.onsumer *DataConsumer
-// - @emits tuple - (tuple TransportTuple)
-// - @emits rtcptuple - (rtcpTuple TransportTuple)
-// - @emits sctpstatechange - (sctpState SctpState)
-// - @emits trace - (trace *TransportTraceEventData)
+//   - @emits close
+//   - @emits newproducer - (producer *Producer)
+//   - @emits newconsumer - (consumer *Consumer)
+//   - @emits newdataproducer - = data.roducer *DataProducer
+//   - @emits newdataconsumer - = data.onsumer *DataConsumer
+//   - @emits tuple - (tuple TransportTuple)
+//   - @emits rtcptuple - (rtcpTuple TransportTuple)
+//   - @emits sctpstatechange - (sctpState SctpState)
+//   - @emits trace - (trace *TransportTraceEventData)
 func (transport *PlainTransport) Observer() IEventEmitter {
 	return transport.ITransport.Observer()
 }

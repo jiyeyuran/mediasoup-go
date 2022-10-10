@@ -158,16 +158,16 @@ type consumerData struct {
 // Consumer represents an audio or video source being forwarded from a mediasoup router to an
 // endpoint. It's created on top of a transport that defines how the media packets are carried.
 //
-// - @emits transportclose
-// - @emits producerclose
-// - @emits producerpause
-// - @emits producerresume
-// - @emits score - (score *ConsumerScore)
-// - @emits layerschange - (layers *ConsumerLayers | nil)
-// - @emits rtp - (packet []byte)
-// - @emits trace - (trace *ConsumerTraceEventData)
-// - @emits @close
-// - @emits @producerclose
+//   - @emits transportclose
+//   - @emits producerclose
+//   - @emits producerpause
+//   - @emits producerresume
+//   - @emits score - (score *ConsumerScore)
+//   - @emits layerschange - (layers *ConsumerLayers | nil)
+//   - @emits rtp - (packet []byte)
+//   - @emits trace - (trace *ConsumerTraceEventData)
+//   - @emits @close
+//   - @emits @producerclose
 type Consumer struct {
 	IEventEmitter
 	logger           logr.Logger
@@ -305,12 +305,12 @@ func (consumer *Consumer) AppData() interface{} {
 
 // Deprecated
 //
-// - @emits close
-// - @emits pause
-// - @emits resume
-// - @emits score - (score *ConsumerScore)
-// - @emits layerschange - (layers *ConsumerLayers | nil)
-// - @emits trace - (trace *ConsumerTraceEventData)
+//   - @emits close
+//   - @emits pause
+//   - @emits resume
+//   - @emits score - (score *ConsumerScore)
+//   - @emits layerschange - (layers *ConsumerLayers | nil)
+//   - @emits trace - (trace *ConsumerTraceEventData)
 func (consumer *Consumer) Observer() IEventEmitter {
 	return consumer.observer
 }
