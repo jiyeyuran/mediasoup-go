@@ -189,6 +189,8 @@ type Consumer struct {
 	onTransportClose func()
 	onPause          func()
 	onResume         func()
+	onProducerPause  func()
+	onProducerResume func()
 	onScore          func(*ConsumerScore)
 	onLayersChange   func(*ConsumerLayers)
 	onTrace          func(*ConsumerTraceEventData)
@@ -522,6 +524,16 @@ func (consumer *Consumer) OnResume(handler func()) {
 	consumer.onResume = handler
 }
 
+// OnProducerPause set handler on "producerpause" event
+func (consumer *Consumer) OnProducerPause(handler func()) {
+	consumer.onProducerPause = handler
+}
+
+// OnProducerResume set handler on "producerresume" event
+func (consumer *Consumer) OnProducerResume(handler func()) {
+	consumer.onProducerResume = handler
+}
+
 // OnScore set handler on "score" event
 func (consumer *Consumer) OnScore(handler func(score *ConsumerScore)) {
 	consumer.onScore = handler
@@ -574,6 +586,10 @@ func (consumer *Consumer) handleWorkerNotifications() {
 
 			consumer.SafeEmit("producerpause")
 
+			if handler := consumer.onProducerPause; handler != nil {
+				handler()
+			}
+
 			if !wasPaused {
 				// Emit observer event.
 				consumer.observer.SafeEmit("pause")
@@ -593,6 +609,10 @@ func (consumer *Consumer) handleWorkerNotifications() {
 			consumer.producerPaused = false
 
 			consumer.SafeEmit("producerresume")
+
+			if handler := consumer.onProducerResume; handler != nil {
+				handler()
+			}
 
 			if wasPaused && !consumer.paused {
 				// Emit observer event.
