@@ -99,11 +99,11 @@ const (
 type DtlsState string
 
 const (
-	DtlsState_New        = "new"
-	DtlsState_Connecting = "connecting"
-	DtlsState_Connected  = "connected"
-	DtlsState_Failed     = "failed"
-	DtlsState_Closed     = "closed"
+	DtlsState_New        DtlsState = "new"
+	DtlsState_Connecting DtlsState = "connecting"
+	DtlsState_Connected  DtlsState = "connected"
+	DtlsState_Failed     DtlsState = "failed"
+	DtlsState_Closed     DtlsState = "closed"
 )
 
 type WebRtcTransportSpecificStat struct {
