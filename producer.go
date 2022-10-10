@@ -137,6 +137,7 @@ type Producer struct {
 	score                    []ProducerScore
 	observer                 IEventEmitter
 	onClose                  func()
+	onTransportClose         func()
 	onPause                  func()
 	onResume                 func()
 	onScore                  func([]ProducerScore)
@@ -274,6 +275,10 @@ func (producer *Producer) transportClosed() {
 		producer.SafeEmit("transportclose")
 		producer.RemoveAllListeners()
 
+		if handler := producer.onTransportClose; handler != nil {
+			handler()
+		}
+
 		producer.close()
 	}
 }
@@ -377,6 +382,11 @@ func (producer *Producer) Send(rtpPacket []byte) error {
 // OnClose set handler on "close" event
 func (producer *Producer) OnClose(handler func()) {
 	producer.onClose = handler
+}
+
+// OnTransportClose set handler on "transportclose" event
+func (producer *Producer) OnTransportClose(handler func()) {
+	producer.onTransportClose = handler
 }
 
 // OnPause set handler on "pause" event

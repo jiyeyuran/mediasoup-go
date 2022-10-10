@@ -155,6 +155,9 @@ type Worker struct {
 
 	// Observer instance.
 	observer IEventEmitter
+
+	onNewWebRtcServer func(webRtcServer *WebRtcServer)
+	onNewRouter       func(router *Router)
 }
 
 func NewWorker(options ...Option) (worker *Worker, err error) {
@@ -537,6 +540,10 @@ func (w *Worker) CreateWebRtcServer(options WebRtcServerOptions) (webRtcServer *
 	// Emit observer event.
 	w.observer.SafeEmit("newwebrtcserver", webRtcServer)
 
+	if handler := w.onNewWebRtcServer; handler != nil {
+		handler(webRtcServer)
+	}
+
 	return
 }
 
@@ -574,5 +581,19 @@ func (w *Worker) CreateRouter(options RouterOptions) (router *Router, err error)
 	// Emit observer event.
 	w.observer.SafeEmit("newrouter", router)
 
+	if handler := w.onNewRouter; handler != nil {
+		handler(router)
+	}
+
 	return
+}
+
+// OnNewWebRtcServer set handler on "newwebrtcserver" event
+func (w *Worker) OnNewWebRtcServer(handler func(webrtcServer *WebRtcServer)) {
+	w.onNewWebRtcServer = handler
+}
+
+// OnNewRouter set handler on "newrouter" event
+func (w *Worker) OnNewRouter(handler func(router *Router)) {
+	w.onNewRouter = handler
 }

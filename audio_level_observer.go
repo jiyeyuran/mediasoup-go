@@ -41,7 +41,9 @@ type AudioLevelObserverVolume struct {
 // - @emits silence
 type AudioLevelObserver struct {
 	IRtpObserver
-	logger logr.Logger
+	logger    logr.Logger
+	onVolumes func([]AudioLevelObserverVolume)
+	onSilence func()
 }
 
 func newAudioLevelObserver(params rtpObserverParams) *AudioLevelObserver {
@@ -66,6 +68,16 @@ func newAudioLevelObserver(params rtpObserverParams) *AudioLevelObserver {
 // - @emits silence
 func (o *AudioLevelObserver) Observer() IEventEmitter {
 	return o.IRtpObserver.Observer()
+}
+
+// OnVolumes set handler on "volumes" event
+func (o *AudioLevelObserver) OnVolumes(handler func(volumes []AudioLevelObserverVolume)) {
+	o.onVolumes = handler
+}
+
+// OnSilence set handler on "silence" event
+func (o *AudioLevelObserver) OnSilence(handler func()) {
+	o.onSilence = handler
 }
 
 func (o *AudioLevelObserver) handleWorkerNotifications(params rtpObserverParams) {
@@ -105,12 +117,22 @@ func (o *AudioLevelObserver) handleWorkerNotifications(params rtpObserverParams)
 
 				// Emit observer event.
 				o.Observer().SafeEmit("volumes", volumes)
+
+				if handler := o.onVolumes; handler != nil {
+					handler(volumes)
+				}
+
 			}
 		case "silence":
 			o.SafeEmit("silence")
 
 			// Emit observer event.
 			o.Observer().SafeEmit("silence")
+
+			if handler := o.onSilence; handler != nil {
+				handler()
+			}
+
 		default:
 			o.logger.Error(nil, "ignoring unknown event", "event", event)
 		}

@@ -102,6 +102,8 @@ type Router struct {
 	dataProducers           sync.Map
 	mapRouterPipeTransports sync.Map
 	observer                IEventEmitter
+	onNewRtpObserver        func(observer IRtpObserver)
+	onNewTransport          func(transport ITransport)
 }
 
 func newRouter(params routerParams) *Router {
@@ -758,6 +760,11 @@ func (router *Router) CreateActiveSpeakerObserver(options ...func(*ActiveSpeaker
 	})
 	// Emit observer event.
 	router.observer.SafeEmit("newrtpobserver", activeSpeakerObserver)
+
+	if handler := router.onNewRtpObserver; handler != nil {
+		handler(activeSpeakerObserver)
+	}
+
 	return
 }
 
@@ -807,6 +814,11 @@ func (router *Router) CreateAudioLevelObserver(options ...func(o *AudioLevelObse
 
 	// Emit observer event.
 	router.observer.SafeEmit("newrtpobserver", audioLevelObserver)
+
+	if handler := router.onNewRtpObserver; handler != nil {
+		handler(audioLevelObserver)
+	}
+
 	return
 }
 
@@ -828,6 +840,16 @@ func (router *Router) CanConsume(producerId string, rtpCapabilities RtpCapabilit
 	}
 
 	return ok
+}
+
+// OnNewRtpObserver set handler on "newrtpobserver" event
+func (router *Router) OnNewRtpObserver(handler func(transport IRtpObserver)) {
+	router.onNewRtpObserver = handler
+}
+
+// OnNewTransport set handler on "newtransport" event
+func (router *Router) OnNewTransport(handler func(transport ITransport)) {
+	router.onNewTransport = handler
 }
 
 // createTransport create a Transport interface.
@@ -897,6 +919,10 @@ func (router *Router) createTransport(internal internalData, data, appData inter
 
 	// Emit observer event.
 	router.observer.SafeEmit("newtransport", transport)
+
+	if handler := router.onNewTransport; handler != nil {
+		handler(transport)
+	}
 
 	return
 }

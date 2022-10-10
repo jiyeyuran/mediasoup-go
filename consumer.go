@@ -170,27 +170,29 @@ type consumerData struct {
 // - @emits @producerclose
 type Consumer struct {
 	IEventEmitter
-	logger          logr.Logger
-	internal        internalData
-	data            consumerData
-	channel         *Channel
-	payloadChannel  *PayloadChannel
-	appData         interface{}
-	paused          bool
-	closed          uint32
-	producerPaused  bool
-	priority        uint32
-	score           *ConsumerScore
-	preferredLayers *ConsumerLayers
-	currentLayers   *ConsumerLayers // Current video layers (just for video with simulcast or SVC).
-	observer        IEventEmitter
-	onClose         func()
-	onPause         func()
-	onResume        func()
-	onScore         func(*ConsumerScore)
-	onLayersChange  func(*ConsumerLayers)
-	onTrace         func(*ConsumerTraceEventData)
-	onRtp           func([]byte)
+	logger           logr.Logger
+	internal         internalData
+	data             consumerData
+	channel          *Channel
+	payloadChannel   *PayloadChannel
+	appData          interface{}
+	paused           bool
+	closed           uint32
+	producerPaused   bool
+	priority         uint32
+	score            *ConsumerScore
+	preferredLayers  *ConsumerLayers
+	currentLayers    *ConsumerLayers // Current video layers (just for video with simulcast or SVC).
+	observer         IEventEmitter
+	onClose          func()
+	onProducerClose  func()
+	onTransportClose func()
+	onPause          func()
+	onResume         func()
+	onScore          func(*ConsumerScore)
+	onLayersChange   func(*ConsumerLayers)
+	onTrace          func(*ConsumerTraceEventData)
+	onRtp            func([]byte)
 }
 
 func newConsumer(params consumerParams) *Consumer {
@@ -358,6 +360,10 @@ func (consumer *Consumer) transportClosed() {
 		consumer.SafeEmit("transportclose")
 		consumer.RemoveAllListeners()
 
+		if handler := consumer.onTransportClose; handler != nil {
+			handler()
+		}
+
 		consumer.close()
 	}
 }
@@ -496,6 +502,16 @@ func (consumer *Consumer) OnClose(handler func()) {
 	consumer.onClose = handler
 }
 
+// OnProducerClose set handler on "producerclose" event
+func (consumer *Consumer) OnProducerClose(handler func()) {
+	consumer.onProducerClose = handler
+}
+
+// OnTransportClose set handler on "transportclose" event
+func (consumer *Consumer) OnTransportClose(handler func()) {
+	consumer.onTransportClose = handler
+}
+
 // OnPause set handler on "pause" event
 func (consumer *Consumer) OnPause(handler func()) {
 	consumer.onPause = handler
@@ -539,6 +555,10 @@ func (consumer *Consumer) handleWorkerNotifications() {
 				consumer.Emit("@producerclose")
 				consumer.SafeEmit("producerclose")
 				consumer.RemoveAllListeners()
+
+				if handler := consumer.onProducerClose; handler != nil {
+					handler()
+				}
 
 				consumer.close()
 			}

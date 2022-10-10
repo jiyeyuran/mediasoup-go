@@ -68,15 +68,17 @@ type dataProducerData struct {
 // - @emits @close
 type DataProducer struct {
 	IEventEmitter
-	mu             sync.Mutex
-	logger         logr.Logger
-	internal       internalData
-	data           dataProducerData
-	channel        *Channel
-	payloadChannel *PayloadChannel
-	appData        interface{}
-	closed         uint32
-	observer       IEventEmitter
+	mu               sync.Mutex
+	logger           logr.Logger
+	internal         internalData
+	data             dataProducerData
+	channel          *Channel
+	payloadChannel   *PayloadChannel
+	appData          interface{}
+	closed           uint32
+	observer         IEventEmitter
+	onClose          func()
+	onTransportClose func()
 }
 
 func newDataProducer(params dataProducerParams) *DataProducer {
@@ -162,11 +164,19 @@ func (p *DataProducer) Close() (err error) {
 		p.Emit("@close")
 		p.RemoveAllListeners()
 
-		// Emit observer event.
-		p.observer.SafeEmit("close")
-		p.observer.RemoveAllListeners()
+		p.close()
 	}
 	return
+}
+
+func (p *DataProducer) close() {
+	// Emit observer event.
+	p.observer.SafeEmit("close")
+	p.observer.RemoveAllListeners()
+
+	if handler := p.onClose; handler != nil {
+		handler()
+	}
 }
 
 // transportClosed is called when transport was closed.
@@ -177,9 +187,11 @@ func (p *DataProducer) transportClosed() {
 		p.SafeEmit("transportclose")
 		p.RemoveAllListeners()
 
-		// Emit observer event.
-		p.observer.SafeEmit("close")
-		p.observer.RemoveAllListeners()
+		if handler := p.onTransportClose; handler != nil {
+			handler()
+		}
+
+		p.close()
 	}
 }
 
@@ -237,6 +249,16 @@ func (p *DataProducer) SendText(message string) error {
 	}
 
 	return p.payloadChannel.Notify("dataProducer.send", p.internal, ppid, payload)
+}
+
+// OnClose set handler on "close" event
+func (p *DataProducer) OnClose(handler func()) {
+	p.onClose = handler
+}
+
+// OnTransportClose set handler on "transportclose" event
+func (p *DataProducer) OnTransportClose(handler func()) {
+	p.onTransportClose = handler
 }
 
 func (p *DataProducer) handleWorkerNotifications() {

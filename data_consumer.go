@@ -93,6 +93,8 @@ type DataConsumer struct {
 	closed               uint32
 	observer             IEventEmitter
 	onClose              func()
+	onDataProducerClose  func()
+	onTransportClose     func()
 	onSctpSendBufferFull func()
 	onBufferedAmountLow  func(bufferAmount uint32)
 	onMessage            func(payload []byte, ppid int)
@@ -218,6 +220,10 @@ func (c *DataConsumer) transportClosed() {
 		c.SafeEmit("transportclose")
 		c.RemoveAllListeners()
 
+		if handler := c.onTransportClose; handler != nil {
+			handler()
+		}
+
 		c.close()
 	}
 }
@@ -312,6 +318,16 @@ func (c *DataConsumer) OnClose(handler func()) {
 	c.onClose = handler
 }
 
+// OnDataProducerClose set handler on "dataproducerclose" event
+func (consumer *DataConsumer) OnDataProducerClose(handler func()) {
+	consumer.onDataProducerClose = handler
+}
+
+// OnTransportClose set handler on "transportclose" event
+func (consumer *DataConsumer) OnTransportClose(handler func()) {
+	consumer.onTransportClose = handler
+}
+
 // OnSctpSendBufferFull set handler on "sctpsendbufferfull" event
 func (c *DataConsumer) OnSctpSendBufferFull(handler func()) {
 	c.onSctpSendBufferFull = handler
@@ -338,6 +354,10 @@ func (c *DataConsumer) handleWorkerNotifications() {
 				c.Emit("@dataproducerclose")
 				c.SafeEmit("dataproducerclose")
 				c.RemoveAllListeners()
+
+				if handler := c.onDataProducerClose; handler != nil {
+					handler()
+				}
 
 				c.close()
 			}

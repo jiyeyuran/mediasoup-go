@@ -28,7 +28,8 @@ type ActiveSpeakerObserverActivity struct {
 // - @emits dominantspeaker - (activity *ActiveSpeakerObserverActivity)
 type ActiveSpeakerObserver struct {
 	IRtpObserver
-	logger logr.Logger
+	logger            logr.Logger
+	onDominantSpeaker func(speaker *ActiveSpeakerObserverActivity)
 }
 
 func newActiveSpeakerObserver(params rtpObserverParams) *ActiveSpeakerObserver {
@@ -46,6 +47,11 @@ func newActiveSpeakerObserver(params rtpObserverParams) *ActiveSpeakerObserver {
 // - @emits dominantspeaker - (activity *ActiveSpeakerObserverActivity)
 func (o *ActiveSpeakerObserver) Observer() IEventEmitter {
 	return o.IRtpObserver.Observer()
+}
+
+// OnDominantSpeaker set handler on "dominantspeaker" event
+func (o *ActiveSpeakerObserver) OnDominantSpeaker(handler func(speaker *ActiveSpeakerObserverActivity)) {
+	o.onDominantSpeaker = handler
 }
 
 func (o *ActiveSpeakerObserver) handleWorkerNotifications(params rtpObserverParams) {
@@ -73,6 +79,10 @@ func (o *ActiveSpeakerObserver) handleWorkerNotifications(params rtpObserverPara
 
 			// Emit observer event.
 			o.Observer().SafeEmit("dominantspeaker", dominantSpeaker)
+
+			if handler := o.onDominantSpeaker; handler != nil {
+				handler(dominantSpeaker)
+			}
 
 		default:
 			o.logger.Error(nil, "ignoring unknown event", "event", event)
