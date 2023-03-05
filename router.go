@@ -104,6 +104,7 @@ type Router struct {
 	observer                IEventEmitter
 	onNewRtpObserver        func(observer IRtpObserver)
 	onNewTransport          func(transport ITransport)
+	onClose                 func()
 }
 
 func newRouter(params routerParams) *Router {
@@ -215,6 +216,10 @@ func (router *Router) close() {
 
 	// Emit observer event.
 	router.observer.SafeEmit("close")
+
+	if router.onClose != nil {
+		router.onClose()
+	}
 }
 
 // Dump Router.
@@ -840,6 +845,10 @@ func (router *Router) CanConsume(producerId string, rtpCapabilities RtpCapabilit
 	}
 
 	return ok
+}
+
+func (router *Router) OnClose(handler func()) {
+	router.onClose = handler
 }
 
 // OnNewRtpObserver set handler on "newrtpobserver" event
