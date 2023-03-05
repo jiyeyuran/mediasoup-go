@@ -516,7 +516,7 @@ func (suite *ConsumerTestingSuite) TestConsumerDump() {
 			Rtx: &RtpEncodingRtx{
 				Ssrc: videoConsumer.RtpParameters().Encodings[0].Rtx.Ssrc,
 			},
-			ScalabilityMode: "S4T1",
+			ScalabilityMode: "L4T1",
 		},
 	}, data.RtpParameters.Encodings)
 	suite.Len(data.ConsumableRtpEncodings, 4)

@@ -717,7 +717,7 @@ func getConsumerRtpParameters(consumableParams RtpParameters, caps RtpCapabiliti
 	// If there is simulast, mangle spatial layers in scalabilityMode.
 	if len(consumableParams.Encodings) > 1 {
 		temporalLayers := ParseScalabilityMode(scalabilityMode).TemporalLayers
-		scalabilityMode = fmt.Sprintf("S%dT%d", len(consumableParams.Encodings), temporalLayers)
+		scalabilityMode = fmt.Sprintf("L%dT%d", len(consumableParams.Encodings), temporalLayers)
 	}
 
 	consumerEncoding.ScalabilityMode = scalabilityMode
