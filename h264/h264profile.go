@@ -8,11 +8,11 @@ import (
 )
 
 const (
-	ProfileConstrainedBaseline byte = 1
-	ProfileBaseline                 = 2
-	ProfileMain                     = 3
-	ProfileConstrainedHigh          = 4
-	ProfileHigh                     = 5
+	ProfileConstrainedBaseline = 1
+	ProfileBaseline            = 2
+	ProfileMain                = 3
+	ProfileConstrainedHigh     = 4
+	ProfileHigh                = 5
 
 	// All values are equal to ten times the level number, except level 1b which is
 	// special.
@@ -227,7 +227,7 @@ func IsSameProfile(profileLevelIdStr1, profileLevelIdStr2 string) bool {
 }
 
 type RtpParameter struct {
-	PacketizationMode     int    `json:"packetization-mode,omitempty"`
+	PacketizationMode     int    `json:"packetization-mode"`
 	ProfileLevelId        string `json:"profile-level-id,omitempty"`
 	LevelAsymmetryAllowed int    `json:"level-asymmetry-allowed,omitempty"`
 }
