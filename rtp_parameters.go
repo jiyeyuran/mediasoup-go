@@ -204,6 +204,7 @@ type RtpCodecSpecificParameters struct {
 	ChannelMapping      string `json:"channel_mapping,omitempty"`
 	NumStreams          uint8  `json:"num_streams,omitempty"`
 	CoupledStreams      uint8  `json:"coupled_streams,omitempty"`
+	Minptime            uint8  `json:"minptime,omitempty"` // used by opus audio, up to 120
 }
 
 // RtcpFeedback provides information on RTCP feedback messages for a specific codec.
