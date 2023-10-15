@@ -227,7 +227,7 @@ func IsSameProfile(profileLevelIdStr1, profileLevelIdStr2 string) bool {
 }
 
 type RtpParameter struct {
-	PacketizationMode     int    `json:"packetization-mode"`
+	PacketizationMode     int    `json:"packetization-mode,omitempty"`
 	ProfileLevelId        string `json:"profile-level-id,omitempty"`
 	LevelAsymmetryAllowed int    `json:"level-asymmetry-allowed,omitempty"`
 }
