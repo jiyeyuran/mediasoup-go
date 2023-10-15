@@ -192,8 +192,8 @@ func (r RtpCodecParameters) isRtxCodec() bool {
 // 'profile-id' in VP9) are critical for codec matching.
 type RtpCodecSpecificParameters struct {
 	h264.RtpParameter          // used by h264 codec
-	ProfileId           string `json:"profile-id,omitempty"`   // used by vp9
-	Apt                 byte   `json:"apt,omitempty"`          // used by rtx codec
+	ProfileId           *uint8 `json:"profile-id,omitempty"`   // used by vp9
+	Apt                 uint8  `json:"apt,omitempty"`          // used by rtx codec
 	SpropStereo         uint8  `json:"sprop-stereo,omitempty"` // used by audio, 1 or 0
 	Useinbandfec        uint8  `json:"useinbandfec,omitempty"` // used by audio, 1 or 0
 	Usedtx              uint8  `json:"usedtx,omitempty"`       // used by audio, 1 or 0
