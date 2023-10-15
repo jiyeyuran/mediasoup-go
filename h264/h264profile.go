@@ -227,9 +227,9 @@ func IsSameProfile(profileLevelIdStr1, profileLevelIdStr2 string) bool {
 }
 
 type RtpParameter struct {
-	PacketizationMode     int    `json:"packetization-mode,omitempty"`
+	PacketizationMode     uint8  `json:"packetization-mode,omitempty"`
 	ProfileLevelId        string `json:"profile-level-id,omitempty"`
-	LevelAsymmetryAllowed int    `json:"level-asymmetry-allowed,omitempty"`
+	LevelAsymmetryAllowed uint8  `json:"level-asymmetry-allowed,omitempty"`
 }
 
 // GenerateProfileLevelIdForAnswer generate codec parameters that will be used as answer in an SDP

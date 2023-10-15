@@ -61,10 +61,10 @@ type RtpCodecCapability struct {
 	// Parameters is the codec specific parameters. Some parameters (such as
 	// 'packetization-mode' and 'profile-level-id' in H264 or 'profile-id' in VP9)
 	// are critical for codec matching.
-	Parameters RtpCodecSpecificParameters `json:"parameters,omitempty"`
+	Parameters RtpCodecSpecificParameters `json:"parameters"`
 
 	// RtcpFeedback is the transport layer and codec-specific feedback messages for this codec.
-	RtcpFeedback []RtcpFeedback `json:"rtcpFeedback,omitempty"`
+	RtcpFeedback []RtcpFeedback `json:"rtcpFeedback"`
 }
 
 func (r RtpCodecCapability) isRtxCodec() bool {
@@ -151,10 +151,10 @@ type RtpParameters struct {
 	HeaderExtensions []RtpHeaderExtensionParameters `json:"headerExtensions,omitempty"`
 
 	// Encodings is the transmitted RTP streams and their settings.
-	Encodings []RtpEncodingParameters `json:"encodings,omitempty"`
+	Encodings []RtpEncodingParameters `json:"encodings"`
 
 	// Rtcp is the parameters used for RTCP.
-	Rtcp RtcpParameters `json:"rtcp,omitempty"`
+	Rtcp RtcpParameters `json:"rtcp"`
 }
 
 // RtpCodecParameters provides information on codec settings within the RTP parameters.
