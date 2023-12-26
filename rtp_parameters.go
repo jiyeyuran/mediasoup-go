@@ -49,7 +49,7 @@ type RtpCodecCapability struct {
 	MimeType string `json:"mimeType"`
 
 	// PreferredPayloadType is the preferred RTP payload type.
-	PreferredPayloadType byte `json:"preferredPayloadType"`
+	PreferredPayloadType byte `json:"preferredPayloadType,omitempty"`
 
 	// ClockRate is the codec clock rate expressed in Hertz.
 	ClockRate int `json:"clockRate"`
