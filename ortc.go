@@ -857,11 +857,21 @@ func matchCodecs(aCodec *RtpCodecParameters, bCodec *RtpCodecCapability, options
 
 	case "video/h264":
 		if options.strict {
-			aParameters, bParameters := aCodec.Parameters, bCodec.Parameters
+			aPacketizationMode := uint8(0)
+			if aCodec.Parameters.PacketizationMode != nil {
+				aPacketizationMode = *aCodec.Parameters.PacketizationMode
+			}
 
-			if aParameters.PacketizationMode != bParameters.PacketizationMode {
+			bPacketizationMode := uint8(0)
+			if bCodec.Parameters.PacketizationMode != nil {
+				bPacketizationMode = *bCodec.Parameters.PacketizationMode
+			}
+
+			if aPacketizationMode != bPacketizationMode {
 				return false
 			}
+
+			aParameters, bParameters := aCodec.Parameters, bCodec.Parameters
 
 			selectedProfileLevelId, err := h264.GenerateProfileLevelIdForAnswer(
 				aParameters.RtpParameter, bParameters.RtpParameter)

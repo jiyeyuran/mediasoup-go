@@ -87,7 +87,7 @@ func CreateRouter(workers ...*Worker) *Router {
 				Parameters: RtpCodecSpecificParameters{
 					RtpParameter: h264.RtpParameter{
 						LevelAsymmetryAllowed: 1,
-						PacketizationMode:     1,
+						PacketizationMode:     Uint8(1),
 						ProfileLevelId:        "4d0032",
 					},
 				},
@@ -154,7 +154,7 @@ func CreateH264Producer(tranpsort ITransport) *Producer {
 					ClockRate:   90000,
 					Parameters: RtpCodecSpecificParameters{
 						RtpParameter: h264.RtpParameter{
-							PacketizationMode: 1,
+							PacketizationMode: Uint8(1),
 							ProfileLevelId:    "4d0032",
 						},
 					},
