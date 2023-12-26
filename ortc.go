@@ -877,9 +877,17 @@ func matchCodecs(aCodec *RtpCodecParameters, bCodec *RtpCodecCapability, options
 
 	case "video/vp9":
 		if options.strict {
-			aParameters, bParameters := aCodec.Parameters, bCodec.Parameters
+			aProfileId := uint8(0)
+			if aCodec.Parameters.ProfileId != nil {
+				aProfileId = *aCodec.Parameters.ProfileId
+			}
 
-			if aParameters.ProfileId != bParameters.ProfileId {
+			bProfileId := uint8(0)
+			if bCodec.Parameters.ProfileId != nil {
+				bProfileId = *bCodec.Parameters.ProfileId
+			}
+
+			if aProfileId != bProfileId {
 				return false
 			}
 		}
