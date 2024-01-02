@@ -11,9 +11,7 @@ import (
 	"github.com/imdario/mergo"
 )
 
-func init() {
-	rand.Seed(time.Now().UnixNano())
-}
+var rng = rand.New(rand.NewSource(time.Now().UnixNano()))
 
 type H map[string]interface{}
 
@@ -26,7 +24,7 @@ func Uint8(v uint8) *uint8 {
 }
 
 func generateRandomNumber() uint32 {
-	return uint32(rand.Int63n(900000000)) + 100000000
+	return uint32(rng.Int63n(900000000)) + 100000000
 }
 
 func clone(from, to interface{}) (err error) {
