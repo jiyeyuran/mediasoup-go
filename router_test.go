@@ -29,7 +29,7 @@ var testRouterMediaCodecs = []*RtpCodecCapability{
 		Parameters: RtpCodecSpecificParameters{
 			RtpParameter: h264.RtpParameter{
 				LevelAsymmetryAllowed: 1,
-				PacketizationMode:     1,
+				PacketizationMode:     Uint8(1),
 				ProfileLevelId:        "4d0032",
 			},
 		},

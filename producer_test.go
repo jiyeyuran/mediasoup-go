@@ -36,7 +36,7 @@ func (suite *ProducerTestingSuite) SetupTest() {
 			Parameters: RtpCodecSpecificParameters{
 				RtpParameter: h264.RtpParameter{
 					LevelAsymmetryAllowed: 1,
-					PacketizationMode:     1,
+					PacketizationMode:     Uint8(1),
 					ProfileLevelId:        "4d0032",
 				},
 			},
@@ -170,7 +170,7 @@ func (suite *ProducerTestingSuite) TestWebRtcTransportProduce_TypeError() {
 					ClockRate:   90000,
 					Parameters: RtpCodecSpecificParameters{
 						RtpParameter: h264.RtpParameter{
-							PacketizationMode: 1,
+							PacketizationMode: Uint8(1),
 							ProfileLevelId:    "4d0032",
 						},
 					},
@@ -200,7 +200,7 @@ func (suite *ProducerTestingSuite) TestWebRtcTransportProduce_TypeError() {
 					ClockRate:   90000,
 					Parameters: RtpCodecSpecificParameters{
 						RtpParameter: h264.RtpParameter{
-							PacketizationMode: 1,
+							PacketizationMode: Uint8(1),
 							ProfileLevelId:    "4d0032",
 						},
 					},
@@ -254,7 +254,7 @@ func (suite *ProducerTestingSuite) TestWebRtcTransportProduce_UnsupportedError()
 					ClockRate:   90000,
 					Parameters: RtpCodecSpecificParameters{
 						RtpParameter: h264.RtpParameter{
-							PacketizationMode: 1,
+							PacketizationMode: Uint8(1),
 							ProfileLevelId:    "CHICKEN",
 						},
 					},
@@ -312,7 +312,7 @@ func (suite *ProducerTestingSuite) TestWebRtcTransportProduce_WithAlreadyUsedMID
 					ClockRate:   90000,
 					Parameters: RtpCodecSpecificParameters{
 						RtpParameter: h264.RtpParameter{
-							PacketizationMode: 1,
+							PacketizationMode: Uint8(1),
 							ProfileLevelId:    "4d0032",
 						},
 					},
@@ -382,7 +382,7 @@ func (suite *ProducerTestingSuite) TestProduerDump_Succeeds() {
 	suite.Empty(data.RtpParameters.Codecs[0].Channels)
 	suite.Equal(RtpCodecSpecificParameters{
 		RtpParameter: h264.RtpParameter{
-			PacketizationMode: 1,
+			PacketizationMode: Uint8(1),
 			ProfileLevelId:    "4d0032",
 		},
 	}, data.RtpParameters.Codecs[0].Parameters)

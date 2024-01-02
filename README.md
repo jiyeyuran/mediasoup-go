@@ -53,7 +53,7 @@ var consumerDeviceCapabilities = mediasoup.RtpCapabilities{
 			Parameters: mediasoup.RtpCodecSpecificParameters{
 				RtpParameter: h264.RtpParameter{
 					LevelAsymmetryAllowed: 1,
-					PacketizationMode:     1,
+					PacketizationMode:     Uint8(1),
 					ProfileLevelId:        "4d0032",
 				},
 			},
@@ -115,7 +115,7 @@ func main() {
 				Parameters: mediasoup.RtpCodecSpecificParameters{
 					RtpParameter: h264.RtpParameter{
 						LevelAsymmetryAllowed: 1,
-						PacketizationMode:     1,
+						PacketizationMode:     Uint8(1),
 						ProfileLevelId:        "4d0032",
 					},
 				},
@@ -146,7 +146,7 @@ func main() {
 					ClockRate:   90000,
 					Parameters: mediasoup.RtpCodecSpecificParameters{
 						RtpParameter: h264.RtpParameter{
-							PacketizationMode: 1,
+							PacketizationMode: Uint8(1),
 							ProfileLevelId:    "4d0032",
 						},
 					},

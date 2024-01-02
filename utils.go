@@ -21,6 +21,10 @@ func Bool(b bool) *bool {
 	return &b
 }
 
+func Uint8(v uint8) *uint8 {
+	return &v
+}
+
 func generateRandomNumber() uint32 {
 	return uint32(rand.Int63n(900000000)) + 100000000
 }

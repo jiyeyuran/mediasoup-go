@@ -40,7 +40,7 @@ func (suite *ConsumerTestingSuite) SetupTest() {
 			Parameters: RtpCodecSpecificParameters{
 				RtpParameter: h264.RtpParameter{
 					LevelAsymmetryAllowed: 1,
-					PacketizationMode:     1,
+					PacketizationMode:     Uint8(1),
 					ProfileLevelId:        "4d0032",
 				},
 			},
@@ -64,7 +64,7 @@ func (suite *ConsumerTestingSuite) SetupTest() {
 				Parameters: RtpCodecSpecificParameters{
 					RtpParameter: h264.RtpParameter{
 						LevelAsymmetryAllowed: 1,
-						PacketizationMode:     1,
+						PacketizationMode:     Uint8(1),
 						ProfileLevelId:        "4d0032",
 					},
 				},
@@ -244,7 +244,7 @@ func (suite *ConsumerTestingSuite) TestTransportConsume_Succeeds() {
 		PayloadType: 103,
 		Parameters: RtpCodecSpecificParameters{
 			RtpParameter: h264.RtpParameter{
-				PacketizationMode: 1,
+				PacketizationMode: Uint8(1),
 				ProfileLevelId:    "4d0032",
 			},
 		},
@@ -297,7 +297,7 @@ func (suite *ConsumerTestingSuite) TestTransportConsume_Succeeds() {
 		PayloadType: 103,
 		Parameters: RtpCodecSpecificParameters{
 			RtpParameter: h264.RtpParameter{
-				PacketizationMode: 1,
+				PacketizationMode: Uint8(1),
 				ProfileLevelId:    "4d0032",
 			},
 		},
@@ -472,7 +472,7 @@ func (suite *ConsumerTestingSuite) TestConsumerDump() {
 	suite.Equal(90000, data.RtpParameters.Codecs[0].ClockRate)
 	suite.Empty(data.RtpParameters.Codecs[0].Channels)
 	suite.Equal(h264.RtpParameter{
-		PacketizationMode: 1,
+		PacketizationMode: Uint8(1),
 		ProfileLevelId:    "4d0032",
 	}, data.RtpParameters.Codecs[0].Parameters.RtpParameter)
 	suite.EqualValues([]RtcpFeedback{
