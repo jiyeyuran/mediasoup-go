@@ -1,9 +1,12 @@
 # Mediasoup library in golang
 This golang library is aiming to help people who want to use [mediasoup](https://github.com/versatica/mediasoup) without coding in node.js. Be attention, in order to communicate with mediasoup worker, it uses the feature of `Cmd.ExtraFiles` which doesn't work on Windows platform. Because mediasoup uses single thread in C++ code, you still need to use `PipeTransport` to make use of multi-core cpu.
 ## Install
+
+### Notice: Since mediasoup switched from JSON based messages to `flatbuffers`, this library can only support mediasoup to version 3.12.16.
+
 Build mediasoup worker binary
 ```
-npm install -g github:versatica/mediasoup#v3
+npm install -g mediasoup@3.12.16
 ```
 or set environment variable `MEDIASOUP_WORKER_BIN` to your mediasoup worker binary path. It can also be done in golang
 ```
