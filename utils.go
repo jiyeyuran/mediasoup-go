@@ -5,13 +5,16 @@ import (
 	"math/rand"
 	"reflect"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/imdario/mergo"
 )
 
-var rng = rand.New(rand.NewSource(time.Now().UnixNano()))
+var randPool = sync.Pool{
+	New: func() any {
+		return rand.New(rand.NewSource(time.Now().UnixNano()))
+	},
+}
 
 type H map[string]interface{}
 
@@ -24,7 +27,9 @@ func Uint8(v uint8) *uint8 {
 }
 
 func generateRandomNumber() uint32 {
-	return uint32(rng.Int63n(900000000)) + 100000000
+	r := randPool.Get().(*rand.Rand)
+	defer randPool.Put(r)
+	return uint32(r.Int63n(900000000)) + 100000000
 }
 
 func clone(from, to interface{}) (err error) {
@@ -45,7 +50,7 @@ func override(dst, src interface{}) error {
 
 func syncMapLen(m *sync.Map) (len uint32) {
 	m.Range(func(key, val interface{}) bool {
-		atomic.AddUint32(&len, 1)
+		len++
 		return true
 	})
 	return
