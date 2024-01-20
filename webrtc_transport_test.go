@@ -431,8 +431,3 @@ func (suite *WebRtcTransportTestingSuite) TestEmitsRoutercloseIfWorkerIsClosed()
 	suite.EqualValues("closed", transport.DtlsState())
 	suite.Zero(transport.SctpState())
 }
-
-/*
-
-
- */

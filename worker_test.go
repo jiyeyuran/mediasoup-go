@@ -12,12 +12,7 @@ import (
 )
 
 var errType = errors.New("")
-var worker *Worker
-
-func init() {
-	WorkerBin = "../mediasoup/worker/out/Release/mediasoup-worker"
-	worker = CreateTestWorker()
-}
+var worker = CreateTestWorker()
 
 func CreateTestWorker(options ...Option) *Worker {
 	defaultOptions := []Option{WithLogLevel("debug"), WithLogTags([]WorkerLogTag{"info"})}
