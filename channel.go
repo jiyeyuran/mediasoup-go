@@ -167,7 +167,6 @@ func (c *Channel) runWriteLoop() {
 		case sentInfo := <-c.sentChan:
 			if err := c.codec.WritePayload(sentInfo.request); err != nil {
 				sentInfo.respCh <- workerResponse{err: err}
-				break
 			}
 		case <-c.closeCh:
 			return

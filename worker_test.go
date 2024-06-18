@@ -12,7 +12,6 @@ import (
 )
 
 var errType = errors.New("")
-var worker = CreateTestWorker()
 
 func CreateTestWorker(options ...Option) *Worker {
 	defaultOptions := []Option{WithLogLevel("debug"), WithLogTags([]WorkerLogTag{"info"})}
