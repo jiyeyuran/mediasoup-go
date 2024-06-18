@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"go.uber.org/goleak"
 )
 
 var errType = errors.New("")
@@ -115,6 +116,14 @@ func TestWorkerClose_Succeeds(t *testing.T) {
 
 	assert.True(t, fn.Finished())
 	assert.True(t, worker.Closed())
+}
+
+func TestWorkerClose_NoGoroutineLeaks(t *testing.T) {
+	goleak.VerifyNone(t)
+	defer goleak.VerifyNone(t)
+
+	worker := CreateTestWorker(WithLogLevel("warn"))
+	worker.Close()
 }
 
 func TestWorkerEmitsDied(t *testing.T) {

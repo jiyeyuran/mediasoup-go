@@ -12,7 +12,8 @@ require (
 	github.com/pion/logging v0.2.2
 	github.com/pion/sctp v1.7.11
 	github.com/rs/zerolog v1.27.0
-	github.com/stretchr/testify v1.6.1
+	github.com/stretchr/testify v1.8.0
+	go.uber.org/goleak v1.3.0
 	golang.org/x/sync v0.0.0-20220601150217-0de741cfad7f
 )
 
@@ -26,5 +27,5 @@ require (
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	golang.org/x/sys v0.0.0-20210927094055-39ccf1dd6fa6 // indirect
 	gopkg.in/check.v1 v1.0.0-20200902074654-038fdea0a05b // indirect
-	gopkg.in/yaml.v3 v3.0.0-20200313102051-9f266ea9e77c // indirect
+	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
