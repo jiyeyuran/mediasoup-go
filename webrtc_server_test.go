@@ -122,6 +122,7 @@ func TestWebRtcServerCloseSucceeds(t *testing.T) {
 	onObserverClose := NewMockFunc(t)
 	webRtcServer.Observer().Once("close", onObserverClose.Fn())
 	webRtcServer.Close()
+	worker.Close()
 
 	onObserverClose.ExpectCalledTimes(1)
 	assert.True(t, webRtcServer.Closed())
@@ -229,6 +230,8 @@ func TestRouterCreateWebRtcTransportWithWebRtcServer(t *testing.T) {
 			LocalIceUsernameFragments: []LocalIceUsernameFragment{},
 			TupleHashes:               []TupleHash{},
 		}.String(), webRtcServerDump.String())
+
+		worker.Close()
 	})
 
 	t.Run(`router.createWebRtcTransport() with webRtcServer succeeds and webRtcServer is closed`, func(t *testing.T) {
@@ -343,5 +346,7 @@ func TestRouterCreateWebRtcTransportWithWebRtcServer(t *testing.T) {
 			Id:           router.Id(),
 			TransportIds: []string{},
 		}.String(), routerDump.String())
+
+		worker.Close()
 	})
 }
