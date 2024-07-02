@@ -86,6 +86,8 @@ func TestRouterClose_Succeeds(t *testing.T) {
 
 	onObserverClose.ExpectCalled()
 	assert.True(t, router.Closed())
+
+	worker.Close()
 }
 
 func TestRouterEmitsWorkCloseIfWorkerIsClosed(t *testing.T) {

@@ -69,12 +69,19 @@ func detectNetCodec(settings *WorkerSettings, newCodec func(io.WriteCloser, io.R
 	defer child.Process.Kill()
 
 	waitTimer := time.NewTimer(time.Second)
-	defer waitTimer.Stop()
+	waitTimerCancel := make(chan struct{})
+	defer func() {
+		waitTimer.Stop()
+		close(waitTimerCancel)
+	}()
 
 	codec := newCodec(producerWriter, consumerReader)
 
 	go func() {
-		<-waitTimer.C
+		select {
+		case <-waitTimer.C:
+		case <-waitTimerCancel:
+		}
 		codec.Close()
 	}()
 

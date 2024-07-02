@@ -62,9 +62,13 @@ var consumerDeviceCapabilities = RtpCapabilities{
 }
 
 func CreateRouter(workers ...*Worker) *Router {
-	myworker := worker
+	var myworker *Worker
+	closeWithRouter := false
 	if len(workers) > 0 && workers[0] != nil {
 		myworker = workers[0]
+	} else {
+		myworker = CreateTestWorker()
+		closeWithRouter = true
 	}
 
 	router, err := myworker.CreateRouter(RouterOptions{
@@ -97,6 +101,11 @@ func CreateRouter(workers ...*Worker) *Router {
 	if err != nil {
 		panic(err)
 	}
+
+	if closeWithRouter {
+		router.OnClose(myworker.Close)
+	}
+
 	return router
 }
 

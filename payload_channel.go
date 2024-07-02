@@ -180,7 +180,6 @@ func (c *PayloadChannel) runWriteLoop() {
 		case sentInfo := <-c.sentChan:
 			if err := c.writeAll(sentInfo.request, sentInfo.payload); err != nil {
 				sentInfo.respCh <- workerResponse{err: err}
-				break
 			}
 		case <-c.closeCh:
 			return

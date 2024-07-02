@@ -21,11 +21,12 @@ func TestSctpTestingSuite(t *testing.T) {
 
 type SctpTestingSuite struct {
 	TestingSuite
-	worker       *Worker
-	router       *Router
-	dataProducer *DataProducer
-	dataConsumer *DataConsumer
-	stcpStream   *sctp.Stream
+	worker          *Worker
+	router          *Router
+	dataProducer    *DataProducer
+	dataConsumer    *DataConsumer
+	sctpAssociation *sctp.Association
+	sctpStream      *sctp.Stream
 }
 
 func (suite *SctpTestingSuite) SetupTest() {
@@ -57,6 +58,8 @@ func (suite *SctpTestingSuite) SetupTest() {
 	association, err := sctp.Client(config)
 	suite.NoError(err)
 
+	suite.sctpAssociation = association
+
 	// Create an explicit SCTP outgoing stream with id 123 (id 0 is already used
 	// by the implicit SCTP outgoing stream built-in the SCTP socket).
 	sctpSendStreamId = uint16(123)
@@ -64,7 +67,7 @@ func (suite *SctpTestingSuite) SetupTest() {
 	stream, err := association.OpenStream(sctpSendStreamId, sctp.PayloadTypeWebRTCBinary)
 	suite.NoError(err)
 
-	suite.stcpStream = stream
+	suite.sctpStream = stream
 
 	// Create a DataProducer with the corresponding SCTP stream id.
 	dataProducer, err := transport.ProduceData(DataProducerOptions{
@@ -93,7 +96,8 @@ func (suite *SctpTestingSuite) SetupTest() {
 }
 
 func (suite *SctpTestingSuite) TearDownTest() {
-	suite.stcpStream.Close()
+	suite.sctpStream.Close()
+	suite.sctpAssociation.Close()
 	suite.worker.Close()
 }
 
@@ -139,7 +143,7 @@ func (suite *SctpTestingSuite) TestOrderedDataProducerDeliversAllSCTPMessagesToT
 			payloadType = sctp.PayloadTypeWebRTCString
 		}
 
-		n, err := suite.stcpStream.WriteSCTP(data, payloadType)
+		n, err := suite.sctpStream.WriteSCTP(data, payloadType)
 		suite.NoError(err)
 
 		sentMessageBytes += uint32(n)
