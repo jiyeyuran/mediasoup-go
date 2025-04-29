@@ -2,11 +2,13 @@ package mediasoup
 
 import (
 	"bufio"
+	"context"
 	"errors"
 	"fmt"
-	"io"
+	"log/slog"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -14,317 +16,132 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/go-logr/logr"
-	"github.com/google/uuid"
-	"github.com/hashicorp/go-version"
-	"github.com/jiyeyuran/mediasoup-go/netcodec"
+	FbsNotification "github.com/jiyeyuran/mediasoup-go/internal/FBS/Notification"
+	FbsRequest "github.com/jiyeyuran/mediasoup-go/internal/FBS/Request"
+	FbsTransport "github.com/jiyeyuran/mediasoup-go/internal/FBS/Transport"
+	FbsWorker "github.com/jiyeyuran/mediasoup-go/internal/FBS/Worker"
+	"github.com/jiyeyuran/mediasoup-go/internal/channel"
 )
-
-var (
-	// WorkerBin indicates the worker binary path, prefer WithWorkerBin
-	WorkerBin = getDefaultWorkerBin()
-	// WorkerVersion indicates the worker binary version, prefer WithWorkerVersion
-	WorkerVersion = getDefaultWorkerVersion()
-)
-
-func getDefaultWorkerBin() string {
-	workerBin := os.Getenv("MEDIASOUP_WORKER_BIN")
-	if len(workerBin) > 0 {
-		return workerBin
-	}
-	return "/usr/local/lib/node_modules/mediasoup/worker/out/Release/mediasoup-worker"
-}
-
-func getDefaultWorkerVersion() string {
-	return os.Getenv("MEDIASOUP_WORKER_VERSION")
-}
-
-// WorkerLogLevel controls log level in mediasoup-worker
-type WorkerLogLevel string
-
-const (
-	WorkerLogLevel_Debug WorkerLogLevel = "debug"
-	WorkerLogLevel_Warn  WorkerLogLevel = "warn"
-	WorkerLogLevel_Error WorkerLogLevel = "error"
-	WorkerLogLevel_None  WorkerLogLevel = "none"
-)
-
-// WorkerLogTag controls which tag of logs should display in mediasoup-worker
-type WorkerLogTag string
-
-const (
-	WorkerLogTag_INFO      WorkerLogTag = "info"
-	WorkerLogTag_ICE       WorkerLogTag = "ice"
-	WorkerLogTag_DTLS      WorkerLogTag = "dtls"
-	WorkerLogTag_RTP       WorkerLogTag = "rtp"
-	WorkerLogTag_SRTP      WorkerLogTag = "srtp"
-	WorkerLogTag_RTCP      WorkerLogTag = "rtcp"
-	WorkerLogTag_RTX       WorkerLogTag = "rtx"
-	WorkerLogTag_BWE       WorkerLogTag = "bwe"
-	WorkerLogTag_Score     WorkerLogTag = "score"
-	WorkerLogTag_Simulcast WorkerLogTag = "simulcast"
-	WorkerLogTag_SVC       WorkerLogTag = "svc"
-	WorkerLogTag_SCTP      WorkerLogTag = "sctp"
-	WorkerLogTag_Message   WorkerLogTag = "message"
-)
-
-// WorkerResourceUsage is an object with the fields of the uv_rusage_t struct.
-//
-// - http//docs.libuv.org/en/v1.x/misc.html#c.uv_rusage_t
-// - https//linux.die.net/man/2/getrusage
-type WorkerResourceUsage struct {
-	// User CPU time used (in ms).
-	Utime int64 `json:"ru_utime"`
-
-	// System CPU time used (in ms).
-	Stime int64 `json:"ru_stime"`
-
-	// Maximum resident set size.
-	Maxrss int64 `json:"ru_maxrss"`
-
-	// Integral shared memory size.
-	Ixrss int64 `json:"ru_ixrss"`
-
-	// Integral unshared data size.
-	Idrss int64 `json:"ru_idrss"`
-
-	// Integral unshared stack size.
-	Isrss int64 `json:"ru_isrss"`
-
-	// Page reclaims (soft page faults).
-	Minflt int64 `json:"ru_minflt"`
-
-	// Page faults (hard page faults).
-	Majflt int64 `json:"ru_majflt"`
-
-	// Swaps.
-	Nswap int64 `json:"ru_nswap"`
-
-	// Block input operations.
-	Inblock int64 `json:"ru_inblock"`
-
-	// Block output operations.
-	Oublock int64 `json:"ru_oublock"`
-
-	// IPC messages sent.
-	Msgsnd int64 `json:"ru_msgsnd"`
-
-	// IPC messages received.
-	Msgrcv int64 `json:"ru_msgrcv"`
-
-	// Signals received.
-	Nsignals int64 `json:"ru_nsignals"`
-
-	// Voluntary context switches.
-	Nvcsw int64 `json:"ru_nvcsw"`
-
-	// Involuntary context switches.
-	Nivcsw int64 `json:"ru_nivcsw"`
-}
-
-type Option func(w *WorkerSettings)
 
 // Worker represents a mediasoup C++ subprocess that runs in a single CPU core and handles Router
 // instances.
-//
-//   - @emits died - (err error)
 type Worker struct {
-	IEventEmitter
-	// Worker logger.
-	logger logr.Logger
-	// Worker process PID.
-	pid int
-	// Channel instance.
-	channel *Channel
-	// PayloadChannel instance.
-	payloadChannel *PayloadChannel
-	// Closed flag.
-	closed uint32
-	// Custom app data.
-	appData interface{}
-	// WebRtcServers map
+	baseNotifier
+	cmd           *exec.Cmd
+	channel       *channel.Channel
+	logger        *slog.Logger
+	routers       sync.Map
 	webRtcServers sync.Map
-	// Routers map.
-	routers sync.Map
-	// child is the worker process
-	child *exec.Cmd
-	// diedErr indices worker process stopped unexpectly
-	diedErr error
-	// waitCh notify worker process stopped expectly or not
-	waitCh chan error
-
-	// Deprecated
-	observer IEventEmitter
-
-	onNewWebRtcServer func(webRtcServer *WebRtcServer)
-	onNewRouter       func(router *Router)
+	appData       H
 }
 
-func NewWorker(options ...Option) (worker *Worker, err error) {
-	logger := NewLogger("Worker")
-	settings := &WorkerSettings{
-		WorkerBin:     WorkerBin,
-		WorkerVersion: WorkerVersion,
-		LogLevel:      WorkerLogLevel_Error,
-		RtcMinPort:    10000,
-		RtcMaxPort:    59999,
-		AppData:       H{},
+// NewWorker create a Worker.
+func NewWorker(workerBinaryPath string, options ...Option) (*Worker, error) {
+	opts := &WorkerSettings{
+		LogLevel: WorkerLogLevelError,
+		Logger: slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
+			AddSource: true,
+			Level:     slog.LevelInfo,
+			ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
+				if a.Key == slog.SourceKey {
+					source := a.Value.Any().(*slog.Source)
+					source.File = filepath.Base(source.File)
+				}
+				return a
+			},
+		})),
 	}
-
-	for _, option := range options {
-		option(settings)
+	for _, opt := range options {
+		opt(opts)
 	}
-
-	logger.V(1).Info("constructor()", "settings", settings)
-
-	var (
-		useLVCodec    bool
-		useHandlerID  bool
-		workerVersion = settings.WorkerVersion
-	)
-
-	if len(workerVersion) == 0 {
-		useLVCodec = detectNetCodec(settings, netcodec.NewNetLVCodec)
-		useHandlerID = detectNewCloseMethods(settings.WorkerBin)
-		workerVersion = "0.0.0"
-	} else {
-		formatedWorkerVersion, err := version.NewVersion(workerVersion)
-		if err != nil {
-			return nil, err
-		}
-		// From this version to up, mediasoup-worker uses LV protocol to communicate with wrappers.
-		usingLVVerion, _ := version.NewVersion("3.9.0")
-		useLVCodec = formatedWorkerVersion.GreaterThanOrEqual(usingLVVerion)
-
-		// From this version to up, mediasoup-worker uses new close methods to interact with wrappers.
-		usingNewCloseMethodsVerion, _ := version.NewVersion("3.10.6")
-		useHandlerID = formatedWorkerVersion.GreaterThanOrEqual(usingNewCloseMethodsVerion)
-	}
-
-	var closeIfError []io.Closer
-	defer func() {
-		if err != nil {
-			for i := len(closeIfError) - 1; i >= 0; i-- {
-				closeIfError[i].Close()
-			}
-		}
-	}()
 
 	producerReader, producerWriter, err := os.Pipe()
 	if err != nil {
 		return nil, err
 	}
-	closeIfError = append(closeIfError, producerReader, producerWriter)
+	defer func() {
+		if err != nil {
+			producerWriter.Close()
+			producerReader.Close()
+		}
+	}()
 
 	consumerReader, consumerWriter, err := os.Pipe()
 	if err != nil {
 		return nil, err
 	}
-	closeIfError = append(closeIfError, consumerReader, consumerWriter)
+	defer func() {
+		if err != nil {
+			consumerWriter.Close()
+			consumerReader.Close()
+		}
+	}()
 
-	payloadProducerReader, payloadProducerWriter, err := os.Pipe()
+	args := opts.CustomArgs
+
+	if len(opts.LogLevel) > 0 {
+		args = append(args, "--logLevel="+string(opts.LogLevel))
+	}
+
+	for _, logTag := range opts.LogTags {
+		args = append(args, fmt.Sprintf("--logTags=%s", logTag))
+	}
+
+	if len(opts.DtlsCertificateFile) > 0 && len(opts.DtlsPrivateKeyFile) > 0 {
+		args = append(args,
+			"--dtlsCertificateFile="+opts.DtlsCertificateFile,
+			"--dtlsPrivateKeyFile="+opts.DtlsPrivateKeyFile,
+		)
+	}
+
+	if len(opts.LibwebrtcFieldTrials) > 0 {
+		args = append(args, "--libwebrtcFieldTrials="+opts.LibwebrtcFieldTrials)
+	}
+
+	if opts.DisableLiburing {
+		args = append(args, "--disableLiburing=true")
+	}
+
+	opts.Logger.Debug(fmt.Sprintf("starting worker process: %s %s", workerBinaryPath, strings.Join(args, " ")))
+
+	cmd := exec.CommandContext(context.Background(), workerBinaryPath, args...)
+	cmd.ExtraFiles = []*os.File{producerReader, consumerWriter}
+	cmd.Env = append(opts.Env, "MEDIASOUP_VERSION=default", "ULIMIT_CORE=unlimited")
+	cmd.SysProcAttr = &syscall.SysProcAttr{
+		Setpgid: true,
+	}
+	// stderr is closed by command
+	stderr, err := cmd.StderrPipe()
 	if err != nil {
 		return nil, err
 	}
-	closeIfError = append(closeIfError, payloadProducerReader, payloadProducerWriter)
-
-	payloadConsumerReader, payloadConsumerWriter, err := os.Pipe()
+	// stdout is closed by command
+	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		return nil, err
 	}
-	closeIfError = append(closeIfError, payloadConsumerReader, payloadConsumerWriter)
-
-	var newCodec func(w io.WriteCloser, r io.ReadCloser) netcodec.Codec
-
-	if useLVCodec {
-		newCodec = netcodec.NewNetLVCodec
-	} else {
-		newCodec = netcodec.NewNetStringCodec
-	}
-
-	channelCodec := newCodec(producerWriter, consumerReader)
-	payloadChannelCodec := newCodec(payloadProducerWriter, payloadConsumerReader)
-
-	bin := settings.WorkerBin
-	args := settings.Args()
-	if wrappedArgs := strings.Fields(settings.WorkerBin); len(wrappedArgs) > 1 {
-		bin = wrappedArgs[0]
-		args = append(wrappedArgs[1:], args...)
-	}
-	logger.V(1).Info("spawning worker process", "bin", bin, "args", strings.Join(args, " "))
-
-	child := exec.Command(bin, args...)
-	child.ExtraFiles = []*os.File{producerReader, consumerWriter, payloadProducerReader, payloadConsumerWriter}
-	child.Env = []string{"MEDIASOUP_VERSION=" + workerVersion}
-
-	// pipe is closed by cmd
-	stderr, err := child.StderrPipe()
-	if err != nil {
-		return nil, err
-	}
-	// pipe is closed by cmd
-	stdout, err := child.StdoutPipe()
-	if err != nil {
-		return nil, err
-	}
-
-	// notify the worker process is running or stopped with error
-	doneCh := make(chan error)
-	// spawnDone indices the worker process is started
-	spawnDone := uint32(0)
 
 	// start worker process
-	if err = child.Start(); err != nil {
+	if err = cmd.Start(); err != nil {
 		return nil, err
 	}
 
-	// the worker process id
-	pid := child.Process.Pid
-	channel := newChannel(channelCodec, pid, useHandlerID)
-	payloadChannel := newPayloadChannel(payloadChannelCodec, useHandlerID)
+	pid := cmd.Process.Pid
+	logger := opts.Logger.With("pid", pid)
+	channel := channel.NewChannel(producerWriter, consumerReader, logger)
 
-	channel.Subscribe(strconv.Itoa(pid), func(event string, data []byte) {
-		if atomic.CompareAndSwapUint32(&spawnDone, 0, 1) && event == "running" {
-			logger.V(1).Info("worker process running", "pid", pid)
+	// spawnDone indices the worker process is started
+	spawnDone := uint32(0)
+	// notify the worker process is running or stopped with error
+	doneCh := make(chan error)
+
+	sub := channel.Subscribe(strconv.Itoa(pid), func(event FbsNotification.Event, body *FbsNotification.BodyT) {
+		if event == FbsNotification.EventWORKER_RUNNING && atomic.CompareAndSwapUint32(&spawnDone, 0, 1) {
+			logger.Debug("worker process is running")
 			close(doneCh)
 		}
 	})
-
-	// start channel after setting up a listener on pid
-	channel.Start()
-	payloadChannel.Start()
-
-	closeIfError = append(closeIfError, channel, payloadChannel)
-
-	worker = &Worker{
-		IEventEmitter:  NewEventEmitter(),
-		logger:         logger,
-		pid:            pid,
-		channel:        channel,
-		payloadChannel: payloadChannel,
-		appData:        settings.AppData,
-		child:          child,
-		waitCh:         make(chan error, 1),
-		observer:       NewEventEmitter(),
-	}
-
-	go worker.wait(child, &spawnDone, doneCh)
-
-	waitTimer := time.NewTimer(time.Second)
-	defer waitTimer.Stop()
-
-	select {
-	case err = <-doneCh:
-		channel.Unsubscribe(strconv.Itoa(pid))
-
-	case <-waitTimer.C:
-		err = errors.New("channel timeout")
-	}
-	if err != nil {
-		return nil, err
-	}
-
-	workerLogger := NewLogger(fmt.Sprintf("worker[pid:%d]", pid))
+	defer sub.Unsubscribe()
 
 	go func() {
 		r := bufio.NewReader(stderr)
@@ -333,10 +150,9 @@ func NewWorker(options ...Option) (worker *Worker, err error) {
 			if err != nil {
 				break
 			}
-			workerLogger.Error(nil, "(stderr) "+string(line))
+			logger.Error(string(line))
 		}
 	}()
-
 	go func() {
 		r := bufio.NewReader(stdout)
 		for {
@@ -344,256 +160,277 @@ func NewWorker(options ...Option) (worker *Worker, err error) {
 			if err != nil {
 				break
 			}
-			workerLogger.V(1).Info("(stdout) " + string(line))
+			logger.Info(string(line))
 		}
 	}()
 
-	return worker, nil
+	// start channel after setting up a listener on pid
+	channel.Start()
+
+	w := &Worker{
+		cmd:     cmd,
+		channel: channel,
+		logger:  logger,
+		appData: opts.AppData,
+	}
+
+	go w.wait(cmd, &spawnDone, doneCh)
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	select {
+	case err = <-doneCh:
+		if err != nil {
+			return nil, err
+		}
+		return w, nil
+
+	case <-ctx.Done():
+		return nil, ErrWorkerStartTimeout
+	}
 }
 
-func (w *Worker) wait(child *exec.Cmd, spawnDone *uint32, doneCh chan error) {
-	var (
-		code   int
-		signal = os.Interrupt
-	)
-
-	if exiterr, ok := child.Wait().(*exec.ExitError); ok {
-		// The worker has exited with an exit code != 0
-		if status, ok := exiterr.Sys().(syscall.WaitStatus); ok {
-			if code = status.ExitStatus(); status.Signaled() {
-				signal = status.Signal()
-			} else {
-				signal = status.StopSignal()
-			}
-		}
+func (w *Worker) wait(cmd *exec.Cmd, spawnDone *uint32, doneCh chan error) {
+	err := cmd.Wait()
+	if err != nil {
+		code := cmd.ProcessState.ExitCode()
+		err = fmt.Errorf("worker process failed unexpectedly, code: %d, %w", code, err)
 	}
 
 	if atomic.CompareAndSwapUint32(spawnDone, 0, 1) {
-		if code == 42 {
-			err := NewTypeError("worker process failed due to wrong settings")
-			w.logger.Error(err, "process failed", "pid", w.pid)
-			doneCh <- err
-		} else {
-			err := errors.New("worker process failed unexpectedly")
-			w.logger.Error(err, "process failed", "pid", w.pid, "code", code, "signal", signal)
-			doneCh <- err
+		if err == nil {
+			err = errors.New("worker process failed unexpectedly")
 		}
-	} else if !w.Closed() {
-		w.diedErr = errors.New("worker process died unexpectedly")
-		w.logger.Error(w.diedErr, "process died", "pid", w.pid, "code", code, "signal", signal)
-		w.Close()
+		doneCh <- err
+		return
 	}
+
+	if err != nil {
+		w.logger.Error(err.Error())
+	} else {
+		w.logger.Info("worker process quited")
+	}
+
+	w.doClose()
 }
 
-// Wait blocks until the worker process is stopped
-func (w *Worker) Wait() error {
-	return <-w.waitCh
-}
-
-// Pid returns the worker process identifier.
 func (w *Worker) Pid() int {
-	return w.pid
+	if w.cmd == nil || w.cmd.Process == nil {
+		return 0
+	}
+	return w.cmd.Process.Pid
 }
 
-// Closed returns if the worker process is closed
-func (w *Worker) Closed() bool {
-	return atomic.LoadUint32(&w.closed) > 0
-}
-
-// Died returns if the worker process died
-func (w *Worker) Died() bool {
-	return w.diedErr != nil
-}
-
-// AppData returns the custom app data.
-func (w *Worker) AppData() interface{} {
+func (w *Worker) AppData() H {
 	return w.appData
 }
 
-// Deprecated
-//
-//   - @emits close
-//   - @emits newwebrtcserver - (webRtcServer *WebRtcServer)
-//   - @emits newrouter - (router *Router)
-func (w *Worker) Observer() IEventEmitter {
-	return w.observer
-}
-
-// Just for testing purposes.
-func (w *Worker) webRtcServersForTesting() (servers []*WebRtcServer) {
-	w.webRtcServers.Range(func(key, value interface{}) bool {
-		servers = append(servers, value.(*WebRtcServer))
-		return true
-	})
-	return
-}
-
-// Just for testing purposes.
-func (w *Worker) routersForTesting() (routers []*Router) {
-	w.routers.Range(func(key, value interface{}) bool {
-		routers = append(routers, value.(*Router))
-		return true
-	})
-	return
-}
-
-// Close terminal the worker process and all allocated resouces
 func (w *Worker) Close() {
-	if !atomic.CompareAndSwapUint32(&w.closed, 0, 1) {
-		return
+	w.logger.Debug("Close()")
+
+	if process := w.cmd.Process; process != nil && w.cmd.ProcessState == nil {
+		process.Signal(os.Interrupt)
+		// force kill the worker process.
+		time.AfterFunc(time.Second, func() {
+			if w.cmd.ProcessState == nil {
+				w.logger.Warn("force kill worker process")
+				w.cmd.Cancel()
+			}
+		})
 	}
 
-	w.logger.V(1).Info("close()")
-
-	// Kill the worker process.
-	if pid := w.Pid(); pid > 0 {
-		if process, err := os.FindProcess(pid); err == nil {
-			process.Signal(syscall.SIGTERM)
-			process.Signal(os.Kill)
-		}
-	}
-
-	// Close the Channel instance.
 	w.channel.Close()
+	w.doClose()
+}
 
-	// Close the PayloadChannel instance.
-	w.payloadChannel.Close()
-
+func (w *Worker) doClose() {
 	// close all pipes
-	for _, file := range w.child.ExtraFiles {
+	for _, file := range w.cmd.ExtraFiles {
 		file.Close()
 	}
 
-	// Close every Router.
 	w.routers.Range(func(key, value interface{}) bool {
-		router := value.(*Router)
-		router.workerClosed()
+		value.(*Router).workerClosed()
 		return true
 	})
-	w.routers = sync.Map{}
 
-	// Close every WebRtcServer.
 	w.webRtcServers.Range(func(key, value interface{}) bool {
-		webRtcServer := value.(*WebRtcServer)
-		webRtcServer.workerClosed()
+		value.(*WebRtcServer).workerClosed()
 		return true
 	})
-	w.webRtcServers = sync.Map{}
 
-	// notify caller
-	w.waitCh <- w.diedErr
+	w.notifyClosed()
+}
 
-	if w.diedErr != nil {
-		w.SafeEmit("died", w.diedErr)
-	}
-	w.observer.SafeEmit("close")
+func (w *Worker) Closed() bool {
+	return w.cmd.ProcessState != nil
 }
 
 // Dump returns the resources allocated by the worker.
-func (w *Worker) Dump() (dump WorkerDump, err error) {
-	w.logger.V(1).Info("dump()")
+func (w *Worker) Dump() (dump *WorkerDump, err error) {
+	w.logger.Debug("Dump()")
 
-	err = w.channel.Request("worker.dump", internalData{}).Unmarshal(&dump)
-	return
+	respAny, err := w.channel.Request(&FbsRequest.RequestT{
+		Method: FbsRequest.MethodWORKER_DUMP,
+	})
+	if err != nil {
+		return
+	}
+	resp := respAny.(*FbsWorker.DumpResponseT)
+	dump = &WorkerDump{
+		Pid:             resp.Pid,
+		WebRtcServerIds: resp.WebRtcServerIds,
+		RouterIds:       resp.RouterIds,
+	}
+	if resp.ChannelMessageHandlers != nil {
+		dump.ChannelMessageHandlers = &WorkerDumpChannelMessageHandlers{
+			ChannelRequestHandlers:      resp.ChannelMessageHandlers.ChannelRequestHandlers,
+			ChannelNotificationHandlers: resp.ChannelMessageHandlers.ChannelNotificationHandlers,
+		}
+	}
+	if resp.Liburing != nil {
+		dump.Liburing = &WorkerDumpLiburing{
+			SqeProcessCount:   resp.Liburing.SqeProcessCount,
+			SqeMissCount:      resp.Liburing.SqeMissCount,
+			UserDataMissCount: resp.Liburing.UserDataMissCount,
+		}
+	}
+	return dump, nil
 }
 
 // GetResourceUsage returns the worker process resource usage.
-func (w *Worker) GetResourceUsage() (usage WorkerResourceUsage, err error) {
-	w.logger.V(1).Info("getResourceUsage()")
+func (w *Worker) GetResourceUsage() (usage *WorkerResourceUsage, err error) {
+	w.logger.Debug("GetResourceUsage()")
 
-	resp := w.channel.Request("worker.getResourceUsage", internalData{})
-	err = resp.Unmarshal(&usage)
-	return
+	respAny, err := w.channel.Request(&FbsRequest.RequestT{
+		Method: FbsRequest.MethodWORKER_GET_RESOURCE_USAGE,
+	})
+	if err != nil {
+		return
+	}
+	resp := respAny.(*FbsWorker.ResourceUsageResponseT)
+
+	return &WorkerResourceUsage{
+		RuUtime:    resp.RuUtime,
+		RuStime:    resp.RuStime,
+		RuMaxrss:   resp.RuMaxrss,
+		RuIxrss:    resp.RuIxrss,
+		RuIdrss:    resp.RuIdrss,
+		RuIsrss:    resp.RuIsrss,
+		RuMinflt:   resp.RuMinflt,
+		RuMajflt:   resp.RuMajflt,
+		RuNswap:    resp.RuNswap,
+		RuInblock:  resp.RuInblock,
+		RuOublock:  resp.RuOublock,
+		RuMsgsnd:   resp.RuMsgsnd,
+		RuMsgrcv:   resp.RuMsgrcv,
+		RuNsignals: resp.RuNsignals,
+		RuNvcsw:    resp.RuNvcsw,
+		RuNivcsw:   resp.RuNivcsw,
+	}, nil
 }
 
-// UpdateSettings updates settings.
-func (w *Worker) UpdateSettings(settings WorkerUpdatableSettings) error {
-	w.logger.V(1).Info("updateSettings()")
+// UpdateSettings updates worker settings.
+func (w *Worker) UpdateSettings(settings *WorkerUpdatableSettings) (err error) {
+	w.logger.Debug("UpdateSettings()")
 
-	return w.channel.Request("worker.updateSettings", internalData{}, settings).Err()
+	_, err = w.channel.Request(&FbsRequest.RequestT{
+		Method: FbsRequest.MethodWORKER_UPDATE_SETTINGS,
+		Body: &FbsRequest.BodyT{
+			Type: FbsRequest.BodyWorker_UpdateSettingsRequest,
+			Value: &FbsWorker.UpdateSettingsRequestT{
+				LogLevel: string(settings.LogLevel),
+				LogTags: collect(settings.LogTags, func(tag WorkerLogTag) string {
+					return string(tag)
+				}),
+			},
+		},
+	})
+
+	return
 }
 
 // CreateWebRtcServer creates a WebRtcServer.
-func (w *Worker) CreateWebRtcServer(options WebRtcServerOptions) (webRtcServer *WebRtcServer, err error) {
-	w.logger.V(1).Info("createWebRtcServer()")
+func (w *Worker) CreateWebRtcServer(options *WebRtcServerOptions) (*WebRtcServer, error) {
+	w.logger.Debug("CreateWebRtcServer()")
 
-	internal := internalData{WebRtcServerId: uuid.NewString()}
-	reqData := H{
-		"webRtcServerId": internal.WebRtcServerId,
-		"listenInfos":    options.ListenInfos,
+	id := uuid()
+
+	req := &FbsWorker.CreateWebRtcServerRequestT{
+		WebRtcServerId: id,
+		ListenInfos:    make([]*FbsTransport.ListenInfoT, len(options.ListenInfos)),
 	}
-	err = w.channel.Request("worker.createWebRtcServer", internal, reqData).Err()
+
+	for i, info := range options.ListenInfos {
+		req.ListenInfos[i] = &FbsTransport.ListenInfoT{
+			Protocol:         orElse(info.Protocol == TransportProtocolTCP, FbsTransport.ProtocolTCP, FbsTransport.ProtocolUDP),
+			Ip:               info.IP,
+			Port:             info.Port,
+			AnnouncedAddress: info.AnnouncedAddress,
+			SendBufferSize:   info.SendBufferSize,
+			RecvBufferSize:   info.RecvBufferSize,
+			PortRange: &FbsTransport.PortRangeT{
+				Min: info.PortRange.Min,
+				Max: info.PortRange.Max,
+			},
+			Flags: &FbsTransport.SocketFlagsT{
+				Ipv6Only:     info.Flags.IPv6Only,
+				UdpReusePort: info.Flags.UDPReusePort,
+			},
+		}
+	}
+
+	_, err := w.channel.Request(&FbsRequest.RequestT{
+		Method: FbsRequest.MethodWORKER_CREATE_WEBRTCSERVER,
+		Body: &FbsRequest.BodyT{
+			Type:  FbsRequest.BodyWorker_CreateWebRtcServerRequest,
+			Value: req,
+		},
+	})
 	if err != nil {
-		return
+		return nil, err
 	}
-	webRtcServer = NewWebRtcServer(webrtcServerParams{
-		internal: internal,
-		channel:  w.channel,
-		appData:  options.AppData,
+	server := NewWebRtcServer(w, id, options.AppData)
+	w.webRtcServers.Store(id, server)
+	server.OnClose(func() {
+		w.webRtcServers.Delete(id)
 	})
-
-	w.webRtcServers.Store(webRtcServer.Id(), webRtcServer)
-	webRtcServer.On("@close", func() {
-		w.webRtcServers.Delete(webRtcServer.Id())
-	})
-
-	// Emit observer event.
-	w.observer.SafeEmit("newwebrtcserver", webRtcServer)
-
-	if handler := w.onNewWebRtcServer; handler != nil {
-		handler(webRtcServer)
-	}
-
-	return
+	return server, nil
 }
 
 // CreateRouter creates a router.
-func (w *Worker) CreateRouter(options RouterOptions) (router *Router, err error) {
-	w.logger.V(1).Info("createRouter()")
-
-	internal := internalData{RouterId: uuid.NewString()}
-	reqData := H{
-		"routerId": internal.RouterId,
-	}
-	rsp := w.channel.Request("worker.createRouter", internal, reqData)
-	if err = rsp.Err(); err != nil {
-		return
-	}
+func (w *Worker) CreateRouter(options *RouterOptions) (*Router, error) {
+	w.logger.Debug("CreateRouter()")
 
 	rtpCapabilities, err := generateRouterRtpCapabilities(options.MediaCodecs)
 	if err != nil {
-		return
-	}
-	data := routerData{RtpCapabilities: rtpCapabilities}
-	router = newRouter(routerParams{
-		internal:       internal,
-		data:           data,
-		channel:        w.channel,
-		payloadChannel: w.payloadChannel,
-		appData:        options.AppData,
-	})
-
-	w.routers.Store(internal.RouterId, router)
-	router.On("@close", func() {
-		w.routers.Delete(internal.RouterId)
-	})
-
-	// Emit observer event.
-	w.observer.SafeEmit("newrouter", router)
-
-	if handler := w.onNewRouter; handler != nil {
-		handler(router)
+		return nil, err
 	}
 
-	return
-}
-
-// OnNewWebRtcServer set handler on "newwebrtcserver" event
-func (w *Worker) OnNewWebRtcServer(handler func(webrtcServer *WebRtcServer)) {
-	w.onNewWebRtcServer = handler
-}
-
-// OnNewRouter set handler on "newrouter" event
-func (w *Worker) OnNewRouter(handler func(router *Router)) {
-	w.onNewRouter = handler
+	routerId := uuid()
+	req := &FbsWorker.CreateRouterRequestT{
+		RouterId: routerId,
+	}
+	_, err = w.channel.Request(&FbsRequest.RequestT{
+		Method: FbsRequest.MethodWORKER_CREATE_ROUTER,
+		Body: &FbsRequest.BodyT{
+			Type:  FbsRequest.BodyWorker_CreateRouterRequest,
+			Value: req,
+		},
+	})
+	if err != nil {
+		return nil, err
+	}
+	data := &RouterData{
+		RouterId:        routerId,
+		RtpCapabilities: rtpCapabilities,
+		AppData:         options.AppData,
+	}
+	router := newRouter(w.channel, w.logger, data)
+	w.routers.Store(router.Id(), router)
+	router.OnClose(func() {
+		w.routers.Delete(router.Id())
+	})
+	return router, nil
 }

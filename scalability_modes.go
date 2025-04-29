@@ -13,7 +13,7 @@ type ScalabilityMode struct {
 	Ksvc           bool  `json:"ksvc"`
 }
 
-func ParseScalabilityMode(scalabilityMode string) ScalabilityMode {
+func parseScalabilityMode(scalabilityMode string) ScalabilityMode {
 	match := scalabilityModeRegex.FindStringSubmatch(scalabilityMode)
 
 	if len(match) == 4 {

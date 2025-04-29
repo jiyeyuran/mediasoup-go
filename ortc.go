@@ -1,16 +1,15 @@
 package mediasoup
 
 import (
-	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
-	"reflect"
 	"strings"
 
-	"github.com/jiyeyuran/mediasoup-go/h264"
+	"github.com/jiyeyuran/mediasoup-go/internal/h264"
 )
 
-var DYNAMIC_PAYLOAD_TYPES = [...]byte{
+var availablePayloadTypes = [...]uint8{
 	100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115,
 	116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 96, 97, 98, 99, 77,
 	78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 35, 36,
@@ -24,20 +23,20 @@ type matchOptions struct {
 }
 
 type RtpMapping struct {
-	Codecs    []RtpMappingCodec    `json:"codecs,omitempty"`
-	Encodings []RtpMappingEncoding `json:"encodings,omitempty"`
+	Codecs    []*RtpMappingCodec    `json:"codecs,omitempty"`
+	Encodings []*RtpMappingEncoding `json:"encodings,omitempty"`
 }
 
 type RtpMappingCodec struct {
-	PayloadType       byte `json:"payloadType"`
-	MappedPayloadType byte `json:"mappedPayloadType"`
+	PayloadType       uint8 `json:"payloadType"`
+	MappedPayloadType uint8 `json:"mappedPayloadType"`
 }
 
 type RtpMappingEncoding struct {
-	Ssrc            uint32 `json:"ssrc,omitempty"`
-	Rid             string `json:"rid,omitempty"`
-	ScalabilityMode string `json:"scalabilityMode,omitempty"`
-	MappedSsrc      uint32 `json:"mappedSsrc"`
+	Rid             string  `json:"rid,omitempty"`
+	Ssrc            *uint32 `json:"ssrc,omitempty"`
+	ScalabilityMode string  `json:"scalabilityMode,omitempty"`
+	MappedSsrc      uint32  `json:"mappedSsrc"`
 }
 
 // validateRtpCapabilities validates RtpCapabilities. It may modify given data by adding missing
@@ -60,27 +59,29 @@ func validateRtpCapabilities(params *RtpCapabilities) (err error) {
 
 // validateRtpCodecCapability validates RtpCodecCapability. It may modify given data by adding
 // missing fields with default values.
-func validateRtpCodecCapability(code *RtpCodecCapability) (err error) {
-	mimeType := strings.ToLower(code.MimeType)
+func validateRtpCodecCapability(codec *RtpCodecCapability) (err error) {
+	mimeType := strings.ToLower(codec.MimeType)
 
 	//  mimeType is mandatory.
 	if !strings.HasPrefix(mimeType, "audio/") && !strings.HasPrefix(mimeType, "video/") {
-		return NewTypeError("invalid codec.mimeType")
+		return errors.New("invalid codec.mimeType")
 	}
 
-	code.Kind = MediaKind(strings.Split(mimeType, "/")[0])
+	if len(codec.Kind) == 0 {
+		codec.Kind = MediaKind(strings.Split(mimeType, "/")[0])
+	}
 
 	// clockRate is mandatory.
-	if code.ClockRate == 0 {
-		return NewTypeError("missing codec.clockRate")
+	if codec.ClockRate == 0 {
+		return errors.New("missing codec.clockRate")
 	}
 
 	// channels is optional. If unset, set it to 1 (just if audio).
-	if code.Kind == MediaKind_Audio && code.Channels == 0 {
-		code.Channels = 1
+	if codec.Kind == MediaKindAudio && codec.Channels == 0 {
+		codec.Channels = 1
 	}
 
-	for _, fb := range code.RtcpFeedback {
+	for _, fb := range codec.RtcpFeedback {
 		if err = validateRtcpFeedback(fb); err != nil {
 			return
 		}
@@ -91,9 +92,9 @@ func validateRtpCodecCapability(code *RtpCodecCapability) (err error) {
 
 // validateRtcpFeedback validates RtcpFeedback. It may modify given data by adding missing
 // fields with default values.
-func validateRtcpFeedback(fb RtcpFeedback) error {
+func validateRtcpFeedback(fb *RtcpFeedback) error {
 	if len(fb.Type) == 0 {
-		return NewTypeError("missing fb.type")
+		return errors.New("missing fb.type")
 	}
 	return nil
 }
@@ -101,23 +102,23 @@ func validateRtcpFeedback(fb RtcpFeedback) error {
 // validateRtpHeaderExtension validates RtpHeaderExtension. It may modify given data by adding
 // missing fields with default values.
 func validateRtpHeaderExtension(ext *RtpHeaderExtension) (err error) {
-	if len(ext.Kind) > 0 && ext.Kind != MediaKind_Audio && ext.Kind != MediaKind_Video {
-		return NewTypeError("invalid ext.kind")
+	if len(ext.Kind) > 0 && ext.Kind != MediaKindAudio && ext.Kind != MediaKindVideo {
+		return errors.New("invalid ext.kind")
 	}
 
 	// uri is mandatory.
 	if len(ext.Uri) == 0 {
-		return NewTypeError("missing ext.uri")
+		return errors.New("missing ext.uri")
 	}
 
 	// preferredId is mandatory.
 	if ext.PreferredId == 0 {
-		return NewTypeError("missing ext.preferredId")
+		return errors.New("missing ext.preferredId")
 	}
 
 	// direction is optional. If unset set it to sendrecv.
 	if len(ext.Direction) == 0 {
-		ext.Direction = Direction_Sendrecv
+		ext.Direction = MediaDirectionSendrecv
 	}
 
 	return
@@ -138,7 +139,7 @@ func validateRtpParameters(params *RtpParameters) (err error) {
 		}
 	}
 
-	return validateRtcpParameters(&params.Rtcp)
+	return validateRtcpParameters(params.Rtcp)
 }
 
 // validateRtpCodecParameters validates RtpCodecParameters. It may modify given data by adding
@@ -148,18 +149,18 @@ func validateRtpCodecParameters(code *RtpCodecParameters) (err error) {
 
 	//  mimeType is mandatory.
 	if !strings.HasPrefix(mimeType, "audio/") && !strings.HasPrefix(mimeType, "video/") {
-		return NewTypeError("invalid codec.mimeType")
+		return errors.New("invalid codec.mimeType")
 	}
 
 	// clockRate is mandatory.
 	if code.ClockRate == 0 {
-		return NewTypeError("missing codec.clockRate")
+		return errors.New("missing codec.clockRate")
 	}
 
 	kind := MediaKind(strings.Split(mimeType, "/")[0])
 
 	// channels is optional. If unset, set it to 1 (just if audio).
-	if kind == MediaKind_Audio && code.Channels == 0 {
+	if kind == MediaKindAudio && code.Channels == 0 {
 		code.Channels = 1
 	}
 
@@ -174,15 +175,15 @@ func validateRtpCodecParameters(code *RtpCodecParameters) (err error) {
 
 // validateRtpHeaderExtensionParameters validates RtpHeaderExtension. It may modify given data by
 // adding missing fields with default values.
-func validateRtpHeaderExtensionParameters(ext RtpHeaderExtensionParameters) (err error) {
+func validateRtpHeaderExtensionParameters(ext *RtpHeaderExtensionParameters) (err error) {
 	// uri is mandatory.
 	if len(ext.Uri) == 0 {
-		return NewTypeError("missing ext.uri")
+		return errors.New("missing ext.uri")
 	}
 
 	// preferredId is mandatory.
 	if ext.Id == 0 {
-		return NewTypeError("missing ext.id")
+		return errors.New("missing ext.id")
 	}
 
 	return
@@ -193,58 +194,7 @@ func validateRtpHeaderExtensionParameters(ext RtpHeaderExtensionParameters) (err
 func validateRtcpParameters(rtcp *RtcpParameters) (err error) {
 	// reducedSize is optional. If unset set it to true.
 	if rtcp.ReducedSize == nil {
-		rtcp.ReducedSize = Bool(true)
-	}
-
-	return
-}
-
-// validateSctpCapabilities validates SctpCapabilities. It may modify given data by adding missing
-// fields with default values.
-func validateSctpCapabilities(caps SctpCapabilities) (err error) {
-	// numStreams is mandatory.
-	if reflect.DeepEqual(caps.NumStreams, NumSctpStreams{}) {
-		return NewTypeError("missing caps.numStreams")
-	}
-
-	return validateNumSctpStreams(caps.NumStreams)
-}
-
-// validateNumSctpStreams validates NumSctpStreams. It may modify given data by adding missing
-// fields with default values.
-func validateNumSctpStreams(numStreams NumSctpStreams) (err error) {
-	// OS is mandatory.
-	if numStreams.OS == 0 {
-		return NewTypeError("missing numStreams.OS")
-	}
-	// MIS is mandatory.
-	if numStreams.MIS == 0 {
-		return NewTypeError("missing numStreams.MIS")
-	}
-
-	return
-}
-
-// validateSctpParameters validates SctpParameters. It may modify given data by adding missing
-// fields with default values.
-func validateSctpParameters(params SctpParameters) (err error) {
-	// port is mandatory.
-	if params.Port == 0 {
-		return NewTypeError("missing params.port")
-	}
-
-	// OS is mandatory.
-	if params.OS == 0 {
-		return NewTypeError("missing params.OS")
-	}
-	// MIS is mandatory.
-	if params.MIS == 0 {
-		return NewTypeError("missing params.MIS")
-	}
-
-	// maxMessageSize is mandatory.
-	if params.MaxMessageSize == 0 {
-		return NewTypeError("missing params.maxMessageSize")
+		rtcp.ReducedSize = ref(true)
 	}
 
 	return
@@ -254,23 +204,23 @@ func validateSctpParameters(params SctpParameters) (err error) {
 // missing fields with default values.
 func validateSctpStreamParameters(params *SctpStreamParameters) (err error) {
 	if params == nil {
-		return NewTypeError("params is nil")
+		return ErrMissSctpStreamParameters
 	}
 	orderedGiven := params.Ordered != nil
 
 	if params.Ordered == nil {
-		params.Ordered = Bool(true)
+		params.Ordered = ref(true)
 	}
 
-	if params.MaxPacketLifeTime > 0 && params.MaxRetransmits > 0 {
-		return NewTypeError("cannot provide both maxPacketLifeTime and maxRetransmits")
+	if params.MaxPacketLifeTime != nil && params.MaxRetransmits != nil {
+		return errors.New("cannot provide both maxPacketLifeTime and maxRetransmits")
 	}
 
 	if orderedGiven && *params.Ordered &&
-		(params.MaxPacketLifeTime > 0 || params.MaxRetransmits > 0) {
-		return NewTypeError("cannot be ordered with maxPacketLifeTime or maxRetransmits")
-	} else if !orderedGiven && (params.MaxPacketLifeTime > 0 || params.MaxRetransmits > 0) {
-		params.Ordered = Bool(false)
+		(params.MaxPacketLifeTime != nil || params.MaxRetransmits != nil) {
+		return errors.New("cannot be ordered with maxPacketLifeTime or maxRetransmits")
+	} else if !orderedGiven && (params.MaxPacketLifeTime != nil || params.MaxRetransmits != nil) {
+		params.Ordered = ref(false)
 	}
 
 	return
@@ -278,43 +228,47 @@ func validateSctpStreamParameters(params *SctpStreamParameters) (err error) {
 
 // generateRouterRtpCapabilities generate RTP capabilities for the Router based on the given media
 // codecs and mediasoup supported RTP capabilities.
-func generateRouterRtpCapabilities(mediaCodecs []*RtpCodecCapability) (caps RtpCapabilities, err error) {
-	clonedSupportedRtpCapabilities := GetSupportedRtpCapabilities()
-	supportedCodecs := clonedSupportedRtpCapabilities.Codecs
+func generateRouterRtpCapabilities(mediaCodecs []*RtpCodecCapability) (caps *RtpCapabilities, err error) {
+	caps = &RtpCapabilities{
+		HeaderExtensions: supportedRtpCapabilities.HeaderExtensions,
+	}
 
-	caps.HeaderExtensions = clonedSupportedRtpCapabilities.HeaderExtensions
-
-	dynamicPayloadTypes := make([]byte, len(DYNAMIC_PAYLOAD_TYPES))
-	copy(dynamicPayloadTypes, DYNAMIC_PAYLOAD_TYPES[:])
+	availablePayloadTypesCopy := availablePayloadTypes
+	dynamicPayloadTypes := availablePayloadTypesCopy[:]
 
 	for _, mediaCodec := range mediaCodecs {
 		if err = validateRtpCodecCapability(mediaCodec); err != nil {
-			return
+			return nil, err
 		}
-		matchedSupportedCodec, matched := findMatchedCodec(mediaCodec, supportedCodecs, matchOptions{})
+		matchedSupportedCodec, matched := findMatchedCodec(
+			supportedRtpCapabilities.Codecs,
+			mediaCodec,
+			matchOptions{},
+		)
 
 		if !matched {
-			err = NewUnsupportedError(`media codec not supported [mimeType:%s]`, mediaCodec.MimeType)
-			return
+			return nil, fmt.Errorf(`media codec not supported [mimeType:%s]`, mediaCodec.MimeType)
 		}
-		codec := &RtpCodecCapability{}
-
-		if err = clone(matchedSupportedCodec, codec); err != nil {
-			return
-		}
+		codec := matchedSupportedCodec.clone()
 
 		if mediaCodec.PreferredPayloadType > 0 {
 			codec.PreferredPayloadType = mediaCodec.PreferredPayloadType
 
-			idx := bytes.IndexByte(dynamicPayloadTypes, codec.PreferredPayloadType)
-
+			idx := -1
+			for i, pt := range dynamicPayloadTypes {
+				if pt == codec.PreferredPayloadType {
+					idx = i
+					break
+				}
+			}
 			if idx > -1 {
-				dynamicPayloadTypes = append(dynamicPayloadTypes[:idx], dynamicPayloadTypes[idx+1:]...)
+				dynamicPayloadTypes = append(
+					dynamicPayloadTypes[:idx],
+					dynamicPayloadTypes[idx+1:]...)
 			}
 		} else if codec.PreferredPayloadType == 0 {
 			if len(dynamicPayloadTypes) == 0 {
-				err = errors.New("cannot allocate more dynamic codec payload types")
-				return
+				return nil, errors.New("cannot allocate more dynamic codec payload types")
 			}
 			codec.PreferredPayloadType = dynamicPayloadTypes[0]
 			dynamicPayloadTypes = dynamicPayloadTypes[1:]
@@ -322,22 +276,21 @@ func generateRouterRtpCapabilities(mediaCodecs []*RtpCodecCapability) (caps RtpC
 
 		for _, capCodec := range caps.Codecs {
 			if capCodec.PreferredPayloadType == codec.PreferredPayloadType {
-				err = NewTypeError("duplicated codec.preferredPayloadType")
-				return
+				return nil, errors.New("duplicated codec.preferredPayloadType")
 			}
 		}
 
 		// Merge the media codec parameters.
-		override(&codec.Parameters, mediaCodec.Parameters)
+		data, _ := json.Marshal(mediaCodec.Parameters)
+		_ = json.Unmarshal(data, &codec.Parameters)
 
 		// Append to the codec list.
-		caps.Codecs = append(caps.Codecs, codec)
+		caps.Codecs = append(caps.Codecs, &codec)
 
 		// Add a RTX video codec if video.
-		if codec.Kind == MediaKind_Video {
+		if codec.Kind == MediaKindVideo {
 			if len(dynamicPayloadTypes) == 0 {
-				err = errors.New("cannot allocate more dynamic codec payload types")
-				return
+				return nil, errors.New("cannot allocate more dynamic codec payload types")
 			}
 			pt := dynamicPayloadTypes[0]
 			dynamicPayloadTypes = dynamicPayloadTypes[1:]
@@ -347,10 +300,8 @@ func generateRouterRtpCapabilities(mediaCodecs []*RtpCodecCapability) (caps RtpC
 				MimeType:             fmt.Sprintf("%s/rtx", codec.Kind),
 				PreferredPayloadType: pt,
 				ClockRate:            codec.ClockRate,
-				Parameters: RtpCodecSpecificParameters{
-					Apt: codec.PreferredPayloadType,
-				},
-				RtcpFeedback: []RtcpFeedback{},
+				Parameters:           RtpCodecSpecificParameters{Apt: codec.PreferredPayloadType},
+				RtcpFeedback:         []*RtcpFeedback{},
 			}
 
 			// Append to the codec list.
@@ -358,24 +309,32 @@ func generateRouterRtpCapabilities(mediaCodecs []*RtpCodecCapability) (caps RtpC
 		}
 	}
 
-	return
+	return caps, nil
 }
 
 // getProducerRtpParametersMapping get a mapping of the codec payload, RTP header extensions and
 // encodings from the given Producer RTP parameters to the values expected by the Router.
-func getProducerRtpParametersMapping(params RtpParameters, caps RtpCapabilities) (rtpMapping RtpMapping, err error) {
+func getProducerRtpParametersMapping(params *RtpParameters, caps *RtpCapabilities) (*RtpMapping, error) {
 	// Match parameters media codecs to capabilities media codecs.
 	codecToCapCodec := map[*RtpCodecParameters]*RtpCodecCapability{}
+	rtpMapping := &RtpMapping{}
 
 	for _, codec := range params.Codecs {
 		if codec.isRtxCodec() {
 			continue
 		}
-		matchedCapCodec, matched := findMatchedCodec(codec, caps.Codecs, matchOptions{strict: true, modify: true})
+		matchedCapCodec, matched := findMatchedCodec(
+			caps.Codecs,
+			codec,
+			matchOptions{strict: true, modify: true},
+		)
 
 		if !matched {
-			err = NewUnsupportedError("unsupported codec [mimeType:%s, payloadType:%d]", codec.MimeType, codec.PayloadType)
-			return
+			return nil, fmt.Errorf(
+				"unsupported codec [mimeType:%s, payloadType:%d]",
+				codec.MimeType,
+				codec.PayloadType,
+			)
 		}
 
 		codecToCapCodec[codec] = matchedCapCodec
@@ -396,8 +355,7 @@ func getProducerRtpParametersMapping(params RtpParameters, caps RtpCapabilities)
 		}
 
 		if associatedMediaCodec == nil {
-			err = NewTypeError(`missing media codec found for RTX PT %d`, codec.PayloadType)
-			return
+			return nil, fmt.Errorf(`missing media codec found for RTX PT %d`, codec.PayloadType)
 		}
 		capMediaCodec := codecToCapCodec[associatedMediaCodec]
 
@@ -415,8 +373,10 @@ func getProducerRtpParametersMapping(params RtpParameters, caps RtpCapabilities)
 		}
 
 		if associatedCapRtxCodec == nil {
-			err = NewUnsupportedError("no RTX codec for capability codec PT %d", capMediaCodec.PreferredPayloadType)
-			return
+			return nil, fmt.Errorf(
+				"no RTX codec for capability codec PT %d",
+				capMediaCodec.PreferredPayloadType,
+			)
 		}
 
 		codecToCapCodec[codec] = associatedCapRtxCodec
@@ -424,43 +384,44 @@ func getProducerRtpParametersMapping(params RtpParameters, caps RtpCapabilities)
 
 	// Generate codecs mapping.
 	for codec, capCodec := range codecToCapCodec {
-		rtpMapping.Codecs = append(rtpMapping.Codecs, RtpMappingCodec{
+		rtpMapping.Codecs = append(rtpMapping.Codecs, &RtpMappingCodec{
 			PayloadType:       codec.PayloadType,
 			MappedPayloadType: capCodec.PreferredPayloadType,
 		})
 	}
 
 	// Generate encodings mapping.
-	mappedSsrc := generateRandomNumber()
+	mappedSsrc := generateSsrc()
 
 	for _, encoding := range params.Encodings {
-		mappedEncoding := RtpMappingEncoding{
+		mappedEncoding := &RtpMappingEncoding{
 			Rid:             encoding.Rid,
-			Ssrc:            encoding.Ssrc,
+			Ssrc:            orElse(encoding.Ssrc > 0, ref(encoding.Ssrc), nil),
 			MappedSsrc:      mappedSsrc,
 			ScalabilityMode: encoding.ScalabilityMode,
 		}
 		mappedSsrc++
-
 		rtpMapping.Encodings = append(rtpMapping.Encodings, mappedEncoding)
 	}
 
-	return
+	return rtpMapping, nil
 }
 
 // getConsumableRtpParameters generate RTP parameters for Consumers given the RTP parameters of a
 // Producer and the RTP capabilities of the Router.
 func getConsumableRtpParameters(
 	kind MediaKind,
-	params RtpParameters,
-	caps RtpCapabilities,
-	rtpMapping RtpMapping,
-) (consumableParams RtpParameters, err error) {
+	params *RtpParameters,
+	caps *RtpCapabilities,
+	rtpMapping *RtpMapping,
+) *RtpParameters {
+	consumableRtpParameters := &RtpParameters{}
+
 	for _, codec := range params.Codecs {
 		if codec.isRtxCodec() {
 			continue
 		}
-		var consumableCodecPt byte
+		var consumableCodecPt uint8
 
 		for _, entry := range rtpMapping.Codecs {
 			if entry.PayloadType == codec.PayloadType {
@@ -484,9 +445,7 @@ func getConsumableRtpParameters(
 			Parameters:   codec.Parameters, // Keep the Producer parameters.
 			PayloadType:  matchedCapCodec.PreferredPayloadType,
 		}
-		consumableCodec.Parameters = codec.Parameters // Keep the Producer parameters.
-
-		consumableParams.Codecs = append(consumableParams.Codecs, consumableCodec)
+		consumableRtpParameters.Codecs = append(consumableRtpParameters.Codecs, consumableCodec)
 
 		var consumableCapRtxCodec *RtpCodecCapability
 
@@ -499,64 +458,59 @@ func getConsumableRtpParameters(
 		}
 
 		if consumableCapRtxCodec != nil {
-			consumableRtxCodec := &RtpCodecParameters{
+			consumableRtpParameters.Codecs = append(consumableRtpParameters.Codecs, &RtpCodecParameters{
 				MimeType:     consumableCapRtxCodec.MimeType,
 				ClockRate:    consumableCapRtxCodec.ClockRate,
 				Channels:     consumableCapRtxCodec.Channels,
 				RtcpFeedback: consumableCapRtxCodec.RtcpFeedback,
 				Parameters:   consumableCapRtxCodec.Parameters,
 				PayloadType:  consumableCapRtxCodec.PreferredPayloadType,
-			}
-
-			consumableParams.Codecs = append(consumableParams.Codecs, consumableRtxCodec)
+			})
 		}
 	}
 
 	for _, capExt := range caps.HeaderExtensions {
 		if capExt.Kind != kind ||
-			(capExt.Direction != Direction_Sendrecv && capExt.Direction != Direction_Sendonly) {
+			(capExt.Direction != MediaDirectionSendrecv && capExt.Direction != MediaDirectionSendonly) {
 			continue
 		}
-		consumableExt := RtpHeaderExtensionParameters{
+		consumableExt := &RtpHeaderExtensionParameters{
 			Uri:     capExt.Uri,
 			Id:      capExt.PreferredId,
 			Encrypt: capExt.PreferredEncrypt,
 		}
-
-		consumableParams.HeaderExtensions = append(consumableParams.HeaderExtensions, consumableExt)
+		consumableRtpParameters.HeaderExtensions = append(consumableRtpParameters.HeaderExtensions, consumableExt)
 	}
 
 	for i, encoding := range params.Encodings {
-		// Remove useless fields.
-		encoding.Rid = ""
-		encoding.Rtx = nil
-		encoding.CodecPayloadType = 0
-
 		// Set the mapped ssrc.
-		encoding.Ssrc = rtpMapping.Encodings[i].MappedSsrc
-
-		consumableParams.Encodings = append(consumableParams.Encodings, encoding)
+		consumableRtpParameters.Encodings = append(consumableRtpParameters.Encodings, &RtpEncodingParameters{
+			Ssrc:                  rtpMapping.Encodings[i].MappedSsrc,
+			Dtx:                   encoding.Dtx,
+			ScalabilityMode:       encoding.ScalabilityMode,
+			ScaleResolutionDownBy: encoding.ScaleResolutionDownBy,
+			MaxBitrate:            encoding.MaxBitrate,
+		})
 	}
 
-	consumableParams.Rtcp = RtcpParameters{
+	consumableRtpParameters.Rtcp = &RtcpParameters{
 		Cname:       params.Rtcp.Cname,
-		ReducedSize: Bool(true),
-		Mux:         Bool(true),
+		ReducedSize: ref(true),
 	}
 
-	return
+	return consumableRtpParameters
 }
 
-// canConsume check whether the given RTP capabilities can consume the given Producer.
-func canConsume(consumableParams RtpParameters, caps RtpCapabilities) (ok bool, err error) {
-	if err = validateRtpCapabilities(&caps); err != nil {
+// CanConsume check whether the given RTP capabilities can consume the given Producer.
+func CanConsume(consumableRtpParameters *RtpParameters, caps *RtpCapabilities) (ok bool, err error) {
+	if err = validateRtpCapabilities(caps); err != nil {
 		return
 	}
 
 	var matchingCodecs []*RtpCodecCapability
 
-	for _, codec := range consumableParams.Codecs {
-		matchedCodec, matched := findMatchedCodec(codec, caps.Codecs, matchOptions{strict: true})
+	for _, codec := range consumableRtpParameters.Codecs {
+		matchedCodec, matched := findMatchedCodec(caps.Codecs, codec, matchOptions{strict: true})
 
 		if !matched {
 			continue
@@ -578,58 +532,64 @@ func canConsume(consumableParams RtpParameters, caps RtpCapabilities) (ok bool, 
 // It reduces encodings to just one and takes into account given RTP capabilities
 // to reduce codecs, codecs" RTCP feedback and header extensions, and also enables
 // or disabled RTX.
-func getConsumerRtpParameters(consumableParams RtpParameters, caps RtpCapabilities, pipe bool) (consumerParams RtpParameters, err error) {
-	for _, capCodec := range caps.Codecs {
-		if err = validateRtpCodecCapability(capCodec); err != nil {
-			return
+func getConsumerRtpParameters(
+	consumableRtpParameters *RtpParameters,
+	remoteRtpCapabilities *RtpCapabilities,
+	pipe, enableRtx bool,
+) (*RtpParameters, error) {
+	for _, capCodec := range remoteRtpCapabilities.Codecs {
+		if err := validateRtpCodecCapability(capCodec); err != nil {
+			return nil, err
 		}
 	}
 
-	consumableCodecs := []*RtpCodecParameters{}
+	consumerParams := &RtpParameters{}
 	rtxSupported := false
 
-	clone(consumableParams.Codecs, &consumableCodecs)
+	for _, codec := range consumableRtpParameters.Codecs {
+		codec = ref(*codec)
+		if !enableRtx && codec.isRtxCodec() {
+			continue
+		}
 
-	for _, codec := range consumableCodecs {
-		matchedCapCodec, matched := findMatchedCodec(codec, caps.Codecs, matchOptions{strict: true})
+		matchedCapCodec, matched := findMatchedCodec(remoteRtpCapabilities.Codecs, codec, matchOptions{strict: true})
 
 		if !matched {
 			continue
 		}
 
-		codec.RtcpFeedback = matchedCapCodec.RtcpFeedback
+		codec.RtcpFeedback = filterRtcpFeedback(matchedCapCodec.RtcpFeedback, func(fb *RtcpFeedback) bool {
+			return (enableRtx || fb.Type != "nack" || fb.Parameter != "")
+		})
 
 		consumerParams.Codecs = append(consumerParams.Codecs, codec)
 	}
 
-	codecs := consumerParams.Codecs[:0]
-
 	// Must sanitize the list of matched codecs by removing useless RTX codecs.
-	for _, codec := range consumerParams.Codecs {
-		if codec.isRtxCodec() {
+	for i := len(consumerParams.Codecs) - 1; i >= 0; i-- {
+		if codec := consumerParams.Codecs[i]; codec.isRtxCodec() {
+			found := false
 			// Search for the associated media codec.
 			for _, mediaCodec := range consumerParams.Codecs {
 				if mediaCodec.PayloadType == codec.Parameters.Apt {
 					rtxSupported = true
-					codecs = append(codecs, codec)
+					found = true
 					break
 				}
 			}
-		} else {
-			codecs = append(codecs, codec)
+			if !found {
+				consumerParams.Codecs = append(consumerParams.Codecs[0:i], consumerParams.Codecs[i+1:]...)
+			}
 		}
 	}
 
-	consumerParams.Codecs = codecs
-
 	// Ensure there is at least one media codec.
 	if len(consumerParams.Codecs) == 0 || consumerParams.Codecs[0].isRtxCodec() {
-		err = NewUnsupportedError("no compatible media codecs")
-		return
+		return nil, errors.New("no compatible media codecs")
 	}
 
-	for _, ext := range consumableParams.HeaderExtensions {
-		for _, capExt := range caps.HeaderExtensions {
+	for _, ext := range consumableRtpParameters.HeaderExtensions {
+		for _, capExt := range remoteRtpCapabilities.HeaderExtensions {
 			if capExt.PreferredId == ext.Id && capExt.Uri == ext.Uri {
 				consumerParams.HeaderExtensions = append(consumerParams.HeaderExtensions, ext)
 				break
@@ -640,45 +600,32 @@ func getConsumerRtpParameters(consumableParams RtpParameters, caps RtpCapabiliti
 	// Reduce codecs' RTCP feedback. Use Transport-CC if available, REMB otherwise.
 	if matchHeaderExtensionUri(consumerParams.HeaderExtensions,
 		"http://www.ietf.org/id/draft-holmer-rmcat-transport-wide-cc-extensions-01") {
-		for i := range consumerParams.Codecs {
-			consumerParams.Codecs[i].RtcpFeedback = filterRtcpFeedback(
-				consumerParams.Codecs[i].RtcpFeedback,
-				func(fb RtcpFeedback) bool {
-					return fb.Type != "goog-remb"
-				},
-			)
+		for _, codec := range consumerParams.Codecs {
+			codec.RtcpFeedback = filterRtcpFeedback(codec.RtcpFeedback, func(fb *RtcpFeedback) bool {
+				return fb.Type != "goog-remb"
+			})
 		}
 	} else if matchHeaderExtensionUri(consumerParams.HeaderExtensions,
 		"http://www.webrtc.org/experiments/rtp-hdrext/abs-send-time") {
-		for i := range consumerParams.Codecs {
-			consumerParams.Codecs[i].RtcpFeedback = filterRtcpFeedback(
-				consumerParams.Codecs[i].RtcpFeedback,
-				func(fb RtcpFeedback) bool {
-					return fb.Type != "transport-cc"
-				},
-			)
+		for _, codec := range consumerParams.Codecs {
+			codec.RtcpFeedback = filterRtcpFeedback(codec.RtcpFeedback, func(fb *RtcpFeedback) bool {
+				return fb.Type != "transport-cc"
+			})
 		}
 	} else {
-		for i := range consumerParams.Codecs {
-			consumerParams.Codecs[i].RtcpFeedback = filterRtcpFeedback(
-				consumerParams.Codecs[i].RtcpFeedback,
-				func(fb RtcpFeedback) bool {
-					return fb.Type != "transport-cc" && fb.Type != "goog-remb"
-				},
-			)
+		for _, codec := range consumerParams.Codecs {
+			codec.RtcpFeedback = filterRtcpFeedback(codec.RtcpFeedback, func(fb *RtcpFeedback) bool {
+				return fb.Type != "transport-cc" && fb.Type != "goog-remb"
+			})
 		}
 	}
 
 	if pipe {
-		var consumableEncodings []RtpEncodingParameters
+		baseSsrc := generateSsrc()
+		baseRtxSsrc := generateSsrc()
 
-		clone(consumableParams.Encodings, &consumableEncodings)
-
-		baseSsrc := generateRandomNumber()
-		baseRtxSsrc := generateRandomNumber()
-
-		for i := 0; i < len(consumableEncodings); i++ {
-			encoding := consumableEncodings[i]
+		for i, encoding := range consumableRtpParameters.Encodings {
+			encoding := ref(*encoding)
 
 			encoding.Ssrc = baseSsrc + uint32(i)
 			if rtxSupported {
@@ -689,77 +636,72 @@ func getConsumerRtpParameters(consumableParams RtpParameters, caps RtpCapabiliti
 
 			consumerParams.Encodings = append(consumerParams.Encodings, encoding)
 		}
-
-		return
-	}
-
-	consumerEncoding := RtpEncodingParameters{
-		Ssrc: generateRandomNumber(),
-	}
-
-	if rtxSupported {
-		consumerEncoding.Rtx = &RtpEncodingRtx{
-			Ssrc: generateRandomNumber(),
+	} else {
+		consumerEncoding := &RtpEncodingParameters{
+			Ssrc: generateSsrc(),
 		}
-	}
 
-	var scalabilityMode string
-
-	// If any of the consumableParams.encodings has scalabilityMode, process it
-	// (assume all encodings have the same value).
-	for _, encoding := range consumableParams.Encodings {
-		if len(encoding.ScalabilityMode) > 0 {
-			scalabilityMode = encoding.ScalabilityMode
-			break
+		if rtxSupported {
+			consumerEncoding.Rtx = &RtpEncodingRtx{
+				Ssrc: generateSsrc(),
+			}
 		}
-	}
 
-	// If there is simulast, mangle spatial layers in scalabilityMode.
-	if len(consumableParams.Encodings) > 1 {
-		temporalLayers := ParseScalabilityMode(scalabilityMode).TemporalLayers
-		scalabilityMode = fmt.Sprintf("L%dT%d", len(consumableParams.Encodings), temporalLayers)
-	}
+		var scalabilityMode string
 
-	consumerEncoding.ScalabilityMode = scalabilityMode
-
-	maxEncodingMaxBitrate := 0
-
-	// Use the maximum maxBitrate in any encoding and honor it in the Consumer's encoding.
-	for _, encoding := range consumableParams.Encodings {
-		if encoding.MaxBitrate > maxEncodingMaxBitrate {
-			maxEncodingMaxBitrate = encoding.MaxBitrate
+		// If any of the consumableRtpParameters.encodings has scalabilityMode, process it
+		// (assume all encodings have the same value).
+		for _, encoding := range consumableRtpParameters.Encodings {
+			if len(encoding.ScalabilityMode) > 0 {
+				scalabilityMode = encoding.ScalabilityMode
+				break
+			}
 		}
+
+		// If there is simulast, mangle spatial layers in scalabilityMode.
+		if len(consumableRtpParameters.Encodings) > 1 {
+			temporalLayers := parseScalabilityMode(scalabilityMode).TemporalLayers
+			scalabilityMode = fmt.Sprintf("L%dT%d", len(consumableRtpParameters.Encodings), temporalLayers)
+		}
+
+		consumerEncoding.ScalabilityMode = scalabilityMode
+
+		maxEncodingMaxBitrate := uint32(0)
+
+		// Use the maximum maxBitrate in any encoding and honor it in the Consumer's encoding.
+		for _, encoding := range consumableRtpParameters.Encodings {
+			if maxBitrate := encoding.MaxBitrate; maxBitrate > maxEncodingMaxBitrate {
+				maxEncodingMaxBitrate = maxBitrate
+			}
+		}
+
+		if maxEncodingMaxBitrate > 0 {
+			consumerEncoding.MaxBitrate = maxEncodingMaxBitrate
+		}
+
+		// Set a single encoding for the Consumer.
+		consumerParams.Encodings = append(consumerParams.Encodings, consumerEncoding)
 	}
 
-	if maxEncodingMaxBitrate > 0 {
-		consumerEncoding.MaxBitrate = maxEncodingMaxBitrate
-	}
-
-	// Set a single encoding for the Consumer.
-	consumerParams.Encodings = append(consumerParams.Encodings, consumerEncoding)
-
-	// Copy verbatim.
-	consumerParams.Rtcp = consumableParams.Rtcp
-
-	return
+	return consumerParams, nil
 }
 
 // getPipeConsumerRtpParameters generate RTP parameters for a pipe Consumer.
 //
 // It keeps all original consumable encodings and removes support for BWE. If
 // enableRtx is false, it also removes RTX and NACK support.
-func getPipeConsumerRtpParameters(consumableParams RtpParameters, enableRtx bool) (consumerParams RtpParameters) {
-	consumerParams.Rtcp = consumableParams.Rtcp
+func getPipeConsumerRtpParameters(consumableRtpParameters *RtpParameters, enableRtx bool) *RtpParameters {
+	consumerParams := &RtpParameters{}
+	consumerParams.Rtcp = consumableRtpParameters.Rtcp
 
-	consumableCodecs := []*RtpCodecParameters{}
-	clone(consumableParams.Codecs, &consumableCodecs)
+	for _, codec := range consumableRtpParameters.Codecs {
+		codec = ref(*codec)
 
-	for _, codec := range consumableCodecs {
 		if !enableRtx && codec.isRtxCodec() {
 			continue
 		}
 
-		codec.RtcpFeedback = filterRtcpFeedback(codec.RtcpFeedback, func(fb RtcpFeedback) bool {
+		codec.RtcpFeedback = filterRtcpFeedback(codec.RtcpFeedback, func(fb *RtcpFeedback) bool {
 			return (fb.Type == "nack" && fb.Parameter == "pli") ||
 				(fb.Type == "ccm" && fb.Parameter == "fir") ||
 				(enableRtx && fb.Type == "nack" && len(fb.Parameter) == 0)
@@ -768,7 +710,7 @@ func getPipeConsumerRtpParameters(consumableParams RtpParameters, enableRtx bool
 	}
 
 	// Reduce RTP extensions by disabling transport MID and BWE related ones.
-	for _, ext := range consumableParams.HeaderExtensions {
+	for _, ext := range consumableRtpParameters.HeaderExtensions {
 		if ext.Uri != "urn:ietf:params:rtp-hdrext:sdes:mid" &&
 			ext.Uri != "http://www.webrtc.org/experiments/rtp-hdrext/abs-send-time" &&
 			ext.Uri != "http://www.ietf.org/id/draft-holmer-rmcat-transport-wide-cc-extensions-01" {
@@ -776,13 +718,11 @@ func getPipeConsumerRtpParameters(consumableParams RtpParameters, enableRtx bool
 		}
 	}
 
-	consumableEncodings := []RtpEncodingParameters{}
-	clone(consumableParams.Encodings, &consumableEncodings)
+	baseSsrc := generateSsrc()
+	baseRtxSsrc := generateSsrc()
 
-	baseSsrc := generateRandomNumber()
-	baseRtxSsrc := generateRandomNumber()
-
-	for i, encoding := range consumableEncodings {
+	for i, encoding := range consumableRtpParameters.Encodings {
+		encoding := ref(*encoding)
 		encoding.Ssrc = baseSsrc + uint32(i)
 
 		if enableRtx {
@@ -794,10 +734,14 @@ func getPipeConsumerRtpParameters(consumableParams RtpParameters, enableRtx bool
 		consumerParams.Encodings = append(consumerParams.Encodings, encoding)
 	}
 
-	return
+	return consumerParams
 }
 
-func findMatchedCodec(aCodec interface{}, bCodecs []*RtpCodecCapability, options matchOptions) (codec *RtpCodecCapability, matched bool) {
+func findMatchedCodec(
+	bCodecs []*RtpCodecCapability,
+	aCodec interface{},
+	options matchOptions,
+) (codec *RtpCodecCapability, matched bool) {
 	var rtpCodecParameters *RtpCodecParameters
 
 	switch aCodec := aCodec.(type) {
@@ -817,64 +761,70 @@ func findMatchedCodec(aCodec interface{}, bCodecs []*RtpCodecCapability, options
 			return bCodec, true
 		}
 	}
-	return
+	return nil, false
 }
 
-func matchCodecs(aCodec *RtpCodecParameters, bCodec *RtpCodecCapability, options matchOptions) (matched bool) {
+func matchCodecs(
+	aCodec *RtpCodecParameters,
+	bCodec *RtpCodecCapability,
+	options matchOptions,
+) (matched bool) {
 	aMimeType := strings.ToLower(aCodec.MimeType)
 	bMimeType := strings.ToLower(bCodec.MimeType)
 
 	if aMimeType != bMimeType {
-		return
+		return false
 	}
 
 	if aCodec.ClockRate != bCodec.ClockRate {
-		return
+		return false
 	}
 
 	if strings.HasPrefix(aMimeType, "audio/") &&
 		aCodec.Channels > 0 &&
 		bCodec.Channels > 0 &&
 		aCodec.Channels != bCodec.Channels {
-		return
+		return false
 	}
+
+	aParameters, bParameters := aCodec.Parameters, bCodec.Parameters
 
 	switch aMimeType {
 	case "audio/multiopus":
-		aNumStreams := aCodec.Parameters.NumStreams
-		bNumstreams := bCodec.Parameters.NumStreams
+		aNumStreams := aParameters.NumStreams
+		bNumstreams := bParameters.NumStreams
 
 		if aNumStreams != bNumstreams {
 			return false
 		}
 
-		aCoupledStreams := aCodec.Parameters.CoupledStreams
-		bCoupledStreams := bCodec.Parameters.CoupledStreams
+		aCoupledStreams := aParameters.CoupledStreams
+		bCoupledStreams := bParameters.CoupledStreams
 
 		if aCoupledStreams != bCoupledStreams {
 			return false
 		}
 
-	case "video/h264":
+	case "video/h264", "video/h264-svc":
 		if options.strict {
-			aPacketizationMode := uint8(0)
-			if aCodec.Parameters.PacketizationMode != nil {
-				aPacketizationMode = *aCodec.Parameters.PacketizationMode
-			}
-
-			bPacketizationMode := uint8(0)
-			if bCodec.Parameters.PacketizationMode != nil {
-				bPacketizationMode = *bCodec.Parameters.PacketizationMode
-			}
-
-			if aPacketizationMode != bPacketizationMode {
+			if aParameters.PacketizationMode != bParameters.PacketizationMode {
 				return false
 			}
 
-			aParameters, bParameters := aCodec.Parameters, bCodec.Parameters
+			if !h264.IsSameProfile(aParameters.ProfileLevelId, bParameters.ProfileLevelId) {
+				return false
+			}
 
 			selectedProfileLevelId, err := h264.GenerateProfileLevelIdForAnswer(
-				aParameters.RtpParameter, bParameters.RtpParameter)
+				h264.RtpParameter{
+					PacketizationMode:     aParameters.PacketizationMode,
+					ProfileLevelId:        aParameters.ProfileLevelId,
+					LevelAsymmetryAllowed: aParameters.LevelAsymmetryAllowed,
+				}, h264.RtpParameter{
+					PacketizationMode:     bParameters.PacketizationMode,
+					ProfileLevelId:        bParameters.ProfileLevelId,
+					LevelAsymmetryAllowed: bParameters.LevelAsymmetryAllowed,
+				})
 			if err != nil {
 				return false
 			}
@@ -886,28 +836,15 @@ func matchCodecs(aCodec *RtpCodecParameters, bCodec *RtpCodecCapability, options
 		}
 
 	case "video/vp9":
-		if options.strict {
-			aProfileId := uint8(0)
-			if aCodec.Parameters.ProfileId != nil {
-				aProfileId = *aCodec.Parameters.ProfileId
-			}
-
-			bProfileId := uint8(0)
-			if bCodec.Parameters.ProfileId != nil {
-				bProfileId = *bCodec.Parameters.ProfileId
-			}
-
-			if aProfileId != bProfileId {
-				return false
-			}
+		if options.strict && aParameters.ProfileId != bParameters.ProfileId {
+			return false
 		}
-
 	}
 
 	return true
 }
 
-func matchHeaderExtensionUri(exts []RtpHeaderExtensionParameters, uri string) bool {
+func matchHeaderExtensionUri(exts []*RtpHeaderExtensionParameters, uri string) bool {
 	for _, ext := range exts {
 		if ext.Uri == uri {
 			return true
@@ -917,7 +854,7 @@ func matchHeaderExtensionUri(exts []RtpHeaderExtensionParameters, uri string) bo
 	return false
 }
 
-func filterRtcpFeedback(arr []RtcpFeedback, cond func(RtcpFeedback) bool) []RtcpFeedback {
+func filterRtcpFeedback(arr []*RtcpFeedback, cond func(*RtcpFeedback) bool) []*RtcpFeedback {
 	newArr := arr[:0]
 
 	for _, x := range arr {

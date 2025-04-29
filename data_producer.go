@@ -1,115 +1,50 @@
 package mediasoup
 
 import (
-	"sync"
-	"sync/atomic"
+	"log/slog"
 
-	"github.com/go-logr/logr"
+	FbsDataProducer "github.com/jiyeyuran/mediasoup-go/internal/FBS/DataProducer"
+	FbsNotification "github.com/jiyeyuran/mediasoup-go/internal/FBS/Notification"
+	FbsRequest "github.com/jiyeyuran/mediasoup-go/internal/FBS/Request"
+	FbsTransport "github.com/jiyeyuran/mediasoup-go/internal/FBS/Transport"
+
+	"github.com/jiyeyuran/mediasoup-go/internal/channel"
 )
-
-// DataProducerOptions define options to create a DataProducer.
-type DataProducerOptions struct {
-	// Id is DataProducer id (just for Router.pipeToRouter() method).
-	Id string `json:"id,omitempty"`
-
-	// SctpStreamParameters define how the endpoint is sending the data.
-	// Just if messages are sent over SCTP.
-	SctpStreamParameters *SctpStreamParameters `json:"sctpStreamParameters,omitempty"`
-
-	// Label can be used to distinguish this DataChannel from others.
-	Label string `json:"label,omitempty"`
-
-	// Protocol is the name of the sub-protocol used by this DataChannel.
-	Protocol string `json:"protocol,omitempty"`
-
-	// AppData is custom application data.
-	AppData interface{} `json:"app_data,omitempty"`
-}
-
-// DataProducerStat define the statistic info for DataProducer.
-type DataProducerStat struct {
-	Type             string
-	Timestamp        int64
-	Label            string
-	Protocol         string
-	MessagesReceived int64
-	BytesReceived    int64
-}
-
-// DataProducerType define DataProducer type.
-type DataProducerType string
-
-const (
-	DataProducerType_Sctp   DataProducerType = "sctp"
-	DataProducerType_Direct DataProducerType = "direct"
-)
-
-type dataProducerParams struct {
-	// internal uses routerId, transportId, dataProducerId
-	internal       internalData
-	data           dataProducerData
-	channel        *Channel
-	payloadChannel *PayloadChannel
-	appData        interface{}
-}
 
 type dataProducerData struct {
+	TransportId          string
+	DataProducerId       string
 	Type                 DataProducerType
-	SctpStreamParameters SctpStreamParameters
+	SctpStreamParameters *SctpStreamParameters
 	Label                string
 	Protocol             string
+	AppData              H
+
+	// changable fields
+	Paused bool
 }
 
-// DataProducer represents an endpoint capable of injecting data messages into a mediasoup Router.
-// A data producer can use SCTP (AKA DataChannel) to deliver those messages, or can directly send
-// them from the golang application if the data producer was created on top of a DirectTransport.
-//
-//   - @emits transportclose
-//   - @emits @close
 type DataProducer struct {
-	IEventEmitter
-	mu               sync.Mutex
-	logger           logr.Logger
-	internal         internalData
-	data             dataProducerData
-	channel          *Channel
-	payloadChannel   *PayloadChannel
-	appData          interface{}
-	closed           uint32
-	observer         IEventEmitter
-	onClose          func()
-	onTransportClose func()
+	baseNotifier
+
+	channel         *channel.Channel
+	data            *dataProducerData
+	closed          bool
+	pausedListeners []func(bool)
+	logger          *slog.Logger
 }
 
-func newDataProducer(params dataProducerParams) *DataProducer {
-	logger := NewLogger("DataProducer")
-
-	logger.V(1).Info("constructor()", "internal", params.internal)
-
-	p := &DataProducer{
-		IEventEmitter:  NewEventEmitter(),
-		logger:         logger,
-		internal:       params.internal,
-		data:           params.data,
-		channel:        params.channel,
-		payloadChannel: params.payloadChannel,
-		appData:        params.appData,
-		observer:       NewEventEmitter(),
+func newDataProducer(channel *channel.Channel, logger *slog.Logger, data *dataProducerData) *DataProducer {
+	return &DataProducer{
+		channel: channel,
+		logger:  logger.With("dataProducerId", data.DataProducerId),
+		data:    data,
 	}
-
-	p.handleWorkerNotifications()
-
-	return p
 }
 
 // Id returns DataProducer id
 func (p *DataProducer) Id() string {
-	return p.internal.DataProducerId
-}
-
-// Closed returns whether the DataProducer is closed.
-func (p *DataProducer) Closed() bool {
-	return atomic.LoadUint32(&p.closed) > 0
+	return p.data.DataProducerId
 }
 
 // Type returns DataProducer type.
@@ -118,7 +53,7 @@ func (p *DataProducer) Type() DataProducerType {
 }
 
 // SctpStreamParameters returns SCTP stream parameters.
-func (p *DataProducer) SctpStreamParameters() SctpStreamParameters {
+func (p *DataProducer) SctpStreamParameters() *SctpStreamParameters {
 	return p.data.SctpStreamParameters
 }
 
@@ -132,135 +67,223 @@ func (p *DataProducer) Protocol() string {
 	return p.data.Protocol
 }
 
-// AppData returns app custom data.
-func (p *DataProducer) AppData() interface{} {
-	return p.appData
+func (p *DataProducer) Paused() bool {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+
+	return p.data.Paused
 }
 
-// Deprecated
-//
-//   - @emits close
-func (p *DataProducer) Observer() IEventEmitter {
-	return p.observer
+// AppData returns app custom data.
+func (p *DataProducer) AppData() H {
+	return p.data.AppData
+}
+
+// Closed returns whether the DataProducer is closed.
+func (p *DataProducer) Closed() bool {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	return p.closed
 }
 
 // Close the DataProducer.
-func (p *DataProducer) Close() (err error) {
-	if atomic.CompareAndSwapUint32(&p.closed, 0, 1) {
-		p.logger.V(1).Info("close()")
-
-		// Remove notification subscriptions.
-		p.channel.Unsubscribe(p.Id())
-		p.payloadChannel.Unsubscribe(p.Id())
-
-		reqData := H{"dataProducerId": p.internal.DataProducerId}
-
-		response := p.channel.Request("transport.closeDataProducer", p.internal, reqData)
-
-		if err = response.Err(); err != nil {
-			p.logger.Error(err, "dataProducer close failed")
-		}
-
-		p.Emit("@close")
-		p.RemoveAllListeners()
-
-		p.close()
+func (p *DataProducer) Close() error {
+	p.mu.Lock()
+	if p.closed {
+		p.mu.Unlock()
+		return nil
 	}
-	return
-}
+	p.logger.Debug("Close()")
 
-func (p *DataProducer) close() {
-	// Emit observer event.
-	p.observer.SafeEmit("close")
-	p.observer.RemoveAllListeners()
-
-	if handler := p.onClose; handler != nil {
-		handler()
+	_, err := p.channel.Request(&FbsRequest.RequestT{
+		Method:    FbsRequest.MethodTRANSPORT_CLOSE_DATAPRODUCER,
+		HandlerId: p.data.TransportId,
+		Body: &FbsRequest.BodyT{
+			Type: FbsRequest.BodyTransport_CloseDataProducerRequest,
+			Value: &FbsTransport.CloseDataProducerRequestT{
+				DataProducerId: p.Id(),
+			},
+		},
+	})
+	if err != nil {
+		p.mu.Unlock()
+		return err
 	}
-}
+	p.closed = true
+	p.mu.Unlock()
 
-// transportClosed is called when transport was closed.
-func (p *DataProducer) transportClosed() {
-	if atomic.CompareAndSwapUint32(&p.closed, 0, 1) {
-		p.logger.V(1).Info("transportClosed()")
+	p.notifyClosed()
 
-		p.SafeEmit("transportclose")
-		p.RemoveAllListeners()
-
-		if handler := p.onTransportClose; handler != nil {
-			handler()
-		}
-
-		p.close()
-	}
+	return nil
 }
 
 // Dump DataConsumer.
-func (p *DataProducer) Dump() (dump DataProducerDump, err error) {
-	p.logger.V(1).Info("dump()")
+func (p *DataProducer) Dump() (*DataProducerDump, error) {
+	p.logger.Debug("Dump()")
 
-	resp := p.channel.Request("dataProducer.dump", p.internal)
-	err = resp.Unmarshal(&dump)
-	return
-}
-
-// GetStats returns DataConsumer stats.
-func (p *DataProducer) GetStats() (stats []*DataProducerStat, err error) {
-	p.logger.V(1).Info("getStats()")
-
-	resp := p.channel.Request("dataProducer.getStats", p.internal)
-	err = resp.Unmarshal(&stats)
-
-	return
-}
-
-// Send data.
-func (p *DataProducer) Send(data []byte) (err error) {
-	/**
-	 * +-------------------------------+----------+
-	 * | Value                         | SCTP     |
-	 * |                               | PPID     |
-	 * +-------------------------------+----------+
-	 * | WebRTC String                 | 51       |
-	 * | WebRTC Binary Partial         | 52       |
-	 * | (Deprecated)                  |          |
-	 * | WebRTC Binary                 | 53       |
-	 * | WebRTC String Partial         | 54       |
-	 * | (Deprecated)                  |          |
-	 * | WebRTC String Empty           | 56       |
-	 * | WebRTC Binary Empty           | 57       |
-	 * +-------------------------------+----------+
-	 */
-	ppid := "53"
-
-	if len(data) == 0 {
-		ppid, data = "57", make([]byte, 1)
+	msg, err := p.channel.Request(&FbsRequest.RequestT{
+		HandlerId: p.Id(),
+		Method:    FbsRequest.MethodDATAPRODUCER_DUMP,
+	})
+	if err != nil {
+		return nil, err
+	}
+	resp := msg.(*FbsDataProducer.DumpResponseT)
+	dump := &DataProducerDump{
+		Id:       resp.Id,
+		Paused:   resp.Paused,
+		Type:     orElse(resp.Type == FbsDataProducer.TypeDIRECT, DataProducerDirect, DataProducerSctp),
+		Label:    resp.Label,
+		Protocol: resp.Protocol,
 	}
 
-	return p.payloadChannel.Notify("dataProducer.send", p.internal, ppid, data)
+	if resp.SctpStreamParameters != nil {
+		dump.SctpStreamParameters = &SctpStreamParameters{
+			StreamId:          resp.SctpStreamParameters.StreamId,
+			Ordered:           resp.SctpStreamParameters.Ordered,
+			MaxPacketLifeTime: resp.SctpStreamParameters.MaxPacketLifeTime,
+			MaxRetransmits:    resp.SctpStreamParameters.MaxRetransmits,
+		}
+	}
+
+	return dump, nil
+}
+
+// GetStats returns DataProducer stats.
+func (p *DataProducer) GetStats() ([]*DataProducerStat, error) {
+	p.logger.Debug("GetStats()")
+
+	msg, err := p.channel.Request(&FbsRequest.RequestT{
+		Method:    FbsRequest.MethodDATAPRODUCER_GET_STATS,
+		HandlerId: p.Id(),
+	})
+	if err != nil {
+		return nil, err
+	}
+	resp := msg.(*FbsDataProducer.GetStatsResponseT)
+
+	return []*DataProducerStat{
+		{
+			Type:             "data-producer",
+			Timestamp:        resp.Timestamp,
+			Label:            resp.Label,
+			Protocol:         resp.Protocol,
+			MessagesReceived: resp.MessagesReceived,
+			BytesReceived:    resp.BytesReceived,
+		},
+	}, nil
+}
+
+// Pause the DataProducer.
+func (p *DataProducer) Pause() error {
+	p.logger.Debug("Pause()")
+
+	p.mu.Lock()
+
+	_, err := p.channel.Request(&FbsRequest.RequestT{
+		Method:    FbsRequest.MethodDATAPRODUCER_PAUSE,
+		HandlerId: p.Id(),
+	})
+	if err != nil {
+		p.mu.Unlock()
+		return err
+	}
+	wasPaused := p.data.Paused
+	listeners := p.pausedListeners
+	p.data.Paused = true
+	p.mu.Unlock()
+
+	if !wasPaused {
+		for _, listener := range listeners {
+			listener(true)
+		}
+	}
+
+	return err
+}
+
+// Resume the DataProducer.
+func (p *DataProducer) Resume() error {
+	p.logger.Debug("Resume()")
+
+	p.mu.Lock()
+
+	_, err := p.channel.Request(&FbsRequest.RequestT{
+		Method:    FbsRequest.MethodDATAPRODUCER_RESUME,
+		HandlerId: p.Id(),
+	})
+	if err != nil {
+		p.mu.Unlock()
+		return err
+	}
+	wasPaused := p.data.Paused
+	listeners := p.pausedListeners
+	p.data.Paused = false
+
+	p.mu.Unlock()
+
+	if wasPaused {
+		for _, listener := range listeners {
+			listener(false)
+		}
+	}
+
+	return err
+}
+
+func (p *DataProducer) OnPaused(f func(bool)) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	p.pausedListeners = append(p.pausedListeners, f)
+}
+
+// Send send binary data.
+func (p *DataProducer) Send(data []byte) (err error) {
+	p.logger.Debug("Send()")
+
+	ppid := SctpPayloadWebRTCBinary
+
+	if len(data) == 0 {
+		ppid, data = SctpPayloadWebRTCBinaryEmpty, make([]byte, 1)
+	}
+	return p.send(data, ppid)
 }
 
 // SendText send text.
 func (p *DataProducer) SendText(message string) error {
-	ppid, payload := "51", []byte(message)
+	p.logger.Debug("SendText()")
+
+	ppid, payload := SctpPayloadWebRTCString, []byte(message)
 
 	if len(payload) == 0 {
-		ppid, payload = "56", []byte{' '}
+		ppid, payload = SctpPayloadWebRTCStringEmpty, []byte{' '}
 	}
-
-	return p.payloadChannel.Notify("dataProducer.send", p.internal, ppid, payload)
+	return p.send(payload, ppid)
 }
 
-// OnClose set handler on "close" event
-func (p *DataProducer) OnClose(handler func()) {
-	p.onClose = handler
+func (p *DataProducer) send(data []byte, ppid SctpPayloadType) error {
+	return p.channel.Notify(&FbsNotification.NotificationT{
+		Event:     FbsNotification.EventDATAPRODUCER_SEND,
+		HandlerId: p.Id(),
+		Body: &FbsNotification.BodyT{
+			Type: FbsNotification.BodyDataProducer_SendNotification,
+			Value: &FbsDataProducer.SendNotificationT{
+				Data: data,
+				Ppid: uint32(ppid),
+			},
+		},
+	})
 }
 
-// OnTransportClose set handler on "transportclose" event
-func (p *DataProducer) OnTransportClose(handler func()) {
-	p.onTransportClose = handler
-}
-
-func (p *DataProducer) handleWorkerNotifications() {
-	// No need to subscribe to any event.
+func (p *DataProducer) transportClosed() {
+	p.mu.Lock()
+	if p.closed {
+		p.mu.Unlock()
+		return
+	}
+	p.closed = true
+	p.mu.Unlock()
+	p.notifyClosed()
 }

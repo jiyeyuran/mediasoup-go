@@ -1,39 +1,14 @@
 package mediasoup
 
 import (
+	"log/slog"
 	"sync"
-	"sync/atomic"
 
-	"github.com/go-logr/logr"
+	FbsRequest "github.com/jiyeyuran/mediasoup-go/internal/FBS/Request"
+	FbsWebRtcServer "github.com/jiyeyuran/mediasoup-go/internal/FBS/WebRtcServer"
+	FbsWorker "github.com/jiyeyuran/mediasoup-go/internal/FBS/Worker"
+	"github.com/jiyeyuran/mediasoup-go/internal/channel"
 )
-
-type WebRtcServerListenInfo struct {
-	// Network protocol.
-	Protocol TransportProtocol `json:"protocol,omitempty"`
-
-	// Listening IPv4 or IPv6.
-	Ip string `json:"ip,omitempty"`
-
-	// Announced IPv4 or IPv6 (useful when running mediasoup behind NAT with private IP).
-	AnnouncedIp string `json:"announcedIp,omitempty"`
-
-	// Listening port.
-	Port uint16 `json:"port,omitempty"`
-}
-
-type WebRtcServerOptions struct {
-	// Listen infos.
-	ListenInfos []WebRtcServerListenInfo
-
-	// appData
-	AppData interface{}
-}
-
-type webrtcServerParams struct {
-	internal internalData
-	channel  *Channel
-	appData  interface{}
-}
 
 // WebRtcServer brings the ability to listen on a single UDP/TCP port to WebRtcTransports.
 // Instead of passing listenIps to router.CreateWebRtcTransport() pass webRtcServer with an
@@ -45,131 +20,130 @@ type webrtcServerParams struct {
 //
 // The WebRTC transport implementation of mediasoup is ICE Lite, meaning that it does not initiate
 // ICE connections but expects ICE Binding Requests from endpoints.
-//
-//   - @emits @close
-//   - @emits workerclose
 type WebRtcServer struct {
-	IEventEmitter
-	logger           logr.Logger
-	internal         internalData
-	channel          *Channel
-	closed           uint32
-	appData          interface{}
-	webRtcTransports sync.Map // string:*WebRtcTransport
-	observer         IEventEmitter
+	baseNotifier
+	id               string
+	channel          *channel.Channel
+	appData          H
+	closed           bool
+	webRtcTransports sync.Map
+	logger           *slog.Logger
 }
 
-func NewWebRtcServer(params webrtcServerParams) *WebRtcServer {
-	logger := NewLogger("WebRtcServer")
-	logger.V(1).Info("constructor()", "internal", params.internal)
-
+func NewWebRtcServer(worker *Worker, id string, appData H) *WebRtcServer {
 	return &WebRtcServer{
-		IEventEmitter: NewEventEmitter(),
-		logger:        logger,
-		internal:      params.internal,
-		channel:       params.channel,
-		appData:       params.appData,
-		observer:      NewEventEmitter(),
+		id:      id,
+		channel: worker.channel,
+		appData: appData,
+		logger:  worker.logger,
 	}
 }
 
-// Id returns router id.
+// Id returns webrtc server's id.
 func (s *WebRtcServer) Id() string {
-	return s.internal.WebRtcServerId
-}
-
-// Closed returns whether the router is closed or not.
-func (s *WebRtcServer) Closed() bool {
-	return atomic.LoadUint32(&s.closed) > 0
+	return s.id
 }
 
 // AppData returns App custom data.
-func (s *WebRtcServer) AppData() interface{} {
+func (s *WebRtcServer) AppData() H {
 	return s.appData
 }
 
-// Deprecated
-//
-//   - @emits close
-//   - @emits webrtctransporthandled - (transport *WebRtcTransport)
-//   - @emits webrtctransportunhandled - (transport *WebRtcTransport)
-func (s *WebRtcServer) Observer() IEventEmitter {
-	return s.observer
-}
+// Closed returns whether the webrtc server is closed.
+func (s *WebRtcServer) Closed() bool {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
 
-// webRtcTransportsForTesting is used for testing purposes.
-func (s *WebRtcServer) webRtcTransportsForTesting() map[string]*WebRtcTransport {
-	transports := make(map[string]*WebRtcTransport)
-
-	s.webRtcTransports.Range(func(key, value interface{}) bool {
-		transports[key.(string)] = value.(*WebRtcTransport)
-		return true
-	})
-
-	return transports
+	return s.closed
 }
 
 // Close the webrtc server.
-func (s *WebRtcServer) Close() {
-	if !atomic.CompareAndSwapUint32(&s.closed, 0, 1) {
-		return
+func (s *WebRtcServer) Close() error {
+	s.logger.Debug("Close()")
+
+	s.mu.Lock()
+	if s.closed {
+		s.mu.Unlock()
+		return nil
 	}
-	s.logger.V(1).Info("close()")
-
-	reqData := H{"webRtcServerId": s.internal.WebRtcServerId}
-
-	s.channel.Request("worker.closeWebRtcServer", s.internal, reqData)
-
-	s.webRtcTransports.Range(func(key, value interface{}) bool {
-		webRtcTransport := value.(*WebRtcTransport)
-		webRtcTransport.listenServerClosed()
-
-		// Emit observer event.
-		s.observer.SafeEmit("webrtctransportunhandled", webRtcTransport)
+	s.closed = true
+	_, err := s.channel.Request(&FbsRequest.RequestT{
+		Method: FbsRequest.MethodWORKER_WEBRTCSERVER_CLOSE,
+		Body: &FbsRequest.BodyT{
+			Type: FbsRequest.BodyWorker_CloseWebRtcServerRequest,
+			Value: &FbsWorker.CloseWebRtcServerRequestT{
+				WebRtcServerId: s.Id(),
+			},
+		},
+	})
+	if err != nil {
+		s.mu.Unlock()
+		return err
+	}
+	transports := []*Transport{}
+	s.webRtcTransports.Range(func(key, value any) bool {
+		transports = append(transports, value.(*Transport))
+		value.(*Transport).listenServerClosed()
 		return true
 	})
 	s.webRtcTransports = sync.Map{}
+	s.mu.Unlock()
 
-	s.Emit("@close")
-	s.RemoveAllListeners()
+	for _, transport := range transports {
+		transport.listenServerClosed()
+	}
 
-	// Emit observer event.
-	s.observer.SafeEmit("close")
-	s.observer.RemoveAllListeners()
+	return err
 }
 
 // workerClosed is called when worker was closed.
 func (s *WebRtcServer) workerClosed() {
-	if !atomic.CompareAndSwapUint32(&s.closed, 0, 1) {
-		return
-	}
-	s.logger.V(1).Info("workerClosed()")
-
 	// NOTE: No need to close WebRtcTransports since they are closed by their
 	// respective Router parents.
-	s.webRtcTransports = sync.Map{}
-
-	s.Emit("workerclose")
-
-	// Emit observer event.
-	s.observer.SafeEmit("close")
+	clearSyncMap(&s.webRtcTransports)
+	s.notifyClosed()
 }
 
 // Dump returns WebRtcServer information.
-func (s *WebRtcServer) Dump() (data WebRtcServerDump, err error) {
-	s.logger.V(1).Info("dump()")
-	err = s.channel.Request("webRtcServer.dump", s.internal).Unmarshal(&data)
-	return
+func (s *WebRtcServer) Dump() (*WebRtcServerDump, error) {
+	s.logger.Debug("Dump()")
+
+	val, err := s.channel.Request(&FbsRequest.RequestT{
+		HandlerId: s.Id(),
+		Method:    FbsRequest.MethodWEBRTCSERVER_DUMP,
+	})
+	if err != nil {
+		return nil, err
+	}
+	resp := val.(*FbsWebRtcServer.DumpResponseT)
+
+	return &WebRtcServerDump{
+		Id: resp.Id,
+		UdpSockets: collect(resp.UdpSockets, func(v *FbsWebRtcServer.IpPortT) IpPort {
+			return IpPort{Ip: v.Ip, Port: v.Port}
+		}),
+		TcpServers: collect(resp.TcpServers, func(v *FbsWebRtcServer.IpPortT) IpPort {
+			return IpPort{Ip: v.Ip, Port: v.Port}
+		}),
+		WebRtcTransportIds: resp.WebRtcTransportIds,
+		LocalIceUsernameFragments: collect(resp.LocalIceUsernameFragments,
+			func(v *FbsWebRtcServer.IceUserNameFragmentT) IceUserNameFragment {
+				return IceUserNameFragment{
+					LocalIceUsernameFragment: v.LocalIceUsernameFragment,
+					WebRtcTransportId:        v.WebRtcTransportId,
+				}
+			}),
+		TupleHashes: collect(resp.TupleHashes, func(v *FbsWebRtcServer.TupleHashT) TupleHash {
+			return TupleHash{TupleHash: v.TupleHash,
+				WebRtcTransportId: v.WebRtcTransportId,
+			}
+		}),
+	}, nil
 }
 
-func (s *WebRtcServer) handleWebRtcTransport(webRtcTransport *WebRtcTransport) {
-	s.webRtcTransports.Store(webRtcTransport.Id(), webRtcTransport)
-
-	s.observer.SafeEmit("webrtctransporthandled", webRtcTransport)
-
-	webRtcTransport.On("@close", func() {
-		s.webRtcTransports.Delete(webRtcTransport.Id())
-		// Emit observer event.
-		s.observer.SafeEmit("webrtctransportunhandled", webRtcTransport)
+func (s *WebRtcServer) handleWebRtcTransport(transport *Transport) {
+	s.webRtcTransports.Store(transport.Id(), transport)
+	transport.OnClose(func() {
+		s.webRtcTransports.Delete(transport.Id())
 	})
 }

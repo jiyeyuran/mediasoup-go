@@ -1,479 +1,455 @@
 package mediasoup
 
 import (
-	"encoding/json"
-	"sync"
-	"sync/atomic"
+	"log/slog"
+	"strings"
 
-	"github.com/go-logr/logr"
-)
+	FbsCommon "github.com/jiyeyuran/mediasoup-go/internal/FBS/Common"
+	FbsNotification "github.com/jiyeyuran/mediasoup-go/internal/FBS/Notification"
+	FbsProducer "github.com/jiyeyuran/mediasoup-go/internal/FBS/Producer"
+	FbsRequest "github.com/jiyeyuran/mediasoup-go/internal/FBS/Request"
+	FbsRtpParameters "github.com/jiyeyuran/mediasoup-go/internal/FBS/RtpParameters"
+	FbsRtpStream "github.com/jiyeyuran/mediasoup-go/internal/FBS/RtpStream"
+	FbsTransport "github.com/jiyeyuran/mediasoup-go/internal/FBS/Transport"
 
-// ProducerOptions define options to create a producer.
-type ProducerOptions struct {
-	// Id is the producer id (just for Router.pipeToRouter() method).
-	Id string `json:"id,omitempty"`
-
-	// Kind is media kind ("audio" or "video").
-	Kind MediaKind `json:"kind,omitempty"`
-
-	// RtpParameters define what the endpoint is sending.
-	RtpParameters RtpParameters `json:"rtpParameters,omitempty"`
-
-	// Paused define whether the producer must start in paused mode. Default false.
-	Paused bool `json:"paused,omitempty"`
-
-	// KeyFrameRequestDelay is just used for video. Time (in ms) before asking
-	// the sender for a new key frame after having asked a previous one. Default 0.
-	KeyFrameRequestDelay uint32 `json:"keyFrameRequestDelay,omitempty"`
-
-	// AppData is custom application data.
-	AppData interface{} `json:"appData,omitempty"`
-}
-
-// ProducerTraceEventType define the type for "trace" event.
-type ProducerTraceEventType string
-
-const (
-	ProducerTraceEventType_Rtp      ProducerTraceEventType = "rtp"
-	ProducerTraceEventType_Keyframe ProducerTraceEventType = "keyframe"
-	ProducerTraceEventType_Nack     ProducerTraceEventType = "nack"
-	ProducerTraceEventType_Pli      ProducerTraceEventType = "pli"
-	ProducerTraceEventType_Fir      ProducerTraceEventType = "fir"
-)
-
-// ProducerTraceEventData define "trace" event data.
-type ProducerTraceEventData struct {
-	// Type is the trace type.
-	Type ProducerTraceEventType `json:"type,omitempty"`
-
-	// Timestamp is event timestamp.
-	Timestamp uint32 `json:"timestamp,omitempty"`
-
-	// Direction is event direction, "in" | "out".
-	Direction string `json:"direction,omitempty"`
-
-	// Info is per type information.
-	Info H `json:"info,omitempty"`
-}
-
-// ProducerScore define "score" event data
-type ProducerScore struct {
-	// Ssrc of the RTP stream.
-	Ssrc uint32 `json:"ssrc,omitempty"`
-
-	// Rid of the RTP stream.
-	Rid string `json:"rid,omitempty"`
-
-	// Score of the RTP stream.
-	Score uint32 `json:"score"`
-}
-
-// ProducerVideoOrientation define "videoorientationchange" event data
-type ProducerVideoOrientation struct {
-	// Camera define whether the source is a video camera.
-	Camera bool `json:"Camera,omitempty"`
-
-	// Flip define whether the video source is flipped.
-	Flip bool `json:"flip,omitempty"`
-
-	// Rotation degrees (0, 90, 180 or 270).
-	Rotation uint32 `json:"rotation"`
-}
-
-// ProducerStat define the statistic info of a producer
-type ProducerStat struct {
-	ConsumerStat
-	// Jitter is the jitter buffer.
-	Jitter uint32 `json:"jitter,omitempty"`
-	// BitrateByLayer is a map of bitrate of each layer (such as {"0.0": 100, "1.0": 500})
-	BitrateByLayer map[string]uint32 `json:"bitrateByLayer,omitempty"`
-}
-
-// ProducerType define Producer type.
-type ProducerType string
-
-const (
-	ProducerType_Simple    ProducerType = "simple"
-	ProducerType_Simulcast ProducerType = "simulcast"
-	ProducerType_Svc       ProducerType = "svc"
+	"github.com/jiyeyuran/mediasoup-go/internal/channel"
 )
 
 type producerData struct {
-	Kind                    MediaKind     `json:"kind,omitempty"`
-	Type                    ProducerType  `json:"type,omitempty"`
-	RtpParameters           RtpParameters `json:"rtpParameters,omitempty"`
-	ConsumableRtpParameters RtpParameters `json:"consumableRtpParameters,omitempty"`
+	TransportId             string
+	ProducerId              string
+	Kind                    MediaKind
+	Type                    ProducerType
+	RtpParameters           *RtpParameters
+	ConsumableRtpParameters *RtpParameters
+	AppData                 H
+	// changable fields
+	Paused bool
 }
 
-type producerParams struct {
-	// internal uses with routerId, transportId, producerId
-	internal       internalData
-	data           producerData
-	channel        *Channel
-	payloadChannel *PayloadChannel
-	appData        interface{}
-	paused         bool
-}
-
-// Producer represents an audio or video source being injected into a mediasoup router.
-// It's created on top of a transport that defines how the media packets are carried.
-//
-//   - @emits transportclose
-//   - @emits score - (scores []ProducerScore)
-//   - @emits videoorientationchange - (videoOrientation *ProducerVideoOrientation)
-//   - @emits trace - (trace *ProducerTraceEventData)
-//   - @emits @close
 type Producer struct {
-	IEventEmitter
-	locker                   sync.Mutex
-	logger                   logr.Logger
-	internal                 internalData
-	data                     producerData
-	channel                  *Channel
-	payloadChannel           *PayloadChannel
-	appData                  interface{}
-	paused                   bool
-	closed                   uint32
-	score                    []ProducerScore
-	observer                 IEventEmitter
-	onClose                  func()
-	onTransportClose         func()
-	onPause                  func()
-	onResume                 func()
-	onScore                  func([]ProducerScore)
-	onVideoOrientationChange func(*ProducerVideoOrientation)
-	onTrace                  func(*ProducerTraceEventData)
+	baseNotifier
+
+	channel                         *channel.Channel
+	logger                          *slog.Logger
+	data                            *producerData
+	score                           []ProducerScore
+	closed                          bool
+	pausedListeners                 []func(bool)
+	scoreListeners                  []func([]ProducerScore)
+	videoOrientationChangeListeners []func(ProducerVideoOrientation)
+	traceListeners                  []func(ProducerTraceEventData)
+	sub                             *channel.Subscription
 }
 
-func newProducer(params producerParams) *Producer {
-	logger := NewLogger("Producer")
-
-	logger.V(1).Info("constructor()", "internal", params.internal)
-
-	producer := &Producer{
-		IEventEmitter:  NewEventEmitter(),
-		logger:         logger,
-		internal:       params.internal,
-		data:           params.data,
-		channel:        params.channel,
-		payloadChannel: params.payloadChannel,
-		appData:        params.appData,
-		paused:         params.paused,
-		observer:       NewEventEmitter(),
+func newProducer(channel *channel.Channel, logger *slog.Logger, data *producerData) *Producer {
+	p := &Producer{
+		channel: channel,
+		data:    data,
+		logger:  logger.With("producerId", data.ProducerId),
 	}
-
-	producer.handleWorkerNotifications()
-
-	return producer
+	p.handleWorkerNotifications()
+	return p
 }
 
-// Id returns producer id
-func (producer *Producer) Id() string {
-	return producer.internal.ProducerId
-}
-
-// Closed returns whether the Producer is closed.
-func (producer *Producer) Closed() bool {
-	return atomic.LoadUint32(&producer.closed) > 0
+// Id returns producer id.
+func (p *Producer) Id() string {
+	return p.data.ProducerId
 }
 
 // Kind returns media kind.
-func (producer *Producer) Kind() MediaKind {
-	return producer.data.Kind
+func (p *Producer) Kind() MediaKind {
+	return p.data.Kind
 }
 
 // RtpParameters returns RTP parameters.
-func (producer *Producer) RtpParameters() RtpParameters {
-	return producer.data.RtpParameters
+func (p *Producer) RtpParameters() *RtpParameters {
+	return p.data.RtpParameters
 }
 
 // Type returns producer type.
-func (producer *Producer) Type() ProducerType {
-	return producer.data.Type
+func (p *Producer) Type() ProducerType {
+	return p.data.Type
 }
 
 // ConsumableRtpParameters returns consumable RTP parameters.
-func (producer *Producer) ConsumableRtpParameters() RtpParameters {
-	return producer.data.ConsumableRtpParameters
+func (p *Producer) ConsumableRtpParameters() *RtpParameters {
+	return p.data.ConsumableRtpParameters
 }
 
 // Paused returns whether the Producer is paused.
-func (producer *Producer) Paused() bool {
-	producer.locker.Lock()
-	defer producer.locker.Unlock()
+func (p *Producer) Paused() bool {
+	p.mu.Lock()
+	defer p.mu.Unlock()
 
-	return producer.paused
+	return p.data.Paused
 }
 
 // Score returns producer score list.
-func (producer *Producer) Score() []ProducerScore {
-	return producer.score
+func (p *Producer) Score() []ProducerScore {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+
+	return p.score
 }
 
 // AppData returns app custom data.
-func (producer *Producer) AppData() interface{} {
-	return producer.appData
+func (p *Producer) AppData() H {
+	return p.data.AppData
 }
 
-// Deprecated
-//
-//   - @emits close
-//   - @emits pause
-//   - @emits resume
-//   - @emits score - (scores []ProducerScore)
-//   - @emits videoorientationchange - (videoOrientation *ProducerVideoOrientation)
-//   - @emits trace - (trace *ProducerTraceEventData)
-func (producer *Producer) Observer() IEventEmitter {
-	return producer.observer
+// Closed returns whether the Producer is closed.
+func (p *Producer) Closed() bool {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+
+	return p.closed
 }
 
 // Close the producer.
-func (producer *Producer) Close() (err error) {
-	if atomic.CompareAndSwapUint32(&producer.closed, 0, 1) {
-		producer.logger.V(1).Info("close()")
-
-		// Remove notification subscriptions.
-		producer.channel.Unsubscribe(producer.Id())
-		producer.payloadChannel.Unsubscribe(producer.Id())
-
-		reqData := H{"producerId": producer.internal.ProducerId}
-		response := producer.channel.Request("transport.closeProducer", producer.internal, reqData)
-
-		if err = response.Err(); err != nil {
-			producer.logger.Error(err, "producer close error failed")
-		}
-
-		producer.Emit("@close")
-		producer.RemoveAllListeners()
-
-		producer.close()
+func (p *Producer) Close() error {
+	p.mu.Lock()
+	if p.closed {
+		p.mu.Unlock()
+		return nil
 	}
+	p.logger.Debug("Close()")
 
-	return
-}
-
-// close send "close" event.
-func (producer *Producer) close() {
-	// Emit observer event.
-	producer.observer.SafeEmit("close")
-	producer.observer.RemoveAllListeners()
-
-	if handler := producer.onClose; handler != nil {
-		handler()
+	_, err := p.channel.Request(&FbsRequest.RequestT{
+		Method:    FbsRequest.MethodTRANSPORT_CLOSE_PRODUCER,
+		HandlerId: p.data.TransportId,
+		Body: &FbsRequest.BodyT{
+			Type: FbsRequest.BodyTransport_CloseProducerRequest,
+			Value: &FbsTransport.CloseProducerRequestT{
+				ProducerId: p.Id(),
+			},
+		},
+	})
+	if err != nil {
+		p.mu.Unlock()
+		return err
 	}
-}
+	p.closed = true
+	p.mu.Unlock()
 
-// transportClosed is called when transport was closed.
-func (producer *Producer) transportClosed() {
-	if atomic.CompareAndSwapUint32(&producer.closed, 0, 1) {
-		producer.logger.V(1).Info("transportClosed()")
-
-		// Remove notification subscriptions.
-		producer.channel.Unsubscribe(producer.Id())
-		producer.payloadChannel.Unsubscribe(producer.Id())
-
-		producer.SafeEmit("transportclose")
-		producer.RemoveAllListeners()
-
-		if handler := producer.onTransportClose; handler != nil {
-			handler()
-		}
-
-		producer.close()
-	}
+	p.cleanupAfterClosed()
+	return nil
 }
 
 // Dump producer.
-func (producer *Producer) Dump() (dump ProducerDump, err error) {
-	producer.logger.V(1).Info("dump()")
+func (p *Producer) Dump() (*ProducerDump, error) {
+	p.logger.Debug("Dump()")
 
-	resp := producer.channel.Request("producer.dump", producer.internal)
-	err = resp.Unmarshal(&dump)
-
-	return
+	msg, err := p.channel.Request(&FbsRequest.RequestT{
+		HandlerId: p.Id(),
+		Method:    FbsRequest.MethodPRODUCER_DUMP,
+	})
+	if err != nil {
+		return nil, err
+	}
+	resp := msg.(*FbsProducer.DumpResponseT)
+	dump := &ProducerDump{
+		Id:            resp.Id,
+		Kind:          MediaKind(strings.ToLower(resp.Kind.String())),
+		Type:          ProducerType(strings.ToLower(resp.Type.String())),
+		RtpParameters: parseRtpParameters(resp.RtpParameters),
+		RtpMapping: &RtpMapping{
+			Codecs: collect(resp.RtpMapping.Codecs, func(codec *FbsRtpParameters.CodecMappingT) *RtpMappingCodec {
+				return &RtpMappingCodec{
+					PayloadType:       codec.PayloadType,
+					MappedPayloadType: codec.MappedPayloadType,
+				}
+			}),
+			Encodings: collect(resp.RtpMapping.Encodings, func(encoding *FbsRtpParameters.EncodingMappingT) *RtpMappingEncoding {
+				return &RtpMappingEncoding{
+					Rid:             encoding.Rid,
+					Ssrc:            encoding.Ssrc,
+					ScalabilityMode: encoding.ScalabilityMode,
+					MappedSsrc:      encoding.MappedSsrc,
+				}
+			}),
+		},
+		RtpStreams: collect(resp.RtpStreams, parseRtpStreamDump),
+		TraceEventTypes: collect(resp.TraceEventTypes, func(typ FbsProducer.TraceEventType) ProducerTraceEventType {
+			return ProducerTraceEventType(strings.ToLower(typ.String()))
+		}),
+		Paused: resp.Paused,
+	}
+	return dump, nil
 }
 
 // GetStats returns producer stats.
-func (producer *Producer) GetStats() (stats []*ProducerStat, err error) {
-	producer.logger.V(1).Info("getStats()")
+func (p *Producer) GetStats() ([]*ProducerStat, error) {
+	p.logger.Debug("GetStats()")
 
-	resp := producer.channel.Request("producer.getStats", producer.internal)
-	err = resp.Unmarshal(&stats)
+	msg, err := p.channel.Request(&FbsRequest.RequestT{
+		Method:    FbsRequest.MethodPRODUCER_GET_STATS,
+		HandlerId: p.Id(),
+	})
+	if err != nil {
+		return nil, err
+	}
+	resp := msg.(*FbsProducer.GetStatsResponseT)
 
-	return
+	return collect(resp.Stats, func(stat *FbsRtpStream.StatsT) *ProducerStat {
+		recvStats := stat.Data.Value.(*FbsRtpStream.RecvStatsT)
+		baseStats := recvStats.Base.Data.Value.(*FbsRtpStream.BaseStatsT)
+		bitrateByLayer := ifElse(len(recvStats.BitrateByLayer) > 0, func() map[string]uint32 {
+			return make(map[string]uint32)
+		})
+
+		for _, layer := range recvStats.BitrateByLayer {
+			bitrateByLayer[layer.Layer] = layer.Bitrate
+		}
+
+		return &ProducerStat{
+			BaseRtpStreamStats: parseBaseRtpStreamStats(baseStats),
+			Type:               "inbound-rtp",
+			Jitter:             recvStats.Jitter,
+			PacketCount:        recvStats.PacketCount,
+			ByteCount:          recvStats.ByteCount,
+			Bitrate:            recvStats.Bitrate,
+			BitrateByLayer:     bitrateByLayer,
+		}
+	}), nil
 }
 
 // Pause the producer.
-func (producer *Producer) Pause() (err error) {
-	producer.locker.Lock()
-	defer producer.locker.Unlock()
+func (p *Producer) Pause() error {
+	p.logger.Debug("Pause()")
 
-	producer.logger.V(1).Info("pause()")
+	p.mu.Lock()
 
-	wasPaused := producer.paused
-
-	response := producer.channel.Request("producer.pause", producer.internal)
-
-	if err = response.Err(); err != nil {
-		return
+	_, err := p.channel.Request(&FbsRequest.RequestT{
+		Method:    FbsRequest.MethodPRODUCER_PAUSE,
+		HandlerId: p.Id(),
+	})
+	if err != nil {
+		p.mu.Unlock()
+		return err
 	}
+	wasPaused := p.data.Paused
+	listeners := p.pausedListeners
+	p.data.Paused = true
+	p.mu.Unlock()
 
-	producer.paused = true
-
-	// Emit observer event.
 	if !wasPaused {
-		producer.observer.SafeEmit("pause")
-
-		if handler := producer.onPause; handler != nil {
-			handler()
+		for _, listener := range listeners {
+			listener(true)
 		}
 	}
 
-	return
+	return err
 }
 
 // Resume the producer.
-func (producer *Producer) Resume() (err error) {
-	producer.locker.Lock()
-	defer producer.locker.Unlock()
+func (p *Producer) Resume() error {
+	p.logger.Debug("Resume()")
 
-	producer.logger.V(1).Info("resume()")
+	p.mu.Lock()
 
-	wasPaused := producer.paused
-
-	result := producer.channel.Request("producer.resume", producer.internal)
-
-	if err = result.Err(); err != nil {
-		return
+	_, err := p.channel.Request(&FbsRequest.RequestT{
+		Method:    FbsRequest.MethodPRODUCER_RESUME,
+		HandlerId: p.Id(),
+	})
+	if err != nil {
+		p.mu.Unlock()
+		return err
 	}
+	wasPaused := p.data.Paused
+	listeners := p.pausedListeners
+	p.data.Paused = false
 
-	producer.paused = false
+	p.mu.Unlock()
 
-	// Emit observer event.
 	if wasPaused {
-		producer.observer.SafeEmit("resume")
-
-		if handler := producer.onResume; handler != nil {
-			handler()
+		for _, listener := range listeners {
+			listener(false)
 		}
 	}
 
-	return
+	return err
 }
 
 // EnableTraceEvent enable "trace" event.
-func (producer *Producer) EnableTraceEvent(types ...ProducerTraceEventType) error {
-	producer.logger.V(1).Info("enableTraceEvent()")
+func (p *Producer) EnableTraceEvent(events []ProducerTraceEventType) error {
+	p.logger.Debug("EnableTraceEvent()", "events", events)
 
-	if types == nil {
-		types = []ProducerTraceEventType{}
-	}
+	events = filter(events, func(typ ProducerTraceEventType) bool {
+		_, ok := FbsProducer.EnumValuesTraceEventType[strings.ToUpper(string(typ))]
+		return ok
+	})
 
-	result := producer.channel.Request("producer.enableTraceEvent", producer.internal, H{"types": types})
-
-	return result.Err()
+	_, err := p.channel.Request(&FbsRequest.RequestT{
+		Method:    FbsRequest.MethodPRODUCER_ENABLE_TRACE_EVENT,
+		HandlerId: p.Id(),
+		Body: &FbsRequest.BodyT{
+			Type: FbsRequest.BodyProducer_EnableTraceEventRequest,
+			Value: &FbsProducer.EnableTraceEventRequestT{
+				Events: collect(events, func(typ ProducerTraceEventType) FbsProducer.TraceEventType {
+					return FbsProducer.EnumValuesTraceEventType[strings.ToUpper(string(typ))]
+				}),
+			},
+		},
+	})
+	return err
 }
 
 // Send RTP packet (just valid for Producers created on a DirectTransport).
-func (producer *Producer) Send(rtpPacket []byte) error {
-	return producer.payloadChannel.Notify("producer.send", producer.internal, "", rtpPacket)
+func (p *Producer) Send(rtpPacket []byte) error {
+	p.logger.Debug("Send()", "rtpPacketSize", len(rtpPacket))
+
+	return p.channel.Notify(&FbsNotification.NotificationT{
+		Event:     FbsNotification.EventPRODUCER_SEND,
+		HandlerId: p.Id(),
+		Body: &FbsNotification.BodyT{
+			Type: FbsNotification.BodyProducer_SendNotification,
+			Value: &FbsProducer.SendNotificationT{
+				Data: rtpPacket,
+			},
+		},
+	})
 }
 
-// OnClose set handler on "close" event
-func (producer *Producer) OnClose(handler func()) {
-	producer.onClose = handler
+// OnPause add handler on "pause/resume" event.
+func (p *Producer) OnPause(handler func(paused bool)) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
 }
 
-// OnTransportClose set handler on "transportclose" event
-func (producer *Producer) OnTransportClose(handler func()) {
-	producer.onTransportClose = handler
+// OnScore add handler on "score" event
+func (p *Producer) OnScore(handler func(score []ProducerScore)) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.scoreListeners = append(p.scoreListeners, handler)
 }
 
-// OnPause set handler on "pause" event
-func (producer *Producer) OnPause(handler func()) {
-	producer.onPause = handler
+// OnVideoOrientationChange add handler on "videoorientationchange" event
+func (p *Producer) OnVideoOrientationChange(handler func(videoOrientation ProducerVideoOrientation)) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.videoOrientationChangeListeners = append(p.videoOrientationChangeListeners, handler)
 }
 
-// OnResume set handler on "resume" event
-func (producer *Producer) OnResume(handler func()) {
-	producer.onResume = handler
+// OnTrace add handler on "trace" event
+func (p *Producer) OnTrace(handler func(trace ProducerTraceEventData)) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.traceListeners = append(p.traceListeners, handler)
 }
 
-// OnScore set handler on "score" event
-func (producer *Producer) OnScore(handler func(score []ProducerScore)) {
-	producer.onScore = handler
-}
-
-// OnVideoOrientationChange set handler on "videoorientationchange" event
-func (producer *Producer) OnVideoOrientationChange(handler func(videoOrientation *ProducerVideoOrientation)) {
-	producer.onVideoOrientationChange = handler
-}
-
-// OnTrace set handler on "trace" event
-func (producer *Producer) OnTrace(handler func(trace *ProducerTraceEventData)) {
-	producer.onTrace = handler
-}
-
-func (producer *Producer) handleWorkerNotifications() {
-	logger := producer.logger
-
-	producer.channel.Subscribe(producer.Id(), func(event string, data []byte) {
+func (p *Producer) handleWorkerNotifications() {
+	p.sub = p.channel.Subscribe(p.Id(), func(event FbsNotification.Event, body *FbsNotification.BodyT) {
 		switch event {
-		case "score":
-			score := []ProducerScore{}
+		case FbsNotification.EventPRODUCER_SCORE:
+			Notification := body.Value.(*FbsProducer.ScoreNotificationT)
+			scores := collect(Notification.Scores, func(score *FbsProducer.ScoreT) ProducerScore {
+				return ProducerScore{
+					EncodingIdx: score.EncodingIdx,
+					Rid:         score.Rid,
+					Ssrc:        score.Ssrc,
+					Score:       score.Score,
+				}
+			})
 
-			if err := json.Unmarshal([]byte(data), &score); err != nil {
-				logger.Error(err, "failed to unmarshal score", "data", json.RawMessage(data))
-				return
+			p.mu.Lock()
+			p.score = scores
+			listeners := p.scoreListeners
+			p.mu.Unlock()
+
+			for _, listener := range listeners {
+				listener(scores)
 			}
 
-			producer.score = score
-
-			producer.SafeEmit("score", score)
-
-			// Emit observer event.
-			producer.observer.SafeEmit("score", score)
-
-			if handler := producer.onScore; handler != nil {
-				handler(score)
+		case FbsNotification.EventPRODUCER_VIDEO_ORIENTATION_CHANGE:
+			notification := body.Value.(*FbsProducer.VideoOrientationChangeNotificationT)
+			videoOrientation := ProducerVideoOrientation{
+				Camera:   notification.Camera,
+				Flip:     notification.Flip,
+				Rotation: notification.Rotation,
 			}
 
-		case "videoorientationchange":
-			orientation := &ProducerVideoOrientation{}
+			p.mu.Lock()
+			listeners := p.videoOrientationChangeListeners
+			p.mu.Unlock()
 
-			if err := json.Unmarshal([]byte(data), &orientation); err != nil {
-				logger.Error(err, "failed to unmarshal orientation", "data", json.RawMessage(data))
-				return
+			for _, listener := range listeners {
+				listener(videoOrientation)
 			}
 
-			producer.SafeEmit("videoorientationchange", orientation)
-
-			// Emit observer event.
-			producer.observer.SafeEmit("videoorientationchange", orientation)
-
-			if handler := producer.onVideoOrientationChange; handler != nil {
-				handler(orientation)
+		case FbsNotification.EventPRODUCER_TRACE:
+			notification := body.Value.(*FbsProducer.TraceNotificationT)
+			trace := ProducerTraceEventData{
+				Type:      ProducerTraceEventType(strings.ToLower(notification.Type.String())),
+				Timestamp: notification.Timestamp,
+				Direction: orElse(notification.Direction == FbsCommon.TraceDirectionDIRECTION_IN, "in", "out"),
+				Info:      parseProducerTraceInfo(notification.Info),
 			}
 
-		case "trace":
-			var trace *ProducerTraceEventData
-
-			if err := json.Unmarshal([]byte(data), &trace); err != nil {
-				logger.Error(err, "failed to unmarshal trace", "data", json.RawMessage(data))
-				return
-			}
-
-			producer.SafeEmit("trace", trace)
-
-			// Emit observer event.
-			producer.observer.SafeEmit("trace", trace)
-
-			if handler := producer.onTrace; handler != nil {
-				handler(trace)
+			p.mu.Lock()
+			listeners := p.traceListeners
+			p.mu.Unlock()
+			for _, listener := range listeners {
+				listener(trace)
 			}
 
 		default:
-			logger.Error(nil, "ignoring unknown event", "event", event)
+			p.logger.Warn("ignoring unknown event", "event", event.String())
 		}
 	})
+}
+
+// transportClosed is called when transport closed.
+func (p *Producer) transportClosed() {
+	p.mu.Lock()
+	if p.closed {
+		p.mu.Unlock()
+		return
+	}
+	p.closed = true
+	p.mu.Unlock()
+
+	p.cleanupAfterClosed()
+}
+
+func (p *Producer) cleanupAfterClosed() {
+	p.sub.Unsubscribe()
+	p.notifyClosed()
+}
+
+func parseProducerTraceInfo(info *FbsProducer.TraceInfoT) any {
+	switch info.Type {
+	case FbsProducer.TraceInfoRtpTraceInfo:
+		value := info.Value.(*FbsProducer.RtpTraceInfoT)
+		return &RtpTraceInfo{
+			RtpPacket: ref(RtpPacketDump(*value.RtpPacket)),
+			IsRtx:     value.IsRtx,
+		}
+
+	case FbsProducer.TraceInfoKeyFrameTraceInfo:
+		value := info.Value.(*FbsProducer.KeyFrameTraceInfoT)
+		return &KeyFrameTraceInfo{
+			RtpPacket: ref(RtpPacketDump(*value.RtpPacket)),
+			IsRtx:     value.IsRtx,
+		}
+
+	case FbsProducer.TraceInfoFirTraceInfo:
+		value := info.Value.(*FbsProducer.FirTraceInfoT)
+		return &FirTraceInfo{
+			Ssrc: value.Ssrc,
+		}
+
+	case FbsProducer.TraceInfoPliTraceInfo:
+		value := info.Value.(*FbsProducer.PliTraceInfoT)
+		return &PliTraceInfo{
+			Ssrc: value.Ssrc,
+		}
+
+	case FbsProducer.TraceInfoSrTraceInfo:
+		value := info.Value.(*FbsProducer.SrTraceInfoT)
+		return ref(*value)
+
+	default:
+		return nil
+	}
 }
