@@ -603,6 +603,7 @@ func (c *Consumer) transportClosed() {
 	c.mu.Lock()
 	if c.closed {
 		c.mu.Unlock()
+		return
 	}
 	c.closed = true
 	c.mu.Unlock()
