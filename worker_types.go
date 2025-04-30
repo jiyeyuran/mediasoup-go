@@ -8,7 +8,6 @@ type WorkerLogLevel string
 
 const (
 	WorkerLogLevelDebug WorkerLogLevel = "debug"
-	WorkerLogLevelInfo  WorkerLogLevel = "info"
 	WorkerLogLevelWarn  WorkerLogLevel = "warn"
 	WorkerLogLevelError WorkerLogLevel = "error"
 	WorkerLogLevelNone  WorkerLogLevel = "none"

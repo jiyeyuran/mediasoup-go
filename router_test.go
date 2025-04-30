@@ -112,6 +112,45 @@ func TestCreateWebRtcTransport(t *testing.T) {
 	require.Nil(t, transport)
 }
 
+func TestCreateWebRtcTransportWithPortRange(t *testing.T) {
+	worker := newTestWorker()
+	router, _ := worker.CreateRouter(&RouterOptions{})
+
+	portRange := TransportPortRange{Min: 11111, Max: 11112}
+
+	transport1, err := router.CreateWebRtcTransport(&WebRtcTransportOptions{
+		ListenInfos: []TransportListenInfo{
+			{Protocol: TransportProtocolUDP, IP: "127.0.0.1", PortRange: portRange},
+		},
+	})
+	require.NoError(t, err)
+
+	iceCandidate1 := transport1.Data().WebRtcTransportData.IceCandidates[0]
+	assert.Equal(t, "127.0.0.1", iceCandidate1.Address)
+	assert.True(t, iceCandidate1.Port >= portRange.Min && iceCandidate1.Port <= portRange.Max)
+	assert.Equal(t, TransportProtocolUDP, iceCandidate1.Protocol)
+
+	transport2, err := router.CreateWebRtcTransport(&WebRtcTransportOptions{
+		ListenInfos: []TransportListenInfo{
+			{Protocol: TransportProtocolUDP, IP: "127.0.0.1", PortRange: portRange},
+		},
+	})
+	require.NoError(t, err)
+
+	iceCandidate2 := transport2.Data().WebRtcTransportData.IceCandidates[0]
+	assert.Equal(t, "127.0.0.1", iceCandidate2.Address)
+	assert.True(t, iceCandidate2.Port >= portRange.Min && iceCandidate2.Port <= portRange.Max)
+	assert.EqualValues(t, TransportProtocolUDP, iceCandidate2.Protocol)
+
+	// No more available ports so it must fail
+	_, err = router.CreateWebRtcTransport(&WebRtcTransportOptions{
+		ListenInfos: []TransportListenInfo{
+			{Protocol: TransportProtocolUDP, IP: "127.0.0.1", PortRange: portRange},
+		},
+	})
+	assert.Error(t, err)
+}
+
 func TestCreatePlainTransport(t *testing.T) {
 	worker := newTestWorker()
 	router, _ := worker.CreateRouter(&RouterOptions{})

@@ -1,14 +1,17 @@
 package mediasoup
 
 import (
+	"fmt"
+	"math/rand"
 	"net"
 	"os"
+	"runtime"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"go.uber.org/goleak"
 )
 
 var WorkerBinPath = os.Getenv("WORKER_BIN")
@@ -151,7 +154,7 @@ func TestWorkerClose(t *testing.T) {
 }
 
 func TestWorkerNoGoroutineLeaks(t *testing.T) {
-	defer goleak.VerifyNone(t)
+	numOfGoroutines := runtime.NumGoroutine()
 
 	worker := newTestWorker(func(s *WorkerSettings) {
 		s.LogLevel = WorkerLogLevelWarn
@@ -167,8 +170,21 @@ func TestWorkerNoGoroutineLeaks(t *testing.T) {
 	n := 10
 	var mu sync.Mutex
 	var wg sync.WaitGroup
-	router1 := createRouter(worker)
-	router2 := createRouter(worker)
+
+	var routers []*Router
+
+	for i := 0; i < 2; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			router := createRouter(worker)
+			mu.Lock()
+			routers = append(routers, router)
+			mu.Unlock()
+		}()
+	}
+
+	wg.Wait()
 
 	var transports []*Transport
 
@@ -176,7 +192,7 @@ func TestWorkerNoGoroutineLeaks(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			for _, router := range []*Router{router1, router2} {
+			for _, router := range routers {
 				transport1 := createPlainTransport(router, func(o *PlainTransportOptions) {
 					o.EnableSctp = true
 				})
@@ -204,7 +220,7 @@ func TestWorkerNoGoroutineLeaks(t *testing.T) {
 
 	for _, transport := range transports {
 		wg.Add(1)
-		go func() {
+		go func(transport *Transport) {
 			defer wg.Done()
 			audioProducer := createAudioProducer(transport)
 			videoProducer := createVideoProducer(transport)
@@ -226,35 +242,66 @@ func TestWorkerNoGoroutineLeaks(t *testing.T) {
 					mu.Unlock()
 				}(audioProducer, videoProducer, dataProducer)
 			}
-		}()
+		}(transport)
 	}
 
 	wg.Wait()
 
-	for i, producer := range producers {
-		if i%3 == 0 {
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
-				producer.Pause()
-			}()
-		}
-	}
-	for _, dataProducer := range dataProducers {
+	for _, producer := range producers {
 		wg.Add(1)
-		go func() {
+		go func(producer *Producer) {
 			defer wg.Done()
-			dataProducer.SendText("hello")
-		}()
+			producer.Pause()
+		}(producer)
+	}
+	wg.Wait()
+
+	// wait all notifications are consumed
+	time.Sleep(time.Millisecond * 10)
+
+	for _, consumer := range consumers {
+		assert.True(t, consumer.ProducerPaused())
+	}
+
+	messagesReceived := map[string][]string{}
+	for _, dataConsumer := range dataConsumers {
+		dataProducerId := dataConsumer.DataProducerId()
+		dataConsumer.OnMessage(func(payload []byte, ppid SctpPayloadType) {
+			mu.Lock()
+			messagesReceived[dataProducerId] = append(messagesReceived[dataProducerId], string(payload))
+			mu.Unlock()
+		})
+	}
+
+	messagesSent := map[string]string{}
+	for i, dataProducer := range dataProducers {
+		wg.Add(1)
+		go func(index int, dataProducer *DataProducer) {
+			defer wg.Done()
+			msg := fmt.Sprintf("hello world %d", index)
+			dataProducer.SendText(msg)
+			mu.Lock()
+			messagesSent[dataProducer.Id()] = msg
+			mu.Unlock()
+		}(i, dataProducer)
 	}
 
 	wg.Wait()
+
+	// wait all notifications are consumed
+	time.Sleep(time.Millisecond * 10)
+
 	worker.Close()
+
+	for dataProducerId, messages := range messagesReceived {
+		require.Len(t, messages, n, dataProducerId)
+		require.Equal(t, messagesSent[dataProducerId], messages[rand.Intn(len(messages))], dataProducerId)
+	}
 
 	assert.True(t, worker.Closed())
 
-	for _, router := range []*Router{router1, router2} {
-		router.Close()
+	for _, router := range routers {
+		assert.True(t, router.Closed())
 	}
 	for _, transport := range transports {
 		assert.True(t, transport.Closed())
@@ -271,4 +318,9 @@ func TestWorkerNoGoroutineLeaks(t *testing.T) {
 	for _, dataConsumer := range dataConsumers {
 		assert.True(t, dataConsumer.Closed())
 	}
+
+	// wait all goroutines are finished
+	time.Sleep(time.Millisecond * 500)
+
+	assert.LessOrEqual(t, runtime.NumGoroutine(), numOfGoroutines)
 }

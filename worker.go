@@ -45,14 +45,27 @@ func NewWorker(workerBinaryPath string, options ...Option) (*Worker, error) {
 		opt(opts)
 	}
 
-	if opts.Logger == nil {
-		output := io.Discard
-		level := slog.LevelWarn
-		if opts.LogLevel != WorkerLogLevelNone {
-			output = os.Stdout
-			level.UnmarshalText([]byte(opts.LogLevel))
+	logger := opts.Logger
+
+	if logger == nil {
+		output := io.Writer(os.Stdout)
+		level := slog.LevelInfo
+
+		switch opts.LogLevel {
+		case WorkerLogLevelDebug:
+			level = slog.LevelDebug
+
+		case WorkerLogLevelWarn:
+			level = slog.LevelWarn
+
+		case WorkerLogLevelError:
+			level = slog.LevelError
+
+		case WorkerLogLevelNone:
+			output = io.Discard
 		}
-		opts.Logger = slog.New(slog.NewTextHandler(output, &slog.HandlerOptions{
+
+		logger = slog.New(slog.NewTextHandler(output, &slog.HandlerOptions{
 			AddSource: true,
 			Level:     level,
 			ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
@@ -112,7 +125,7 @@ func NewWorker(workerBinaryPath string, options ...Option) (*Worker, error) {
 		args = append(args, "--disableLiburing=true")
 	}
 
-	opts.Logger.Debug(fmt.Sprintf("starting worker process: %s %s", workerBinaryPath, strings.Join(args, " ")))
+	logger.Debug(fmt.Sprintf("starting worker process: %s %s", workerBinaryPath, strings.Join(args, " ")))
 
 	cmd := exec.CommandContext(context.Background(), workerBinaryPath, args...)
 	cmd.ExtraFiles = []*os.File{producerReader, consumerWriter}
@@ -137,7 +150,7 @@ func NewWorker(workerBinaryPath string, options ...Option) (*Worker, error) {
 	}
 
 	pid := cmd.Process.Pid
-	logger := opts.Logger.With("pid", pid)
+	logger = logger.With("pid", pid)
 	channel := channel.NewChannel(producerWriter, consumerReader, logger)
 
 	// spawnDone indices the worker process is started
@@ -154,23 +167,25 @@ func NewWorker(workerBinaryPath string, options ...Option) (*Worker, error) {
 	defer sub.Unsubscribe()
 
 	go func() {
+		logger := logger.With("stderr", true)
 		r := bufio.NewReader(stderr)
 		for {
 			line, _, err := r.ReadLine()
 			if err != nil {
 				break
 			}
-			logger.Error(string(line))
+			logger.Info(string(line))
 		}
 	}()
 	go func() {
+		logger := logger.With("stdout", true)
 		r := bufio.NewReader(stdout)
 		for {
 			line, _, err := r.ReadLine()
 			if err != nil {
 				break
 			}
-			logger.Info(string(line))
+			logger.Debug(string(line))
 		}
 	}()
 
