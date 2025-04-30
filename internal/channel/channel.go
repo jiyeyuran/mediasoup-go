@@ -86,6 +86,7 @@ func (c *Channel) Notify(notification *FbsNotification.NotificationT) error {
 	builder.Finish(message.Pack(builder))
 	payload := builder.FinishedBytes()
 	message.Data.Value = nil
+	builder.Reset()
 
 	if len(payload) > MaxMessageLen {
 		return ErrBodyTooLarge
@@ -131,6 +132,7 @@ func (c *Channel) Request(req *FbsRequest.RequestT) (any, error) {
 	builder.Finish(message.Pack(builder))
 	payload := builder.FinishedBytes()
 	message.Data.Value = nil
+	builder.Reset()
 
 	if len(payload) > MaxMessageLen {
 		c.mu.Unlock()

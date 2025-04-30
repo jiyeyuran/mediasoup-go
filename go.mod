@@ -10,6 +10,7 @@ require (
 	github.com/pion/sctp v1.8.39
 	github.com/rs/xid v1.6.0
 	github.com/stretchr/testify v1.10.0
+	go.uber.org/goleak v1.3.0
 	golang.org/x/sync v0.13.0
 )
 

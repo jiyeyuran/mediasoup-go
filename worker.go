@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"os"
 	"os/exec"
@@ -38,10 +39,22 @@ type Worker struct {
 // NewWorker create a Worker.
 func NewWorker(workerBinaryPath string, options ...Option) (*Worker, error) {
 	opts := &WorkerSettings{
-		LogLevel: WorkerLogLevelError,
-		Logger: slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
+		LogLevel: WorkerLogLevelWarn,
+	}
+	for _, opt := range options {
+		opt(opts)
+	}
+
+	if opts.Logger == nil {
+		output := io.Discard
+		level := slog.LevelWarn
+		if opts.LogLevel != WorkerLogLevelNone {
+			output = os.Stdout
+			level.UnmarshalText([]byte(opts.LogLevel))
+		}
+		opts.Logger = slog.New(slog.NewTextHandler(output, &slog.HandlerOptions{
 			AddSource: true,
-			Level:     slog.LevelInfo,
+			Level:     level,
 			ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
 				if a.Key == slog.SourceKey {
 					source := a.Value.Any().(*slog.Source)
@@ -49,10 +62,7 @@ func NewWorker(workerBinaryPath string, options ...Option) (*Worker, error) {
 				}
 				return a
 			},
-		})),
-	}
-	for _, opt := range options {
-		opt(opts)
+		}))
 	}
 
 	producerReader, producerWriter, err := os.Pipe()
@@ -229,6 +239,10 @@ func (w *Worker) AppData() H {
 func (w *Worker) Close() {
 	w.logger.Debug("Close()")
 
+	if w.channel.Closed() {
+		return
+	}
+
 	if process := w.cmd.Process; process != nil && w.cmd.ProcessState == nil {
 		process.Signal(os.Interrupt)
 		// force kill the worker process.
@@ -264,7 +278,7 @@ func (w *Worker) doClose() {
 }
 
 func (w *Worker) Closed() bool {
-	return w.cmd.ProcessState != nil
+	return w.channel.Closed()
 }
 
 // Dump returns the resources allocated by the worker.

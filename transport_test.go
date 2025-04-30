@@ -15,7 +15,7 @@ func createWebRtcTransport(router *Router, options ...func(o *WebRtcTransportOpt
 	}
 	o := &WebRtcTransportOptions{
 		ListenInfos: []TransportListenInfo{
-			{IP: "127.0.0.1", AnnouncedAddress: "9.9.9.1", Port: pickUdpPort()},
+			{IP: "127.0.0.1", AnnouncedAddress: "9.9.9.1", Port: 0},
 		},
 	}
 	for _, option := range options {
