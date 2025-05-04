@@ -1,7 +1,7 @@
 package mediasoup
 
 type SctpCapabilities struct {
-	NumStreams NumSctpStreams `json:"numStreams"`
+	NumStreams NumSctpStreams `json:"numStreams,omitempty"`
 }
 
 // NumSctpStreams defines the SCTP streams configuration.
@@ -28,29 +28,36 @@ type SctpCapabilities struct {
 // the device.sctpCapabilities getter.
 type NumSctpStreams struct {
 	// OS defines initially requested int of outgoing SCTP streams.
-	OS uint16 `json:"OS"`
+	OS uint16 `json:"OS,omitempty"`
 
 	// MIS defines maximum int of incoming SCTP streams.
-	MIS uint16 `json:"MIS"`
+	MIS uint16 `json:"MIS,omitempty"`
 }
 
+// SctpParameters represents the SCTP parameters for a WebRTC data channel.
 type SctpParameters struct {
-	// Port must always equal 5000.
-	Port uint16 `json:"port"`
+	// Port represents the SCTP port number. Must always be 5000 as per WebRTC specification.
+	Port uint16 `json:"port,omitempty"`
 
-	// OS defines initially requested int of outgoing SCTP streams.
-	OS uint16 `json:"os"`
+	// OS (Outgoing Streams) defines the initially requested number of outgoing SCTP streams.
+	OS uint16 `json:"OS,omitempty"`
 
-	// MIS defines maximum int of incoming SCTP streams.
-	MIS uint16 `json:"mis"`
+	// MIS (Maximum Incoming Streams) defines the maximum number of incoming SCTP streams.
+	MIS uint16 `json:"MIS,omitempty"`
 
-	// MaxMessageSize defines maximum allowed size for SCTP messages.
-	MaxMessageSize uint32 `json:"maxMessageSize"`
+	// MaxMessageSize defines the maximum allowed size in bytes for SCTP messages.
+	MaxMessageSize uint32 `json:"maxMessageSize,omitempty"`
 
-	// Set by worker.
-	IsDataChannel      bool `json:"isDataChannel,omitempty"`
-	SctpBufferedAmount int  `json:"sctpBufferedAmount,omitempty"`
-	SendBufferSize     int  `json:"sendBufferSize,omitempty"`
+	// Internal fields used for monitoring and debugging purposes:
+
+	// SctpBufferedAmount indicates the number of bytes currently buffered in the SCTP stack.
+	SctpBufferedAmount uint32 `json:"sctpBufferedAmount,omitempty"`
+
+	// SendBufferSize represents the size of the SCTP send buffer in bytes.
+	SendBufferSize uint32 `json:"sendBufferSize,omitempty"`
+
+	// IsDataChannel indicates whether this SCTP association is used for WebRTC DataChannels.
+	IsDataChannel bool `json:"isDataChannel,omitempty"`
 }
 
 // SctpStreamParameters describe the reliability of a certain SCTP stream.
@@ -66,9 +73,9 @@ type SctpStreamParameters struct {
 
 	// MaxPacketLifeTime defines when ordered is false indicates the time (in milliseconds) after
 	// which a SCTP packet will stop being retransmitted.
-	MaxPacketLifeTime uint16 `json:"maxPacketLifeTime,omitempty"`
+	MaxPacketLifeTime *uint16 `json:"maxPacketLifeTime,omitempty"`
 
 	// MaxRetransmits defines when ordered is false indicates the maximum number of times a packet
 	// will be retransmitted.
-	MaxRetransmits uint16 `json:"maxRetransmits,omitempty"`
+	MaxRetransmits *uint16 `json:"maxRetransmits,omitempty"`
 }

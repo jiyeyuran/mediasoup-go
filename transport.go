@@ -1,942 +1,1395 @@
 package mediasoup
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
+	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 
-	"github.com/go-logr/logr"
-	"github.com/google/uuid"
+	FbsCommon "github.com/jiyeyuran/mediasoup-go/internal/FBS/Common"
+	FbsConsumer "github.com/jiyeyuran/mediasoup-go/internal/FBS/Consumer"
+	FbsDataProducer "github.com/jiyeyuran/mediasoup-go/internal/FBS/DataProducer"
+	FbsDirectTransport "github.com/jiyeyuran/mediasoup-go/internal/FBS/DirectTransport"
+	FbsNotification "github.com/jiyeyuran/mediasoup-go/internal/FBS/Notification"
+	FbsPipeTransport "github.com/jiyeyuran/mediasoup-go/internal/FBS/PipeTransport"
+	FbsPlainTransport "github.com/jiyeyuran/mediasoup-go/internal/FBS/PlainTransport"
+	FbsRequest "github.com/jiyeyuran/mediasoup-go/internal/FBS/Request"
+	FbsRouter "github.com/jiyeyuran/mediasoup-go/internal/FBS/Router"
+	FbsRtpParameters "github.com/jiyeyuran/mediasoup-go/internal/FBS/RtpParameters"
+	FbsSctpParameters "github.com/jiyeyuran/mediasoup-go/internal/FBS/SctpParameters"
+	FbsTransport "github.com/jiyeyuran/mediasoup-go/internal/FBS/Transport"
+	FbsWebRtcTransport "github.com/jiyeyuran/mediasoup-go/internal/FBS/WebRtcTransport"
+
+	"github.com/jiyeyuran/mediasoup-go/internal/channel"
 )
 
-type ITransport interface {
-	IEventEmitter
-	Id() string
-	Closed() bool
-	AppData() interface{}
-	Observer() IEventEmitter
-	Close()
-	Dump() (*TransportDump, error)
-	GetStats() ([]*TransportStat, error)
-	Connect(TransportConnectOptions) error
-	SetMaxIncomingBitrate(bitrate int) error
-	Produce(ProducerOptions) (*Producer, error)
-	Consume(ConsumerOptions) (*Consumer, error)
-	ProduceData(DataProducerOptions) (*DataProducer, error)
-	ConsumeData(DataConsumerOptions) (*DataConsumer, error)
-	EnableTraceEvent(types ...TransportTraceEventType) error
-	OnTrace(handler func(trace *TransportTraceEventData))
-	OnClose(handler func())
+type internalTransportData struct {
+	*TransportData
 
-	// internal methods
-	routerClosed()
-	listenServerClosed()
-	handleEvent(event string, data []byte)
+	RouterId      string
+	TransportId   string
+	TransportType TransportType
+	AppData       H
+
+	// plain transport specific data
+	RtcpMux bool
+	Comedia bool
+
+	// pipe transport specific data
+	Rtx bool
+
+	// additional functions
+	GetProducerId            func(id string) *Producer
+	GetDataProducerId        func(id string) *DataProducer
+	GetRouterRtpCapabilities func() *RtpCapabilities
+	OnAddProducer            func(producer *Producer)
+	OnAddDataProducer        func(dataProducer *DataProducer)
+	OnAddConsumer            func(consumer *Consumer)
+	OnAddDataConsumer        func(dataConsumer *DataConsumer)
+	OnRemoveProducer         func(producer *Producer)
+	OnRemoveDataProducer     func(dataProducer *DataProducer)
+	OnRemoveConsumer         func(consumer *Consumer)
+	OnRemoveDataConsumer     func(dataConsumer *DataConsumer)
 }
 
-type TransportListenIp struct {
-	// Listening IPv4 or IPv6.
-	Ip string `json:"ip,omitempty"`
-
-	// Announced IPv4 or IPv6 (useful when running mediasoup behind NAT with private IP).
-	AnnouncedIp string `json:"announcedIp,omitempty"`
-}
-
-// Transport protocol.
-type TransportProtocol string
-
-const (
-	TransportProtocol_Udp TransportProtocol = "udp"
-	TransportProtocol_Tcp TransportProtocol = "tcp"
-)
-
-type TransportTraceEventType string
-
-const (
-	TransportTraceEventType_Probation TransportTraceEventType = "probation"
-	TransportTraceEventType_Bwe       TransportTraceEventType = "bwe"
-)
-
-type TransportTuple struct {
-	LocalIp    string `json:"localIp,omitempty"`
-	LocalPort  uint16 `json:"localPort,omitempty"`
-	RemoteIp   string `json:"remoteIp,omitempty"`
-	RemotePort uint16 `json:"remotePort,omitempty"`
-	Protocol   string `json:"protocol,omitempty"`
-}
-
-type TransportTraceEventData struct {
-	// Trace type.
-	Type TransportTraceEventType `json:"type,omitempty"`
-
-	// Event timestamp.
-	Timestamp int64 `json:"timestamp,omitempty"`
-
-	// Event direction.
-	Direction string `json:"direction,omitempty"`
-
-	// Per type information.
-	Info interface{} `json:"info,omitempty"`
-}
-
-type SctpState string
-
-const (
-	SctpState_New        = "new"
-	SctpState_Connecting = "connecting"
-	SctpState_Connected  = "connected"
-	SctpState_Failed     = "failed"
-	SctpState_Closed     = "closed"
-)
-
-type TransportStat struct {
-	// Common to all Transports.
-	Type                     string    `json:"type,omitempty"`
-	TransportId              string    `json:"transportId,omitempty"`
-	Timestamp                int64     `json:"timestamp,omitempty"`
-	SctpState                SctpState `json:"sctpState,omitempty"`
-	BytesReceived            int64     `json:"bytesReceived,omitempty"`
-	RecvBitrate              int64     `json:"recvBitrate,omitempty"`
-	BytesSent                int64     `json:"bytesSent,omitempty"`
-	SendBitrate              int64     `json:"sendBitrate,omitempty"`
-	RtpBytesReceived         int64     `json:"rtpBytesReceived,omitempty"`
-	RtpRecvBitrate           int64     `json:"rtpRecvBitrate,omitempty"`
-	RtpBytesSent             int64     `json:"rtpBytesSent,omitempty"`
-	RtpSendBitrate           int64     `json:"rtpSendBitrate,omitempty"`
-	RtxBytesReceived         int64     `json:"rtxBytesReceived,omitempty"`
-	RtxRecvBitrate           int64     `json:"rtxRecvBitrate,omitempty"`
-	RtxBytesSent             int64     `json:"rtxBytesSent,omitempty"`
-	RtxSendBitrate           int64     `json:"rtxSendBitrate,omitempty"`
-	ProbationBytesSent       int64     `json:"probationBytesSent,omitempty"`
-	ProbationSendBitrate     int64     `json:"probationSendBitrate,omitempty"`
-	AvailableOutgoingBitrate int64     `json:"availableOutgoingBitrate,omitempty"`
-	AvailableIncomingBitrate int64     `json:"availableIncomingBitrate,omitempty"`
-	MaxIncomingBitrate       int64     `json:"maxIncomingBitrate,omitempty"`
-	RtpPacketLossReceived    float64   `json:"rtpPacketLossReceived,omitempty"`
-	RtpPacketLossSent        float64   `json:"rtpPacketLossSent,omitempty"`
-
-	*WebRtcTransportSpecificStat
-	*PlainTransportSpecificStat // share tuple with pipe transport stat
-}
-
-type TransportConnectOptions struct {
-	// pipe and plain transport
-	Ip             string          `json:"ip,omitempty"`
-	Port           uint16          `json:"port,omitempty"`
-	SrtpParameters *SrtpParameters `json:"srtpParameters,omitempty"`
-
-	// plain transport
-	RtcpPort uint16 `json:"rtcpPort,omitempty"`
-
-	// webrtc transport
-	DtlsParameters *DtlsParameters `json:"dtlsParameters,omitempty"`
-}
-
-type TransportType string
-
-const (
-	TransportType_Direct TransportType = "DirectTransport"
-	TransportType_Plain  TransportType = "PlainTransport"
-	TransportType_Pipe   TransportType = "PipeTransport"
-	TransportType_Webrtc TransportType = "WebrtcTransport"
-)
-
-type transportData struct {
-	sctpParameters SctpParameters
-	sctpState      SctpState
-	transportType  TransportType
-}
-
-type transportParams struct {
-	// routerId, transportId
-	internal                 internalData
-	data                     interface{}
-	channel                  *Channel
-	payloadChannel           *PayloadChannel
-	appData                  interface{}
-	getRouterRtpCapabilities func() RtpCapabilities
-	getProducerById          func(string) *Producer
-	getDataProducerById      func(string) *DataProducer
-	logger                   logr.Logger
-}
-
-// Transport is a base class inherited by PlainTransport, PipeTransport, DirectTransport and WebRtcTransport.
-//
-//   - @emits routerclose
-//   - @emits @close
-//   - @emits @newproducer - (producer *Producer)
-//   - @emits @producerclose - (producer *Producer)
-//   - @emits @newdataproducer - (dataProducer *DataProducer)
-//   - @emits @dataproducerclose - (dataProducer *DataProducer)
 type Transport struct {
-	IEventEmitter
-	logger logr.Logger
-	// Internal data.
-	internal internalData
-	// Transport data. This is set by the subclass.
-	data transportData
-	// Channel instance.
-	channel *Channel
-	// PayloadChannel instance.
-	payloadChannel *PayloadChannel
-	// Close flag.
-	closed uint32
-	// Custom app data.
-	appData interface{}
-	// Method to retrieve Router RTP capabilities.
-	getRouterRtpCapabilities func() RtpCapabilities
-	// Method to retrieve a Producer.
-	getProducerById func(string) *Producer
-	// Method to retrieve a DataProducer.
-	getDataProducerById func(string) *DataProducer
-	// Producers map.
-	producers sync.Map
-	// Consumers map.
-	consumers sync.Map
-	// DataProducers map.
+	baseNotifier
+
+	channel *channel.Channel
+	sub     *channel.Subscription
+	data    *internalTransportData
+	logger  *slog.Logger
+	closed  bool
+
+	// cname for producers
+	cname     string
+	cnameOnce sync.Once
+
+	producers     sync.Map
+	consumers     sync.Map
 	dataProducers sync.Map
-	// DataConsumers map.
 	dataConsumers sync.Map
-	// RTCP CNAME for Producers.
-	cnameForProducers string
-	// Next MID for Consumers. It's converted into string when used.
-	nextMidForConsumers uint32
-	// Buffer with available SCTP stream ids.
-	sctpStreamIds []byte
-	// Next SCTP stream id.
-	nextSctpStreamId int
-	// Deprecated
-	observer IEventEmitter
-	// locker instance
-	locker sync.Mutex
 
-	onTrace func(*TransportTraceEventData)
-	onClose func()
+	streamIds sync.Map
+	nextMid   uint32
+
+	// event handlers
+	tupleListeners                  []func(TransportTuple)
+	rtcpTupleListeners              []func(TransportTuple)
+	sctpStateChangeListeners        []func(SctpState)
+	iceStateChangeListeners         []func(IceState)
+	iceSelectedTupleChangeListeners []func(TransportTuple)
+	dtlsStateChangeListeners        []func(DtlsState)
+	rtcpListeners                   []func([]byte)
+	traceListeners                  []func(*TransportTraceEventData)
 }
 
-func newTransport(params transportParams) ITransport {
-	params.logger.V(1).Info("constructor()", "internal", params.internal)
-
-	transport := &Transport{
-		IEventEmitter:            NewEventEmitter(),
-		logger:                   params.logger,
-		internal:                 params.internal,
-		data:                     params.data.(transportData),
-		channel:                  params.channel,
-		payloadChannel:           params.payloadChannel,
-		appData:                  params.appData,
-		getRouterRtpCapabilities: params.getRouterRtpCapabilities,
-		getProducerById:          params.getProducerById,
-		getDataProducerById:      params.getDataProducerById,
-		observer:                 NewEventEmitter(),
+func newTransport(channel *channel.Channel, logger *slog.Logger, data *internalTransportData) *Transport {
+	t := &Transport{
+		channel: channel,
+		data:    data,
+		logger:  logger.With("transportId", data.TransportId),
 	}
-
-	return transport
+	t.handleWorkerNotifications()
+	return t
 }
 
-// Id returns Transport id
-func (transport *Transport) Id() string {
-	return transport.internal.TransportId
+func (t *Transport) Id() string {
+	return t.data.TransportId
 }
 
-// Closed returns Whether the Transport is closed.
-func (transport *Transport) Closed() bool {
-	return atomic.LoadUint32(&transport.closed) > 0
+func (t *Transport) Type() TransportType {
+	return t.data.TransportType
 }
 
-// AppData returns app custom data.
-func (transport *Transport) AppData() interface{} {
-	return transport.appData
+func (t *Transport) Data() TransportData {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+
+	return *t.data.clone()
 }
 
-// Deprecated
-//
-//   - @emits close
-//   - @emits newproducer - (producer *Producer)
-//   - @emits newconsumer - (producer *Producer)
-//   - @emits newdataproducer - (dataProducer *DataProducer)
-//   - @emits newdataconsumer - (dataProducer *DataProducer)
-func (transport *Transport) Observer() IEventEmitter {
-	return transport.observer
+func (t *Transport) AppData() H {
+	return t.data.AppData
 }
 
-// Close the Transport.
-func (transport *Transport) Close() {
-	if atomic.CompareAndSwapUint32(&transport.closed, 0, 1) {
-		transport.logger.V(1).Info("close()")
+func (t *Transport) Closed() bool {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
 
-		// Remove notification subscriptions.
-		transport.channel.Unsubscribe(transport.Id())
-		transport.payloadChannel.Unsubscribe(transport.Id())
+	return t.closed
+}
 
-		reqData := H{"transportId": transport.internal.TransportId}
-
-		transport.channel.Request("router.closeTransport", transport.internal, reqData)
-
-		transport.producers.Range(func(key, value interface{}) bool {
-			producer := value.(*Producer)
-
-			producer.transportClosed()
-			transport.Emit("@producerclose", producer)
-
-			return true
-		})
-
-		transport.consumers.Range(func(key, value interface{}) bool {
-			value.(*Consumer).transportClosed()
-
-			return true
-		})
-
-		transport.dataProducers.Range(func(key, value interface{}) bool {
-			producer := value.(*DataProducer)
-
-			producer.transportClosed()
-			transport.Emit("@dataproducerclose", producer)
-
-			return true
-		})
-
-		transport.dataConsumers.Range(func(key, value interface{}) bool {
-			value.(*DataConsumer).transportClosed()
-
-			return true
-		})
-
-		transport.Emit("@close")
-		transport.RemoveAllListeners()
-
-		transport.close()
+func (t *Transport) Close() error {
+	t.mu.Lock()
+	if t.closed {
+		t.mu.Unlock()
+		return nil
 	}
-}
+	t.logger.Debug("Close()")
 
-// close send "close" event
-func (transport *Transport) close() {
-	// Emit observer event.
-	transport.observer.SafeEmit("close")
-	transport.observer.RemoveAllListeners()
-
-	if handler := transport.onClose; handler != nil {
-		handler()
-	}
-}
-
-// routerClosed is called when Router was closed.
-func (transport *Transport) routerClosed() {
-	if atomic.CompareAndSwapUint32(&transport.closed, 0, 1) {
-		transport.logger.V(1).Info("routerClosed()")
-
-		// Remove notification subscriptions.
-		transport.channel.Unsubscribe(transport.Id())
-		transport.payloadChannel.Unsubscribe(transport.Id())
-
-		transport.producers.Range(func(key, value interface{}) bool {
-			producer := value.(*Producer)
-
-			producer.transportClosed()
-			transport.Emit("@producerclose", producer)
-
-			return true
-		})
-
-		transport.consumers.Range(func(key, value interface{}) bool {
-			value.(*Consumer).transportClosed()
-
-			return true
-		})
-
-		transport.dataProducers.Range(func(key, value interface{}) bool {
-			producer := value.(*DataProducer)
-
-			producer.transportClosed()
-			transport.Emit("@dataproducerclose", producer)
-
-			return true
-		})
-
-		transport.dataConsumers.Range(func(key, value interface{}) bool {
-			value.(*DataConsumer).transportClosed()
-
-			return true
-		})
-
-		transport.SafeEmit("routerclose")
-		transport.RemoveAllListeners()
-
-		transport.close()
-	}
-}
-
-// listenServerClosed is called when listen server was closed (this just happens
-// in WebRtcTransports when their associated WebRtcServer is closed).
-func (transport *Transport) listenServerClosed() {
-	if !atomic.CompareAndSwapUint32(&transport.closed, 0, 1) {
-		return
-	}
-	transport.logger.V(1).Info("listenServerClosed()")
-
-	// Remove notification subscriptions.
-	transport.channel.Unsubscribe(transport.Id())
-	transport.payloadChannel.Unsubscribe(transport.Id())
-
-	// Close every Producer.
-	transport.producers.Range(func(key, value interface{}) bool {
-		producer := value.(*Producer)
-		producer.transportClosed()
-		// NOTE: No need to tell the Router since it already knows (it has
-		// been closed in fact).
-		return true
+	_, err := t.channel.Request(&FbsRequest.RequestT{
+		Method:    FbsRequest.MethodROUTER_CLOSE_TRANSPORT,
+		HandlerId: t.data.RouterId,
+		Body: &FbsRequest.BodyT{
+			Type: FbsRequest.BodyRouter_CloseTransportRequest,
+			Value: &FbsRouter.CloseTransportRequestT{
+				TransportId: t.Id(),
+			},
+		},
 	})
-	transport.producers = sync.Map{}
+	if err != nil {
+		t.mu.Unlock()
+		return err
+	}
+	t.closed = true
+	t.mu.Unlock()
 
-	// Close every Consumer.
-	transport.consumers.Range(func(key, value interface{}) bool {
-		consumer := value.(*Consumer)
-		consumer.transportClosed()
-		return true
-	})
-	transport.consumers = sync.Map{}
-
-	// Close every DataProducer.
-	transport.dataProducers.Range(func(key, value interface{}) bool {
-		producer := value.(*DataProducer)
-		producer.transportClosed()
-		// NOTE: No need to tell the Router since it already knows (it has
-		// been closed in fact).
-		return true
-	})
-	transport.dataProducers = sync.Map{}
-
-	// Close every DataConsumer.
-	transport.dataConsumers.Range(func(key, value interface{}) bool {
-		consumer := value.(*DataConsumer)
-		consumer.transportClosed()
-		return true
-	})
-	transport.dataConsumers = sync.Map{}
-
-	// Need to emit this event to let the parent Router know since
-	// transport.listenServerClosed() is called by the listen server.
-	// NOTE: Currently there is just WebRtcServer for WebRtcTransports.
-	transport.Emit("@listenserverclose")
-
-	transport.SafeEmit("listenserverclose")
-
-	transport.close()
+	t.cleanupAfterClosed()
+	return nil
 }
 
-// Dump Transport.
-func (transport *Transport) Dump() (data *TransportDump, err error) {
-	transport.logger.V(1).Info("dump()")
+// Dump transport.
+func (t *Transport) Dump() (*TransportDump, error) {
+	t.logger.Debug("Dump()")
 
-	resp := transport.channel.Request("transport.dump", transport.internal)
-	err = resp.Unmarshal(&data)
+	msg, err := t.channel.Request(&FbsRequest.RequestT{
+		Method:    FbsRequest.MethodTRANSPORT_DUMP,
+		HandlerId: t.Id(),
+	})
+	if err != nil {
+		return nil, err
+	}
 
-	return
+	parseBaseTransportDump := func(dump *FbsTransport.DumpT) BaseTransportDump {
+		return BaseTransportDump{
+			Id:          dump.Id,
+			Direct:      dump.Direct,
+			ProducerIds: dump.ProducerIds,
+			ConsumerIds: dump.ConsumerIds,
+			MapSsrcConsumerId: collect(dump.MapSsrcConsumerId,
+				func(item *FbsCommon.Uint32StringT) KeyValue[uint32, string] {
+					return KeyValue[uint32, string]{
+						Key:   item.Key,
+						Value: item.Value,
+					}
+				}),
+			MapRtxSsrcConsumerId: collect(dump.MapRtxSsrcConsumerId,
+				func(item *FbsCommon.Uint32StringT) KeyValue[uint32, string] {
+					return KeyValue[uint32, string]{
+						Key:   item.Key,
+						Value: item.Value,
+					}
+				}),
+			DataProducerIds: dump.DataProducerIds,
+			DataConsumerIds: dump.DataConsumerIds,
+			RecvRtpHeaderExtensions: ifElse(dump.RecvRtpHeaderExtensions != nil, func() *RecvRtpHeaderExtensions {
+				return &RecvRtpHeaderExtensions{
+					MID:               dump.RecvRtpHeaderExtensions.Mid,
+					RID:               dump.RecvRtpHeaderExtensions.Rid,
+					RRID:              dump.RecvRtpHeaderExtensions.Rrid,
+					AbsSendTime:       dump.RecvRtpHeaderExtensions.AbsSendTime,
+					TransportWideCC01: dump.RecvRtpHeaderExtensions.TransportWideCc01,
+				}
+			}),
+			RtpListener: &RtpListener{
+				SsrcTable: collect(dump.RtpListener.SsrcTable,
+					func(item *FbsCommon.Uint32StringT) KeyValue[uint32, string] {
+						return KeyValue[uint32, string]{
+							Key:   item.Key,
+							Value: item.Value,
+						}
+					}),
+				MidTable: collect(dump.RtpListener.MidTable,
+					func(item *FbsCommon.StringStringT) KeyValue[string, string] {
+						return KeyValue[string, string]{
+							Key:   item.Key,
+							Value: item.Value,
+						}
+					}),
+				RidTable: collect(dump.RtpListener.RidTable,
+					func(item *FbsCommon.StringStringT) KeyValue[string, string] {
+						return KeyValue[string, string]{
+							Key:   item.Key,
+							Value: item.Value,
+						}
+					}),
+			},
+			MaxMessageSize: dump.MaxMessageSize,
+			SctpParameters: parseSctpParameters(dump.SctpParameters),
+			SctpState: ifElse(dump.SctpState != nil, func() SctpState {
+				return SctpState(strings.ToLower(dump.SctpState.String()))
+			}),
+			SctpListener: ifElse(dump.SctpListener != nil, func() *SctpListener {
+				return &SctpListener{
+					StreamIdTable: collect(dump.SctpListener.StreamIdTable,
+						func(item *FbsCommon.Uint16StringT) KeyValue[uint16, string] {
+							return KeyValue[uint16, string]{
+								Key:   item.Key,
+								Value: item.Value,
+							}
+						}),
+				}
+			}),
+			TraceEventTypes: collect(dump.TraceEventTypes,
+				func(item FbsTransport.TraceEventType) TransportTraceEventType {
+					return TransportTraceEventType(strings.ToLower(item.String()))
+				}),
+		}
+	}
+
+	switch t.Type() {
+	case TransportWebRTC:
+		resp := msg.(*FbsWebRtcTransport.DumpResponseT)
+
+		return &TransportDump{
+			BaseTransportDump: parseBaseTransportDump(resp.Base),
+			WebRtcTransportDump: &WebRtcTransportDump{
+				IceRole: strings.ToLower(resp.IceRole.String()),
+				IceParameters: IceParameters{
+					UsernameFragment: resp.IceParameters.UsernameFragment,
+					Password:         resp.IceParameters.Password,
+				},
+				IceCandidates: collect(resp.IceCandidates,
+					func(item *FbsWebRtcTransport.IceCandidateT) IceCandidate {
+						return IceCandidate{
+							Foundation: item.Foundation,
+							Priority:   item.Priority,
+							Address:    item.Address,
+							Protocol:   TransportProtocol(strings.ToLower(item.Protocol.String())),
+							Port:       item.Port,
+							Type:       strings.ToLower(item.Type.String()),
+							TcpType: ifElse(item.TcpType != nil, func() string {
+								return strings.ToLower(item.TcpType.String())
+							}),
+						}
+					}),
+				IceState:         IceState(strings.ToLower(resp.IceState.String())),
+				IceSelectedTuple: parseTransportTuple(resp.IceSelectedTuple),
+				DtlsParameters: DtlsParameters{
+					Role: DtlsRole(strings.ToLower(resp.DtlsParameters.Role.String())),
+					Fingerprints: collect(resp.DtlsParameters.Fingerprints,
+						func(item *FbsWebRtcTransport.FingerprintT) DtlsFingerprint {
+							return DtlsFingerprint{
+								Algorithm: strings.ToLower(item.Algorithm.String()),
+								Value:     item.Value,
+							}
+						},
+					),
+				},
+				DtlsState: DtlsState(strings.ToLower(resp.DtlsState.String())),
+			},
+		}, nil
+
+	case TransportPlain:
+		resp := msg.(*FbsPlainTransport.DumpResponseT)
+
+		return &TransportDump{
+			BaseTransportDump: parseBaseTransportDump(resp.Base),
+			PlainTransportDump: &PlainTransportDump{
+				RtcpMux:        resp.RtcpMux,
+				Comedia:        resp.Comedia,
+				Tuple:          *parseTransportTuple(resp.Tuple),
+				RtcpTuple:      parseTransportTuple(resp.Tuple),
+				SrtpParameters: parseSrtpParameters(resp.SrtpParameters),
+			},
+		}, nil
+
+	case TransportPipe:
+		resp := msg.(*FbsPipeTransport.DumpResponseT)
+
+		return &TransportDump{
+			BaseTransportDump: parseBaseTransportDump(resp.Base),
+			PipeTransportDump: &PipeTransportDump{
+				Tuple:          *parseTransportTuple(resp.Tuple),
+				Rtx:            resp.Rtx,
+				SrtpParameters: parseSrtpParameters(resp.SrtpParameters),
+			},
+		}, nil
+
+	case TransportDirect:
+		resp := msg.(*FbsDirectTransport.DumpResponseT)
+
+		return &TransportDump{
+			BaseTransportDump: parseBaseTransportDump(resp.Base),
+		}, nil
+
+	default:
+		return nil, fmt.Errorf("unknown transport type: %s", t.Type())
+	}
 }
 
 // GetStats returns the Transport stats.
-func (transport *Transport) GetStats() (stat []*TransportStat, err error) {
-	transport.logger.V(1).Info("getStats()")
+func (t *Transport) GetStats() (*TransportStats, error) {
+	t.logger.Debug("GetStats()")
 
-	resp := transport.channel.Request("transport.getStats", transport.internal)
-	err = resp.Unmarshal(&stat)
+	msg, err := t.channel.Request(&FbsRequest.RequestT{
+		Method:    FbsRequest.MethodTRANSPORT_GET_STATS,
+		HandlerId: t.Id(),
+	})
+	if err != nil {
+		return nil, err
+	}
 
-	return
+	parseBaseTransportStats := func(stats *FbsTransport.StatsT) BaseTransportStats {
+		return BaseTransportStats{
+			Type:        string(t.Type()) + "-transport",
+			TransportId: stats.TransportId,
+			Timestamp:   stats.Timestamp,
+			SctpState: ifElse(stats.SctpState != nil, func() SctpState {
+				return SctpState(strings.ToLower(stats.SctpState.String()))
+			}),
+			BytesReceived:            stats.BytesReceived,
+			RecvBitrate:              stats.RecvBitrate,
+			BytesSent:                stats.BytesSent,
+			SendBitrate:              stats.SendBitrate,
+			RtpBytesReceived:         stats.RtpBytesReceived,
+			RtpRecvBitrate:           stats.RtpRecvBitrate,
+			RtpBytesSent:             stats.RtpBytesSent,
+			RtpSendBitrate:           stats.RtpSendBitrate,
+			RtxBytesReceived:         stats.RtxBytesReceived,
+			RtxRecvBitrate:           stats.RtxRecvBitrate,
+			RtxBytesSent:             stats.RtxBytesSent,
+			RtxSendBitrate:           stats.RtxSendBitrate,
+			ProbationBytesSent:       stats.ProbationBytesSent,
+			ProbationSendBitrate:     stats.ProbationSendBitrate,
+			AvailableOutgoingBitrate: stats.AvailableOutgoingBitrate,
+			AvailableIncomingBitrate: stats.AvailableIncomingBitrate,
+			MaxIncomingBitrate:       stats.MaxIncomingBitrate,
+			RtpPacketLossReceived:    stats.RtpPacketLossReceived,
+			RtpPacketLossSent:        stats.RtpPacketLossSent,
+		}
+	}
+
+	switch t.Type() {
+	case TransportWebRTC:
+		resp := msg.(*FbsWebRtcTransport.GetStatsResponseT)
+
+		return &TransportStats{
+			BaseTransportStats: parseBaseTransportStats(resp.Base),
+			WebRtcTransportStats: &WebRtcTransportStats{
+				IceRole:          strings.ToLower(resp.IceRole.String()),
+				IceState:         IceState(strings.ToLower(resp.IceState.String())),
+				DtlsState:        DtlsState(strings.ToLower(resp.DtlsState.String())),
+				IceSelectedTuple: parseTransportTuple(resp.IceSelectedTuple),
+			},
+		}, nil
+
+	case TransportPlain:
+		resp := msg.(*FbsPlainTransport.GetStatsResponseT)
+		return &TransportStats{
+			BaseTransportStats: parseBaseTransportStats(resp.Base),
+			PlainTransportStats: &PlainTransportStats{
+				RtcpMux:   resp.RtcpMux,
+				Comedia:   resp.Comedia,
+				Tuple:     *parseTransportTuple(resp.Tuple),
+				RtcpTuple: parseTransportTuple(resp.RtcpTuple),
+			},
+		}, nil
+
+	case TransportPipe:
+		resp := msg.(*FbsPipeTransport.GetStatsResponseT)
+		return &TransportStats{
+			BaseTransportStats: parseBaseTransportStats(resp.Base),
+			PipeTransportStats: &PipeTransportStats{
+				Tuple: *parseTransportTuple(resp.Tuple),
+			},
+		}, nil
+
+	case TransportDirect:
+		resp := msg.(*FbsDirectTransport.GetStatsResponseT)
+		return &TransportStats{
+			BaseTransportStats: parseBaseTransportStats(resp.Base),
+		}, nil
+
+	default:
+		return nil, fmt.Errorf("unknown transport type: %s", t.Type())
+	}
 }
 
 // Connect provide the Transport remote parameters.
-func (transport *Transport) Connect(TransportConnectOptions) error {
-	return errors.New("method not implemented in the subclass")
+func (t *Transport) Connect(connectOpts *TransportConnectOptions) error {
+	t.logger.Debug("Connect()")
+
+	srtpParameters, err := convertSrtpParameters(connectOpts.SrtpParameters)
+	if err != nil {
+		return err
+	}
+	switch t.Type() {
+	case TransportWebRTC:
+		role := FbsWebRtcTransport.EnumValuesDtlsRole[strings.ToUpper(string(connectOpts.DtlsParameters.Role))]
+		fingerprints := collect(connectOpts.DtlsParameters.Fingerprints, convertDtlsFingerprint)
+
+		resp, err := t.channel.Request(&FbsRequest.RequestT{
+			Method:    FbsRequest.MethodWEBRTCTRANSPORT_CONNECT,
+			HandlerId: t.Id(),
+			Body: &FbsRequest.BodyT{
+				Type: FbsRequest.BodyWebRtcTransport_ConnectRequest,
+				Value: &FbsWebRtcTransport.ConnectRequestT{
+					DtlsParameters: &FbsWebRtcTransport.DtlsParametersT{
+						Role:         role,
+						Fingerprints: fingerprints,
+					},
+				},
+			},
+		})
+		if err != nil {
+			return err
+		}
+		result := resp.(*FbsWebRtcTransport.ConnectResponseT)
+		// Update data.
+		t.data.DtlsParameters.Role = DtlsRole(strings.ToLower(result.DtlsLocalRole.String()))
+
+	case TransportPlain:
+		resp, err := t.channel.Request(&FbsRequest.RequestT{
+			Method:    FbsRequest.MethodPLAINTRANSPORT_CONNECT,
+			HandlerId: t.Id(),
+			Body: &FbsRequest.BodyT{
+				Type: FbsRequest.BodyPlainTransport_ConnectRequest,
+				Value: &FbsPlainTransport.ConnectRequestT{
+					Ip:             connectOpts.Ip,
+					Port:           connectOpts.Port,
+					RtcpPort:       connectOpts.RtcpPort,
+					SrtpParameters: srtpParameters,
+				},
+			},
+		})
+		if err != nil {
+			return err
+		}
+		result := resp.(*FbsPlainTransport.ConnectResponseT)
+		// Update data.
+		data := t.data.PlainTransportData
+		data.Tuple = *parseTransportTuple(result.Tuple)
+		data.RtcpTuple = parseTransportTuple(result.RtcpTuple)
+		data.SrtpParameters = parseSrtpParameters(result.SrtpParameters)
+
+	case TransportPipe:
+		resp, err := t.channel.Request(&FbsRequest.RequestT{
+			Method:    FbsRequest.MethodPIPETRANSPORT_CONNECT,
+			HandlerId: t.Id(),
+			Body: &FbsRequest.BodyT{
+				Type: FbsRequest.BodyPipeTransport_ConnectRequest,
+				Value: &FbsPipeTransport.ConnectRequestT{
+					Ip:             connectOpts.Ip,
+					Port:           connectOpts.Port,
+					SrtpParameters: srtpParameters,
+				},
+			},
+		})
+		if err != nil {
+			return err
+		}
+		result := resp.(*FbsPipeTransport.ConnectResponseT)
+		// Update data.
+		t.data.PipeTransportData.Tuple = *parseTransportTuple(result.Tuple)
+	}
+
+	return nil
+}
+
+// RestartIce restarts webrtc transport ICE.
+func (t *Transport) RestartIce() (*IceParameters, error) {
+	if t.Type() != TransportWebRTC {
+		return nil, ErrNotImplemented
+	}
+	t.logger.Debug("RestartIce()")
+
+	msg, err := t.channel.Request(&FbsRequest.RequestT{
+		Method:    FbsRequest.MethodTRANSPORT_RESTART_ICE,
+		HandlerId: t.Id(),
+	})
+	if err != nil {
+		return nil, err
+	}
+	result := msg.(*FbsTransport.RestartIceResponseT)
+	iceParameters := IceParameters{
+		UsernameFragment: result.UsernameFragment,
+		Password:         result.Password,
+		IceLite:          result.IceLite,
+	}
+
+	// Update data.
+	t.data.IceParameters = iceParameters
+
+	return &iceParameters, nil
 }
 
 // SetMaxIncomingBitrate set maximum incoming bitrate for receiving media.
-func (transport *Transport) SetMaxIncomingBitrate(bitrate int) error {
-	transport.logger.V(1).Info("SetMaxIncomingBitrate()", "bitrate", bitrate)
+func (t *Transport) SetMaxIncomingBitrate(bitrate uint32) error {
+	if t.Type() == TransportDirect {
+		return ErrNotImplemented
+	}
+	t.logger.Debug("SetMaxIncomingBitrate()")
 
-	resp := transport.channel.Request(
-		"transport.setMaxIncomingBitrate", transport.internal, H{"bitrate": bitrate})
+	_, err := t.channel.Request(&FbsRequest.RequestT{
+		Method:    FbsRequest.MethodTRANSPORT_SET_MAX_INCOMING_BITRATE,
+		HandlerId: t.Id(),
+		Body: &FbsRequest.BodyT{
+			Type: FbsRequest.BodyTransport_SetMaxIncomingBitrateRequest,
+			Value: &FbsTransport.SetMaxIncomingBitrateRequestT{
+				MaxIncomingBitrate: bitrate,
+			},
+		},
+	})
+	return err
+}
 
-	return resp.Err()
+// SendRtcp send RTCP packet.
+func (t *Transport) SendRtcp(data []byte) error {
+	if t.Type() != TransportDirect {
+		return ErrNotImplemented
+	}
+	t.logger.Debug("SendRtcp()")
+
+	return t.channel.Notify(&FbsNotification.NotificationT{
+		Event:     FbsNotification.EventTRANSPORT_SEND_RTCP,
+		HandlerId: t.Id(),
+		Body: &FbsNotification.BodyT{
+			Type: FbsNotification.BodyTransport_SendRtcpNotification,
+			Value: &FbsTransport.SendRtcpNotificationT{
+				Data: data,
+			},
+		},
+	})
+}
+
+// EnableTraceEvent enables 'trace' events: "probation", "bwe".
+func (t *Transport) EnableTraceEvent(events []TransportTraceEventType) error {
+	t.logger.Debug("EnableTraceEvent()")
+
+	events = filter(events, func(typ TransportTraceEventType) bool {
+		_, ok := FbsTransport.EnumValuesTraceEventType[strings.ToUpper(string(typ))]
+		return ok
+	})
+
+	_, err := t.channel.Request(&FbsRequest.RequestT{
+		Method:    FbsRequest.MethodTRANSPORT_ENABLE_TRACE_EVENT,
+		HandlerId: t.Id(),
+		Body: &FbsRequest.BodyT{
+			Type: FbsRequest.BodyTransport_EnableTraceEventRequest,
+			Value: &FbsTransport.EnableTraceEventRequestT{
+				Events: collect(events, func(item TransportTraceEventType) FbsTransport.TraceEventType {
+					return FbsTransport.EnumValuesTraceEventType[strings.ToUpper(string(item))]
+				}),
+			},
+		},
+	})
+	return err
 }
 
 // Produce creates a Producer.
-func (transport *Transport) Produce(options ProducerOptions) (producer *Producer, err error) {
-	transport.logger.V(1).Info("produce()")
+func (t *Transport) Produce(options *ProducerOptions) (*Producer, error) {
+	t.logger.Debug("Produce()")
 
 	id := options.Id
 	kind := options.Kind
-	rtpParameters := options.RtpParameters
-	paused := options.Paused
-	keyFrameRequestDelay := options.KeyFrameRequestDelay
-	appData := options.AppData
+	rtpParameters := clone(options.RtpParameters)
 
 	if len(id) > 0 {
-		if _, ok := transport.producers.Load(id); ok {
-			err = NewTypeError(`a Producer with same id "%s" already exists`, id)
-			return
+		if t.data.GetProducerId(id) != nil {
+			return nil, fmt.Errorf(`a Producer with same id "%s" already exists`, id)
 		}
 	} else {
-		id = uuid.NewString()
+		id = uuid()
+	}
+	if rtpParameters == nil {
+		rtpParameters = &RtpParameters{}
+	}
+	if rtpParameters.Rtcp == nil {
+		rtpParameters.Rtcp = &RtcpParameters{}
 	}
 
-	// This may throw.
-	if err = validateRtpParameters(&rtpParameters); err != nil {
-		return
+	err := validateRtpParameters(rtpParameters)
+	if err != nil {
+		return nil, fmt.Errorf("validate rtp parameters failed: %w", err)
 	}
 
 	// If missing or empty encodings, add one.
 	if len(rtpParameters.Encodings) == 0 {
-		rtpParameters.Encodings = []RtpEncodingParameters{{}}
+		rtpParameters.Encodings = []*RtpEncodingParameters{{}}
 	}
 
 	// Don't do this in PipeTransports since there we must keep CNAME value in each Producer.
-	if transport.data.transportType != TransportType_Pipe {
-		// If CNAME is given and we don't have yet a CNAME for Producers in this Transport, take it.
-		if len(transport.cnameForProducers) == 0 && len(rtpParameters.Rtcp.Cname) > 0 {
-			transport.cnameForProducers = rtpParameters.Rtcp.Cname
-		} else if len(transport.cnameForProducers) == 0 {
-			// Otherwise if we don't have yet a CNAME for Producers and the RTP parameters
-			// do not include CNAME, create a random one.
-			transport.cnameForProducers = uuid.NewString()[:8]
-		}
-
+	if t.Type() != TransportPipe {
+		t.cnameOnce.Do(func() {
+			// If CNAME is given and we don't have yet a CNAME for Producers in this Transport, take it.
+			if cname := rtpParameters.Rtcp.Cname; len(cname) > 0 {
+				t.cname = cname
+			} else {
+				// Otherwise if we don't have yet a CNAME for Producers and the RTP parameters
+				// do not include CNAME, create a random one.
+				t.cname = uuid()[:8]
+			}
+		})
 		// Override Producer's CNAME.
-		rtpParameters.Rtcp.Cname = transport.cnameForProducers
+		rtpParameters.Rtcp.Cname = t.cname
 	}
 
-	routerRtpCapabilities := transport.getRouterRtpCapabilities()
-
-	rtpMapping, err := getProducerRtpParametersMapping(
-		rtpParameters, routerRtpCapabilities)
+	routerRtpCapabilities := t.data.GetRouterRtpCapabilities()
+	rtpMapping, err := getProducerRtpParametersMapping(rtpParameters, routerRtpCapabilities)
 	if err != nil {
-		return
+		return nil, err
 	}
 
-	consumableRtpParameters, err := getConsumableRtpParameters(
-		kind, rtpParameters, routerRtpCapabilities, rtpMapping)
+	consumableRtpParameters := getConsumableRtpParameters(
+		kind,
+		rtpParameters,
+		routerRtpCapabilities,
+		rtpMapping,
+	)
+
+	msg, err := t.channel.Request(&FbsRequest.RequestT{
+		Method:    FbsRequest.MethodTRANSPORT_PRODUCE,
+		HandlerId: t.Id(),
+		Body: &FbsRequest.BodyT{
+			Type: FbsRequest.BodyTransport_ProduceRequest,
+			Value: &FbsTransport.ProduceRequestT{
+				ProducerId: id,
+				Kind:       FbsRtpParameters.EnumValuesMediaKind[strings.ToUpper(string(kind))],
+				RtpParameters: &FbsRtpParameters.RtpParametersT{
+					Mid: rtpParameters.Mid,
+					Codecs: collect(rtpParameters.Codecs,
+						func(item *RtpCodecParameters) *FbsRtpParameters.RtpCodecParametersT {
+							return &FbsRtpParameters.RtpCodecParametersT{
+								MimeType:    item.MimeType,
+								PayloadType: item.PayloadType,
+								ClockRate:   item.ClockRate,
+								Channels:    orElse(item.Channels > 0, ref(item.Channels), nil),
+								Parameters:  convertRtpCodecSpecificParameters(&item.Parameters),
+								RtcpFeedback: collect(item.RtcpFeedback, func(item *RtcpFeedback) *FbsRtpParameters.RtcpFeedbackT {
+									return &FbsRtpParameters.RtcpFeedbackT{
+										Type:      item.Type,
+										Parameter: item.Parameter,
+									}
+								}),
+							}
+						}),
+					HeaderExtensions: collect(rtpParameters.HeaderExtensions,
+						func(item *RtpHeaderExtensionParameters) *FbsRtpParameters.RtpHeaderExtensionParametersT {
+							return &FbsRtpParameters.RtpHeaderExtensionParametersT{
+								Uri:        convertHeaderExtensionUri(item.Uri),
+								Id:         item.Id,
+								Encrypt:    item.Encrypt,
+								Parameters: convertRtpCodecSpecificParameters(&item.Parameters),
+							}
+						}),
+					Encodings: collect(rtpParameters.Encodings,
+						func(item *RtpEncodingParameters) *FbsRtpParameters.RtpEncodingParametersT {
+							return &FbsRtpParameters.RtpEncodingParametersT{
+								Ssrc:             orElse(item.Ssrc > 0, ref(item.Ssrc), nil),
+								Rid:              item.Rid,
+								CodecPayloadType: item.CodecPayloadType,
+								Rtx: ifElse(item.Rtx != nil, func() *FbsRtpParameters.RtxT {
+									return &FbsRtpParameters.RtxT{
+										Ssrc: item.Rtx.Ssrc,
+									}
+								}),
+								Dtx:             item.Dtx,
+								ScalabilityMode: item.ScalabilityMode,
+								MaxBitrate:      orElse(item.MaxBitrate > 0, ref(item.MaxBitrate), nil),
+							}
+						}),
+					Rtcp: ifElse(rtpParameters.Rtcp != nil, func() *FbsRtpParameters.RtcpParametersT {
+						return &FbsRtpParameters.RtcpParametersT{
+							Cname:       rtpParameters.Rtcp.Cname,
+							ReducedSize: unref(rtpParameters.Rtcp.ReducedSize, true),
+						}
+					}, func() *FbsRtpParameters.RtcpParametersT {
+						return &FbsRtpParameters.RtcpParametersT{
+							ReducedSize: true,
+						}
+					}),
+				},
+				RtpMapping: &FbsRtpParameters.RtpMappingT{
+					Codecs: collect(rtpMapping.Codecs,
+						func(item *RtpMappingCodec) *FbsRtpParameters.CodecMappingT {
+							return &FbsRtpParameters.CodecMappingT{
+								PayloadType:       item.PayloadType,
+								MappedPayloadType: item.MappedPayloadType,
+							}
+						}),
+					Encodings: collect(rtpMapping.Encodings,
+						func(item *RtpMappingEncoding) *FbsRtpParameters.EncodingMappingT {
+							return &FbsRtpParameters.EncodingMappingT{
+								Rid:             item.Rid,
+								Ssrc:            item.Ssrc,
+								ScalabilityMode: item.ScalabilityMode,
+								MappedSsrc:      item.MappedSsrc,
+							}
+						}),
+				},
+				KeyFrameRequestDelay: options.KeyFrameRequestDelay,
+				Paused:               options.Paused,
+			},
+		},
+	})
 	if err != nil {
-		return
+		return nil, err
 	}
 
-	internal := transport.internal
-	internal.ProducerId = id
-
-	reqData := H{
-		"producerId":           id,
-		"kind":                 kind,
-		"rtpParameters":        rtpParameters,
-		"rtpMapping":           rtpMapping,
-		"keyFrameRequestDelay": keyFrameRequestDelay,
-		"paused":               paused,
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	if t.closed {
+		return nil, ErrTransportClosed
 	}
-	resp := transport.channel.Request("transport.produce", internal, reqData)
+	result := msg.(*FbsTransport.ProduceResponseT)
 
-	var status struct {
-		Type ProducerType
-	}
-	if err = resp.Unmarshal(&status); err != nil {
-		return
-	}
-
-	producerData := producerData{
+	producer := newProducer(t.channel, t.logger, &producerData{
+		TransportId:             t.Id(),
+		ProducerId:              id,
 		Kind:                    kind,
 		RtpParameters:           rtpParameters,
-		Type:                    status.Type,
+		Type:                    ProducerType(strings.ToLower(result.Type.String())),
 		ConsumableRtpParameters: consumableRtpParameters,
-	}
-
-	producer = newProducer(producerParams{
-		internal:       internal,
-		data:           producerData,
-		channel:        transport.channel,
-		payloadChannel: transport.payloadChannel,
-		appData:        appData,
-		paused:         paused,
+		Paused:                  options.Paused,
+		AppData:                 options.AppData,
 	})
-
-	transport.producers.Store(producer.Id(), producer)
-
-	producer.On("@close", func() {
-		transport.producers.Delete(producer.Id())
-		transport.Emit("@producerclose", producer)
+	producer.OnClose(func() {
+		t.producers.Delete(id)
+		safeCall(t.data.OnRemoveProducer, producer)
 	})
+	t.producers.Store(id, producer)
+	safeCall(t.data.OnAddProducer, producer)
 
-	transport.Emit("@newproducer", producer)
-
-	// Emit observer event.
-	transport.observer.SafeEmit("newproducer", producer)
-
-	return
+	return producer, nil
 }
 
 // Consume creates a Consumer.
-func (transport *Transport) Consume(options ConsumerOptions) (consumer *Consumer, err error) {
-	transport.logger.V(1).Info("consume()")
+func (t *Transport) Consume(options *ConsumerOptions) (*Consumer, error) {
+	t.logger.Debug("Consume()")
 
-	producerId := options.ProducerId
-	rtpCapabilities := options.RtpCapabilities
-	paused := options.Paused
-	preferredLayers := options.PreferredLayers
-	appData := options.AppData
-
-	producer := transport.getProducerById(producerId)
-
+	producer := t.data.GetProducerId(options.ProducerId)
 	if producer == nil {
-		err = fmt.Errorf(`Producer with id "%s" not found`, producerId)
-		return
+		return nil, fmt.Errorf(`Producer with id "%s" not found`, options.ProducerId)
 	}
+	var rtpParameters *RtpParameters
 
-	rtpParameters, err := getConsumerRtpParameters(producer.ConsumableRtpParameters(), rtpCapabilities, options.Pipe)
-	if err != nil {
-		return
-	}
-
-	if !options.Pipe {
-		if len(options.Mid) > 0 {
-			rtpParameters.Mid = options.Mid
-		} else {
-			transport.locker.Lock()
-
-			// Set MID.
-			rtpParameters.Mid = fmt.Sprintf("%d", transport.nextMidForConsumers)
-			transport.nextMidForConsumers++
-
-			// We use up to 8 bytes for MID (string).
-			if maxMid := uint32(100000000); transport.nextMidForConsumers == maxMid {
-				transport.logger.Error(nil, "consume() | reaching max MID value", "mid", maxMid)
-				transport.nextMidForConsumers = 0
+	if t.Type() == TransportPipe {
+		rtpParameters = getPipeConsumerRtpParameters(producer.ConsumableRtpParameters(), t.data.Rtx)
+	} else {
+		var (
+			enableRtx = unref(options.EnableRtx, true)
+			err       error
+		)
+		rtpParameters, err = getConsumerRtpParameters(
+			producer.ConsumableRtpParameters(), options.RtpCapabilities, options.Pipe, enableRtx)
+		if err != nil {
+			return nil, err
+		}
+		if !options.Pipe {
+			if len(options.Mid) > 0 {
+				rtpParameters.Mid = options.Mid
+			} else {
+				rtpParameters.Mid = t.nextMidString()
 			}
-
-			transport.locker.Unlock()
 		}
 	}
 
-	internal := transport.internal
-	internal.ConsumerId = uuid.NewString()
+	consumerId := uuid()
+	typ := orElse(options.Pipe || t.Type() == TransportPipe, ConsumerPipe, ConsumerType(producer.Type()))
 
-	tp := producer.Type()
-
-	if options.Pipe {
-		tp = "pipe"
-	}
-
-	data := consumerData{
-		ProducerId:    producerId,
-		Kind:          producer.Kind(),
-		RtpParameters: rtpParameters,
-		Type:          ConsumerType(tp),
-	}
-
-	reqData := struct {
-		consumerData
-		ConsumerId             string                  `json:"consumerId"`
-		ConsumableRtpEncodings []RtpEncodingParameters `json:"consumableRtpEncodings"`
-		Paused                 bool                    `json:"paused"`
-		PreferredLayers        *ConsumerLayers         `json:"preferredLayers,omitempty"`
-		IgnoreDtx              bool                    `json:"ignoreDtx,omitempty"`
-	}{
-		consumerData:           data,
-		ConsumerId:             internal.ConsumerId,
-		ConsumableRtpEncodings: producer.ConsumableRtpParameters().Encodings,
-		Paused:                 paused,
-		PreferredLayers:        preferredLayers,
-		IgnoreDtx:              options.IgnoreDtx,
-	}
-
-	resp := transport.channel.Request("transport.consume", internal, reqData)
-
-	var status struct {
-		Paused         bool
-		ProducerPaused bool
-		Score          *ConsumerScore
-	}
-	if err = resp.Unmarshal(&status); err != nil {
-		return
-	}
-
-	consumer = newConsumer(consumerParams{
-		internal:        internal,
-		data:            data,
-		channel:         transport.channel,
-		payloadChannel:  transport.payloadChannel,
-		appData:         appData,
-		paused:          status.Paused,
-		producerPaused:  status.ProducerPaused,
-		score:           status.Score,
-		preferredLayers: preferredLayers,
+	msg, err := t.channel.Request(&FbsRequest.RequestT{
+		Method:    FbsRequest.MethodTRANSPORT_CONSUME,
+		HandlerId: t.Id(),
+		Body: &FbsRequest.BodyT{
+			Type: FbsRequest.BodyTransport_ConsumeRequest,
+			Value: &FbsTransport.ConsumeRequestT{
+				ConsumerId: consumerId,
+				ProducerId: producer.Id(),
+				Kind:       FbsRtpParameters.EnumValuesMediaKind[strings.ToUpper(string(producer.Kind()))],
+				Type:       FbsRtpParameters.EnumValuesType[strings.ToUpper(string(typ))],
+				Paused:     options.Paused,
+				RtpParameters: &FbsRtpParameters.RtpParametersT{
+					Mid: rtpParameters.Mid,
+					Codecs: collect(rtpParameters.Codecs,
+						func(item *RtpCodecParameters) *FbsRtpParameters.RtpCodecParametersT {
+							return &FbsRtpParameters.RtpCodecParametersT{
+								MimeType:    item.MimeType,
+								PayloadType: item.PayloadType,
+								ClockRate:   item.ClockRate,
+								Channels:    orElse(item.Channels > 0, ref(item.Channels), nil),
+								Parameters:  convertRtpCodecSpecificParameters(&item.Parameters),
+								RtcpFeedback: collect(item.RtcpFeedback,
+									func(item *RtcpFeedback) *FbsRtpParameters.RtcpFeedbackT {
+										return &FbsRtpParameters.RtcpFeedbackT{
+											Type:      item.Type,
+											Parameter: item.Parameter,
+										}
+									}),
+							}
+						}),
+					HeaderExtensions: collect(rtpParameters.HeaderExtensions,
+						func(item *RtpHeaderExtensionParameters) *FbsRtpParameters.RtpHeaderExtensionParametersT {
+							return &FbsRtpParameters.RtpHeaderExtensionParametersT{
+								Uri:        convertHeaderExtensionUri(item.Uri),
+								Id:         item.Id,
+								Encrypt:    item.Encrypt,
+								Parameters: convertRtpCodecSpecificParameters(&item.Parameters),
+							}
+						}),
+					Encodings: collect(rtpParameters.Encodings,
+						func(item *RtpEncodingParameters) *FbsRtpParameters.RtpEncodingParametersT {
+							return &FbsRtpParameters.RtpEncodingParametersT{
+								Ssrc:             orElse(item.Ssrc > 0, ref(item.Ssrc), nil),
+								Rid:              item.Rid,
+								CodecPayloadType: item.CodecPayloadType,
+								Rtx: ifElse(item.Rtx != nil, func() *FbsRtpParameters.RtxT {
+									return &FbsRtpParameters.RtxT{
+										Ssrc: item.Rtx.Ssrc,
+									}
+								}),
+								Dtx:             item.Dtx,
+								ScalabilityMode: item.ScalabilityMode,
+							}
+						},
+					),
+					Rtcp: ifElse(rtpParameters.Rtcp != nil, func() *FbsRtpParameters.RtcpParametersT {
+						return &FbsRtpParameters.RtcpParametersT{
+							Cname:       rtpParameters.Rtcp.Cname,
+							ReducedSize: unref(rtpParameters.Rtcp.ReducedSize, true),
+						}
+					}, func() *FbsRtpParameters.RtcpParametersT {
+						return &FbsRtpParameters.RtcpParametersT{
+							ReducedSize: true,
+						}
+					}),
+				},
+				ConsumableRtpEncodings: collect(producer.ConsumableRtpParameters().Encodings, convertRtpEncodingParameters),
+				PreferredLayers: ifElse(options.PreferredLayers != nil, func() *FbsConsumer.ConsumerLayersT {
+					return &FbsConsumer.ConsumerLayersT{
+						SpatialLayer:  options.PreferredLayers.SpatialLayer,
+						TemporalLayer: options.PreferredLayers.TemporalLayer,
+					}
+				}),
+				IgnoreDtx: options.IgnoreDtx,
+			},
+		},
 	})
+	if err != nil {
+		return nil, err
+	}
+	result := msg.(*FbsTransport.ConsumeResponseT)
+	score := ConsumerScore{}
+	if t.Type() == TransportPipe {
+		score = ConsumerScore{
+			Score:          10,
+			ProducerScore:  10,
+			ProducerScores: []uint8{},
+		}
+	} else {
+		score = ConsumerScore{
+			Score:          result.Score.Score,
+			ProducerScore:  result.Score.ProducerScore,
+			ProducerScores: result.Score.ProducerScores,
+		}
+	}
+	data := &consumerData{
+		TransportId:    t.Id(),
+		ConsumerId:     consumerId,
+		ProducerId:     producer.Id(),
+		Kind:           producer.Kind(),
+		Type:           typ,
+		RtpParameters:  rtpParameters,
+		AppData:        options.AppData,
+		Paused:         result.Paused,
+		ProducerPaused: result.ProducerPaused,
+		Score:          score,
+		PreferredLayers: ifElse(result.PreferredLayers != nil, func() *ConsumerLayers {
+			return &ConsumerLayers{
+				SpatialLayer:  result.PreferredLayers.SpatialLayer,
+				TemporalLayer: result.PreferredLayers.TemporalLayer,
+			}
+		}),
+	}
 
-	transport.consumers.Store(consumer.Id(), consumer)
-	consumer.On("@close", func() {
-		transport.consumers.Delete(consumer.Id())
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	if t.closed {
+		return nil, ErrTransportClosed
+	}
+
+	consumer := newConsumer(t.channel, t.logger, data)
+	consumer.OnClose(func() {
+		t.consumers.Delete(consumer.Id())
+		safeCall(t.data.OnRemoveConsumer, consumer)
 	})
-	consumer.On("@producerclose", func() {
-		transport.consumers.Delete(consumer.Id())
-	})
+	t.consumers.Store(consumer.Id(), consumer)
+	safeCall(t.data.OnAddConsumer, consumer)
 
-	// Emit observer event.
-	transport.observer.SafeEmit("newconsumer", consumer)
-
-	return
+	return consumer, nil
 }
 
 // ProduceData creates a DataProducer.
-func (transport *Transport) ProduceData(options DataProducerOptions) (dataProducer *DataProducer, err error) {
-	transport.logger.V(1).Info("produceData()")
+func (t *Transport) ProduceData(options *DataProducerOptions) (*DataProducer, error) {
+	t.logger.Debug("ProduceData()")
 
 	id := options.Id
-	sctpStreamParameters := options.SctpStreamParameters
-	label := options.Label
-	protocol := options.Protocol
-	appData := options.AppData
 
 	if len(id) > 0 {
-		if _, ok := transport.dataProducers.Load(id); ok {
-			err = NewTypeError(`a DataProducer with same id "%s" already exists`, id)
-			return
+		if t.data.GetDataProducerId(id) != nil {
+			return nil, fmt.Errorf(`a DataProducer with same id "%s" already exists`, id)
 		}
 	} else {
-		id = uuid.NewString()
+		id = uuid()
 	}
 
-	var typ DataProducerType
+	typ := DataProducerDirect
 
-	if transport.data.transportType == TransportType_Direct {
-		typ = DataProducerType_Direct
-
-		if sctpStreamParameters != nil {
-			transport.logger.Info(
-				"produceData() | sctpStreamParameters are ignored when producing data on a DirectTransport", "warn", true)
-		}
-	} else {
-		typ = DataProducerType_Sctp
-
-		if err = validateSctpStreamParameters(sctpStreamParameters); err != nil {
-			return
+	if t.Type() != TransportDirect {
+		typ = DataProducerSctp
+		if err := validateSctpStreamParameters(options.SctpStreamParameters); err != nil {
+			return nil, err
 		}
 	}
-
-	internal := transport.internal
-	internal.DataProducerId = id
-
-	reqData := H{
-		"dataProducerId":       id,
-		"type":                 typ,
-		"sctpStreamParameters": sctpStreamParameters,
-		"label":                label,
-		"protocol":             protocol,
+	data := &dataProducerData{
+		TransportId:          t.Id(),
+		DataProducerId:       id,
+		Type:                 typ,
+		SctpStreamParameters: options.SctpStreamParameters,
+		Label:                options.Label,
+		Protocol:             options.Protocol,
+		Paused:               options.Paused,
+		AppData:              options.AppData,
 	}
-	resp := transport.channel.Request("transport.produceData", internal, reqData)
-
-	var data dataProducerData
-	if err = resp.Unmarshal(&data); err != nil {
-		return
+	_, err := t.channel.Request(&FbsRequest.RequestT{
+		Method:    FbsRequest.MethodTRANSPORT_PRODUCE_DATA,
+		HandlerId: t.Id(),
+		Body: &FbsRequest.BodyT{
+			Type: FbsRequest.BodyTransport_ProduceDataRequest,
+			Value: &FbsTransport.ProduceDataRequestT{
+				DataProducerId: data.DataProducerId,
+				Type:           FbsDataProducer.EnumValuesType[strings.ToUpper(string(data.Type))],
+				SctpStreamParameters: ifElse(data.SctpStreamParameters != nil, func() *FbsSctpParameters.SctpStreamParametersT {
+					return &FbsSctpParameters.SctpStreamParametersT{
+						StreamId:          data.SctpStreamParameters.StreamId,
+						Ordered:           data.SctpStreamParameters.Ordered,
+						MaxPacketLifeTime: data.SctpStreamParameters.MaxPacketLifeTime,
+						MaxRetransmits:    data.SctpStreamParameters.MaxRetransmits,
+					}
+				}),
+				Label:    data.Label,
+				Protocol: data.Protocol,
+				Paused:   options.Paused,
+			},
+		},
+	})
+	if err != nil {
+		return nil, err
 	}
 
-	dataProducer = newDataProducer(dataProducerParams{
-		internal:       internal,
-		data:           data,
-		channel:        transport.channel,
-		payloadChannel: transport.payloadChannel,
-		appData:        appData,
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	if t.closed {
+		return nil, ErrTransportClosed
+	}
+
+	dataProducer := newDataProducer(t.channel, t.logger, data)
+	dataProducer.OnClose(func() {
+		t.dataProducers.Delete(dataProducer.Id())
+		safeCall(t.data.OnRemoveDataProducer, dataProducer)
 	})
+	t.dataProducers.Store(dataProducer.Id(), dataProducer)
+	safeCall(t.data.OnAddDataProducer, dataProducer)
 
-	transport.dataProducers.Store(dataProducer.Id(), dataProducer)
-	dataProducer.On("@close", func() {
-		transport.dataProducers.Delete(dataProducer.Id())
-		transport.Emit("@dataproducerclose", dataProducer)
-	})
-
-	transport.Emit("@newdataproducer", dataProducer)
-
-	// Emit observer event.
-	transport.observer.SafeEmit("newdataproducer", dataProducer)
-
-	return
+	return dataProducer, nil
 }
 
 // ConsumeData creates a DataConsumer.
-func (transport *Transport) ConsumeData(options DataConsumerOptions) (dataConsumer *DataConsumer, err error) {
-	transport.logger.V(1).Info("consumeData()")
+func (t *Transport) ConsumeData(options *DataConsumerOptions) (*DataConsumer, error) {
+	t.logger.Debug("ConsumeData()")
 
-	dataProducerId := options.DataProducerId
-	ordered := options.Ordered
-	maxPacketLifeTime := options.MaxPacketLifeTime
-	maxRetransmits := options.MaxRetransmits
-	appData := options.AppData
-
-	dataProducer := transport.getDataProducerById(dataProducerId)
-
+	dataProducer := t.data.GetDataProducerId(options.DataProducerId)
 	if dataProducer == nil {
-		err = fmt.Errorf(`DataProducer with id "%s" not found`, dataProducerId)
-		return
+		return nil, fmt.Errorf(`DataProducer with id "%s" not found`, options.DataProducerId)
 	}
+	var (
+		typ                  = DataConsumerDirect
+		sctpStreamParameters *SctpStreamParameters
+		err                  error
+	)
 
-	var typ DataProducerType
-	var sctpStreamParameters SctpStreamParameters
-	var sctpStreamId int = -1
-
-	if transport.data.transportType == TransportType_Direct {
-		typ = DataProducerType_Direct
-
-		if ordered != nil || maxPacketLifeTime > 0 || maxRetransmits > 0 {
-			transport.logger.Info(
-				"consumeData() | ordered, maxPacketLifeTime and maxRetransmits are ignored when consuming data on a DirectTransport",
-				"warn", true)
-		}
-	} else {
-		typ = DataProducerType_Sctp
+	if t.Type() != TransportDirect {
+		typ = DataConsumerSctp
 
 		sctpStreamParameters = dataProducer.SctpStreamParameters()
 		// Override if given.
-		if ordered != nil {
+		if ordered := options.Ordered; ordered != nil {
 			sctpStreamParameters.Ordered = ordered
 		}
-		if maxPacketLifeTime > 0 {
-			sctpStreamParameters.MaxPacketLifeTime = maxPacketLifeTime
+		if maxPacketLifeTime := options.MaxPacketLifeTime; maxPacketLifeTime > 0 {
+			sctpStreamParameters.MaxPacketLifeTime = &maxPacketLifeTime
 		}
-		if maxRetransmits > 0 {
-			sctpStreamParameters.MaxRetransmits = maxRetransmits
+		if maxRetransmits := options.MaxRetransmits; maxRetransmits > 0 {
+			sctpStreamParameters.MaxRetransmits = &maxRetransmits
 		}
-
-		transport.locker.Lock()
-
-		if sctpStreamId, err = transport.getNextSctpStreamId(); err != nil {
-			return
+		sctpStreamParameters.StreamId, err = t.nextSctpStreamId()
+		if err != nil {
+			return nil, err
 		}
-		transport.sctpStreamIds[sctpStreamId] = 1
-		sctpStreamParameters.StreamId = uint16(sctpStreamId)
-
-		transport.locker.Unlock()
+		defer t.streamIds.Delete(sctpStreamParameters.StreamId)
 	}
 
-	internal := transport.internal
-	internal.DataConsumerId = uuid.NewString()
-	internal.DataProducerId = dataProducerId
+	dataConsumerId := uuid()
 
-	reqData := H{
-		"dataConsumerId":       internal.DataConsumerId,
-		"dataProducerId":       dataProducerId,
-		"type":                 typ,
-		"sctpStreamParameters": sctpStreamParameters,
-		"label":                dataProducer.Label(),
-		"protocol":             dataProducer.Protocol(),
+	_, err = t.channel.Request(&FbsRequest.RequestT{
+		Method:    FbsRequest.MethodTRANSPORT_CONSUME_DATA,
+		HandlerId: t.Id(),
+		Body: &FbsRequest.BodyT{
+			Type: FbsRequest.BodyTransport_ConsumeDataRequest,
+			Value: &FbsTransport.ConsumeDataRequestT{
+				DataConsumerId: dataConsumerId,
+				DataProducerId: dataProducer.Id(),
+				Type:           FbsDataProducer.EnumValuesType[strings.ToUpper(string(typ))],
+				SctpStreamParameters: ifElse(sctpStreamParameters != nil, func() *FbsSctpParameters.SctpStreamParametersT {
+					return &FbsSctpParameters.SctpStreamParametersT{
+						StreamId:          sctpStreamParameters.StreamId,
+						Ordered:           sctpStreamParameters.Ordered,
+						MaxPacketLifeTime: sctpStreamParameters.MaxPacketLifeTime,
+						MaxRetransmits:    sctpStreamParameters.MaxRetransmits,
+					}
+				}),
+				Label:       dataProducer.Label(),
+				Protocol:    dataProducer.Protocol(),
+				Paused:      options.Paused,
+				Subchannels: options.Subchannels,
+			},
+		},
+	})
+	if err != nil {
+		return nil, err
 	}
-	resp := transport.channel.Request("transport.consumeData", internal, reqData)
 
-	var data dataConsumerData
-	if err = resp.Unmarshal(&data); err != nil {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	if t.closed {
+		return nil, ErrTransportClosed
+	}
+
+	data := &dataconsumerData{
+		TransportId:          t.Id(),
+		DataConsumerId:       dataConsumerId,
+		DataProducerId:       options.DataProducerId,
+		Type:                 typ,
+		SctpStreamParameters: sctpStreamParameters,
+		Label:                dataProducer.Label(),
+		Protocol:             dataProducer.Protocol(),
+		Paused:               options.Paused,
+		DataProducerPaused:   dataProducer.Paused(),
+		Subchannels:          options.Subchannels,
+		AppData:              options.AppData,
+	}
+	dataConsumer := newDataConsumer(t.channel, t.logger, data)
+	dataConsumer.OnClose(func() {
+		if sctpStreamParameters != nil {
+			t.streamIds.Delete(sctpStreamParameters.StreamId)
+		}
+		t.dataConsumers.Delete(dataConsumer.Id())
+		safeCall(t.data.OnRemoveDataConsumer, dataConsumer)
+	})
+	t.dataConsumers.Store(dataConsumer.Id(), dataConsumer)
+	safeCall(t.data.OnAddDataConsumer, dataConsumer)
+
+	return dataConsumer, nil
+}
+
+// OnTuple add handler on "tuple" event
+func (t *Transport) OnTuple(handler func(TransportTuple)) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	t.tupleListeners = append(t.tupleListeners, handler)
+}
+
+// OnRtcpTuple add handler on "rtcptuple" event
+func (t *Transport) OnRtcpTuple(handler func(TransportTuple)) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	t.rtcpTupleListeners = append(t.rtcpTupleListeners, handler)
+}
+
+// OnSctpStateChange add handler on "sctpstatechange" event
+func (t *Transport) OnSctpStateChange(handler func(SctpState)) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	t.sctpStateChangeListeners = append(t.sctpStateChangeListeners, handler)
+}
+
+// OnIceStateChange add handler on "icestatechange" event
+func (t *Transport) OnIceStateChange(handler func(IceState)) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	t.iceStateChangeListeners = append(t.iceStateChangeListeners, handler)
+}
+
+// OnIceSelectedTupleChange add handler on "iceselectedtuplechange" event
+func (t *Transport) OnIceSelectedTupleChange(handler func(TransportTuple)) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	t.iceSelectedTupleChangeListeners = append(t.iceSelectedTupleChangeListeners, handler)
+}
+
+// OnDtlsStateChange add handler on "dtlsstatechange" event
+func (t *Transport) OnDtlsStateChange(handler func(DtlsState)) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	t.dtlsStateChangeListeners = append(t.dtlsStateChangeListeners, handler)
+}
+
+// OnRtcp add handler on "directtransport.rtcp" event
+func (t *Transport) OnRtcp(handler func(data []byte)) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	t.rtcpListeners = append(t.rtcpListeners, handler)
+}
+
+// OnTrace add handler on "trace" event
+func (t *Transport) OnTrace(handler func(trace *TransportTraceEventData)) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	t.traceListeners = append(t.traceListeners, handler)
+}
+
+func (t *Transport) handleWorkerNotifications() {
+	t.sub = t.channel.Subscribe(t.Id(), func(event FbsNotification.Event, body *FbsNotification.BodyT) {
+		switch event {
+		case FbsNotification.EventPLAINTRANSPORT_TUPLE:
+			notification := body.Value.(*FbsPlainTransport.TupleNotificationT)
+			tuple := *parseTransportTuple(notification.Tuple)
+
+			t.mu.Lock()
+			t.data.PlainTransportData.Tuple = tuple
+			listeners := t.tupleListeners
+			t.mu.Unlock()
+
+			for _, listener := range listeners {
+				listener(tuple)
+			}
+
+		case FbsNotification.EventPLAINTRANSPORT_RTCP_TUPLE:
+			notification := body.Value.(*FbsPlainTransport.RtcpTupleNotificationT)
+			rtcpTuple := *parseTransportTuple(notification.Tuple)
+
+			t.mu.Lock()
+			t.data.PlainTransportData.RtcpTuple = &rtcpTuple
+			listeners := t.tupleListeners
+			t.mu.Unlock()
+
+			for _, listener := range listeners {
+				listener(rtcpTuple)
+			}
+
+		case FbsNotification.EventTRANSPORT_SCTP_STATE_CHANGE:
+			notification := body.Value.(*FbsTransport.SctpStateChangeNotificationT)
+			state := SctpState(strings.ToLower(notification.SctpState.String()))
+
+			t.mu.Lock()
+			switch t.Type() {
+			case TransportPlain:
+				t.data.PlainTransportData.SctpState = state
+			case TransportPipe:
+				t.data.PipeTransportData.SctpState = state
+			case TransportWebRTC:
+				t.data.WebRtcTransportData.SctpState = state
+			}
+			listeners := t.sctpStateChangeListeners
+			t.mu.Unlock()
+
+			for _, listener := range listeners {
+				listener(state)
+			}
+
+		case FbsNotification.EventWEBRTCTRANSPORT_ICE_STATE_CHANGE:
+			notification := body.Value.(*FbsWebRtcTransport.IceStateChangeNotificationT)
+			state := IceState(strings.ToLower(notification.IceState.String()))
+
+			t.mu.Lock()
+			t.data.WebRtcTransportData.IceState = state
+			listeners := t.iceStateChangeListeners
+			t.mu.Unlock()
+
+			for _, listener := range listeners {
+				listener(state)
+			}
+
+		case FbsNotification.EventWEBRTCTRANSPORT_ICE_SELECTED_TUPLE_CHANGE:
+			notification := body.Value.(*FbsWebRtcTransport.IceSelectedTupleChangeNotificationT)
+			tuple := *parseTransportTuple(notification.Tuple)
+
+			t.mu.Lock()
+			t.data.WebRtcTransportData.IceSelectedTuple = &tuple
+			listeners := t.iceSelectedTupleChangeListeners
+			t.mu.Unlock()
+
+			for _, listener := range listeners {
+				listener(tuple)
+			}
+
+		case FbsNotification.EventWEBRTCTRANSPORT_DTLS_STATE_CHANGE:
+			notification := body.Value.(*FbsWebRtcTransport.DtlsStateChangeNotificationT)
+			state := DtlsState(strings.ToLower(notification.DtlsState.String()))
+
+			t.mu.Lock()
+			t.data.WebRtcTransportData.DtlsState = state
+			listeners := t.dtlsStateChangeListeners
+			t.mu.Unlock()
+
+			for _, listener := range listeners {
+				listener(state)
+			}
+
+		case FbsNotification.EventDIRECTTRANSPORT_RTCP:
+			notification := body.Value.(*FbsDirectTransport.RtcpNotificationT)
+			rtcpPacket := notification.Data
+
+			t.mu.Lock()
+			listeners := t.rtcpListeners
+			t.mu.Unlock()
+
+			for _, listener := range listeners {
+				listener(rtcpPacket)
+			}
+
+		case FbsNotification.EventTRANSPORT_TRACE:
+			notification := body.Value.(*FbsTransport.TraceNotificationT)
+			trace := &TransportTraceEventData{
+				Type:      TransportTraceEventType(strings.ToLower(notification.Type.String())),
+				Timestamp: notification.Timestamp,
+				Direction: orElse(notification.Direction == FbsCommon.TraceDirectionDIRECTION_IN, "in", "out"),
+			}
+			if notification.Info.Type == FbsTransport.TraceInfoBweTraceInfo {
+				info := notification.Info.Value.(*FbsTransport.BweTraceInfoT)
+				trace.Info = H{
+					"bweType":                 strings.ToLower(info.BweType.String()),
+					"desiredBitrate":          info.DesiredBitrate,
+					"effectiveDesiredBitrate": info.EffectiveDesiredBitrate,
+					"minBitrate":              info.MinBitrate,
+					"maxBitrate":              info.MaxBitrate,
+					"startBitrate":            info.StartBitrate,
+					"maxPaddingBitrate":       info.MaxPaddingBitrate,
+					"availableBitrate":        info.AvailableBitrate,
+				}
+			}
+
+			t.mu.Lock()
+			listeners := t.traceListeners
+			t.mu.Unlock()
+
+			for _, listener := range listeners {
+				listener(trace)
+			}
+
+		default:
+			t.logger.Warn("ignoring unknown event in channel listener", "event", event)
+		}
+	})
+}
+
+func (t *Transport) nextMidString() string {
+	for {
+		val := atomic.AddUint32(&t.nextMid, 1) - 1
+		// We use up to 8 bytes for MID (string).
+		if val < 100_000_000 {
+			return strconv.Itoa(int(val))
+		}
+		// Reset to 0 only if nextMid == val+1 (CAS ensures we don't race)
+		if atomic.CompareAndSwapUint32(&t.nextMid, val+1, 0) {
+			return "0"
+		}
+		// CAS failed — try again
+	}
+}
+
+func (t *Transport) nextSctpStreamId() (uint16, error) {
+	sctpParameters := t.getSctpParameters()
+	if sctpParameters == nil || sctpParameters.MIS == 0 {
+		return 0, errors.New("missing sctpParameters.MIS")
+	}
+	for i := uint16(0); i < sctpParameters.MIS; i++ {
+		if _, ok := t.streamIds.LoadOrStore(i, struct{}{}); !ok {
+			return i, nil
+		}
+	}
+	return 0, errors.New("no sctpStreamId available")
+}
+
+func (t *Transport) getSctpParameters() *SctpParameters {
+	if t.data.WebRtcTransportData != nil {
+		return t.data.WebRtcTransportData.SctpParameters
+	}
+	if t.data.PlainTransportData != nil {
+		return t.data.PlainTransportData.SctpParameters
+	}
+	if t.data.PipeTransportData != nil {
+		return t.data.PipeTransportData.SctpParameters
+	}
+	return nil
+}
+
+func (t *Transport) routerClosed() {
+	t.mu.Lock()
+	if t.closed {
+		t.mu.Unlock()
 		return
 	}
+	t.closed = true
+	t.mu.Unlock()
 
-	dataConsumer = newDataConsumer(dataConsumerParams{
-		internal:       internal,
-		data:           data,
-		channel:        transport.channel,
-		payloadChannel: transport.payloadChannel,
-		appData:        appData,
-	})
-
-	transport.dataConsumers.Store(dataConsumer.Id(), dataConsumer)
-	dataConsumer.On("@close", func() {
-		transport.dataConsumers.Delete(dataConsumer.Id())
-
-		transport.locker.Lock()
-		if sctpStreamId >= 0 {
-			transport.sctpStreamIds[sctpStreamId] = 0
-		}
-		transport.locker.Unlock()
-	})
-	dataConsumer.On("@dataproducerclose", func() {
-		transport.dataConsumers.Delete(dataConsumer.Id())
-
-		transport.locker.Lock()
-		if sctpStreamId >= 0 {
-			transport.sctpStreamIds[sctpStreamId] = 0
-		}
-		transport.locker.Unlock()
-	})
-
-	// Emit observer event.
-	transport.observer.SafeEmit("newdataconsumer", dataConsumer)
-
-	return
+	t.cleanupAfterClosed()
 }
 
-// EnableTraceEvent enables 'trace' events.
-func (transport *Transport) EnableTraceEvent(types ...TransportTraceEventType) error {
-	transport.logger.V(1).Info("pause()")
-
-	if types == nil {
-		types = []TransportTraceEventType{}
-	}
-
-	resp := transport.channel.Request("transport.enableTraceEvent", transport.internal, H{"types": types})
-
-	return resp.Err()
-}
-
-func (transport *Transport) getNextSctpStreamId() (sctpStreamId int, err error) {
-	if transport.data.sctpParameters.MIS == 0 {
-		err = NewTypeError("missing sctpParameters.MIS")
+func (t *Transport) listenServerClosed() {
+	t.mu.Lock()
+	if t.closed {
+		t.mu.Unlock()
 		return
 	}
+	t.closed = true
+	t.mu.Unlock()
 
-	numStreams := transport.data.sctpParameters.MIS
-
-	if len(transport.sctpStreamIds) == 0 {
-		transport.sctpStreamIds = make([]byte, numStreams)
-	}
-
-	for idx := 0; idx < len(transport.sctpStreamIds); idx++ {
-		sctpStreamId = (transport.nextSctpStreamId + idx) % len(transport.sctpStreamIds)
-
-		if transport.sctpStreamIds[sctpStreamId] == 0 {
-			transport.nextSctpStreamId = sctpStreamId + 1
-			return
-		}
-	}
-
-	err = errors.New("no sctpStreamId available")
-
-	return
+	t.cleanupAfterClosed()
 }
 
-// OnTrace set handler on "trace" event
-func (transport *Transport) OnTrace(handler func(trace *TransportTraceEventData)) {
-	transport.onTrace = handler
-}
-
-// OnClose set handler on "close" event
-func (transport *Transport) OnClose(handler func()) {
-	transport.onClose = handler
-}
-
-func (transport *Transport) handleEvent(event string, data []byte) {
-	logger := transport.logger
-
-	switch event {
-	case "trace":
-		var result *TransportTraceEventData
-
-		if err := json.Unmarshal([]byte(data), &result); err != nil {
-			logger.Error(err, "failed to unmarshal trace", "data", json.RawMessage(data))
-			return
-		}
-
-		transport.SafeEmit("trace", result)
-
-		// Emit observer event.
-		transport.Observer().SafeEmit("trace", result)
-
-		if handler := transport.onTrace; handler != nil {
-			handler(result)
-		}
-
-	default:
-		logger.Error(nil, "ignoring unknown event in channel listener", "event", event)
+func (t *Transport) cleanupAfterClosed() {
+	var children []interface {
+		transportClosed()
 	}
+
+	t.producers.Range(func(key, value any) bool {
+		children = append(children, value.(*Producer))
+		t.producers.Delete(key)
+		return true
+	})
+	t.consumers.Range(func(key, value any) bool {
+		children = append(children, value.(*Consumer))
+		t.consumers.Delete(key)
+		return true
+	})
+	t.dataProducers.Range(func(key, value any) bool {
+		children = append(children, value.(*DataProducer))
+		t.dataProducers.Delete(key)
+		return true
+	})
+	t.dataConsumers.Range(func(key, value any) bool {
+		children = append(children, value.(*DataConsumer))
+		t.dataConsumers.Delete(key)
+		return true
+	})
+
+	for _, child := range children {
+		child.transportClosed()
+	}
+
+	t.sub.Unsubscribe()
+	t.notifyClosed()
 }

@@ -1,158 +1,326 @@
 package mediasoup
 
 import (
-	"errors"
+	"fmt"
+	"math/rand"
+	"net"
 	"os"
 	"runtime"
-	"syscall"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
-var errType = errors.New("")
-var worker = CreateTestWorker()
+var WorkerBinPath = os.Getenv("MEDIASOUP_WORKER_BIN")
 
-func CreateTestWorker(options ...Option) *Worker {
-	defaultOptions := []Option{WithLogLevel("debug"), WithLogTags([]WorkerLogTag{"info"})}
-	options = append(defaultOptions, options...)
+func init() {
+	if len(WorkerBinPath) == 0 {
+		WorkerBinPath = "../mediasoup/worker/out/Debug/mediasoup-worker"
+	}
+}
 
-	worker, err := NewWorker(options...)
+func newTestWorker(options ...Option) *Worker {
+	defaultOptions := []Option{
+		func(o *WorkerSettings) {
+			o.LogLevel = WorkerLogLevelDebug
+		},
+	}
+	worker, err := NewWorker(WorkerBinPath, append(defaultOptions, options...)...)
 	if err != nil {
 		panic(err)
 	}
-
 	return worker
 }
 
-func TestCreateWorker_Succeeds(t *testing.T) {
-	worker := CreateTestWorker()
-	assert.NotZero(t, worker.Pid())
-	assert.False(t, worker.Closed())
-
-	worker.Close()
-	assert.True(t, worker.Closed())
-
-	worker = CreateTestWorker(
-		WithRtcMinPort(0),
-		WithRtcMaxPort(9999),
-		WithDtlsCert("testdata/dtls-cert.pem", "testdata/dtls-key.pem"),
-		func(o *WorkerSettings) {
-			o.AppData = H{"bar": 456}
-		},
-	)
-	assert.NotZero(t, worker.Pid())
-	assert.False(t, worker.Closed())
-	assert.Equal(t, H{"bar": 456}, worker.AppData())
-
-	worker.Close()
-	assert.True(t, worker.Closed())
+// pickUdpPort get a free udp port of localhost
+func pickUdpPort() uint16 {
+	a, _ := net.ResolveUDPAddr("udp", "localhost:0")
+	l, _ := net.ListenUDP("udp", a)
+	defer l.Close()
+	return uint16(l.LocalAddr().(*net.UDPAddr).Port)
 }
 
-func TestCreateWorker_TypeError(t *testing.T) {
-	_, err := NewWorker(WithLogLevel("chicken"))
-	assert.IsType(t, TypeError{}, err)
-
-	_, err = NewWorker(WithRtcMinPort(1000), WithRtcMaxPort(999))
-	assert.IsType(t, TypeError{}, err)
-
-	_, err = NewWorker(WithDtlsCert("/notfound/cert.pem", "/notfound/priv.pem"))
-	assert.IsType(t, TypeError{}, err)
-}
-
-func TestWorkerUpdateSettings_Succeeds(t *testing.T) {
-	worker := CreateTestWorker()
-	err := worker.UpdateSettings(WorkerUpdatableSettings{LogLevel: "debug", LogTags: []WorkerLogTag{"ice"}})
-	assert.NoError(t, err)
-	worker.Close()
-}
-
-func TestWorkerUpdateSettings_TypeError(t *testing.T) {
-	worker := CreateTestWorker()
-	err := worker.UpdateSettings(WorkerUpdatableSettings{LogLevel: "chicken"})
-	assert.IsType(t, TypeError{}, err)
-	worker.Close()
-}
-
-func TestWorkerUpdateSettings_InvalidStateError(t *testing.T) {
-	worker := CreateTestWorker()
-	worker.Close()
-
-	err := worker.UpdateSettings(WorkerUpdatableSettings{LogLevel: "error"})
-	assert.IsType(t, InvalidStateError{}, err)
+// pickTcpPort get a free tcp port of localhost
+func pickTcpPort() uint16 {
+	a, _ := net.ResolveTCPAddr("tcp", "localhost:0")
+	l, _ := net.ListenTCP("tcp", a)
+	defer l.Close()
+	return uint16(l.Addr().(*net.TCPAddr).Port)
 }
 
 func TestWorkerDump(t *testing.T) {
-	worker := CreateTestWorker()
-	defer worker.Close()
-
+	worker := newTestWorker()
 	dump, err := worker.Dump()
-	assert.NoError(t, err)
-	assert.Equal(t, worker.Pid(), dump.Pid)
-	assert.Empty(t, dump.RouterIds)
+	require.NoError(t, err)
+	assert.EqualValues(t, worker.Pid(), dump.Pid)
 }
 
-func TestWorkerDump_InvalidStateError(t *testing.T) {
-	worker := CreateTestWorker()
-	worker.Close()
+func TestWorkerGetResourceUsage(t *testing.T) {
+	worker := newTestWorker()
+	usage, err := worker.GetResourceUsage()
+	require.NoError(t, err)
+	assert.NotZero(t, usage)
+}
 
-	_, err := worker.Dump()
+func TestWorkerUpdateSettings(t *testing.T) {
+	worker := newTestWorker()
+
+	// Test updating settings with valid log level and log tags
+	settings := &WorkerUpdatableSettings{
+		LogLevel: WorkerLogLevelWarn,
+		LogTags:  []WorkerLogTag{WorkerLogTagInfo, WorkerLogTagIce},
+	}
+	err := worker.UpdateSettings(settings)
+	require.NoError(t, err)
+
+	// Test updating settings with empty log tags
+	settings = &WorkerUpdatableSettings{
+		LogLevel: WorkerLogLevelError,
+		LogTags:  []WorkerLogTag{},
+	}
+	err = worker.UpdateSettings(settings)
+	require.NoError(t, err)
+
+	// Test updating settings with invalid log level
+	settings = &WorkerUpdatableSettings{
+		LogLevel: "invalid_log_level",
+		LogTags:  []WorkerLogTag{WorkerLogTagRtp},
+	}
+	err = worker.UpdateSettings(settings)
 	assert.Error(t, err)
 }
 
-func TestWorkerGetResourceUsage_Succeeds(t *testing.T) {
-	worker := CreateTestWorker()
-	defer worker.Close()
-
-	_, err := worker.GetResourceUsage()
-	assert.NoError(t, err)
+func TestWorkerCreateWebRtcServer(t *testing.T) {
+	worker := newTestWorker()
+	server, err := worker.CreateWebRtcServer(&WebRtcServerOptions{
+		ListenInfos: []*TransportListenInfo{
+			{Protocol: TransportProtocolUDP, IP: "127.0.0.1", Port: pickUdpPort()},
+			{Protocol: TransportProtocolTCP, IP: "127.0.0.1", AnnouncedAddress: "foo.bar.org", Port: pickTcpPort()},
+		},
+	})
+	require.NoError(t, err)
+	assert.NotEmpty(t, server)
+	dump, _ := worker.Dump()
+	assert.Contains(t, dump.WebRtcServerIds, server.Id())
 }
 
-func TestWorkerClose_Succeeds(t *testing.T) {
-	worker := CreateTestWorker(WithLogLevel("warn"))
-	fn := asyncRun(worker.Wait)
-	worker.Close()
+func TestWorkerCreateRouter(t *testing.T) {
+	worker := newTestWorker()
+	router, err := worker.CreateRouter(&RouterOptions{
+		MediaCodecs: []*RtpCodecCapability{
+			{
+				Kind:      "audio",
+				MimeType:  "audio/opus",
+				ClockRate: 48000,
+				Channels:  2,
+				Parameters: RtpCodecSpecificParameters{
+					Useinbandfec: 1,
+				},
+			},
+			{
+				Kind:      "video",
+				MimeType:  "video/VP8",
+				ClockRate: 90000,
+			},
+			{
+				Kind:      "video",
+				MimeType:  "video/H264",
+				ClockRate: 90000,
+				Parameters: RtpCodecSpecificParameters{
+					LevelAsymmetryAllowed: 1,
+					PacketizationMode:     1,
+					ProfileLevelId:        "4d0032",
+				},
+			},
+		},
+	})
+	require.NoError(t, err)
+	assert.NotEmpty(t, router.Id())
+	dump, _ := worker.Dump()
+	assert.Contains(t, dump.RouterIds, router.Id())
 
-	assert.True(t, fn.Finished())
+	router, _ = worker.CreateRouter(&RouterOptions{})
+	dump, _ = worker.Dump()
+	assert.Contains(t, dump.RouterIds, router.Id())
+}
+
+func TestWorkerClose(t *testing.T) {
+	worker := newTestWorker()
+	worker.Close()
 	assert.True(t, worker.Closed())
 }
 
-func TestWorkerEmitsDied(t *testing.T) {
-	signals := []os.Signal{os.Interrupt, syscall.SIGTERM, os.Kill}
+func TestWorkerNoGoroutineLeaks(t *testing.T) {
+	numOfGoroutines := runtime.NumGoroutine()
 
-	for _, signal := range signals {
-		worker := CreateTestWorker(WithLogLevel("warn"))
-		fn := asyncRun(worker.Wait, withWaitTimeout(time.Millisecond*250))
+	worker := newTestWorker(func(s *WorkerSettings) {
+		s.LogLevel = WorkerLogLevelWarn
+	})
 
-		process, _ := os.FindProcess(worker.Pid())
-		process.Signal(signal)
+	server, _ := worker.CreateWebRtcServer(&WebRtcServerOptions{
+		ListenInfos: []*TransportListenInfo{
+			{Protocol: TransportProtocolUDP, IP: "127.0.0.1", Port: 0},
+			{Protocol: TransportProtocolTCP, IP: "127.0.0.1", AnnouncedAddress: "foo.bar.org", Port: 0},
+		},
+	})
 
-		assert.IsType(t, errType, fn.Out(0))
-		assert.True(t, worker.Closed())
-		assert.True(t, worker.Died())
+	n := 10
+	var mu sync.Mutex
+	var wg sync.WaitGroup
+
+	var routers []*Router
+
+	for i := 0; i < 2; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			router := createRouter(worker)
+			mu.Lock()
+			routers = append(routers, router)
+			mu.Unlock()
+		}()
 	}
-}
 
-func TestWorkerProcessIgnoreSignals(t *testing.T) {
-	// Windows doesn't have some signals such as SIGPIPE, SIGALRM, SIGUSR1, SIGUSR2
-	// so we just skip this test in Windows.
-	if runtime.GOOS != "windows" {
-		return
+	wg.Wait()
+
+	var transports []*Transport
+
+	for i := 0; i < n; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for _, router := range routers {
+				transport1 := createPlainTransport(router, func(o *PlainTransportOptions) {
+					o.EnableSctp = true
+				})
+				transport2 := createWebRtcTransport(router, func(o *WebRtcTransportOptions) {
+					o.EnableSctp = true
+				})
+				transport3 := createWebRtcTransport(router, func(o *WebRtcTransportOptions) {
+					o.WebRtcServer = server
+					o.EnableSctp = true
+				})
+				transport4 := createDirectTransport(router)
+				mu.Lock()
+				transports = append(transports, transport1, transport2, transport3, transport4)
+				mu.Unlock()
+			}
+		}()
 	}
-	worker := CreateTestWorker(WithLogLevel("warn"))
-	fn := asyncRun(worker.Wait)
 
-	process, err := os.FindProcess(worker.Pid())
-	assert.NoError(t, err)
+	wg.Wait()
 
-	process.Signal(syscall.SIGPIPE)
-	process.Signal(syscall.SIGHUP)
-	process.Signal(syscall.SIGALRM)
-	// process.Signal(syscall.SIGUSR1)
-	// process.Signal(syscall.SIGUSR2)
+	var producers []*Producer
+	var dataProducers []*DataProducer
+	var consumers []*Consumer
+	var dataConsumers []*DataConsumer
 
-	assert.False(t, fn.Finished())
-	assert.False(t, worker.Closed())
+	for _, transport := range transports {
+		wg.Add(1)
+		go func(transport *Transport) {
+			defer wg.Done()
+			audioProducer := createAudioProducer(transport)
+			videoProducer := createVideoProducer(transport)
+			dataProducer := createDataProducer(transport)
+			mu.Lock()
+			producers = append(producers, audioProducer, videoProducer)
+			dataProducers = append(dataProducers, dataProducer)
+			mu.Unlock()
+			for i := 0; i < n; i++ {
+				wg.Add(1)
+				go func(audioProducer, videoProducer, dataProducer interface{ Id() string }) {
+					defer wg.Done()
+					consumer1 := createConsumer(transport, audioProducer.Id())
+					consumer2 := createConsumer(transport, videoProducer.Id())
+					dataConsumer := createDataConsumer(transport, dataProducer.Id())
+					mu.Lock()
+					consumers = append(consumers, consumer1, consumer2)
+					dataConsumers = append(dataConsumers, dataConsumer)
+					mu.Unlock()
+				}(audioProducer, videoProducer, dataProducer)
+			}
+		}(transport)
+	}
+
+	wg.Wait()
+
+	for _, producer := range producers {
+		wg.Add(1)
+		go func(producer *Producer) {
+			defer wg.Done()
+			producer.Pause()
+		}(producer)
+	}
+	wg.Wait()
+
+	// wait all notifications are consumed
+	time.Sleep(time.Millisecond * 10)
+
+	for _, consumer := range consumers {
+		assert.True(t, consumer.ProducerPaused())
+	}
+
+	messagesReceived := map[string][]string{}
+	for _, dataConsumer := range dataConsumers {
+		dataProducerId := dataConsumer.DataProducerId()
+		dataConsumer.OnMessage(func(payload []byte, ppid SctpPayloadType) {
+			mu.Lock()
+			messagesReceived[dataProducerId] = append(messagesReceived[dataProducerId], string(payload))
+			mu.Unlock()
+		})
+	}
+
+	messagesSent := map[string]string{}
+	for i, dataProducer := range dataProducers {
+		wg.Add(1)
+		go func(index int, dataProducer *DataProducer) {
+			defer wg.Done()
+			msg := fmt.Sprintf("hello world %d", index)
+			dataProducer.SendText(msg)
+			mu.Lock()
+			messagesSent[dataProducer.Id()] = msg
+			mu.Unlock()
+		}(i, dataProducer)
+	}
+
+	wg.Wait()
+
+	// wait all notifications are consumed
+	time.Sleep(time.Millisecond * 10)
+
 	worker.Close()
+
+	for dataProducerId, messages := range messagesReceived {
+		require.Len(t, messages, n, dataProducerId)
+		require.Equal(t, messagesSent[dataProducerId], messages[rand.Intn(len(messages))], dataProducerId)
+	}
+
+	assert.True(t, worker.Closed())
+
+	for _, router := range routers {
+		assert.True(t, router.Closed())
+	}
+	for _, transport := range transports {
+		assert.True(t, transport.Closed())
+	}
+	for _, producer := range producers {
+		assert.True(t, producer.Closed())
+	}
+	for _, dataProducer := range dataProducers {
+		assert.True(t, dataProducer.Closed())
+	}
+	for _, consumer := range consumers {
+		assert.True(t, consumer.Closed())
+	}
+	for _, dataConsumer := range dataConsumers {
+		assert.True(t, dataConsumer.Closed())
+	}
+
+	// wait all goroutines are finished
+	time.Sleep(time.Millisecond * 500)
+
+	assert.LessOrEqual(t, runtime.NumGoroutine(), numOfGoroutines)
 }

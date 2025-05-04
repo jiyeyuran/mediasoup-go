@@ -1,802 +1,571 @@
 package mediasoup
 
 import (
-	"regexp"
-	"strconv"
+	"slices"
 	"testing"
+	"time"
 
-	"github.com/jiyeyuran/mediasoup-go/h264"
-	"github.com/stretchr/testify/suite"
+	FbsConsumer "github.com/jiyeyuran/mediasoup-go/internal/FBS/Consumer"
+	FbsNotification "github.com/jiyeyuran/mediasoup-go/internal/FBS/Notification"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
-type ConsumerTestingSuite struct {
-	TestingSuite
-	consumerDeviceCapabilities RtpCapabilities
-	worker                     *Worker
-	router                     *Router
-	transport1                 ITransport
-	transport2                 ITransport
-	audioProducer              *Producer
-	videoProducer              *Producer
-}
-
-func (suite *ConsumerTestingSuite) SetupTest() {
-	mediaCodecs := []*RtpCodecCapability{
+var consumerDeviceCapabilities = &RtpCapabilities{
+	Codecs: []*RtpCodecCapability{
 		{
-			Kind:      "audio",
-			MimeType:  "audio/opus",
-			ClockRate: 48000,
-			Channels:  2,
+			MimeType:             "audio/opus",
+			Kind:                 "audio",
+			PreferredPayloadType: 100,
+			ClockRate:            48000,
+			Channels:             2,
+			RtcpFeedback: []*RtcpFeedback{
+				{Type: "nack"},
+			},
 		},
 		{
-			Kind:      "video",
-			MimeType:  "video/VP8",
-			ClockRate: 90000,
-		},
-		{
-			Kind:      "video",
-			MimeType:  "video/H264",
-			ClockRate: 90000,
+			MimeType:             "video/H264",
+			Kind:                 "video",
+			PreferredPayloadType: 101,
+			ClockRate:            90000,
 			Parameters: RtpCodecSpecificParameters{
-				RtpParameter: h264.RtpParameter{
-					LevelAsymmetryAllowed: 1,
-					PacketizationMode:     Uint8(1),
-					ProfileLevelId:        "4d0032",
-				},
+				LevelAsymmetryAllowed: 1,
+				PacketizationMode:     1,
+				ProfileLevelId:        "4d0032",
+			},
+			RtcpFeedback: []*RtcpFeedback{
+				{Type: "nack", Parameter: ""},
+				{Type: "nack", Parameter: "pli"},
+				{Type: "ccm", Parameter: "fir"},
+				{Type: "goog-remb", Parameter: ""},
 			},
 		},
-	}
-
-	suite.consumerDeviceCapabilities = RtpCapabilities{
-		Codecs: []*RtpCodecCapability{
-			{
-				MimeType:             "audio/opus",
-				Kind:                 "audio",
-				PreferredPayloadType: 100,
-				ClockRate:            48000,
-				Channels:             2,
-			},
-			{
-				MimeType:             "video/H264",
-				Kind:                 "video",
-				PreferredPayloadType: 101,
-				ClockRate:            90000,
-				Parameters: RtpCodecSpecificParameters{
-					RtpParameter: h264.RtpParameter{
-						LevelAsymmetryAllowed: 1,
-						PacketizationMode:     Uint8(1),
-						ProfileLevelId:        "4d0032",
-					},
-				},
-				RtcpFeedback: []RtcpFeedback{
-					{Type: "nack", Parameter: ""},
-					{Type: "nack", Parameter: "pli"},
-					{Type: "ccm", Parameter: "fir"},
-					{Type: "goog-remb", Parameter: ""},
-				},
-			},
-			{
-				MimeType:             "video/rtx",
-				Kind:                 "video",
-				PreferredPayloadType: 102,
-				ClockRate:            90000,
-				Parameters: RtpCodecSpecificParameters{
-					Apt: 101,
-				},
+		{
+			MimeType:             "video/rtx",
+			Kind:                 "video",
+			PreferredPayloadType: 102,
+			ClockRate:            90000,
+			Parameters: RtpCodecSpecificParameters{
+				Apt: 101,
 			},
 		},
-		HeaderExtensions: []*RtpHeaderExtension{
-			{
-				Kind:             "audio",
-				Uri:              "urn:ietf:params:rtp-hdrext:sdes:mid",
-				PreferredId:      1,
-				PreferredEncrypt: false,
-			},
-			{
-				Kind:             "video",
-				Uri:              "urn:ietf:params:rtp-hdrext:sdes:mid",
-				PreferredId:      1,
-				PreferredEncrypt: false,
-			},
-			{
-				Kind:             "video",
-				Uri:              "urn:ietf:params:rtp-hdrext:sdes:rtp-stream-id",
-				PreferredId:      2,
-				PreferredEncrypt: false,
-			},
-			{
-				Kind:             "audio",
-				Uri:              "http://www.webrtc.org/experiments/rtp-hdrext/abs-send-time", // eslint-disable-line max-len
-				PreferredId:      4,
-				PreferredEncrypt: false,
-			},
-			{
-				Kind:             "video",
-				Uri:              "http://www.webrtc.org/experiments/rtp-hdrext/abs-send-time", // eslint-disable-line max-len
-				PreferredId:      4,
-				PreferredEncrypt: false,
-			},
-			{
-				Kind:             "audio",
-				Uri:              "urn:ietf:params:rtp-hdrext:ssrc-audio-level",
-				PreferredId:      10,
-				PreferredEncrypt: false,
-			},
-			{
-				Kind:             "video",
-				Uri:              "urn:3gpp:video-orientation",
-				PreferredId:      11,
-				PreferredEncrypt: false,
-			},
-			{
-				Kind:             "video",
-				Uri:              "urn:ietf:params:rtp-hdrext:toffset",
-				PreferredId:      12,
-				PreferredEncrypt: false,
-			},
+	},
+	HeaderExtensions: []*RtpHeaderExtension{
+		{
+			Kind:             "audio",
+			Uri:              "urn:ietf:params:rtp-hdrext:sdes:mid",
+			PreferredId:      1,
+			PreferredEncrypt: false,
 		},
-	}
-
-	suite.worker = CreateTestWorker()
-	suite.router, _ = suite.worker.CreateRouter(RouterOptions{MediaCodecs: mediaCodecs})
-
-	suite.transport1, _ = suite.router.CreateWebRtcTransport(WebRtcTransportOptions{
-		ListenIps: []TransportListenIp{
-			{Ip: "127.0.0.1"},
+		{
+			Kind:             "video",
+			Uri:              "urn:ietf:params:rtp-hdrext:sdes:mid",
+			PreferredId:      1,
+			PreferredEncrypt: false,
 		},
-	})
-	suite.transport2, _ = suite.router.CreateWebRtcTransport(WebRtcTransportOptions{
-		ListenIps: []TransportListenIp{
-			{Ip: "127.0.0.1"},
+		{
+			Kind:             "video",
+			Uri:              "urn:ietf:params:rtp-hdrext:sdes:rtp-stream-id",
+			PreferredId:      2,
+			PreferredEncrypt: false,
 		},
-	})
-
-	suite.audioProducer = CreateAudioProducer(suite.transport1)
-	suite.videoProducer = CreateH264Producer(suite.transport1)
-
-	// Pause the videoProducer.
-	suite.videoProducer.Pause()
+		{
+			Kind:             "audio",
+			Uri:              "http://www.webrtc.org/experiments/rtp-hdrext/abs-send-time", // eslint-disable-line max-len
+			PreferredId:      4,
+			PreferredEncrypt: false,
+		},
+		{
+			Kind:             "video",
+			Uri:              "http://www.webrtc.org/experiments/rtp-hdrext/abs-send-time", // eslint-disable-line max-len
+			PreferredId:      4,
+			PreferredEncrypt: false,
+		},
+		{
+			Kind:             "audio",
+			Uri:              "urn:ietf:params:rtp-hdrext:ssrc-audio-level",
+			PreferredId:      10,
+			PreferredEncrypt: false,
+		},
+		{
+			Kind:             "video",
+			Uri:              "urn:3gpp:video-orientation",
+			PreferredId:      11,
+			PreferredEncrypt: false,
+		},
+		{
+			Kind:             "video",
+			Uri:              "urn:ietf:params:rtp-hdrext:toffset",
+			PreferredId:      12,
+			PreferredEncrypt: false,
+		},
+	},
 }
 
-func (suite *ConsumerTestingSuite) TearDownTest() {
-	suite.worker.Close()
-}
-
-func (suite *ConsumerTestingSuite) TestTransportConsume_Succeeds() {
-	router, transport2 := suite.router, suite.transport2
-
-	observer := NewMockFunc(suite.T())
-
-	transport2.Observer().Once("newconsumer", observer.Fn())
-
-	suite.True(router.CanConsume(suite.audioProducer.Id(), suite.consumerDeviceCapabilities))
-
-	audioConsumer, err := transport2.Consume(ConsumerOptions{
-		ProducerId:      suite.audioProducer.Id(),
-		RtpCapabilities: suite.consumerDeviceCapabilities,
+func createConsumer(transport *Transport, producerId string, options ...func(*ConsumerOptions)) *Consumer {
+	opts := &ConsumerOptions{
+		ProducerId:      producerId,
+		RtpCapabilities: consumerDeviceCapabilities,
 		AppData:         H{"baz": "LOL"},
-	})
-
-	suite.NoError(err)
-	observer.ExpectCalledTimes(1)
-	observer.ExpectCalledWith(audioConsumer)
-	suite.NotEmpty(audioConsumer.Id())
-	suite.Equal(suite.audioProducer.Id(), audioConsumer.ProducerId())
-	suite.False(audioConsumer.Closed())
-	suite.EqualValues(MediaKind_Audio, audioConsumer.Kind())
-	suite.NotEmpty(audioConsumer.RtpParameters())
-	suite.Equal("0", audioConsumer.RtpParameters().Mid)
-	suite.Len(audioConsumer.RtpParameters().Codecs, 1)
-	suite.Equal(&RtpCodecParameters{
-		MimeType:    "audio/opus",
-		ClockRate:   48000,
-		PayloadType: 100,
-		Channels:    2,
-		Parameters: RtpCodecSpecificParameters{
-			Useinbandfec: 1,
-			Usedtx:       1,
-		},
-	}, audioConsumer.RtpParameters().Codecs[0])
-
-	suite.Equal(ConsumerType_Simple, audioConsumer.Type())
-	suite.False(audioConsumer.Paused())
-	suite.False(audioConsumer.ProducerPaused())
-	suite.Equal(&ConsumerScore{Score: 10, ProducerScore: 0, ProducerScores: []uint16{0}}, audioConsumer.Score())
-	suite.Nil(audioConsumer.CurrentLayers())
-	suite.Nil(audioConsumer.PreferredLayers())
-	suite.Equal(H{"baz": "LOL"}, audioConsumer.AppData())
-
-	routerDump, _ := router.Dump()
-
-	suite.Equal([]string{audioConsumer.Id()}, routerDump.MapProducerIdConsumerIds[suite.audioProducer.Id()])
-	suite.Equal(suite.audioProducer.Id(), routerDump.MapConsumerIdProducerId[audioConsumer.Id()])
-
-	transportDump, _ := transport2.Dump()
-
-	suite.Equal(transport2.Id(), transportDump.Id)
-	suite.Equal([]string{audioConsumer.Id()}, transportDump.ConsumerIds)
-
-	observer = NewMockFunc(suite.T())
-	transport2.Observer().Once("newconsumer", observer.Fn())
-
-	suite.True(router.CanConsume(suite.videoProducer.Id(), suite.consumerDeviceCapabilities))
-
-	videoConsumer, err := transport2.Consume(ConsumerOptions{
-		ProducerId:      suite.videoProducer.Id(),
-		RtpCapabilities: suite.consumerDeviceCapabilities,
-		Paused:          true,
-		PreferredLayers: &ConsumerLayers{SpatialLayer: 12},
-		AppData:         H{"baz": "LOL"},
-	})
-	suite.NoError(err)
-
-	observer.ExpectCalledTimes(1)
-	observer.ExpectCalledWith(videoConsumer)
-	suite.NotEmpty(videoConsumer.Id())
-	suite.Equal(suite.videoProducer.Id(), videoConsumer.ProducerId())
-	suite.False(videoConsumer.Closed())
-	suite.EqualValues(MediaKind_Video, videoConsumer.Kind())
-	suite.Equal("1", videoConsumer.RtpParameters().Mid)
-	suite.Len(videoConsumer.RtpParameters().Codecs, 2)
-	suite.Equal(&RtpCodecParameters{
-		MimeType:    "video/H264",
-		ClockRate:   90000,
-		PayloadType: 103,
-		Parameters: RtpCodecSpecificParameters{
-			RtpParameter: h264.RtpParameter{
-				PacketizationMode: Uint8(1),
-				ProfileLevelId:    "4d0032",
-			},
-		},
-		RtcpFeedback: []RtcpFeedback{
-			{Type: "nack"},
-			{Type: "nack", Parameter: "pli"},
-			{Type: "ccm", Parameter: "fir"},
-			{Type: "goog-remb"},
-		},
-	}, videoConsumer.RtpParameters().Codecs[0])
-	suite.Equal(&RtpCodecParameters{
-		MimeType:    "video/rtx",
-		ClockRate:   90000,
-		PayloadType: 104,
-		Parameters: RtpCodecSpecificParameters{
-			Apt: 103,
-		},
-	}, videoConsumer.RtpParameters().Codecs[1])
-
-	suite.EqualValues(ConsumerType_Simulcast, videoConsumer.Type())
-	suite.True(videoConsumer.Paused())
-	suite.True(videoConsumer.ProducerPaused())
-	suite.EqualValues(1, videoConsumer.Priority())
-	suite.Equal(&ConsumerScore{Score: 10, ProducerScore: 0, ProducerScores: []uint16{0, 0, 0, 0}}, videoConsumer.Score())
-	suite.Nil(videoConsumer.CurrentLayers())
-	suite.Equal(H{"baz": "LOL"}, videoConsumer.AppData())
-
-	observer = NewMockFunc(suite.T())
-	transport2.Observer().Once("newconsumer", observer.Fn())
-
-	suite.True(router.CanConsume(suite.videoProducer.Id(), suite.consumerDeviceCapabilities))
-	videoPipeConsumer, err := transport2.Consume(ConsumerOptions{
-		ProducerId:      suite.videoProducer.Id(),
-		RtpCapabilities: suite.consumerDeviceCapabilities,
-		Pipe:            true,
-	})
-	suite.NoError(err)
-
-	observer.ExpectCalledTimes(1)
-	observer.ExpectCalledWith(videoPipeConsumer)
-	suite.NotEmpty(videoPipeConsumer.Id())
-	suite.Equal(suite.videoProducer.Id(), videoPipeConsumer.ProducerId())
-	suite.False(videoPipeConsumer.Closed())
-	suite.EqualValues(MediaKind_Video, videoPipeConsumer.Kind())
-	suite.Empty(videoPipeConsumer.RtpParameters().Mid)
-	suite.Len(videoPipeConsumer.RtpParameters().Codecs, 2)
-	suite.Equal(&RtpCodecParameters{
-		MimeType:    "video/H264",
-		ClockRate:   90000,
-		PayloadType: 103,
-		Parameters: RtpCodecSpecificParameters{
-			RtpParameter: h264.RtpParameter{
-				PacketizationMode: Uint8(1),
-				ProfileLevelId:    "4d0032",
-			},
-		},
-		RtcpFeedback: []RtcpFeedback{
-			{Type: "nack"},
-			{Type: "nack", Parameter: "pli"},
-			{Type: "ccm", Parameter: "fir"},
-			{Type: "goog-remb"},
-		},
-	}, videoPipeConsumer.RtpParameters().Codecs[0])
-	suite.Equal(&RtpCodecParameters{
-		MimeType:    "video/rtx",
-		ClockRate:   90000,
-		PayloadType: 104,
-		Parameters: RtpCodecSpecificParameters{
-			Apt: 103,
-		},
-	}, videoPipeConsumer.RtpParameters().Codecs[1])
-	suite.EqualValues(ConsumerType_Pipe, videoPipeConsumer.Type())
-	suite.False(videoPipeConsumer.Paused())
-	suite.True(videoPipeConsumer.ProducerPaused())
-	suite.EqualValues(1, videoPipeConsumer.Priority())
-	suite.Equal(&ConsumerScore{Score: 10, ProducerScore: 10, ProducerScores: []uint16{0, 0, 0, 0}}, videoPipeConsumer.Score())
-	suite.Nil(videoPipeConsumer.PreferredLayers())
-	suite.Nil(videoPipeConsumer.CurrentLayers())
-	suite.Empty(videoPipeConsumer.AppData())
-
-	routerDump, _ = router.Dump()
-
-	suite.ElementsMatch(
-		[]string{audioConsumer.Id()},
-		routerDump.MapProducerIdConsumerIds[suite.audioProducer.Id()],
-	)
-	suite.ElementsMatch(
-		[]string{videoConsumer.Id(), videoPipeConsumer.Id()},
-		routerDump.MapProducerIdConsumerIds[suite.videoProducer.Id()],
-	)
-	suite.Equal(map[string]string{
-		audioConsumer.Id():     suite.audioProducer.Id(),
-		videoConsumer.Id():     suite.videoProducer.Id(),
-		videoPipeConsumer.Id(): suite.videoProducer.Id(),
-	}, routerDump.MapConsumerIdProducerId)
-
-	transportDump, _ = transport2.Dump()
-	expectedTransportDump := TransportDump{
-		Id:          transport2.Id(),
-		ConsumerIds: []string{audioConsumer.Id(), videoConsumer.Id(), videoPipeConsumer.Id()},
 	}
-
-	suite.Equal(expectedTransportDump.Id, transportDump.Id)
-	suite.ElementsMatch(transportDump.ConsumerIds, expectedTransportDump.ConsumerIds)
-}
-
-func (suite *ConsumerTestingSuite) TestTransportConsume_CreatedWithUserProvidedMid() {
-	audioConsumer1, _ := suite.transport2.Consume(ConsumerOptions{
-		ProducerId:      suite.audioProducer.Id(),
-		RtpCapabilities: suite.consumerDeviceCapabilities,
-	})
-	suite.True(regexp.MatchString("^[0-9]+", audioConsumer1.RtpParameters().Mid))
-
-	audioConsumer2, _ := suite.transport2.Consume(ConsumerOptions{
-		ProducerId:      suite.audioProducer.Id(),
-		Mid:             "custom-mid",
-		RtpCapabilities: suite.consumerDeviceCapabilities,
-	})
-	suite.Equal("custom-mid", audioConsumer2.RtpParameters().Mid)
-
-	audioConsumer3, _ := suite.transport2.Consume(ConsumerOptions{
-		ProducerId:      suite.audioProducer.Id(),
-		RtpCapabilities: suite.consumerDeviceCapabilities,
-	})
-	suite.True(regexp.MatchString("^[0-9]+", audioConsumer3.RtpParameters().Mid))
-	mid1, _ := strconv.Atoi(audioConsumer1.RtpParameters().Mid)
-	suite.Equal(strconv.Itoa(mid1+1), audioConsumer3.RtpParameters().Mid)
-
-	audioConsumer1.Close()
-	audioConsumer2.Close()
-	audioConsumer3.Close()
-}
-
-func (suite *ConsumerTestingSuite) TestTransportConsume_UnsupportedError() {
-	router, transport2, audioProducer := suite.router, suite.transport2, suite.audioProducer
-
-	invalidDeviceCapabilities := RtpCapabilities{
-		Codecs: []*RtpCodecCapability{
-			{
-				Kind:                 MediaKind_Audio,
-				MimeType:             "audio/ISAC",
-				ClockRate:            32000,
-				PreferredPayloadType: 100,
-				Channels:             1,
-			},
-		},
+	for _, o := range options {
+		o(opts)
 	}
-
-	suite.False(router.CanConsume(audioProducer.Id(), invalidDeviceCapabilities))
-
-	_, err := transport2.Consume(ConsumerOptions{
-		ProducerId:      audioProducer.Id(),
-		RtpCapabilities: invalidDeviceCapabilities,
-	})
-	suite.IsType(NewUnsupportedError(""), err)
-
-	invalidDeviceCapabilities = RtpCapabilities{}
-
-	suite.False(router.CanConsume(audioProducer.Id(), invalidDeviceCapabilities))
-
-	_, err = transport2.Consume(ConsumerOptions{
-		ProducerId:      audioProducer.Id(),
-		RtpCapabilities: invalidDeviceCapabilities,
-	})
-	suite.IsType(NewUnsupportedError(""), err)
+	consumer, err := transport.Consume(opts)
+	if err != nil {
+		panic(err)
+	}
+	return consumer
 }
 
-func (suite *ConsumerTestingSuite) TestConsumerDump() {
-	audioConsumer := suite.audioConsumer()
+func TestConsumerDump(t *testing.T) {
+	transport := createPlainTransport(nil)
+	audioProducer := createAudioProducer(transport)
+	audioConsumer := createConsumer(transport, audioProducer.Id())
+
 	data, _ := audioConsumer.Dump()
 
-	suite.Equal(audioConsumer.Id(), data.Id)
-	suite.EqualValues(audioConsumer.Kind(), data.Kind)
-	suite.NotEmpty(data.RtpParameters)
-	suite.Len(data.RtpParameters.Codecs, 1)
-	suite.Equal("audio/opus", data.RtpParameters.Codecs[0].MimeType)
-	suite.EqualValues(100, data.RtpParameters.Codecs[0].PayloadType)
-	suite.EqualValues(48000, data.RtpParameters.Codecs[0].ClockRate)
-	suite.EqualValues(2, data.RtpParameters.Codecs[0].Channels)
-	suite.Equal(RtpCodecSpecificParameters{Useinbandfec: 1, Usedtx: 1}, data.RtpParameters.Codecs[0].Parameters)
-	suite.Equal([]RtcpFeedback{}, data.RtpParameters.Codecs[0].RtcpFeedback)
-	suite.Len(data.RtpParameters.HeaderExtensions, 3)
-	suite.Equal([]RtpHeaderExtensionParameters{
+	assert.Equal(t, audioConsumer.Id(), data.Id)
+	assert.Equal(t, audioConsumer.Kind(), data.Kind)
+	assert.NotEmpty(t, data.RtpParameters)
+	assert.Len(t, data.RtpParameters.Codecs, 1)
+	assert.Equal(t, "audio/opus", data.RtpParameters.Codecs[0].MimeType)
+	assert.EqualValues(t, 100, data.RtpParameters.Codecs[0].PayloadType)
+	assert.EqualValues(t, 48000, data.RtpParameters.Codecs[0].ClockRate)
+	assert.EqualValues(t, 2, data.RtpParameters.Codecs[0].Channels)
+	assert.Equal(t, RtpCodecSpecificParameters{Useinbandfec: 1, Usedtx: 1}, data.RtpParameters.Codecs[0].Parameters)
+	assert.Equal(t, []*RtcpFeedback{{Type: "nack"}}, data.RtpParameters.Codecs[0].RtcpFeedback)
+	assert.Len(t, data.RtpParameters.HeaderExtensions, 3)
+	assert.Equal(t, []*RtpHeaderExtensionParameters{
 		{
 			Uri:        "urn:ietf:params:rtp-hdrext:sdes:mid",
 			Id:         1,
 			Encrypt:    false,
-			Parameters: &RtpCodecSpecificParameters{},
+			Parameters: RtpCodecSpecificParameters{},
 		},
 		{
 			Uri:        "http://www.webrtc.org/experiments/rtp-hdrext/abs-send-time",
 			Id:         4,
 			Encrypt:    false,
-			Parameters: &RtpCodecSpecificParameters{},
+			Parameters: RtpCodecSpecificParameters{},
 		},
 		{
 			Uri:        "urn:ietf:params:rtp-hdrext:ssrc-audio-level",
 			Id:         10,
 			Encrypt:    false,
-			Parameters: &RtpCodecSpecificParameters{},
+			Parameters: RtpCodecSpecificParameters{},
 		},
 	}, data.RtpParameters.HeaderExtensions)
-	suite.Len(data.RtpParameters.Encodings, 1)
-	suite.Equal([]RtpEncodingParameters{
-		{CodecPayloadType: 100, Ssrc: audioConsumer.RtpParameters().Encodings[0].Ssrc},
+	assert.Len(t, data.RtpParameters.Encodings, 1)
+	assert.Equal(t, []*RtpEncodingParameters{
+		{CodecPayloadType: ref[uint8](100), Ssrc: audioConsumer.RtpParameters().Encodings[0].Ssrc, ScalabilityMode: "S1T1"},
 	}, data.RtpParameters.Encodings)
-	suite.EqualValues("simple", data.Type)
-	suite.Len(data.ConsumableRtpEncodings, 1)
-	suite.Equal([]RtpMappingEncoding{
-		{Ssrc: suite.audioProducer.ConsumableRtpParameters().Encodings[0].Ssrc},
+	assert.Equal(t, ConsumerSimple, data.Type)
+	assert.Len(t, data.ConsumableRtpEncodings, 1)
+	assert.Equal(t, []*RtpEncodingParameters{
+		{Ssrc: audioProducer.ConsumableRtpParameters().Encodings[0].Ssrc, Dtx: true, ScalabilityMode: "S1T1"},
 	}, data.ConsumableRtpEncodings)
-	suite.Equal([]uint32{100}, data.SupportedCodecPayloadTypes)
-	suite.False(data.Paused)
-	suite.False(data.ProducerPaused)
+	assert.Equal(t, []uint8{100}, data.SupportedCodecPayloadTypes)
+	assert.False(t, data.Paused)
+	assert.False(t, data.ProducerPaused)
 
-	videoConsumer := suite.videoConsumer(true)
+	videoProducer := createVideoProducer(transport)
+	videoProducer.Pause()
+	videoConsumer := createConsumer(transport, videoProducer.Id(), func(co *ConsumerOptions) {
+		co.Paused = true
+	})
 	data, _ = videoConsumer.Dump()
 
-	suite.Equal(videoConsumer.Id(), data.Id)
-	suite.EqualValues(videoConsumer.Kind(), data.Kind)
-	suite.NotEmpty(data.RtpParameters)
-	suite.Len(data.RtpParameters.Codecs, 2)
-	suite.Equal("video/H264", data.RtpParameters.Codecs[0].MimeType)
-	suite.EqualValues(103, data.RtpParameters.Codecs[0].PayloadType)
-	suite.Equal(90000, data.RtpParameters.Codecs[0].ClockRate)
-	suite.Empty(data.RtpParameters.Codecs[0].Channels)
-	suite.Equal(h264.RtpParameter{
-		PacketizationMode: Uint8(1),
+	assert.Equal(t, videoConsumer.Id(), data.Id)
+	assert.Equal(t, videoConsumer.Kind(), data.Kind)
+	assert.NotEmpty(t, data.RtpParameters)
+	assert.Len(t, data.RtpParameters.Codecs, 2)
+	assert.Equal(t, "video/H264", data.RtpParameters.Codecs[0].MimeType)
+	assert.EqualValues(t, 103, data.RtpParameters.Codecs[0].PayloadType)
+	assert.EqualValues(t, 90000, data.RtpParameters.Codecs[0].ClockRate)
+	assert.Empty(t, data.RtpParameters.Codecs[0].Channels)
+	assert.Equal(t, RtpCodecSpecificParameters{
+		PacketizationMode: 1,
 		ProfileLevelId:    "4d0032",
-	}, data.RtpParameters.Codecs[0].Parameters.RtpParameter)
-	suite.EqualValues([]RtcpFeedback{
+	}, data.RtpParameters.Codecs[0].Parameters)
+	assert.Equal(t, []*RtcpFeedback{
 		{Type: "nack"},
 		{Type: "nack", Parameter: "pli"},
 		{Type: "ccm", Parameter: "fir"},
 		{Type: "goog-remb"},
 	}, data.RtpParameters.Codecs[0].RtcpFeedback)
-	suite.Len(data.RtpParameters.HeaderExtensions, 4)
-	suite.Equal([]RtpHeaderExtensionParameters{
+	assert.Len(t, data.RtpParameters.HeaderExtensions, 4)
+	assert.Equal(t, []*RtpHeaderExtensionParameters{
 		{
 			Uri:        "urn:ietf:params:rtp-hdrext:sdes:mid",
 			Id:         1,
 			Encrypt:    false,
-			Parameters: &RtpCodecSpecificParameters{},
+			Parameters: RtpCodecSpecificParameters{},
 		},
 		{
 			Uri:        "http://www.webrtc.org/experiments/rtp-hdrext/abs-send-time",
 			Id:         4,
 			Encrypt:    false,
-			Parameters: &RtpCodecSpecificParameters{},
+			Parameters: RtpCodecSpecificParameters{},
 		},
 		{
 			Id:         11,
 			Uri:        "urn:3gpp:video-orientation",
 			Encrypt:    false,
-			Parameters: &RtpCodecSpecificParameters{},
+			Parameters: RtpCodecSpecificParameters{},
 		},
 		{
 			Uri:        "urn:ietf:params:rtp-hdrext:toffset",
 			Id:         12,
 			Encrypt:    false,
-			Parameters: &RtpCodecSpecificParameters{},
+			Parameters: RtpCodecSpecificParameters{},
 		},
 	}, data.RtpParameters.HeaderExtensions)
-	suite.Len(data.RtpParameters.Encodings, 1)
-	suite.EqualValues([]RtpEncodingParameters{
+	assert.Len(t, data.RtpParameters.Encodings, 1)
+	assert.Equal(t, []*RtpEncodingParameters{
 		{
-			CodecPayloadType: 103,
+			CodecPayloadType: ref[uint8](103),
 			Ssrc:             videoConsumer.RtpParameters().Encodings[0].Ssrc,
 			Rtx: &RtpEncodingRtx{
 				Ssrc: videoConsumer.RtpParameters().Encodings[0].Rtx.Ssrc,
 			},
-			ScalabilityMode: "L4T1",
+			ScalabilityMode: "L4T5",
 		},
 	}, data.RtpParameters.Encodings)
-	suite.Len(data.ConsumableRtpEncodings, 4)
-	suite.EqualValues([]RtpMappingEncoding{
-		{Ssrc: suite.videoProducer.ConsumableRtpParameters().Encodings[0].Ssrc},
-		{Ssrc: suite.videoProducer.ConsumableRtpParameters().Encodings[1].Ssrc},
-		{Ssrc: suite.videoProducer.ConsumableRtpParameters().Encodings[2].Ssrc},
-		{Ssrc: suite.videoProducer.ConsumableRtpParameters().Encodings[3].Ssrc},
+	assert.Len(t, data.ConsumableRtpEncodings, 4)
+	assert.Equal(t, []*RtpEncodingParameters{
+		{Ssrc: videoProducer.ConsumableRtpParameters().Encodings[0].Ssrc, ScalabilityMode: "L1T5"},
+		{Ssrc: videoProducer.ConsumableRtpParameters().Encodings[1].Ssrc, ScalabilityMode: "L1T5"},
+		{Ssrc: videoProducer.ConsumableRtpParameters().Encodings[2].Ssrc, ScalabilityMode: "L1T5"},
+		{Ssrc: videoProducer.ConsumableRtpParameters().Encodings[3].Ssrc, ScalabilityMode: "L1T5"},
 	}, data.ConsumableRtpEncodings)
-	suite.Equal([]uint32{103}, data.SupportedCodecPayloadTypes)
-	suite.True(data.Paused)
-	suite.True(data.ProducerPaused)
+	assert.Equal(t, []byte{103}, data.SupportedCodecPayloadTypes)
+	assert.True(t, data.Paused)
+	assert.True(t, data.ProducerPaused)
 }
 
-func (suite *ConsumerTestingSuite) TestConsumerGetStats() {
-	audioConsumer := suite.audioConsumer()
+func TestConsumerGetStats(t *testing.T) {
+	transport := createPlainTransport(nil)
+	audioProducer := createAudioProducer(transport)
+	audioConsumer := createConsumer(transport, audioProducer.Id())
 
 	consumerStats, err := audioConsumer.GetStats()
-	suite.NoError(err)
+	assert.NoError(t, err)
 
-	expectedConsumerStats := []ConsumerStat{}
+	expectedConsumerStats := []*ConsumerStat{}
 	for _, stats := range consumerStats {
-		expectedConsumerStats = append(expectedConsumerStats, ConsumerStat{
-			Type:     stats.Type,
-			Kind:     stats.Kind,
-			MimeType: stats.MimeType,
-			Ssrc:     stats.Ssrc,
+		expectedConsumerStats = append(expectedConsumerStats, &ConsumerStat{
+			Type: stats.Type,
+			BaseRtpStreamStats: BaseRtpStreamStats{
+				Kind:     stats.Kind,
+				MimeType: stats.MimeType,
+				Ssrc:     stats.Ssrc,
+			},
 		})
 	}
 
-	suite.Contains(expectedConsumerStats, ConsumerStat{
-		Type:     "outbound-rtp",
-		Kind:     "audio",
-		MimeType: "audio/opus",
-		Ssrc:     audioConsumer.RtpParameters().Encodings[0].Ssrc,
+	assert.Contains(t, expectedConsumerStats, &ConsumerStat{
+		Type: "outbound-rtp",
+		BaseRtpStreamStats: BaseRtpStreamStats{
+			Kind:     "audio",
+			MimeType: "audio/opus",
+			Ssrc:     audioConsumer.RtpParameters().Encodings[0].Ssrc,
+		},
 	})
 
-	videoConsumer := suite.videoConsumer(false)
+	videoProducer := createVideoProducer(transport)
+	videoConsumer := createConsumer(transport, videoProducer.Id())
 	consumerStats, err = videoConsumer.GetStats()
-	suite.NoError(err)
+	assert.NoError(t, err)
 
-	expectedConsumerStats = []ConsumerStat{}
+	expectedConsumerStats = []*ConsumerStat{}
 	for _, stats := range consumerStats {
-		expectedConsumerStats = append(expectedConsumerStats, ConsumerStat{
-			Type:     stats.Type,
-			Kind:     stats.Kind,
-			MimeType: stats.MimeType,
-			Ssrc:     stats.Ssrc,
+		expectedConsumerStats = append(expectedConsumerStats, &ConsumerStat{
+			Type: stats.Type,
+			BaseRtpStreamStats: BaseRtpStreamStats{
+				Kind:     stats.Kind,
+				MimeType: stats.MimeType,
+				Ssrc:     stats.Ssrc,
+			},
 		})
 	}
 
-	suite.Contains(expectedConsumerStats, ConsumerStat{
-		Type:     "outbound-rtp",
-		Kind:     "video",
-		MimeType: "video/H264",
-		Ssrc:     videoConsumer.RtpParameters().Encodings[0].Ssrc,
+	assert.Contains(t, expectedConsumerStats, &ConsumerStat{
+		Type: "outbound-rtp",
+		BaseRtpStreamStats: BaseRtpStreamStats{
+			Kind:     "video",
+			MimeType: "video/H264",
+			Ssrc:     videoConsumer.RtpParameters().Encodings[0].Ssrc,
+		},
 	})
 }
 
-func (suite *ConsumerTestingSuite) TestConsumerPauseAndResume() {
-	audioConsumer := suite.audioConsumer()
-	audioConsumer.Pause()
+func TestConsumerPauseAndResume(t *testing.T) {
+	transport := createPlainTransport(nil)
+	audioProducer := createAudioProducer(transport)
+	audioConsumer := createConsumer(transport, audioProducer.Id(), func(co *ConsumerOptions) {
+		co.Paused = true
+	})
 
-	suite.True(audioConsumer.Paused())
+	assert.True(t, audioConsumer.Paused())
 
 	data, _ := audioConsumer.Dump()
-	suite.True(data.Paused)
+	assert.True(t, data.Paused)
 
 	audioConsumer.Resume()
 
-	suite.False(audioConsumer.Paused())
+	assert.False(t, audioConsumer.Paused())
 
 	data, _ = audioConsumer.Dump()
-	suite.False(data.Paused)
+	assert.False(t, data.Paused)
 }
 
-func (suite *ConsumerTestingSuite) TestConsumerSetPreferredLayersSucceed() {
-	audioConsumer := suite.audioConsumer()
-	videoConsumer := suite.videoConsumer(false)
+func TestConsumerSetPreferredLayers(t *testing.T) {
+	transport := createPlainTransport(nil)
+	audioProducer := createAudioProducer(transport)
+	audioConsumer := createConsumer(transport, audioProducer.Id())
+	videoProducer := createVideoProducer(transport)
+	videoConsumer := createConsumer(transport, videoProducer.Id())
 
-	err := audioConsumer.SetPreferredLayers(ConsumerLayers{SpatialLayer: 1, TemporalLayer: 1})
-	suite.Require().NoError(err)
-	suite.Require().Nil(audioConsumer.PreferredLayers())
+	err := audioConsumer.SetPreferredLayers(ConsumerLayers{SpatialLayer: 1, TemporalLayer: ref[uint8](1)})
+	assert.NoError(t, err)
+	assert.Nil(t, audioConsumer.PreferredLayers())
 
-	err = videoConsumer.SetPreferredLayers(ConsumerLayers{SpatialLayer: 2, TemporalLayer: 3})
-	suite.Require().NoError(err)
-	suite.Require().Equal(&ConsumerLayers{SpatialLayer: 2, TemporalLayer: 0}, videoConsumer.PreferredLayers())
+	err = videoConsumer.SetPreferredLayers(ConsumerLayers{SpatialLayer: 2, TemporalLayer: ref[uint8](3)})
+	assert.NoError(t, err)
+	assert.Equal(t, &ConsumerLayers{SpatialLayer: 2, TemporalLayer: ref[uint8](3)}, videoConsumer.PreferredLayers())
+
+	err = videoConsumer.SetPreferredLayers(ConsumerLayers{SpatialLayer: 3})
+	assert.NoError(t, err)
+	assert.Equal(t, &ConsumerLayers{SpatialLayer: 3, TemporalLayer: ref[uint8](4)}, videoConsumer.PreferredLayers())
+
+	err = videoConsumer.SetPreferredLayers(ConsumerLayers{SpatialLayer: 3, TemporalLayer: ref[uint8](0)})
+	assert.NoError(t, err)
+	assert.Equal(t, &ConsumerLayers{SpatialLayer: 3, TemporalLayer: ref[uint8](0)}, videoConsumer.PreferredLayers())
+
+	err = videoConsumer.SetPreferredLayers(ConsumerLayers{SpatialLayer: 66, TemporalLayer: ref[uint8](66)})
+	assert.NoError(t, err)
+	assert.Equal(t, &ConsumerLayers{SpatialLayer: 3, TemporalLayer: ref[uint8](4)}, videoConsumer.PreferredLayers())
 }
 
-func (suite *ConsumerTestingSuite) TestConsumerSetPrioritySucceed() {
-	videoConsumer := suite.videoConsumer(false)
+func TestConsumerSetPriority(t *testing.T) {
+	transport := createPlainTransport(nil)
+	videoProducer := createVideoProducer(transport)
+	videoConsumer := createConsumer(transport, videoProducer.Id())
 
 	err := videoConsumer.SetPriority(2)
-	suite.Require().NoError(err)
-	suite.Require().EqualValues(2, videoConsumer.Priority())
+	assert.NoError(t, err)
+
+	assert.EqualValues(t, 2, videoConsumer.Priority())
+	err = videoConsumer.SetPriority(0)
+	assert.Error(t, err)
 }
 
-func (suite *ConsumerTestingSuite) TestConsumerSetPriorityRejectWithTypeError() {
-	videoConsumer := suite.videoConsumer(false)
-
-	err := videoConsumer.SetPriority(0)
-	suite.Require().IsType(TypeError{}, err)
-}
-
-func (suite *ConsumerTestingSuite) TestConsumerUnsetPrioritySucceed() {
-	videoConsumer := suite.videoConsumer(false)
+func TestConsumerUnsetPriority(t *testing.T) {
+	transport := createPlainTransport(nil)
+	videoProducer := createVideoProducer(transport)
+	videoConsumer := createConsumer(transport, videoProducer.Id())
 
 	err := videoConsumer.UnsetPriority()
-	suite.Require().NoError(err)
-	suite.Require().EqualValues(1, videoConsumer.Priority())
+	assert.NoError(t, err)
+	assert.EqualValues(t, 1, videoConsumer.Priority())
 }
 
-func (suite *ConsumerTestingSuite) TestEnableTraceEventSucceed() {
-	audioConsumer := suite.audioConsumer()
+func TestConsumerEnableTraceEvent(t *testing.T) {
+	transport := createPlainTransport(nil)
+	audioProducer := createAudioProducer(transport)
+	audioConsumer := createConsumer(transport, audioProducer.Id())
 
-	audioConsumer.EnableTraceEvent("rtp", "pli")
+	audioConsumer.EnableTraceEvent([]ConsumerTraceEventType{"rtp", "pli"})
 
 	dump, _ := audioConsumer.Dump()
-	suite.Require().Equal("rtp,pli", dump.TraceEventTypes)
+	assert.Equal(t, []ConsumerTraceEventType{"rtp", "pli"}, dump.TraceEventTypes)
 
-	audioConsumer.EnableTraceEvent()
-
-	dump, _ = audioConsumer.Dump()
-	suite.Require().Empty(dump.TraceEventTypes)
-
-	audioConsumer.EnableTraceEvent("nack", "FOO", "fir")
+	audioConsumer.EnableTraceEvent(nil)
 
 	dump, _ = audioConsumer.Dump()
-	suite.Require().Equal("nack,fir", dump.TraceEventTypes)
+	assert.Empty(t, dump.TraceEventTypes)
 
-	audioConsumer.EnableTraceEvent()
+	audioConsumer.EnableTraceEvent([]ConsumerTraceEventType{"nack", "FOO", "fir"})
 
 	dump, _ = audioConsumer.Dump()
-	suite.Require().Empty(dump.TraceEventTypes)
+	assert.Equal(t, []ConsumerTraceEventType{"nack", "fir"}, dump.TraceEventTypes)
 
+	audioConsumer.EnableTraceEvent(nil)
+
+	dump, _ = audioConsumer.Dump()
+	assert.Empty(t, dump.TraceEventTypes)
 }
 
-func (suite *ConsumerTestingSuite) TestConsumerEmitsProducerPauseAndProducerResume() {
-	audioConsumer := suite.audioConsumer()
-	observer := NewMockFunc(suite.T())
+func TestConsumerEmitsProducerPauseAndProducerResume(t *testing.T) {
+	mock := new(MockedHandler)
+	defer mock.AssertExpectations(t)
 
-	audioConsumer.On("producerpause", observer.Fn())
-	suite.audioProducer.Pause()
+	transport := createPlainTransport(nil)
+	audioProducer := createAudioProducer(transport)
+	audioConsumer := createConsumer(transport, audioProducer.Id())
 
-	observer.ExpectCalledTimes(1)
-	suite.False(audioConsumer.Paused())
-	suite.True(audioConsumer.ProducerPaused())
+	audioProducer.Pause()
 
-	audioConsumer.On("producerresume", observer.Fn())
-	suite.audioProducer.Resume()
+	time.Sleep(time.Millisecond)
 
-	observer.ExpectCalledTimes(1)
-	suite.False(audioConsumer.Paused())
-	suite.False(audioConsumer.ProducerPaused())
+	assert.False(t, audioConsumer.Paused())
+	assert.True(t, audioConsumer.ProducerPaused())
+
+	audioProducer.Resume()
+
+	time.Sleep(time.Millisecond)
+
+	assert.False(t, audioConsumer.Paused())
+	assert.False(t, audioConsumer.ProducerPaused())
 }
 
-func (suite *ConsumerTestingSuite) TestConsumerEmitsScore() {
-	audioConsumer := suite.audioConsumer()
+func TestConsumerEmitsScore(t *testing.T) {
+	mock := new(MockedHandler)
+	defer mock.AssertExpectations(t)
 
-	onScore := NewMockFunc(suite.T())
-	audioConsumer.On("score", onScore.Fn())
-
+	transport := createPlainTransport(nil)
+	audioProducer := createAudioProducer(transport)
+	audioConsumer := createConsumer(transport, audioProducer.Id())
+	audioConsumer.OnScore(mock.OnConsumeScore)
 	channel := audioConsumer.channel
-	subscriber, _ := channel.subscribers.Load(audioConsumer.Id())
-	emit := subscriber.(channelSubscriber)
 
-	emit("score", []byte(`{"producerScore": 10, "score": 9}`))
-	emit("score", []byte(`{"producerScore": 9, "score": 9}`))
-	emit("score", []byte(`{"producerScore": 8, "score": 8}`))
+	mock.On("OnConsumeScore", ConsumerScore{
+		ProducerScore: 10,
+		Score:         9,
+	})
+	mock.On("OnConsumeScore", ConsumerScore{
+		ProducerScore: 9,
+		Score:         9,
+	})
+	mock.On("OnConsumeScore", ConsumerScore{
+		ProducerScore: 8,
+		Score:         8,
+	})
 
-	onScore.ExpectCalledTimes(3)
-	suite.Equal(&ConsumerScore{ProducerScore: 8, Score: 8}, audioConsumer.Score())
+	channel.ProcessNotificationForTesting(&FbsNotification.NotificationT{
+		HandlerId: audioConsumer.Id(),
+		Event:     FbsNotification.EventCONSUMER_SCORE,
+		Body: &FbsNotification.BodyT{
+			Type: FbsNotification.BodyConsumer_ScoreNotification,
+			Value: &FbsConsumer.ScoreNotificationT{
+				Score: &FbsConsumer.ConsumerScoreT{
+					ProducerScore: 10,
+					Score:         9,
+				},
+			},
+		},
+	})
+	channel.ProcessNotificationForTesting(&FbsNotification.NotificationT{
+		HandlerId: audioConsumer.Id(),
+		Event:     FbsNotification.EventCONSUMER_SCORE,
+		Body: &FbsNotification.BodyT{
+			Type: FbsNotification.BodyConsumer_ScoreNotification,
+			Value: &FbsConsumer.ScoreNotificationT{
+				Score: &FbsConsumer.ConsumerScoreT{
+					ProducerScore: 9,
+					Score:         9,
+				},
+			},
+		},
+	})
+	channel.ProcessNotificationForTesting(&FbsNotification.NotificationT{
+		HandlerId: audioConsumer.Id(),
+		Event:     FbsNotification.EventCONSUMER_SCORE,
+		Body: &FbsNotification.BodyT{
+			Type: FbsNotification.BodyConsumer_ScoreNotification,
+			Value: &FbsConsumer.ScoreNotificationT{
+				Score: &FbsConsumer.ConsumerScoreT{
+					ProducerScore: 8,
+					Score:         8,
+				},
+			},
+		},
+	})
+
+	time.Sleep(time.Millisecond)
 }
 
-func (suite *ConsumerTestingSuite) TestConsumerClose() {
-	audioConsumer := suite.audioConsumer()
-	videoConsumer := suite.videoConsumer(true)
+func TestConsumerClose(t *testing.T) {
+	mock := new(MockedHandler)
+	defer mock.AssertExpectations(t)
 
-	onObserverClose := NewMockFunc(suite.T())
+	mock.On("OnClose").Times(1)
 
-	audioConsumer.Observer().Once("close", onObserverClose.Fn())
+	router := createRouter(nil)
+	transport := createWebRtcTransport(router)
+	audioProducer := createAudioProducer(transport)
+	audioConsumer := createConsumer(transport, audioProducer.Id())
+	audioConsumer.OnClose(mock.OnClose)
+	videoProducer := createVideoProducer(transport)
+
+	transport2 := createWebRtcTransport(router)
+	videoConsumer := createConsumer(transport2, videoProducer.Id(), func(co *ConsumerOptions) {
+		co.Paused = true
+	})
+
 	audioConsumer.Close()
 
-	onObserverClose.ExpectCalledTimes(1)
-	suite.True(audioConsumer.Closed())
+	consumer := router.GetConsumerById(audioConsumer.Id())
+	assert.Nil(t, consumer)
 
-	routerDump, _ := suite.router.Dump()
+	routerDump, err := router.Dump()
+	assert.NoError(t, err)
+	assert.True(t, slices.ContainsFunc(routerDump.MapProducerIdConsumerIds, func(kvs KeyValues[string, string]) bool {
+		return kvs.Key == audioProducer.Id()
+	}))
+	index := slices.IndexFunc(routerDump.MapConsumerIdProducerId, func(kvs KeyValue[string, string]) bool {
+		return kvs.Key == videoConsumer.Id()
+	})
+	require.Greater(t, index, -1)
+	require.Equal(t, videoProducer.Id(), routerDump.MapConsumerIdProducerId[index].Value)
+}
 
-	suite.Empty(routerDump.MapProducerIdConsumerIds[suite.audioProducer.Id()])
-	suite.Equal(suite.videoProducer.Id(), routerDump.MapConsumerIdProducerId[videoConsumer.Id()])
+func TestConsumerCloseByOthers(t *testing.T) {
+	t.Run("producer closed", func(t *testing.T) {
+		mock := new(MockedHandler)
+		defer mock.AssertExpectations(t)
 
-	videoPipeConsumer, _ := suite.transport2.Consume(ConsumerOptions{
-		ProducerId:      suite.videoProducer.Id(),
-		RtpCapabilities: suite.consumerDeviceCapabilities,
-		Pipe:            true,
+		mock.On("OnClose").Times(1)
+
+		router := createRouter(nil)
+		transport := createWebRtcTransport(router)
+		audioProducer := createAudioProducer(transport)
+		audioConsumer := createConsumer(transport, audioProducer.Id())
+		audioConsumer.OnClose(mock.OnClose)
+		audioProducer.Close()
+		time.Sleep(time.Millisecond)
+		assert.True(t, audioConsumer.Closed())
 	})
 
-	transportDump, _ := suite.transport2.Dump()
+	t.Run("transport closed", func(t *testing.T) {
+		mock := new(MockedHandler)
+		defer mock.AssertExpectations(t)
 
-	suite.Equal(suite.transport2.Id(), transportDump.Id)
-	suite.Empty(transportDump.ProducerIds)
-	suite.ElementsMatch([]string{videoConsumer.Id(), videoPipeConsumer.Id()}, transportDump.ConsumerIds)
-}
+		mock.On("OnClose").Times(1)
 
-func (suite *ConsumerTestingSuite) TestConsumerRejectIfClosed() {
-	audioConsumer := suite.audioConsumer()
-	audioConsumer.Close()
-
-	_, err := audioConsumer.Dump()
-	suite.Error(err)
-
-	_, err = audioConsumer.GetStats()
-
-	suite.Error(err)
-	suite.Error(audioConsumer.Pause())
-	suite.Error(audioConsumer.Resume())
-	suite.Error(audioConsumer.SetPreferredLayers(ConsumerLayers{}))
-	suite.Error(audioConsumer.RequestKeyFrame())
-}
-
-func (suite *ConsumerTestingSuite) TestConsumerEmitsProducerClosed() {
-	audioConsumer := suite.audioConsumer()
-
-	onObserverClose := NewMockFunc(suite.T())
-	audioConsumer.Observer().Once("close", onObserverClose.Fn())
-
-	observer := NewMockFunc(suite.T())
-
-	audioConsumer.On("producerclose", observer.Fn())
-
-	suite.audioProducer.Close()
-
-	observer.ExpectCalledTimes(1)
-	onObserverClose.ExpectCalledTimes(1)
-	suite.True(audioConsumer.Closed())
-}
-
-func (suite *ConsumerTestingSuite) TestConsumerEmitsTransportClosed() {
-	videoConsumer := suite.videoConsumer(false)
-
-	onObserverClose := NewMockFunc(suite.T())
-	videoConsumer.Observer().Once("close", onObserverClose.Fn())
-
-	observer := NewMockFunc(suite.T())
-	videoConsumer.On("transportclose", observer.Fn())
-
-	suite.transport2.Close()
-
-	observer.ExpectCalledTimes(1)
-	onObserverClose.ExpectCalledTimes(1)
-	suite.True(videoConsumer.Closed())
-
-	routerDump, _ := suite.router.Dump()
-
-	suite.Empty(routerDump.MapProducerIdConsumerIds[suite.audioProducer.Id()])
-	suite.Empty(routerDump.MapConsumerIdProducerId)
-}
-
-func (suite *ConsumerTestingSuite) audioConsumer() *Consumer {
-	audioConsumer, err := suite.transport2.Consume(ConsumerOptions{
-		ProducerId:      suite.audioProducer.Id(),
-		RtpCapabilities: suite.consumerDeviceCapabilities,
-		AppData:         H{"baz": "LOL"},
-	})
-	suite.Require().NoError(err)
-
-	return audioConsumer
-}
-
-func (suite *ConsumerTestingSuite) videoConsumer(paused bool) *Consumer {
-	videoConsumer, _ := suite.transport2.Consume(ConsumerOptions{
-		ProducerId:      suite.videoProducer.Id(),
-		RtpCapabilities: suite.consumerDeviceCapabilities,
-		Paused:          paused,
-		AppData:         H{"baz": "LOL"},
+		router := createRouter(nil)
+		transport := createWebRtcTransport(router)
+		audioProducer := createAudioProducer(transport)
+		audioConsumer := createConsumer(transport, audioProducer.Id())
+		audioConsumer.OnClose(mock.OnClose)
+		transport.Close()
+		assert.True(t, audioConsumer.Closed())
+		time.Sleep(time.Millisecond)
 	})
 
-	return videoConsumer
-}
+	t.Run("router closed", func(t *testing.T) {
+		mock := new(MockedHandler)
+		defer mock.AssertExpectations(t)
 
-func TestConsumerTestingSuite(t *testing.T) {
-	suite.Run(t, new(ConsumerTestingSuite))
+		mock.On("OnClose").Times(1)
+
+		router := createRouter(nil)
+		transport := createWebRtcTransport(router)
+		audioProducer := createAudioProducer(transport)
+		audioConsumer := createConsumer(transport, audioProducer.Id())
+		audioConsumer.OnClose(mock.OnClose)
+		router.Close()
+		assert.True(t, audioConsumer.Closed())
+	})
 }

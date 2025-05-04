@@ -1,9 +1,5 @@
 package mediasoup
 
-import (
-	"github.com/jiyeyuran/mediasoup-go/h264"
-)
-
 var supportedRtpCapabilities = RtpCapabilities{
 	Codecs: []*RtpCodecCapability{
 		{
@@ -11,7 +7,8 @@ var supportedRtpCapabilities = RtpCapabilities{
 			MimeType:  "audio/opus",
 			ClockRate: 48000,
 			Channels:  2,
-			RtcpFeedback: []RtcpFeedback{
+			RtcpFeedback: []*RtcpFeedback{
+				{Type: "nack"},
 				{Type: "transport-cc"},
 			},
 		},
@@ -25,7 +22,8 @@ var supportedRtpCapabilities = RtpCapabilities{
 				NumStreams:     2,
 				CoupledStreams: 2,
 			},
-			RtcpFeedback: []RtcpFeedback{
+			RtcpFeedback: []*RtcpFeedback{
+				{Type: "nack"},
 				{Type: "transport-cc"},
 			},
 		},
@@ -39,7 +37,8 @@ var supportedRtpCapabilities = RtpCapabilities{
 				NumStreams:     4,
 				CoupledStreams: 2,
 			},
-			RtcpFeedback: []RtcpFeedback{
+			RtcpFeedback: []*RtcpFeedback{
+				{Type: "nack"},
 				{Type: "transport-cc"},
 			},
 		},
@@ -53,7 +52,8 @@ var supportedRtpCapabilities = RtpCapabilities{
 				NumStreams:     5,
 				CoupledStreams: 3,
 			},
-			RtcpFeedback: []RtcpFeedback{
+			RtcpFeedback: []*RtcpFeedback{
+				{Type: "nack"},
 				{Type: "transport-cc"},
 			},
 		},
@@ -62,7 +62,7 @@ var supportedRtpCapabilities = RtpCapabilities{
 			MimeType:             "audio/PCMU",
 			PreferredPayloadType: 0,
 			ClockRate:            8000,
-			RtcpFeedback: []RtcpFeedback{
+			RtcpFeedback: []*RtcpFeedback{
 				{Type: "transport-cc"},
 			},
 		},
@@ -71,7 +71,7 @@ var supportedRtpCapabilities = RtpCapabilities{
 			MimeType:             "audio/PCMA",
 			PreferredPayloadType: 8,
 			ClockRate:            8000,
-			RtcpFeedback: []RtcpFeedback{
+			RtcpFeedback: []*RtcpFeedback{
 				{Type: "transport-cc"},
 			},
 		},
@@ -79,7 +79,7 @@ var supportedRtpCapabilities = RtpCapabilities{
 			Kind:      "audio",
 			MimeType:  "audio/ISAC",
 			ClockRate: 32000,
-			RtcpFeedback: []RtcpFeedback{
+			RtcpFeedback: []*RtcpFeedback{
 				{Type: "transport-cc"},
 			},
 		},
@@ -87,7 +87,7 @@ var supportedRtpCapabilities = RtpCapabilities{
 			Kind:      "audio",
 			MimeType:  "audio/ISAC",
 			ClockRate: 16000,
-			RtcpFeedback: []RtcpFeedback{
+			RtcpFeedback: []*RtcpFeedback{
 				{Type: "transport-cc"},
 			},
 		},
@@ -96,7 +96,7 @@ var supportedRtpCapabilities = RtpCapabilities{
 			MimeType:             "audio/G722",
 			PreferredPayloadType: 9,
 			ClockRate:            8000,
-			RtcpFeedback: []RtcpFeedback{
+			RtcpFeedback: []*RtcpFeedback{
 				{Type: "transport-cc"},
 			},
 		},
@@ -104,7 +104,7 @@ var supportedRtpCapabilities = RtpCapabilities{
 			Kind:      "audio",
 			MimeType:  "audio/iLBC",
 			ClockRate: 8000,
-			RtcpFeedback: []RtcpFeedback{
+			RtcpFeedback: []*RtcpFeedback{
 				{Type: "transport-cc"},
 			},
 		},
@@ -112,7 +112,7 @@ var supportedRtpCapabilities = RtpCapabilities{
 			Kind:      "audio",
 			MimeType:  "audio/SILK",
 			ClockRate: 24000,
-			RtcpFeedback: []RtcpFeedback{
+			RtcpFeedback: []*RtcpFeedback{
 				{Type: "transport-cc"},
 			},
 		},
@@ -120,7 +120,7 @@ var supportedRtpCapabilities = RtpCapabilities{
 			Kind:      "audio",
 			MimeType:  "audio/SILK",
 			ClockRate: 16000,
-			RtcpFeedback: []RtcpFeedback{
+			RtcpFeedback: []*RtcpFeedback{
 				{Type: "transport-cc"},
 			},
 		},
@@ -128,7 +128,7 @@ var supportedRtpCapabilities = RtpCapabilities{
 			Kind:      "audio",
 			MimeType:  "audio/SILK",
 			ClockRate: 12000,
-			RtcpFeedback: []RtcpFeedback{
+			RtcpFeedback: []*RtcpFeedback{
 				{Type: "transport-cc"},
 			},
 		},
@@ -136,7 +136,7 @@ var supportedRtpCapabilities = RtpCapabilities{
 			Kind:      "audio",
 			MimeType:  "audio/SILK",
 			ClockRate: 8000,
-			RtcpFeedback: []RtcpFeedback{
+			RtcpFeedback: []*RtcpFeedback{
 				{Type: "transport-cc"},
 			},
 		},
@@ -183,7 +183,7 @@ var supportedRtpCapabilities = RtpCapabilities{
 			Kind:      "video",
 			MimeType:  "video/VP8",
 			ClockRate: 90000,
-			RtcpFeedback: []RtcpFeedback{
+			RtcpFeedback: []*RtcpFeedback{
 				{Type: "nack"},
 				{Type: "nack", Parameter: "pli"},
 				{Type: "ccm", Parameter: "fir"},
@@ -195,7 +195,7 @@ var supportedRtpCapabilities = RtpCapabilities{
 			Kind:      "video",
 			MimeType:  "video/VP9",
 			ClockRate: 90000,
-			RtcpFeedback: []RtcpFeedback{
+			RtcpFeedback: []*RtcpFeedback{
 				{Type: "nack"},
 				{Type: "nack", Parameter: "pli"},
 				{Type: "ccm", Parameter: "fir"},
@@ -208,11 +208,9 @@ var supportedRtpCapabilities = RtpCapabilities{
 			MimeType:  "video/H264",
 			ClockRate: 90000,
 			Parameters: RtpCodecSpecificParameters{
-				RtpParameter: h264.RtpParameter{
-					LevelAsymmetryAllowed: 1,
-				},
+				LevelAsymmetryAllowed: 1,
 			},
-			RtcpFeedback: []RtcpFeedback{
+			RtcpFeedback: []*RtcpFeedback{
 				{Type: "nack"},
 				{Type: "nack", Parameter: "pli"},
 				{Type: "ccm", Parameter: "fir"},
@@ -225,11 +223,9 @@ var supportedRtpCapabilities = RtpCapabilities{
 			MimeType:  "video/H264-SVC",
 			ClockRate: 90000,
 			Parameters: RtpCodecSpecificParameters{
-				RtpParameter: h264.RtpParameter{
-					LevelAsymmetryAllowed: 1,
-				},
+				LevelAsymmetryAllowed: 1,
 			},
-			RtcpFeedback: []RtcpFeedback{
+			RtcpFeedback: []*RtcpFeedback{
 				{Type: "nack"},
 				{Type: "nack", Parameter: "pli"},
 				{Type: "ccm", Parameter: "fir"},
@@ -242,11 +238,9 @@ var supportedRtpCapabilities = RtpCapabilities{
 			MimeType:  "video/H265",
 			ClockRate: 90000,
 			Parameters: RtpCodecSpecificParameters{
-				RtpParameter: h264.RtpParameter{
-					LevelAsymmetryAllowed: 1,
-				},
+				LevelAsymmetryAllowed: 1,
 			},
-			RtcpFeedback: []RtcpFeedback{
+			RtcpFeedback: []*RtcpFeedback{
 				{Type: "nack"},
 				{Type: "nack", Parameter: "pli"},
 				{Type: "ccm", Parameter: "fir"},
@@ -261,42 +255,42 @@ var supportedRtpCapabilities = RtpCapabilities{
 			Uri:              "urn:ietf:params:rtp-hdrext:sdes:mid",
 			PreferredId:      1,
 			PreferredEncrypt: false,
-			Direction:        Direction_Sendrecv,
+			Direction:        MediaDirectionSendrecv,
 		},
 		{
 			Kind:             "video",
 			Uri:              "urn:ietf:params:rtp-hdrext:sdes:mid",
 			PreferredId:      1,
 			PreferredEncrypt: false,
-			Direction:        Direction_Sendrecv,
+			Direction:        MediaDirectionSendrecv,
 		},
 		{
 			Kind:             "video",
 			Uri:              "urn:ietf:params:rtp-hdrext:sdes:rtp-stream-id",
 			PreferredId:      2,
 			PreferredEncrypt: false,
-			Direction:        Direction_Recvonly,
+			Direction:        MediaDirectionRecvonly,
 		},
 		{
 			Kind:             "video",
 			Uri:              "urn:ietf:params:rtp-hdrext:sdes:repaired-rtp-stream-id",
 			PreferredId:      3,
 			PreferredEncrypt: false,
-			Direction:        Direction_Recvonly,
+			Direction:        MediaDirectionRecvonly,
 		},
 		{
 			Kind:             "audio",
 			Uri:              "http://www.webrtc.org/experiments/rtp-hdrext/abs-send-time",
 			PreferredId:      4,
 			PreferredEncrypt: false,
-			Direction:        Direction_Sendrecv,
+			Direction:        MediaDirectionSendrecv,
 		},
 		{
 			Kind:             "video",
 			Uri:              "http://www.webrtc.org/experiments/rtp-hdrext/abs-send-time",
 			PreferredId:      4,
 			PreferredEncrypt: false,
-			Direction:        Direction_Sendrecv,
+			Direction:        MediaDirectionSendrecv,
 		},
 		// NOTE: For audio we just enable transport-wide-cc-01 when receiving media.
 		{
@@ -304,14 +298,14 @@ var supportedRtpCapabilities = RtpCapabilities{
 			Uri:              "http://www.ietf.org/id/draft-holmer-rmcat-transport-wide-cc-extensions-01",
 			PreferredId:      5,
 			PreferredEncrypt: false,
-			Direction:        Direction_Recvonly,
+			Direction:        MediaDirectionRecvonly,
 		},
 		{
 			Kind:             "video",
 			Uri:              "http://www.ietf.org/id/draft-holmer-rmcat-transport-wide-cc-extensions-01",
 			PreferredId:      5,
 			PreferredEncrypt: false,
-			Direction:        Direction_Sendrecv,
+			Direction:        MediaDirectionSendrecv,
 		},
 		// NOTE: Remove this once framemarking draft becomes RFC.
 		{
@@ -319,49 +313,49 @@ var supportedRtpCapabilities = RtpCapabilities{
 			Uri:              "http://tools.ietf.org/html/draft-ietf-avtext-framemarking-07",
 			PreferredId:      6,
 			PreferredEncrypt: false,
-			Direction:        Direction_Sendrecv,
+			Direction:        MediaDirectionSendrecv,
 		},
 		{
 			Kind:             "video",
 			Uri:              "urn:ietf:params:rtp-hdrext:framemarking",
 			PreferredId:      7,
 			PreferredEncrypt: false,
-			Direction:        Direction_Sendrecv,
+			Direction:        MediaDirectionSendrecv,
 		},
 		{
 			Kind:             "audio",
 			Uri:              "urn:ietf:params:rtp-hdrext:ssrc-audio-level",
 			PreferredId:      10,
 			PreferredEncrypt: false,
-			Direction:        Direction_Sendrecv,
+			Direction:        MediaDirectionSendrecv,
 		},
 		{
 			Kind:             "video",
 			Uri:              "urn:3gpp:video-orientation",
 			PreferredId:      11,
 			PreferredEncrypt: false,
-			Direction:        Direction_Sendrecv,
+			Direction:        MediaDirectionSendrecv,
 		},
 		{
 			Kind:             "video",
 			Uri:              "urn:ietf:params:rtp-hdrext:toffset",
 			PreferredId:      12,
 			PreferredEncrypt: false,
-			Direction:        Direction_Sendrecv,
+			Direction:        MediaDirectionSendrecv,
 		},
 		{
 			Kind:             "video",
 			Uri:              "http://www.webrtc.org/experiments/rtp-hdrext/abs-capture-time",
 			PreferredId:      13,
 			PreferredEncrypt: false,
-			Direction:        Direction_Sendrecv,
+			Direction:        MediaDirectionSendrecv,
 		},
 		{
 			Kind:             "audio",
 			Uri:              "http://www.webrtc.org/experiments/rtp-hdrext/abs-capture-time",
 			PreferredId:      13,
 			PreferredEncrypt: false,
-			Direction:        Direction_Sendrecv,
+			Direction:        MediaDirectionSendrecv,
 		},
 	},
 }
@@ -372,7 +366,6 @@ func init() {
 	}
 }
 
-func GetSupportedRtpCapabilities() (rtpCapabilities RtpCapabilities) {
-	clone(supportedRtpCapabilities, &rtpCapabilities)
-	return
+func GetSupportedRtpCapabilities() RtpCapabilities {
+	return clone(supportedRtpCapabilities)
 }

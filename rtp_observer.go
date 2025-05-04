@@ -1,214 +1,256 @@
 package mediasoup
 
 import (
-	"sync"
-	"sync/atomic"
+	"log/slog"
 
-	"github.com/go-logr/logr"
+	FbsActiveSpeakerObserver "github.com/jiyeyuran/mediasoup-go/internal/FBS/ActiveSpeakerObserver"
+	FbsAudioLevelObserver "github.com/jiyeyuran/mediasoup-go/internal/FBS/AudioLevelObserver"
+	FbsNotification "github.com/jiyeyuran/mediasoup-go/internal/FBS/Notification"
+	FbsRequest "github.com/jiyeyuran/mediasoup-go/internal/FBS/Request"
+	FbsRouter "github.com/jiyeyuran/mediasoup-go/internal/FBS/Router"
+	FbsRtpObserver "github.com/jiyeyuran/mediasoup-go/internal/FBS/RtpObserver"
+	"github.com/jiyeyuran/mediasoup-go/internal/channel"
 )
 
-type IRtpObserver interface {
-	IEventEmitter
-
-	Id() string
-	Closed() bool
-	Paused() bool
-	Observer() IEventEmitter
-	Close()
-	routerClosed()
-	Pause()
-	Resume()
-	AddProducer(producerId string)
-	RemoveProducer(producerId string)
+type rtpObserverData struct {
+	Id              string
+	RouterId        string
+	AppData         H
+	GetProducerById func(string) *Producer
 }
 
-// RtpObserver is a base class inherited by ActiveSpeakerObserver and AudioLevelObserver.
-//
-//   - @emits routerclose
-//   - @emits @close
 type RtpObserver struct {
-	IEventEmitter
-	logger          logr.Logger
-	internal        internalData
-	channel         *Channel
-	payloadChannel  *PayloadChannel
-	closed          uint32
-	paused          bool
-	appData         interface{}
-	getProducerById func(string) *Producer
-	observer        IEventEmitter
-	locker          sync.Mutex
+	baseNotifier
+
+	data                    *rtpObserverData
+	sub                     *channel.Subscription
+	logger                  *slog.Logger
+	channel                 *channel.Channel
+	paused                  bool
+	closed                  bool
+	dominantSpeakerHandlers []func(AudioLevelObserverDominantSpeaker)
+	volumeHandlers          []func([]AudioLevelObserverVolume)
+	silenceHandlers         []func()
 }
 
-type rtpObserverParams struct {
-	internal        internalData
-	channel         *Channel
-	payloadChannel  *PayloadChannel
-	appData         interface{}
-	getProducerById func(string) *Producer
-}
-
-func newRtpObserver(params rtpObserverParams) IRtpObserver {
-	logger := NewLogger("RtpObserver")
-
-	logger.V(1).Info("constructor()", "internal", params.internal)
-
-	return &RtpObserver{
-		IEventEmitter: NewEventEmitter(),
-		logger:        logger,
-		// - .RouterId
-		// - .RtpObserverId
-		internal:        params.internal,
-		channel:         params.channel,
-		payloadChannel:  params.payloadChannel,
-		appData:         params.appData,
-		getProducerById: params.getProducerById,
-		observer:        NewEventEmitter(),
+func newRtpObserver(channel *channel.Channel, logger *slog.Logger, data *rtpObserverData) *RtpObserver {
+	r := &RtpObserver{
+		channel: channel,
+		logger:  logger,
+		data:    data,
 	}
+	r.handleWorkerNotifications()
+	return r
 }
 
-// Id returns RtpObserver id.
-func (o *RtpObserver) Id() string {
-	return o.internal.RtpObserverId
+func (r *RtpObserver) Id() string {
+	return r.data.Id
 }
 
-// Closed returns whether the RtpObserver is closed.
-func (o *RtpObserver) Closed() bool {
-	return atomic.LoadUint32(&o.closed) > 0
+func (r *RtpObserver) AppData() H {
+	return r.data.AppData
 }
 
-// Paused returns whether the RtpObserver is paused.
-func (o *RtpObserver) Paused() bool {
-	o.locker.Lock()
-	defer o.locker.Unlock()
+func (r *RtpObserver) Paused() bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
 
-	return o.paused
+	return r.paused
 }
 
-// AppData returns app custom data.
-func (o *RtpObserver) AppData() interface{} {
-	return o.appData
+func (r *RtpObserver) Closed() bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	return r.closed
 }
 
-// Deprecated
-//
-//   - @emits close
-//   - @emits pause
-//   - @emits resume
-//   - @emits addproducer - (producer *Producer)
-//   - @emits removeproducer - (producer *Producer)
-func (o *RtpObserver) Observer() IEventEmitter {
-	return o.observer
-}
-
-// Close the RtpObserver.
-func (o *RtpObserver) Close() {
-	if atomic.CompareAndSwapUint32(&o.closed, 0, 1) {
-		o.logger.V(1).Info("close()")
-
-		// Remove notification subscriptions.
-		o.channel.Unsubscribe(o.internal.RtpObserverId)
-		o.payloadChannel.Unsubscribe(o.internal.RtpObserverId)
-
-		reqData := H{"rtpObserverId": o.internal.RtpObserverId}
-
-		o.channel.Request("router.closeRtpObserver", o.internal, reqData)
-
-		o.Emit("@close")
-		o.RemoveAllListeners()
-
-		// Emit observer event.
-		o.observer.SafeEmit("close")
-		o.observer.RemoveAllListeners()
+func (r *RtpObserver) Close() error {
+	r.mu.Lock()
+	if r.closed {
+		r.mu.Unlock()
+		return nil
 	}
-}
+	r.logger.Debug("Close()")
 
-// routerClosed is called when router was closed.
-func (o *RtpObserver) routerClosed() {
-	if atomic.CompareAndSwapUint32(&o.closed, 0, 1) {
-		o.logger.V(1).Info("routerClosed()")
-
-		// Remove notification subscriptions.
-		o.channel.Unsubscribe(o.internal.RtpObserverId)
-		o.payloadChannel.Unsubscribe(o.internal.RtpObserverId)
-
-		o.Emit("routerclose")
-		o.RemoveAllListeners()
-
-		// Emit observer event.
-		o.observer.SafeEmit("close")
-		o.observer.RemoveAllListeners()
+	_, err := r.channel.Request(&FbsRequest.RequestT{
+		Method:    FbsRequest.MethodROUTER_CLOSE_RTPOBSERVER,
+		HandlerId: r.data.RouterId,
+		Body: &FbsRequest.BodyT{
+			Type: FbsRequest.BodyRouter_CloseRtpObserverRequest,
+			Value: &FbsRouter.CloseRtpObserverRequestT{
+				RtpObserverId: r.data.Id,
+			},
+		},
+	})
+	if err != nil {
+		r.mu.Unlock()
+		return err
 	}
+	r.closed = true
+	r.mu.Unlock()
+
+	r.cleanupAfterClosed()
+	return nil
 }
 
 // Pause the RtpObserver.
-func (o *RtpObserver) Pause() {
-	o.locker.Lock()
-	defer o.locker.Unlock()
+func (r *RtpObserver) Pause() error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
 
-	o.logger.V(1).Info("pause()")
-
-	wasPaused := o.paused
-
-	o.channel.Request("rtpObserver.pause", o.internal)
-
-	o.paused = true
-
-	// Emit observer event.
-	if !wasPaused {
-		o.observer.SafeEmit("pause")
+	_, err := r.channel.Request(&FbsRequest.RequestT{
+		Method:    FbsRequest.MethodRTPOBSERVER_PAUSE,
+		HandlerId: r.Id(),
+	})
+	if err != nil {
+		return err
 	}
+	r.paused = true
+	return nil
 }
 
 // Resume the RtpObserver.
-func (o *RtpObserver) Resume() {
-	o.locker.Lock()
-	defer o.locker.Unlock()
+func (r *RtpObserver) Resume() error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
 
-	o.logger.V(1).Info("resume()")
-
-	wasPaused := o.paused
-
-	o.channel.Request("rtpObserver.resume", o.internal)
-
-	o.paused = false
-
-	// Emit observer event.
-	if wasPaused {
-		o.observer.SafeEmit("resume")
+	_, err := r.channel.Request(&FbsRequest.RequestT{
+		Method:    FbsRequest.MethodRTPOBSERVER_RESUME,
+		HandlerId: r.Id(),
+	})
+	if err != nil {
+		return err
 	}
+	r.paused = false
+	return nil
 }
 
 // AddProducer add a Producer to the RtpObserver.
-func (o *RtpObserver) AddProducer(producerId string) {
-	o.locker.Lock()
-	defer o.locker.Unlock()
-
-	o.logger.V(1).Info("addProducer()")
-
-	producer := o.getProducerById(producerId)
-	internal := o.internal
-	internal.ProducerId = producerId
-
-	o.channel.Request("rtpObserver.addProducer", internal)
-
-	// Emit observer event.
-	o.observer.SafeEmit("addproducer", producer)
+func (r *RtpObserver) AddProducer(producerId string) error {
+	_, err := r.channel.Request(&FbsRequest.RequestT{
+		Method:    FbsRequest.MethodRTPOBSERVER_ADD_PRODUCER,
+		HandlerId: r.Id(),
+		Body: &FbsRequest.BodyT{
+			Type: FbsRequest.BodyRtpObserver_AddProducerRequest,
+			Value: &FbsRtpObserver.AddProducerRequestT{
+				ProducerId: producerId,
+			},
+		},
+	})
+	return err
 }
 
 // RemoveProducer remove a Producer from the RtpObserver.
-func (o *RtpObserver) RemoveProducer(producerId string) {
-	o.locker.Lock()
-	defer o.locker.Unlock()
+func (r *RtpObserver) RemoveProducer(producerId string) error {
+	_, err := r.channel.Request(&FbsRequest.RequestT{
+		Method:    FbsRequest.MethodRTPOBSERVER_REMOVE_PRODUCER,
+		HandlerId: r.Id(),
+		Body: &FbsRequest.BodyT{
+			Type: FbsRequest.BodyRtpObserver_RemoveProducerRequest,
+			Value: &FbsRtpObserver.RemoveProducerRequestT{
+				ProducerId: producerId,
+			},
+		},
+	})
+	return err
+}
 
-	o.logger.V(1).Info("removeProducer()")
+// HandleAudioLevelObserverDominantSpeaker add handler on "dominantspeaker" event
+func (r *RtpObserver) OnDominantSpeaker(handler func(AudioLevelObserverDominantSpeaker)) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
 
-	producer := o.getProducerById(producerId)
-	internal := o.internal
-	internal.ProducerId = producerId
+	r.dominantSpeakerHandlers = append(r.dominantSpeakerHandlers, handler)
+}
 
-	o.channel.Request("rtpObserver.removeProducer", internal)
+// HandleVolume add handler on "volumes" event
+func (r *RtpObserver) OnVolume(handler func([]AudioLevelObserverVolume)) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
 
-	// Emit observer event.
-	o.observer.SafeEmit("removeproducer", producer)
+	r.volumeHandlers = append(r.volumeHandlers, handler)
+}
+
+// HandleSilence add handler on "silence" event
+func (r *RtpObserver) OnSilence(handler func()) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	r.silenceHandlers = append(r.silenceHandlers, handler)
+}
+
+func (r *RtpObserver) handleWorkerNotifications() {
+	r.sub = r.channel.Subscribe(r.Id(), func(event FbsNotification.Event, body *FbsNotification.BodyT) {
+		switch event {
+		case FbsNotification.EventACTIVESPEAKEROBSERVER_DOMINANT_SPEAKER:
+			notification := body.Value.(*FbsActiveSpeakerObserver.DominantSpeakerNotificationT)
+
+			r.mu.Lock()
+			handlers := r.dominantSpeakerHandlers
+			r.mu.Unlock()
+
+			producer := r.data.GetProducerById(notification.ProducerId)
+			if producer == nil {
+				break
+			}
+
+			for _, handler := range handlers {
+				handler(AudioLevelObserverDominantSpeaker{
+					ProducerId: notification.ProducerId,
+				})
+			}
+
+		case FbsNotification.EventAUDIOLEVELOBSERVER_VOLUMES:
+			notification := body.Value.(*FbsAudioLevelObserver.VolumesNotificationT)
+
+			r.mu.Lock()
+			handlers := r.volumeHandlers
+			r.mu.Unlock()
+
+			volumes := make([]AudioLevelObserverVolume, 0, len(notification.Volumes))
+
+			for _, volume := range notification.Volumes {
+				producer := r.data.GetProducerById(volume.ProducerId)
+				if producer == nil {
+					continue
+				}
+				volumes = append(volumes, AudioLevelObserverVolume{
+					ProducerId: volume.ProducerId,
+					Volume:     volume.Volume,
+				})
+			}
+			for _, handler := range handlers {
+				handler(volumes)
+			}
+
+		case FbsNotification.EventAUDIOLEVELOBSERVER_SILENCE:
+			r.mu.Lock()
+			handlers := r.silenceHandlers
+			r.mu.Unlock()
+			for _, handler := range handlers {
+				handler()
+			}
+
+		default:
+			r.logger.Warn("ignoring unknown event in RtpObserver", "event", event)
+		}
+	})
+}
+
+func (r *RtpObserver) routerClosed() {
+	r.mu.Lock()
+	if r.closed {
+		r.mu.Unlock()
+		return
+	}
+	r.closed = true
+	r.mu.Unlock()
+
+	r.cleanupAfterClosed()
+}
+
+func (r *RtpObserver) cleanupAfterClosed() {
+	r.sub.Unsubscribe()
+	r.notifyClosed()
 }
