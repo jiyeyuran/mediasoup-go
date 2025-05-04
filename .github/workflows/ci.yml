@@ -1,0 +1,42 @@
+name: Go CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    name: Run Tests with mediasoup-worker
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: 1.21
+
+      - name: Cache Go modules
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/go-build
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - name: Download mediasoup-worker
+        run: |
+          mkdir -p .mediasoup
+          curl -L -o .mediasoup/worker.tgz https://github.com/versatica/mediasoup/releases/download/3.15.7/mediasoup-worker-3.15.7-linux-x64-kernel6.tgz
+          tar -xzf .mediasoup/worker.tgz -C .mediasoup
+
+      - name: Run Tests
+        env:
+          MEDIASOUP_WORKER_BIN: ${{ github.workspace }}/.mediasoup/mediasoup-worker
+        run: go test -v ./...

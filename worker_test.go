@@ -14,7 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-var WorkerBinPath = os.Getenv("WORKER_BIN")
+var WorkerBinPath = os.Getenv("MEDIASOUP_WORKER_BIN")
 
 func init() {
 	if len(WorkerBinPath) == 0 {
