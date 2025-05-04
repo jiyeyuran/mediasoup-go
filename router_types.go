@@ -36,18 +36,6 @@ type PipeToRouterOptions struct {
 	EnableSrtp bool `json:"enableSrtp,omitempty"`
 }
 
-// PipeToRouterListen represents either PipeToRouterListenInfo or PipeToRouterListenIp
-type PipeToRouterListen struct {
-	// ListenInfo holds the transport listen info
-	ListenInfo *TransportListenInfo
-}
-
-// PipeToRouterListenIp defines IP listening configuration
-type PipeToRouterListenIp struct {
-	// ListenIp used in the PipeTransport pair. Default '127.0.0.1'
-	ListenIp string
-}
-
 // PipeToRouterResult contains the result of piping router
 type PipeToRouterResult struct {
 	// PipeConsumer is the Consumer created in the current Router

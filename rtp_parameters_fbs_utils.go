@@ -2,6 +2,7 @@ package mediasoup
 
 import (
 	"encoding/json"
+	"math"
 
 	FbsRtpParameters "github.com/jiyeyuran/mediasoup-go/internal/FBS/RtpParameters"
 	FbsRtpStream "github.com/jiyeyuran/mediasoup-go/internal/FBS/RtpStream"
@@ -41,28 +42,6 @@ func parseRtpCodecParameters(codec *FbsRtpParameters.RtpCodecParametersT) *RtpCo
 
 	parameters := RtpCodecSpecificParameters{}
 
-	// numbers := map[string]any{
-	// 	"packetization-mode":      &parameters.PacketizationMode,
-	// 	"level-asymmetry-allowed": &parameters.LevelAsymmetryAllowed,
-	// 	"apt":                     &parameters.Apt,
-	// 	"sprop-stereo":            &parameters.SpropStereo,
-	// 	"useinbandfec":            &parameters.Useinbandfec,
-	// 	"usedtx":                  &parameters.Usedtx,
-	// 	"maxplaybackrate":         &parameters.Maxplaybackrate,
-	// 	"maxaveragebitrate":       &parameters.Maxaveragebitrate,
-	// 	"ptime":                   &parameters.Ptime,
-	// 	"num_streams":             &parameters.NumStreams,
-	// 	"coupled_streams":         &parameters.CoupledStreams,
-	// 	"x-google-start-bitrate":  &parameters.XGoogleStartBitrate,
-	// 	"x-google-max-bitrate":    &parameters.XGoogleMaxBitrate,
-	// 	"x-google-min-bitrate":    &parameters.XGoogleMinBitrate,
-	// }
-	// strings := map[string]any{
-	// 	"profile-level-id": &parameters.ProfileLevelId,
-	// 	"profile-id":       &parameters.ProfileId,
-	// 	"channel_mapping":  &parameters.ChannelMapping,
-	// }
-
 	if len(h) > 0 {
 		data, _ := json.Marshal(h)
 		json.Unmarshal(data, &parameters)
@@ -78,57 +57,68 @@ func parseRtpCodecParameters(codec *FbsRtpParameters.RtpCodecParametersT) *RtpCo
 	}
 }
 
-func convertParametersParameter(params *RtpCodecSpecificParameters) []*FbsRtpParameters.ParameterT {
-	var parameters []*FbsRtpParameters.ParameterT
+func convertRtpCodecSpecificParameters(params *RtpCodecSpecificParameters) []*FbsRtpParameters.ParameterT {
+	h := H{}
+	data, _ := json.Marshal(params)
+	json.Unmarshal(data, &h)
 
-	// h := H{}
-	// data, _ := json.Marshal(params)
-	// json.Unmarshal(data, &h)
+	parameters := make([]*FbsRtpParameters.ParameterT, 0, len(h))
 
-	numbers := map[string]uint32{
-		"packetization-mode":      params.PacketizationMode,
-		"level-asymmetry-allowed": params.LevelAsymmetryAllowed,
-		"apt":                     uint32(params.Apt),
-		"sprop-stereo":            uint32(params.SpropStereo),
-		"useinbandfec":            uint32(params.Useinbandfec),
-		"usedtx":                  uint32(params.Usedtx),
-		"maxplaybackrate":         params.Maxplaybackrate,
-		"maxaveragebitrate":       params.Maxaveragebitrate,
-		"ptime":                   params.Ptime,
-		"num_streams":             params.NumStreams,
-		"coupled_streams":         params.CoupledStreams,
-		"x-google-start-bitrate":  params.XGoogleStartBitrate,
-		"x-google-max-bitrate":    params.XGoogleMaxBitrate,
-		"x-google-min-bitrate":    params.XGoogleMinBitrate,
-	}
-	strings := map[string]string{
-		"profile-level-id": params.ProfileLevelId,
-		"profile-id":       params.ProfileId,
-		"channel_mapping":  params.ChannelMapping,
-	}
-
-	for k, v := range numbers {
-		if v > 0 {
-			parameters = append(parameters, &FbsRtpParameters.ParameterT{
-				Name: k,
-				Value: &FbsRtpParameters.ValueT{
-					Type: FbsRtpParameters.ValueInteger32,
-					Value: &FbsRtpParameters.Integer32T{
-						Value: int32(v),
-					},
-				},
-			})
-		}
-	}
-
-	for k, v := range strings {
-		if len(v) > 0 {
+	for k, v := range h {
+		switch val := v.(type) {
+		case string:
 			parameters = append(parameters, &FbsRtpParameters.ParameterT{
 				Name: k,
 				Value: &FbsRtpParameters.ValueT{
 					Type: FbsRtpParameters.ValueString,
 					Value: &FbsRtpParameters.StringT{
-						Value: v,
+						Value: val,
+					},
+				},
+			})
+
+		case bool:
+			parameters = append(parameters, &FbsRtpParameters.ParameterT{
+				Name: k,
+				Value: &FbsRtpParameters.ValueT{
+					Type: FbsRtpParameters.ValueBoolean,
+					Value: &FbsRtpParameters.BooleanT{
+						Value: orElse[byte](val, 1, 0),
+					},
+				},
+			})
+
+		case float64:
+			// handle Integer.
+			if math.Floor(val) == val {
+				parameters = append(parameters, &FbsRtpParameters.ParameterT{
+					Name: k,
+					Value: &FbsRtpParameters.ValueT{
+						Type: FbsRtpParameters.ValueInteger32,
+						Value: &FbsRtpParameters.Integer32T{
+							Value: int32(val),
+						},
+					},
+				})
+			} else {
+				parameters = append(parameters, &FbsRtpParameters.ParameterT{
+					Name: k,
+					Value: &FbsRtpParameters.ValueT{
+						Type: FbsRtpParameters.ValueDouble,
+						Value: &FbsRtpParameters.DoubleT{
+							Value: val,
+						},
+					},
+				})
+			}
+
+		case []int32:
+			parameters = append(parameters, &FbsRtpParameters.ParameterT{
+				Name: k,
+				Value: &FbsRtpParameters.ValueT{
+					Type: FbsRtpParameters.ValueInteger32Array,
+					Value: &FbsRtpParameters.Integer32ArrayT{
+						Value: v.([]int32),
 					},
 				},
 			})

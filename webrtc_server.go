@@ -66,7 +66,6 @@ func (s *WebRtcServer) Close() error {
 		s.mu.Unlock()
 		return nil
 	}
-	s.closed = true
 	_, err := s.channel.Request(&FbsRequest.RequestT{
 		Method: FbsRequest.MethodWORKER_WEBRTCSERVER_CLOSE,
 		Body: &FbsRequest.BodyT{
@@ -80,14 +79,15 @@ func (s *WebRtcServer) Close() error {
 		s.mu.Unlock()
 		return err
 	}
+	s.closed = true
+	s.mu.Unlock()
+
 	transports := []*Transport{}
 	s.webRtcTransports.Range(func(key, value any) bool {
+		s.webRtcTransports.Delete(key)
 		transports = append(transports, value.(*Transport))
-		value.(*Transport).listenServerClosed()
 		return true
 	})
-	s.webRtcTransports = sync.Map{}
-	s.mu.Unlock()
 
 	for _, transport := range transports {
 		transport.listenServerClosed()

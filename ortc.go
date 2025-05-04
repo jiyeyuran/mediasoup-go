@@ -22,23 +22,6 @@ type matchOptions struct {
 	modify bool
 }
 
-type RtpMapping struct {
-	Codecs    []*RtpMappingCodec    `json:"codecs,omitempty"`
-	Encodings []*RtpMappingEncoding `json:"encodings,omitempty"`
-}
-
-type RtpMappingCodec struct {
-	PayloadType       uint8 `json:"payloadType"`
-	MappedPayloadType uint8 `json:"mappedPayloadType"`
-}
-
-type RtpMappingEncoding struct {
-	Rid             string  `json:"rid,omitempty"`
-	Ssrc            *uint32 `json:"ssrc,omitempty"`
-	ScalabilityMode string  `json:"scalabilityMode,omitempty"`
-	MappedSsrc      uint32  `json:"mappedSsrc"`
-}
-
 // validateRtpCapabilities validates RtpCapabilities. It may modify given data by adding missing
 // fields with default values.
 func validateRtpCapabilities(params *RtpCapabilities) (err error) {

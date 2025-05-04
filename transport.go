@@ -659,7 +659,7 @@ func (t *Transport) Produce(options *ProducerOptions) (*Producer, error) {
 								PayloadType: item.PayloadType,
 								ClockRate:   item.ClockRate,
 								Channels:    orElse(item.Channels > 0, ref(item.Channels), nil),
-								Parameters:  convertParametersParameter(&item.Parameters),
+								Parameters:  convertRtpCodecSpecificParameters(&item.Parameters),
 								RtcpFeedback: collect(item.RtcpFeedback, func(item *RtcpFeedback) *FbsRtpParameters.RtcpFeedbackT {
 									return &FbsRtpParameters.RtcpFeedbackT{
 										Type:      item.Type,
@@ -674,7 +674,7 @@ func (t *Transport) Produce(options *ProducerOptions) (*Producer, error) {
 								Uri:        convertHeaderExtensionUri(item.Uri),
 								Id:         item.Id,
 								Encrypt:    item.Encrypt,
-								Parameters: convertParametersParameter(&item.Parameters),
+								Parameters: convertRtpCodecSpecificParameters(&item.Parameters),
 							}
 						}),
 					Encodings: collect(rtpParameters.Encodings,
@@ -812,7 +812,7 @@ func (t *Transport) Consume(options *ConsumerOptions) (*Consumer, error) {
 								PayloadType: item.PayloadType,
 								ClockRate:   item.ClockRate,
 								Channels:    orElse(item.Channels > 0, ref(item.Channels), nil),
-								Parameters:  convertParametersParameter(&item.Parameters),
+								Parameters:  convertRtpCodecSpecificParameters(&item.Parameters),
 								RtcpFeedback: collect(item.RtcpFeedback,
 									func(item *RtcpFeedback) *FbsRtpParameters.RtcpFeedbackT {
 										return &FbsRtpParameters.RtcpFeedbackT{
@@ -828,7 +828,7 @@ func (t *Transport) Consume(options *ConsumerOptions) (*Consumer, error) {
 								Uri:        convertHeaderExtensionUri(item.Uri),
 								Id:         item.Id,
 								Encrypt:    item.Encrypt,
-								Parameters: convertParametersParameter(&item.Parameters),
+								Parameters: convertRtpCodecSpecificParameters(&item.Parameters),
 							}
 						}),
 					Encodings: collect(rtpParameters.Encodings,
