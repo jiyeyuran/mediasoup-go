@@ -52,15 +52,15 @@ type ConsumerOptions struct {
 
 // ConsumerScore define "score" event data
 type ConsumerScore struct {
-	// Score of the RTP stream of the c
-	Score uint8 `json:"score"`
+	// Score of the RTP stream of the consumer.
+	Score int `json:"score"`
 
 	// Score of the currently selected RTP stream of the producer.
-	ProducerScore uint8 `json:"producerScore"`
+	ProducerScore int `json:"producerScore"`
 
 	// ProducerScores is the scores of all RTP streams in the producer ordered
 	// by encoding (just useful when the producer uses simulcast).
-	ProducerScores []uint8 `json:"producerScores,omitempty"`
+	ProducerScores []int `json:"producerScores,omitempty"`
 }
 
 type ConsumerLayers struct {
@@ -96,7 +96,7 @@ type BaseConsumerDump struct {
 	Kind                       MediaKind                `json:"kind"`
 	RtpParameters              *RtpParameters           `json:"rtpParameters"`
 	ConsumableRtpEncodings     []*RtpEncodingParameters `json:"consumableRtpEncodings,omitempty"`
-	SupportedCodecPayloadTypes []uint8                  `json:"supportedCodecPayloadTypes"`
+	SupportedCodecPayloadTypes []int                    `json:"supportedCodecPayloadTypes"`
 	TraceEventTypes            []ConsumerTraceEventType `json:"traceEventTypes"`
 	Paused                     bool                     `json:"paused"`
 	ProducerPaused             bool                     `json:"producerPaused"`
@@ -164,7 +164,7 @@ type RtxStreamParameters struct {
 	Cname       string `json:"cname"`
 }
 
-type ConsumerStat = RtpStreamSendStats
+type ConsumerStat = RtpStreamStats
 
 // ConsumerTraceEventData is "trace" event data.
 type ConsumerTraceEventData struct {

@@ -394,7 +394,7 @@ func (w *Worker) CreateWebRtcServer(options *WebRtcServerOptions) (*WebRtcServer
 	for i, info := range options.ListenInfos {
 		req.ListenInfos[i] = &FbsTransport.ListenInfoT{
 			Protocol:         orElse(info.Protocol == TransportProtocolTCP, FbsTransport.ProtocolTCP, FbsTransport.ProtocolUDP),
-			Ip:               info.IP,
+			Ip:               info.Ip,
 			Port:             info.Port,
 			AnnouncedAddress: info.AnnouncedAddress,
 			SendBufferSize:   info.SendBufferSize,

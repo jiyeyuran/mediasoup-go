@@ -9,7 +9,6 @@ import (
 	FbsProducer "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/Producer"
 	FbsRequest "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/Request"
 	FbsRtpParameters "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/RtpParameters"
-	FbsRtpStream "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/RtpStream"
 	FbsTransport "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/Transport"
 
 	"github.com/jiyeyuran/mediasoup-go/v2/internal/channel"
@@ -191,27 +190,7 @@ func (p *Producer) GetStats() ([]*ProducerStat, error) {
 	}
 	resp := msg.(*FbsProducer.GetStatsResponseT)
 
-	return collect(resp.Stats, func(stat *FbsRtpStream.StatsT) *ProducerStat {
-		recvStats := stat.Data.Value.(*FbsRtpStream.RecvStatsT)
-		baseStats := recvStats.Base.Data.Value.(*FbsRtpStream.BaseStatsT)
-		bitrateByLayer := ifElse(len(recvStats.BitrateByLayer) > 0, func() map[string]uint32 {
-			return make(map[string]uint32)
-		})
-
-		for _, layer := range recvStats.BitrateByLayer {
-			bitrateByLayer[layer.Layer] = layer.Bitrate
-		}
-
-		return &ProducerStat{
-			BaseRtpStreamStats: parseBaseRtpStreamStats(baseStats),
-			Type:               "inbound-rtp",
-			Jitter:             recvStats.Jitter,
-			PacketCount:        recvStats.PacketCount,
-			ByteCount:          recvStats.ByteCount,
-			Bitrate:            recvStats.Bitrate,
-			BitrateByLayer:     bitrateByLayer,
-		}
-	}), nil
+	return collect(resp.Stats, parseRtpStreamStats), nil
 }
 
 // Pause the producer.

@@ -18,7 +18,7 @@ func TestSctpMessage(t *testing.T) {
 	transport, err := router.CreatePlainTransport(&PlainTransportOptions{
 		ListenInfo: TransportListenInfo{
 			Protocol:         TransportProtocolUDP,
-			IP:               "0.0.0.0",
+			Ip:               "0.0.0.0",
 			AnnouncedAddress: "127.0.0.1",
 		},
 		Comedia:    true,

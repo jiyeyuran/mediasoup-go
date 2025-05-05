@@ -54,7 +54,7 @@ type PlainTransportOptions struct {
 	// RtcpMux define wether use RTCP-mux (RTP and RTCP in the same port). Default true.
 	RtcpMux *bool `json:"rtcpMux,omitempty"`
 
-	// Comedia define whether remote IP:port should be auto-detected based on first RTP/RTCP
+	// Comedia define whether remote ip:port should be auto-detected based on first RTP/RTCP
 	// packet received. If enabled, connect() method must not be called unless
 	// SRTP is enabled. If so, it must be called with just remote SRTP parameters.
 	// Default false.
@@ -152,8 +152,8 @@ type TransportListenInfo struct {
 	// Protocol network protocol
 	Protocol TransportProtocol `json:"protocol"`
 
-	// IP listening IPv4 or IPv6
-	IP string `json:"ip"`
+	// Ip listening IPv4 or IPv6
+	Ip string `json:"ip"`
 
 	// AnnouncedAddress announced IPv4, IPv6 or hostname (useful when running mediasoup behind NAT with private IP)
 	AnnouncedAddress string `json:"announcedAddress,omitempty"`
@@ -314,15 +314,15 @@ type SctpListener struct {
 	StreamIdTable []KeyValue[uint16, string] `json:"streamIdTable,omitempty"`
 }
 
-type TransportStats struct {
-	BaseTransportStats
-	*WebRtcTransportStats
-	*PlainTransportStats
-	*PipeTransportStats
+type TransportStat struct {
+	BaseTransportStat
+	*WebRtcTransportStat
+	*PlainTransportStat
+	*PipeTransportStat
 }
 
-// BaseTransportStats represents base transport statistics.
-type BaseTransportStats struct {
+// BaseTransportStat represents base transport statistics.
+type BaseTransportStat struct {
 	Type                     string    `json:"type"`
 	TransportId              string    `json:"transportId"`
 	Timestamp                uint64    `json:"timestamp"`
@@ -350,21 +350,21 @@ type BaseTransportStats struct {
 	RtpPacketLossSent        *float64  `json:"rtpPacketLossSent,omitempty"`
 }
 
-type WebRtcTransportStats struct {
+type WebRtcTransportStat struct {
 	IceRole          string          `json:"iceRole"`
 	IceState         IceState        `json:"iceState"`
 	DtlsState        DtlsState       `json:"dtlsState"`
 	IceSelectedTuple *TransportTuple `json:"iceSelectedTuple,omitempty"`
 }
 
-type PlainTransportStats struct {
+type PlainTransportStat struct {
 	RtcpMux   bool            `json:"rtcp_mux"`
 	Comedia   bool            `json:"comedia"`
 	Tuple     TransportTuple  `json:"tuple"`
 	RtcpTuple *TransportTuple `json:"rtcpTuple,omitempty"`
 }
 
-type PipeTransportStats struct {
+type PipeTransportStat struct {
 	Tuple TransportTuple `json:"tuple"`
 }
 

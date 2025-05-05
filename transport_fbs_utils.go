@@ -18,7 +18,7 @@ func parseTransportTuple(tuple *FbsTransport.TupleT) *TransportTuple {
 	return &TransportTuple{
 		LocalAddress: tuple.LocalAddress,
 		LocalPort:    tuple.LocalPort,
-		Protocol:     TransportProtocol(tuple.Protocol),
+		Protocol:     TransportProtocol(strings.ToLower(tuple.Protocol.String())),
 		RemoteIp:     tuple.RemoteIp,
 		RemotePort:   tuple.RemotePort,
 	}
@@ -85,7 +85,7 @@ func convertRtpEncodingParameters(encoding *RtpEncodingParameters) *FbsRtpParame
 func convertTransportListenInfo(info TransportListenInfo) *FbsTransport.ListenInfoT {
 	return &FbsTransport.ListenInfoT{
 		Protocol:         orElse(info.Protocol == TransportProtocolTCP, FbsTransport.ProtocolTCP, FbsTransport.ProtocolUDP),
-		Ip:               info.IP,
+		Ip:               info.Ip,
 		AnnouncedAddress: info.AnnouncedAddress,
 		Port:             info.Port,
 		PortRange: &FbsTransport.PortRangeT{
@@ -121,7 +121,8 @@ func convertDtlsFingerprint(item DtlsFingerprint) *FbsWebRtcTransport.Fingerprin
 		algorithm = FbsWebRtcTransport.FingerprintAlgorithmSHA512
 
 	default:
-		algorithm = FbsWebRtcTransport.EnumValuesFingerprintAlgorithm[strings.ToUpper(item.Algorithm)]
+		key := strings.ToUpper(strings.Join(strings.Split(item.Algorithm, "-"), ""))
+		algorithm = FbsWebRtcTransport.EnumValuesFingerprintAlgorithm[key]
 	}
 
 	// avoid mediasoup crash
@@ -145,6 +146,9 @@ func parseDtlsFingerprint(item *FbsWebRtcTransport.FingerprintT) DtlsFingerprint
 	case FbsWebRtcTransport.FingerprintAlgorithmSHA224:
 		algorithm = "sha-224"
 
+	case FbsWebRtcTransport.FingerprintAlgorithmSHA256:
+		algorithm = "sha-256"
+
 	case FbsWebRtcTransport.FingerprintAlgorithmSHA384:
 		algorithm = "sha-384"
 
@@ -152,7 +156,7 @@ func parseDtlsFingerprint(item *FbsWebRtcTransport.FingerprintT) DtlsFingerprint
 		algorithm = "sha-512"
 
 	default:
-		algorithm = strings.ToLower(item.Algorithm.String())
+		algorithm = "sha-" + strings.TrimPrefix(item.Algorithm.String(), "SHA")
 	}
 
 	return DtlsFingerprint{

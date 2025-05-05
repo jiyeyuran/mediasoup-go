@@ -323,7 +323,7 @@ func (t *Transport) Dump() (*TransportDump, error) {
 }
 
 // GetStats returns the Transport stats.
-func (t *Transport) GetStats() (*TransportStats, error) {
+func (t *Transport) GetStats() (*TransportStat, error) {
 	t.logger.Debug("GetStats()")
 
 	msg, err := t.channel.Request(&FbsRequest.RequestT{
@@ -334,8 +334,8 @@ func (t *Transport) GetStats() (*TransportStats, error) {
 		return nil, err
 	}
 
-	parseBaseTransportStats := func(stats *FbsTransport.StatsT) BaseTransportStats {
-		return BaseTransportStats{
+	parseBaseTransportStat := func(stats *FbsTransport.StatsT) BaseTransportStat {
+		return BaseTransportStat{
 			Type:        string(t.Type()) + "-transport",
 			TransportId: stats.TransportId,
 			Timestamp:   stats.Timestamp,
@@ -368,9 +368,9 @@ func (t *Transport) GetStats() (*TransportStats, error) {
 	case TransportWebRTC:
 		resp := msg.(*FbsWebRtcTransport.GetStatsResponseT)
 
-		return &TransportStats{
-			BaseTransportStats: parseBaseTransportStats(resp.Base),
-			WebRtcTransportStats: &WebRtcTransportStats{
+		return &TransportStat{
+			BaseTransportStat: parseBaseTransportStat(resp.Base),
+			WebRtcTransportStat: &WebRtcTransportStat{
 				IceRole:          strings.ToLower(resp.IceRole.String()),
 				IceState:         IceState(strings.ToLower(resp.IceState.String())),
 				DtlsState:        DtlsState(strings.ToLower(resp.DtlsState.String())),
@@ -380,9 +380,9 @@ func (t *Transport) GetStats() (*TransportStats, error) {
 
 	case TransportPlain:
 		resp := msg.(*FbsPlainTransport.GetStatsResponseT)
-		return &TransportStats{
-			BaseTransportStats: parseBaseTransportStats(resp.Base),
-			PlainTransportStats: &PlainTransportStats{
+		return &TransportStat{
+			BaseTransportStat: parseBaseTransportStat(resp.Base),
+			PlainTransportStat: &PlainTransportStat{
 				RtcpMux:   resp.RtcpMux,
 				Comedia:   resp.Comedia,
 				Tuple:     *parseTransportTuple(resp.Tuple),
@@ -392,17 +392,17 @@ func (t *Transport) GetStats() (*TransportStats, error) {
 
 	case TransportPipe:
 		resp := msg.(*FbsPipeTransport.GetStatsResponseT)
-		return &TransportStats{
-			BaseTransportStats: parseBaseTransportStats(resp.Base),
-			PipeTransportStats: &PipeTransportStats{
+		return &TransportStat{
+			BaseTransportStat: parseBaseTransportStat(resp.Base),
+			PipeTransportStat: &PipeTransportStat{
 				Tuple: *parseTransportTuple(resp.Tuple),
 			},
 		}, nil
 
 	case TransportDirect:
 		resp := msg.(*FbsDirectTransport.GetStatsResponseT)
-		return &TransportStats{
-			BaseTransportStats: parseBaseTransportStats(resp.Base),
+		return &TransportStat{
+			BaseTransportStat: parseBaseTransportStat(resp.Base),
 		}, nil
 
 	default:
@@ -878,13 +878,15 @@ func (t *Transport) Consume(options *ConsumerOptions) (*Consumer, error) {
 		score = ConsumerScore{
 			Score:          10,
 			ProducerScore:  10,
-			ProducerScores: []uint8{},
+			ProducerScores: []int{},
 		}
 	} else {
 		score = ConsumerScore{
-			Score:          result.Score.Score,
-			ProducerScore:  result.Score.ProducerScore,
-			ProducerScores: result.Score.ProducerScores,
+			Score:         int(result.Score.Score),
+			ProducerScore: int(result.Score.ProducerScore),
+			ProducerScores: collect(result.Score.ProducerScores, func(v byte) int {
+				return int(v)
+			}),
 		}
 	}
 	data := &consumerData{
@@ -937,11 +939,12 @@ func (t *Transport) ProduceData(options *DataProducerOptions) (*DataProducer, er
 		id = uuid()
 	}
 
+	sctpStreamParameters := clone(options.SctpStreamParameters)
 	typ := DataProducerDirect
 
 	if t.Type() != TransportDirect {
 		typ = DataProducerSctp
-		if err := validateSctpStreamParameters(options.SctpStreamParameters); err != nil {
+		if err := validateSctpStreamParameters(sctpStreamParameters); err != nil {
 			return nil, err
 		}
 	}
@@ -949,7 +952,7 @@ func (t *Transport) ProduceData(options *DataProducerOptions) (*DataProducer, er
 		TransportId:          t.Id(),
 		DataProducerId:       id,
 		Type:                 typ,
-		SctpStreamParameters: options.SctpStreamParameters,
+		SctpStreamParameters: sctpStreamParameters,
 		Label:                options.Label,
 		Protocol:             options.Protocol,
 		Paused:               options.Paused,
@@ -963,12 +966,12 @@ func (t *Transport) ProduceData(options *DataProducerOptions) (*DataProducer, er
 			Value: &FbsTransport.ProduceDataRequestT{
 				DataProducerId: data.DataProducerId,
 				Type:           FbsDataProducer.EnumValuesType[strings.ToUpper(string(data.Type))],
-				SctpStreamParameters: ifElse(data.SctpStreamParameters != nil, func() *FbsSctpParameters.SctpStreamParametersT {
+				SctpStreamParameters: ifElse(sctpStreamParameters != nil, func() *FbsSctpParameters.SctpStreamParametersT {
 					return &FbsSctpParameters.SctpStreamParametersT{
-						StreamId:          data.SctpStreamParameters.StreamId,
-						Ordered:           data.SctpStreamParameters.Ordered,
-						MaxPacketLifeTime: data.SctpStreamParameters.MaxPacketLifeTime,
-						MaxRetransmits:    data.SctpStreamParameters.MaxRetransmits,
+						StreamId:          sctpStreamParameters.StreamId,
+						Ordered:           sctpStreamParameters.Ordered,
+						MaxPacketLifeTime: sctpStreamParameters.MaxPacketLifeTime,
+						MaxRetransmits:    sctpStreamParameters.MaxRetransmits,
 					}
 				}),
 				Label:    data.Label,
@@ -1014,8 +1017,18 @@ func (t *Transport) ConsumeData(options *DataConsumerOptions) (*DataConsumer, er
 
 	if t.Type() != TransportDirect {
 		typ = DataConsumerSctp
-
-		sctpStreamParameters = dataProducer.SctpStreamParameters()
+		sctpStreamId, err := t.getNextSctpStreamId()
+		if err != nil {
+			return nil, err
+		}
+		if sctpStreamParameters = dataProducer.SctpStreamParameters(); sctpStreamParameters == nil {
+			sctpStreamParameters = &SctpStreamParameters{
+				StreamId: sctpStreamId,
+				Ordered:  ref(true),
+			}
+		} else {
+			sctpStreamParameters.StreamId = sctpStreamId
+		}
 		// Override if given.
 		if ordered := options.Ordered; ordered != nil {
 			sctpStreamParameters.Ordered = ordered
@@ -1026,11 +1039,6 @@ func (t *Transport) ConsumeData(options *DataConsumerOptions) (*DataConsumer, er
 		if maxRetransmits := options.MaxRetransmits; maxRetransmits > 0 {
 			sctpStreamParameters.MaxRetransmits = &maxRetransmits
 		}
-		sctpStreamParameters.StreamId, err = t.nextSctpStreamId()
-		if err != nil {
-			return nil, err
-		}
-		defer t.streamIds.Delete(sctpStreamParameters.StreamId)
 	}
 
 	dataConsumerId := uuid()
@@ -1310,7 +1318,7 @@ func (t *Transport) nextMidString() string {
 	}
 }
 
-func (t *Transport) nextSctpStreamId() (uint16, error) {
+func (t *Transport) getNextSctpStreamId() (uint16, error) {
 	sctpParameters := t.getSctpParameters()
 	if sctpParameters == nil || sctpParameters.MIS == 0 {
 		return 0, errors.New("missing sctpParameters.MIS")
