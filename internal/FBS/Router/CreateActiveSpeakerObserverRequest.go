@@ -5,7 +5,7 @@ package Router
 import (
 	flatbuffers "github.com/google/flatbuffers/go"
 
-	FBS__ActiveSpeakerObserver "github.com/jiyeyuran/mediasoup-go/internal/FBS/ActiveSpeakerObserver"
+	FBS__ActiveSpeakerObserver "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/ActiveSpeakerObserver"
 )
 
 type CreateActiveSpeakerObserverRequestT struct {

@@ -5,7 +5,7 @@ package DirectTransport
 import (
 	flatbuffers "github.com/google/flatbuffers/go"
 
-	FBS__Transport "github.com/jiyeyuran/mediasoup-go/internal/FBS/Transport"
+	FBS__Transport "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/Transport"
 )
 
 type GetStatsResponseT struct {

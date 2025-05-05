@@ -3,12 +3,12 @@ package mediasoup
 import (
 	"log/slog"
 
-	FbsDataConsumer "github.com/jiyeyuran/mediasoup-go/internal/FBS/DataConsumer"
-	FbsDataProducer "github.com/jiyeyuran/mediasoup-go/internal/FBS/DataProducer"
-	FbsNotification "github.com/jiyeyuran/mediasoup-go/internal/FBS/Notification"
-	FbsRequest "github.com/jiyeyuran/mediasoup-go/internal/FBS/Request"
-	FbsTransport "github.com/jiyeyuran/mediasoup-go/internal/FBS/Transport"
-	"github.com/jiyeyuran/mediasoup-go/internal/channel"
+	FbsDataConsumer "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/DataConsumer"
+	FbsDataProducer "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/DataProducer"
+	FbsNotification "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/Notification"
+	FbsRequest "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/Request"
+	FbsTransport "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/Transport"
+	"github.com/jiyeyuran/mediasoup-go/v2/internal/channel"
 )
 
 var (

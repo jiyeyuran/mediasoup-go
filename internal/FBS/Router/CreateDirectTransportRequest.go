@@ -5,7 +5,7 @@ package Router
 import (
 	flatbuffers "github.com/google/flatbuffers/go"
 
-	FBS__DirectTransport "github.com/jiyeyuran/mediasoup-go/internal/FBS/DirectTransport"
+	FBS__DirectTransport "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/DirectTransport"
 )
 
 type CreateDirectTransportRequestT struct {

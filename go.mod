@@ -1,4 +1,4 @@
-module github.com/jiyeyuran/mediasoup-go
+module github.com/jiyeyuran/mediasoup-go/v2
 
 go 1.21.0
 

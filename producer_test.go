@@ -4,9 +4,9 @@ import (
 	"testing"
 	"time"
 
-	FbsCommon "github.com/jiyeyuran/mediasoup-go/internal/FBS/Common"
-	FbsNotification "github.com/jiyeyuran/mediasoup-go/internal/FBS/Notification"
-	FbsProducer "github.com/jiyeyuran/mediasoup-go/internal/FBS/Producer"
+	FbsCommon "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/Common"
+	FbsNotification "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/Notification"
+	FbsProducer "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/Producer"
 	"github.com/stretchr/testify/assert"
 )
 

@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"math"
 
-	FbsRtpParameters "github.com/jiyeyuran/mediasoup-go/internal/FBS/RtpParameters"
-	FbsRtpStream "github.com/jiyeyuran/mediasoup-go/internal/FBS/RtpStream"
+	FbsRtpParameters "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/RtpParameters"
+	FbsRtpStream "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/RtpStream"
 )
 
 func parseRtpParameters(rtpParameters *FbsRtpParameters.RtpParametersT) *RtpParameters {

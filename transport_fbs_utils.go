@@ -4,11 +4,11 @@ import (
 	"errors"
 	"strings"
 
-	FbsRtpParameters "github.com/jiyeyuran/mediasoup-go/internal/FBS/RtpParameters"
-	FbsSctpParameters "github.com/jiyeyuran/mediasoup-go/internal/FBS/SctpParameters"
-	FbsSrtpParameters "github.com/jiyeyuran/mediasoup-go/internal/FBS/SrtpParameters"
-	FbsTransport "github.com/jiyeyuran/mediasoup-go/internal/FBS/Transport"
-	FbsWebRtcTransport "github.com/jiyeyuran/mediasoup-go/internal/FBS/WebRtcTransport"
+	FbsRtpParameters "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/RtpParameters"
+	FbsSctpParameters "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/SctpParameters"
+	FbsSrtpParameters "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/SrtpParameters"
+	FbsTransport "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/Transport"
+	FbsWebRtcTransport "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/WebRtcTransport"
 )
 
 func parseTransportTuple(tuple *FbsTransport.TupleT) *TransportTuple {

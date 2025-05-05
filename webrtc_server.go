@@ -4,10 +4,10 @@ import (
 	"log/slog"
 	"sync"
 
-	FbsRequest "github.com/jiyeyuran/mediasoup-go/internal/FBS/Request"
-	FbsWebRtcServer "github.com/jiyeyuran/mediasoup-go/internal/FBS/WebRtcServer"
-	FbsWorker "github.com/jiyeyuran/mediasoup-go/internal/FBS/Worker"
-	"github.com/jiyeyuran/mediasoup-go/internal/channel"
+	FbsRequest "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/Request"
+	FbsWebRtcServer "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/WebRtcServer"
+	FbsWorker "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/Worker"
+	"github.com/jiyeyuran/mediasoup-go/v2/internal/channel"
 )
 
 // WebRtcServer brings the ability to listen on a single UDP/TCP port to WebRtcTransports.

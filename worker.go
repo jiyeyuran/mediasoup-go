@@ -17,11 +17,11 @@ import (
 	"syscall"
 	"time"
 
-	FbsNotification "github.com/jiyeyuran/mediasoup-go/internal/FBS/Notification"
-	FbsRequest "github.com/jiyeyuran/mediasoup-go/internal/FBS/Request"
-	FbsTransport "github.com/jiyeyuran/mediasoup-go/internal/FBS/Transport"
-	FbsWorker "github.com/jiyeyuran/mediasoup-go/internal/FBS/Worker"
-	"github.com/jiyeyuran/mediasoup-go/internal/channel"
+	FbsNotification "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/Notification"
+	FbsRequest "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/Request"
+	FbsTransport "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/Transport"
+	FbsWorker "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/Worker"
+	"github.com/jiyeyuran/mediasoup-go/v2/internal/channel"
 )
 
 // Worker represents a mediasoup C++ subprocess that runs in a single CPU core and handles Router

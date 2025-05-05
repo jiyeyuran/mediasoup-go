@@ -5,7 +5,7 @@ package Transport
 import (
 	flatbuffers "github.com/google/flatbuffers/go"
 
-	FBS__SctpParameters "github.com/jiyeyuran/mediasoup-go/internal/FBS/SctpParameters"
+	FBS__SctpParameters "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/SctpParameters"
 )
 
 type OptionsT struct {

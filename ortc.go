@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/jiyeyuran/mediasoup-go/internal/h264"
+	"github.com/jiyeyuran/mediasoup-go/v2/internal/h264"
 )
 
 var availablePayloadTypes = [...]uint8{

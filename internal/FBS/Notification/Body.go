@@ -6,16 +6,16 @@ import (
 	flatbuffers "github.com/google/flatbuffers/go"
 	"strconv"
 
-	FBS__ActiveSpeakerObserver "github.com/jiyeyuran/mediasoup-go/internal/FBS/ActiveSpeakerObserver"
-	FBS__AudioLevelObserver "github.com/jiyeyuran/mediasoup-go/internal/FBS/AudioLevelObserver"
-	FBS__Consumer "github.com/jiyeyuran/mediasoup-go/internal/FBS/Consumer"
-	FBS__DataConsumer "github.com/jiyeyuran/mediasoup-go/internal/FBS/DataConsumer"
-	FBS__DataProducer "github.com/jiyeyuran/mediasoup-go/internal/FBS/DataProducer"
-	FBS__DirectTransport "github.com/jiyeyuran/mediasoup-go/internal/FBS/DirectTransport"
-	FBS__PlainTransport "github.com/jiyeyuran/mediasoup-go/internal/FBS/PlainTransport"
-	FBS__Producer "github.com/jiyeyuran/mediasoup-go/internal/FBS/Producer"
-	FBS__Transport "github.com/jiyeyuran/mediasoup-go/internal/FBS/Transport"
-	FBS__WebRtcTransport "github.com/jiyeyuran/mediasoup-go/internal/FBS/WebRtcTransport"
+	FBS__ActiveSpeakerObserver "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/ActiveSpeakerObserver"
+	FBS__AudioLevelObserver "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/AudioLevelObserver"
+	FBS__Consumer "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/Consumer"
+	FBS__DataConsumer "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/DataConsumer"
+	FBS__DataProducer "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/DataProducer"
+	FBS__DirectTransport "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/DirectTransport"
+	FBS__PlainTransport "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/PlainTransport"
+	FBS__Producer "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/Producer"
+	FBS__Transport "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/Transport"
+	FBS__WebRtcTransport "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/WebRtcTransport"
 )
 
 type Body byte

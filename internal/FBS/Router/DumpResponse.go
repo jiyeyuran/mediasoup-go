@@ -5,7 +5,7 @@ package Router
 import (
 	flatbuffers "github.com/google/flatbuffers/go"
 
-	FBS__Common "github.com/jiyeyuran/mediasoup-go/internal/FBS/Common"
+	FBS__Common "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/Common"
 )
 
 type DumpResponseT struct {

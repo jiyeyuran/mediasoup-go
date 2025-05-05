@@ -5,8 +5,8 @@ package PipeTransport
 import (
 	flatbuffers "github.com/google/flatbuffers/go"
 
-	FBS__SrtpParameters "github.com/jiyeyuran/mediasoup-go/internal/FBS/SrtpParameters"
-	FBS__Transport "github.com/jiyeyuran/mediasoup-go/internal/FBS/Transport"
+	FBS__SrtpParameters "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/SrtpParameters"
+	FBS__Transport "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/Transport"
 )
 
 type DumpResponseT struct {

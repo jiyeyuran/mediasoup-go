@@ -6,10 +6,10 @@ import (
 	flatbuffers "github.com/google/flatbuffers/go"
 	"strconv"
 
-	FBS__Log "github.com/jiyeyuran/mediasoup-go/internal/FBS/Log"
-	FBS__Notification "github.com/jiyeyuran/mediasoup-go/internal/FBS/Notification"
-	FBS__Request "github.com/jiyeyuran/mediasoup-go/internal/FBS/Request"
-	FBS__Response "github.com/jiyeyuran/mediasoup-go/internal/FBS/Response"
+	FBS__Log "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/Log"
+	FBS__Notification "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/Notification"
+	FBS__Request "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/Request"
+	FBS__Response "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/Response"
 )
 
 type Body byte

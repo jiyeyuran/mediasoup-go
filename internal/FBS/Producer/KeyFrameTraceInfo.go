@@ -5,7 +5,7 @@ package Producer
 import (
 	flatbuffers "github.com/google/flatbuffers/go"
 
-	FBS__RtpPacket "github.com/jiyeyuran/mediasoup-go/internal/FBS/RtpPacket"
+	FBS__RtpPacket "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/RtpPacket"
 )
 
 type KeyFrameTraceInfoT struct {
