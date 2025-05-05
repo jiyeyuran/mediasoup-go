@@ -11,7 +11,7 @@ func TestWebRtcServerClose(t *testing.T) {
 	worker := newTestWorker()
 	server, _ := worker.CreateWebRtcServer(&WebRtcServerOptions{
 		ListenInfos: []*TransportListenInfo{
-			{Protocol: TransportProtocolUDP, IP: "127.0.0.1", Port: pickUdpPort()},
+			{Protocol: TransportProtocolUDP, Ip: "127.0.0.1", Port: pickUdpPort()},
 		},
 	})
 	err := server.Close()
@@ -24,7 +24,7 @@ func TestWebRtcServerDump(t *testing.T) {
 	worker := newTestWorker()
 	server, _ := worker.CreateWebRtcServer(&WebRtcServerOptions{
 		ListenInfos: []*TransportListenInfo{
-			{Protocol: TransportProtocolUDP, IP: "127.0.0.1", Port: pickTcpPort()},
+			{Protocol: TransportProtocolUDP, Ip: "127.0.0.1", Port: pickTcpPort()},
 		},
 	})
 	dump, err := server.Dump()

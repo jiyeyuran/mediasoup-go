@@ -119,4 +119,4 @@ type ProducerTraceEventData struct {
 }
 
 // ProducerStat define the statistic info of a producer
-type ProducerStat = RtpStreamRecvStats
+type ProducerStat = RtpStreamStats

@@ -15,7 +15,7 @@ func createWebRtcTransport(router *Router, options ...func(o *WebRtcTransportOpt
 	}
 	o := &WebRtcTransportOptions{
 		ListenInfos: []TransportListenInfo{
-			{IP: "127.0.0.1", AnnouncedAddress: "9.9.9.1", Port: 0},
+			{Ip: "127.0.0.1", AnnouncedAddress: "9.9.9.1", Port: 0},
 		},
 	}
 	for _, option := range options {
@@ -34,7 +34,7 @@ func createPlainTransport(router *Router, options ...func(o *PlainTransportOptio
 	}
 	o := &PlainTransportOptions{
 		ListenInfo: TransportListenInfo{
-			IP:               "127.0.0.1",
+			Ip:               "127.0.0.1",
 			AnnouncedAddress: "4.4.4.4",
 		},
 	}
@@ -105,7 +105,7 @@ func TestTransportGetStats(t *testing.T) {
 	transport := createWebRtcTransport(nil)
 	stats, err := transport.GetStats()
 	assert.NoError(t, err)
-	baseStats := stats.BaseTransportStats
+	baseStats := stats.BaseTransportStat
 	assert.Equal(t, "webrtc-transport", baseStats.Type)
 	assert.NotZero(t, baseStats.Timestamp)
 	baseStats.Type = ""
@@ -113,7 +113,7 @@ func TestTransportGetStats(t *testing.T) {
 	baseStats.TransportId = ""
 	assert.Empty(t, baseStats)
 
-	webrtcStats := stats.WebRtcTransportStats
+	webrtcStats := stats.WebRtcTransportStat
 	assert.EqualValues(t, "controlled", webrtcStats.IceRole)
 	assert.EqualValues(t, "new", webrtcStats.IceState)
 	assert.EqualValues(t, "new", webrtcStats.DtlsState)
@@ -123,8 +123,8 @@ func TestTransportGetStats(t *testing.T) {
 	stats, _ = transport.GetStats()
 	assert.Equal(t, "plain-transport", stats.Type)
 	assert.NotZero(t, stats.Timestamp)
-	assert.Equal(t, "4.4.4.4", stats.PlainTransportStats.Tuple.LocalAddress)
-	assert.NotZero(t, stats.PlainTransportStats.Tuple.LocalPort)
+	assert.Equal(t, "4.4.4.4", stats.PlainTransportStat.Tuple.LocalAddress)
+	assert.NotZero(t, stats.PlainTransportStat.Tuple.LocalPort)
 
 	transport = createDirectTransport(nil)
 	stats, _ = transport.GetStats()
@@ -471,7 +471,7 @@ func TestTransportConsume(t *testing.T) {
 	assert.Equal(t, ConsumerSimple, aconsumer.Type())
 	assert.False(t, aconsumer.Paused())
 	assert.False(t, aconsumer.ProducerPaused())
-	assert.Equal(t, ConsumerScore{Score: 10, ProducerScore: 0, ProducerScores: []uint8{0}}, aconsumer.Score())
+	assert.Equal(t, ConsumerScore{Score: 10, ProducerScore: 0, ProducerScores: []int{0}}, aconsumer.Score())
 	assert.Nil(t, aconsumer.CurrentLayers())
 	assert.Nil(t, aconsumer.PreferredLayers())
 	assert.Equal(t, H{"baz": "LOL"}, aconsumer.AppData())
@@ -518,7 +518,7 @@ func TestTransportConsume(t *testing.T) {
 	assert.True(t, vconsumer.Paused())
 	assert.True(t, vconsumer.ProducerPaused())
 	assert.EqualValues(t, 1, vconsumer.Priority())
-	assert.Equal(t, ConsumerScore{Score: 10, ProducerScore: 0, ProducerScores: []uint8{0, 0, 0, 0}}, vconsumer.Score())
+	assert.Equal(t, ConsumerScore{Score: 10, ProducerScore: 0, ProducerScores: []int{0, 0, 0, 0}}, vconsumer.Score())
 	assert.Nil(t, vconsumer.CurrentLayers())
 	assert.Equal(t, H{"baz": "LOL"}, vconsumer.AppData())
 
@@ -559,7 +559,7 @@ func TestTransportConsume(t *testing.T) {
 	assert.False(t, pipeConsumer.Paused())
 	assert.True(t, pipeConsumer.ProducerPaused())
 	assert.EqualValues(t, 1, pipeConsumer.Priority())
-	assert.Equal(t, ConsumerScore{Score: 10, ProducerScore: 10, ProducerScores: []uint8{0, 0, 0, 0}}, pipeConsumer.Score())
+	assert.Equal(t, ConsumerScore{Score: 10, ProducerScore: 10, ProducerScores: []int{0, 0, 0, 0}}, pipeConsumer.Score())
 	assert.Nil(t, pipeConsumer.PreferredLayers())
 	assert.Nil(t, pipeConsumer.CurrentLayers())
 

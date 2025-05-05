@@ -1,6 +1,6 @@
 package mediasoup
 
-type H map[string]any
+type H = map[string]any
 
 // KeyValue represents a key-value pair.
 type KeyValue[K any, V any] struct {

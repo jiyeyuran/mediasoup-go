@@ -5,7 +5,6 @@ import (
 	"math"
 
 	FbsRtpParameters "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/RtpParameters"
-	FbsRtpStream "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/RtpStream"
 )
 
 func parseRtpParameters(rtpParameters *FbsRtpParameters.RtpParametersT) *RtpParameters {
@@ -246,28 +245,5 @@ func parseRtcpParameters(rtcp *FbsRtpParameters.RtcpParametersT) *RtcpParameters
 	return &RtcpParameters{
 		Cname:       rtcp.Cname,
 		ReducedSize: &rtcp.ReducedSize,
-	}
-}
-
-func parseBaseRtpStreamStats(stats *FbsRtpStream.BaseStatsT) BaseRtpStreamStats {
-	return BaseRtpStreamStats{
-		Timestamp:            stats.Timestamp,
-		Ssrc:                 stats.Ssrc,
-		Kind:                 orElse(stats.Kind == FbsRtpParameters.MediaKindVIDEO, MediaKindVideo, MediaKindAudio),
-		MimeType:             stats.MimeType,
-		PacketsLost:          stats.PacketsLost,
-		FractionLost:         stats.FractionLost,
-		PacketsDiscarded:     stats.PacketsDiscarded,
-		PacketsRetransmitted: stats.PacketsRetransmitted,
-		PacketsRepaired:      stats.PacketsRepaired,
-		NackCount:            stats.NackCount,
-		NackPacketCount:      stats.NackPacketCount,
-		PliCount:             stats.PliCount,
-		FirCount:             stats.FirCount,
-		Score:                stats.Score,
-		Rid:                  stats.Rid,
-		RtxSsrc:              stats.RtxSsrc,
-		RoundTripTime:        stats.RoundTripTime,
-		RtxPacketsDiscarded:  stats.RtxPacketsDiscarded,
 	}
 }

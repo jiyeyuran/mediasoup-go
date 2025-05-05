@@ -97,8 +97,8 @@ func TestWorkerCreateWebRtcServer(t *testing.T) {
 	worker := newTestWorker()
 	server, err := worker.CreateWebRtcServer(&WebRtcServerOptions{
 		ListenInfos: []*TransportListenInfo{
-			{Protocol: TransportProtocolUDP, IP: "127.0.0.1", Port: pickUdpPort()},
-			{Protocol: TransportProtocolTCP, IP: "127.0.0.1", AnnouncedAddress: "foo.bar.org", Port: pickTcpPort()},
+			{Protocol: TransportProtocolUDP, Ip: "127.0.0.1", Port: pickUdpPort()},
+			{Protocol: TransportProtocolTCP, Ip: "127.0.0.1", AnnouncedAddress: "foo.bar.org", Port: pickTcpPort()},
 		},
 	})
 	require.NoError(t, err)
@@ -162,8 +162,8 @@ func TestWorkerNoGoroutineLeaks(t *testing.T) {
 
 	server, _ := worker.CreateWebRtcServer(&WebRtcServerOptions{
 		ListenInfos: []*TransportListenInfo{
-			{Protocol: TransportProtocolUDP, IP: "127.0.0.1", Port: 0},
-			{Protocol: TransportProtocolTCP, IP: "127.0.0.1", AnnouncedAddress: "foo.bar.org", Port: 0},
+			{Protocol: TransportProtocolUDP, Ip: "127.0.0.1", Port: 0},
+			{Protocol: TransportProtocolTCP, Ip: "127.0.0.1", AnnouncedAddress: "foo.bar.org", Port: 0},
 		},
 	})
 

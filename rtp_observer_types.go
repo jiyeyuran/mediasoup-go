@@ -29,14 +29,14 @@ type AudioLevelObserverOption func(*AudioLevelObserverOptions)
 
 type AudioLevelObserverDominantSpeaker struct {
 	// ProducerId is the dominant audio producer instance.
-	ProducerId string `json:"producerId"`
+	Producer *Producer
 }
 
 type AudioLevelObserverVolume struct {
 	// ProducerId is the audio producer instance.
-	ProducerId string `json:"producerId"`
+	Producer *Producer
 
 	// Volume is the average volume (in dBvo from -127 to 0) of the audio producer in the
 	// last interval.
-	Volume int8 `json:"volume"`
+	Volume int8
 }

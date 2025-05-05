@@ -85,13 +85,13 @@ func TestCreateWebRtcTransport(t *testing.T) {
 	router, _ := worker.CreateRouter(&RouterOptions{})
 	transport1, err := router.CreateWebRtcTransport(&WebRtcTransportOptions{
 		ListenInfos: []TransportListenInfo{
-			{IP: "127.0.0.1"},
+			{Ip: "127.0.0.1"},
 		},
 	})
 	require.NoError(t, err)
 	webRtcServer, _ := worker.CreateWebRtcServer(&WebRtcServerOptions{
 		ListenInfos: []*TransportListenInfo{
-			{Protocol: TransportProtocolUDP, IP: "127.0.0.1", Port: 0},
+			{Protocol: TransportProtocolUDP, Ip: "127.0.0.1", Port: 0},
 		},
 	})
 	transport2, err := router.CreateWebRtcTransport(&WebRtcTransportOptions{
@@ -120,7 +120,7 @@ func TestCreateWebRtcTransportWithPortRange(t *testing.T) {
 
 	transport1, err := router.CreateWebRtcTransport(&WebRtcTransportOptions{
 		ListenInfos: []TransportListenInfo{
-			{Protocol: TransportProtocolUDP, IP: "127.0.0.1", PortRange: portRange},
+			{Protocol: TransportProtocolUDP, Ip: "127.0.0.1", PortRange: portRange},
 		},
 	})
 	require.NoError(t, err)
@@ -132,7 +132,7 @@ func TestCreateWebRtcTransportWithPortRange(t *testing.T) {
 
 	transport2, err := router.CreateWebRtcTransport(&WebRtcTransportOptions{
 		ListenInfos: []TransportListenInfo{
-			{Protocol: TransportProtocolUDP, IP: "127.0.0.1", PortRange: portRange},
+			{Protocol: TransportProtocolUDP, Ip: "127.0.0.1", PortRange: portRange},
 		},
 	})
 	require.NoError(t, err)
@@ -145,7 +145,7 @@ func TestCreateWebRtcTransportWithPortRange(t *testing.T) {
 	// No more available ports so it must fail
 	_, err = router.CreateWebRtcTransport(&WebRtcTransportOptions{
 		ListenInfos: []TransportListenInfo{
-			{Protocol: TransportProtocolUDP, IP: "127.0.0.1", PortRange: portRange},
+			{Protocol: TransportProtocolUDP, Ip: "127.0.0.1", PortRange: portRange},
 		},
 	})
 	assert.Error(t, err)
@@ -156,7 +156,7 @@ func TestCreatePlainTransport(t *testing.T) {
 	router, _ := worker.CreateRouter(&RouterOptions{})
 	transport, err := router.CreatePlainTransport(&PlainTransportOptions{
 		ListenInfo: TransportListenInfo{
-			IP: "127.0.0.1",
+			Ip: "127.0.0.1",
 		},
 	})
 	require.NoError(t, err)
@@ -168,7 +168,7 @@ func TestCreatePipeTransport(t *testing.T) {
 	router1 := createRouter(nil)
 	transport1, _ := router1.CreateWebRtcTransport(&WebRtcTransportOptions{
 		ListenInfos: []TransportListenInfo{
-			{IP: "127.0.0.1"},
+			{Ip: "127.0.0.1"},
 		},
 		EnableSctp: true,
 	})
@@ -219,7 +219,7 @@ func TestCreatePipeTransport(t *testing.T) {
 
 	t.Run("enable rtx", func(t *testing.T) {
 		pipeTransport, err := router1.CreatePipeTransport(&PipeTransportOptions{
-			ListenInfo: TransportListenInfo{IP: "127.0.0.1"},
+			ListenInfo: TransportListenInfo{Ip: "127.0.0.1"},
 			EnableRtx:  true,
 		})
 		assert.NoError(t, err)
@@ -227,7 +227,7 @@ func TestCreatePipeTransport(t *testing.T) {
 
 		// No SRTP enabled so passing srtpParameters must fail.
 		router1.CreatePipeTransport(&PipeTransportOptions{
-			ListenInfo: TransportListenInfo{IP: "127.0.0.1"},
+			ListenInfo: TransportListenInfo{Ip: "127.0.0.1"},
 			EnableRtx:  true,
 		})
 		assert.NoError(t, err)
@@ -306,7 +306,7 @@ func TestCreatePipeTransport(t *testing.T) {
 		assert.Equal(t, ConsumerScore{
 			Score:          10,
 			ProducerScore:  10,
-			ProducerScores: []uint8{},
+			ProducerScores: []int{},
 		}, pipeConsumer.Score())
 
 		pipeTransport.Close()
@@ -314,7 +314,7 @@ func TestCreatePipeTransport(t *testing.T) {
 
 	t.Run("invalid srtpParameters must fail", func(t *testing.T) {
 		pipeTransport, _ := router1.CreatePipeTransport(&PipeTransportOptions{
-			ListenInfo: TransportListenInfo{IP: "127.0.0.1"},
+			ListenInfo: TransportListenInfo{Ip: "127.0.0.1"},
 			EnableRtx:  true,
 		})
 		err := pipeTransport.Connect(&TransportConnectOptions{
@@ -330,7 +330,7 @@ func TestCreatePipeTransport(t *testing.T) {
 
 	t.Run("enable srtp", func(t *testing.T) {
 		pipeTransport, err := router1.CreatePipeTransport(&PipeTransportOptions{
-			ListenInfo: TransportListenInfo{IP: "127.0.0.1"},
+			ListenInfo: TransportListenInfo{Ip: "127.0.0.1"},
 			EnableSrtp: true,
 		})
 		assert.NoError(t, err)
@@ -392,7 +392,7 @@ func TestCreatePipeTransport(t *testing.T) {
 	t.Run("fixed port", func(t *testing.T) {
 		port := pickUdpPort()
 		pipeTransport, _ := router1.CreatePipeTransport(&PipeTransportOptions{
-			ListenInfo: TransportListenInfo{IP: "127.0.0.1", Port: port},
+			ListenInfo: TransportListenInfo{Ip: "127.0.0.1", Port: port},
 		})
 
 		assert.Equal(t, port, pipeTransport.Data().PipeTransportData.Tuple.LocalPort)
@@ -440,13 +440,13 @@ func TestPipeToRouter(t *testing.T) {
 
 	transport1, _ := router1.CreateWebRtcTransport(&WebRtcTransportOptions{
 		ListenInfos: []TransportListenInfo{
-			{IP: "127.0.0.1"},
+			{Ip: "127.0.0.1"},
 		},
 		EnableSctp: true,
 	})
 	transport2, _ := router2.CreateWebRtcTransport(&WebRtcTransportOptions{
 		ListenInfos: []TransportListenInfo{
-			{IP: "127.0.0.1"},
+			{Ip: "127.0.0.1"},
 		},
 		EnableSctp: true,
 	})
@@ -618,7 +618,7 @@ func TestPipeToRouter(t *testing.T) {
 		assert.Equal(t, ConsumerScore{
 			Score:          10,
 			ProducerScore:  10,
-			ProducerScores: []uint8{},
+			ProducerScores: []int{},
 		}, pipeConsumer.Score())
 
 		assert.Equal(t, audioProducer.Id(), pipeProducer.Id())
@@ -721,7 +721,7 @@ func TestPipeToRouter(t *testing.T) {
 		assert.Equal(t, ConsumerScore{
 			Score:          10,
 			ProducerScore:  10,
-			ProducerScores: []uint8{},
+			ProducerScores: []int{},
 		}, pipeConsumer.Score())
 
 		assert.Equal(t, videoProducer.Id(), pipeProducer.Id())
@@ -835,7 +835,7 @@ func TestPipeToRouter(t *testing.T) {
 		assert.Equal(t, ConsumerScore{
 			Score:          10,
 			ProducerScore:  0,
-			ProducerScores: []uint8{0, 0, 0},
+			ProducerScores: []int{0, 0, 0},
 		}, videoConsumer.Score())
 	})
 

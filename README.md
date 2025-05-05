@@ -52,7 +52,7 @@ func main() {
     // Create WebRTC transport
     transport, err := router.CreateWebRtcTransport(&mediasoup.WebRtcTransportOptions{
         ListenInfos: []mediasoup.TransportListenInfo{
-            {IP: "0.0.0.0", AnnouncedAddress: "your.public.ip"},
+            {Ip: "0.0.0.0", AnnouncedAddress: "your.public.ip"},
         },
     })
 

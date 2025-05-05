@@ -94,8 +94,8 @@ func TestRtpObserverNotification(t *testing.T) {
 	router := createRouter(nil)
 	producer := createAudioProducer(createWebRtcTransport(router))
 
-	speaker := AudioLevelObserverDominantSpeaker{ProducerId: producer.Id()}
-	volumes := []AudioLevelObserverVolume{{ProducerId: producer.Id(), Volume: -10}}
+	speaker := AudioLevelObserverDominantSpeaker{Producer: producer}
+	volumes := []AudioLevelObserverVolume{{Producer: producer, Volume: -10}}
 
 	mock.On("OnDominantSpeaker", speaker)
 	mock.On("OnSilence")
@@ -112,7 +112,7 @@ func TestRtpObserverNotification(t *testing.T) {
 		Body: &FbsNotification.BodyT{
 			Type: FbsNotification.BodyActiveSpeakerObserver_DominantSpeakerNotification,
 			Value: &FbsActiveSpeakerObserver.DominantSpeakerNotificationT{
-				ProducerId: speaker.ProducerId,
+				ProducerId: speaker.Producer.Id(),
 			},
 		},
 	})
@@ -127,7 +127,7 @@ func TestRtpObserverNotification(t *testing.T) {
 			Type: FbsNotification.BodyAudioLevelObserver_VolumesNotification,
 			Value: &FbsAudioLevelObserver.VolumesNotificationT{
 				Volumes: []*FbsAudioLevelObserver.VolumeT{
-					{ProducerId: volumes[0].ProducerId, Volume: volumes[0].Volume},
+					{ProducerId: volumes[0].Producer.Id(), Volume: volumes[0].Volume},
 				},
 			},
 		},

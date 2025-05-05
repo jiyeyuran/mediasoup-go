@@ -12,7 +12,7 @@ import (
 
 // WebRtcServer brings the ability to listen on a single UDP/TCP port to WebRtcTransports.
 // Instead of passing listenIps to router.CreateWebRtcTransport() pass webRtcServer with an
-// instance of a WebRtcServer so the new WebRTC transport will not listen on its own IP:port(s)
+// instance of a WebRtcServer so the new WebRTC transport will not listen on its own Ip:port(s)
 // but will have its network traffic handled by the WebRTC server instead.
 //
 // A WebRTC server exists within the context of a Worker, meaning that if your app launches N

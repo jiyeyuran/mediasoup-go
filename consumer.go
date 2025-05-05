@@ -34,19 +34,22 @@ type consumerData struct {
 type Consumer struct {
 	baseNotifier
 
-	channel               *channel.Channel
-	logger                *slog.Logger
-	data                  *consumerData
-	priority              byte
-	currentLayers         *ConsumerLayers // Current video layers (just for video with simulcast or SVC).
-	closed                bool
-	pausedListeners       []func()
-	resumeListeners       []func()
-	scoreListeners        []func(score ConsumerScore)
-	layersChangeListeners []func(layers ConsumerLayers)
-	traceListeners        []func(trace ConsumerTraceEventData)
-	rtpListeners          []func(data []byte)
-	sub                   *channel.Subscription
+	channel                 *channel.Channel
+	logger                  *slog.Logger
+	data                    *consumerData
+	priority                byte
+	currentLayers           *ConsumerLayers // Current video layers (just for video with simulcast or SVC).
+	closed                  bool
+	pausedListeners         []func()
+	resumeListeners         []func()
+	producerCloseListeners  []func()
+	producerPauseListeners  []func()
+	producerResumeListeners []func()
+	scoreListeners          []func(score ConsumerScore)
+	layersChangeListeners   []func(layers *ConsumerLayers)
+	traceListeners          []func(trace ConsumerTraceEventData)
+	rtpListeners            []func(data []byte)
+	sub                     *channel.Subscription
 }
 
 func newConsumer(channel *channel.Channel, logger *slog.Logger, data *consumerData) *Consumer {
@@ -197,7 +200,7 @@ func (c *Consumer) Dump() (*ConsumerDump, error) {
 			Kind:                       MediaKind(strings.ToLower(base.Kind.String())),
 			RtpParameters:              parseRtpParameters(base.RtpParameters),
 			ConsumableRtpEncodings:     collect(base.ConsumableRtpEncodings, parseRtpEncodingParameters),
-			SupportedCodecPayloadTypes: base.SupportedCodecPayloadTypes,
+			SupportedCodecPayloadTypes: collect(base.SupportedCodecPayloadTypes, func(v byte) int { return int(v) }),
 			TraceEventTypes: collect(base.TraceEventTypes, func(v FbsConsumer.TraceEventType) ConsumerTraceEventType {
 				return ConsumerTraceEventType(strings.ToLower(v.String()))
 			}),
@@ -273,18 +276,7 @@ func (c *Consumer) GetStats() ([]*ConsumerStat, error) {
 	}
 	resp := msg.(*FbsConsumer.GetStatsResponseT)
 
-	return collect(resp.Stats, func(stat *FbsRtpStream.StatsT) *ConsumerStat {
-		sendStats := stat.Data.Value.(*FbsRtpStream.SendStatsT)
-		baseStats := sendStats.Base.Data.Value.(*FbsRtpStream.BaseStatsT)
-
-		return &ConsumerStat{
-			BaseRtpStreamStats: parseBaseRtpStreamStats(baseStats),
-			Type:               "outbound-rtp",
-			PacketCount:        sendStats.PacketCount,
-			ByteCount:          sendStats.ByteCount,
-			Bitrate:            sendStats.Bitrate,
-		}
-	}), nil
+	return collect(resp.Stats, parseRtpStreamStats), nil
 }
 
 // Pause the Consumer.
@@ -459,6 +451,27 @@ func (p *Consumer) OnResume(handler func()) {
 	p.resumeListeners = append(p.resumeListeners, handler)
 }
 
+// OnProducerClose add handler on "producerclose" event.
+func (p *Consumer) OnProducerClose(handler func()) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.producerCloseListeners = append(p.producerCloseListeners, handler)
+}
+
+// OnProducerPause add handler on "producerpause" event.
+func (p *Consumer) OnProducerPause(handler func()) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.producerPauseListeners = append(p.producerPauseListeners, handler)
+}
+
+// OnProducerResume add handler on "producerresume" event.
+func (p *Consumer) OnProducerResume(handler func()) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.producerResumeListeners = append(p.producerResumeListeners, handler)
+}
+
 // OnScore add handler on "score" event.
 func (p *Consumer) OnScore(handler func(score ConsumerScore)) {
 	p.mu.Lock()
@@ -468,7 +481,7 @@ func (p *Consumer) OnScore(handler func(score ConsumerScore)) {
 }
 
 // OnLayersChange add handler on "layerschange" event.
-func (p *Consumer) OnLayersChange(handler func(layers ConsumerLayers)) {
+func (p *Consumer) OnLayersChange(handler func(layers *ConsumerLayers)) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
@@ -501,8 +514,12 @@ func (c *Consumer) handleWorkerNotifications() {
 				return
 			}
 			c.closed = true
+			listeners := c.producerCloseListeners
 			c.mu.Unlock()
 
+			for _, listener := range listeners {
+				listener()
+			}
 			c.cleanupAfterClosed()
 
 		case FbsNotification.EventCONSUMER_PRODUCER_PAUSE:
@@ -514,8 +531,12 @@ func (c *Consumer) handleWorkerNotifications() {
 			c.data.ProducerPaused = true
 			paused := c.data.Paused
 			pausedListeners := c.pausedListeners
+			producerPauseListeners := c.producerPauseListeners
 			c.mu.Unlock()
 
+			for _, listener := range producerPauseListeners {
+				listener()
+			}
 			if !paused {
 				for _, listener := range pausedListeners {
 					listener()
@@ -531,8 +552,12 @@ func (c *Consumer) handleWorkerNotifications() {
 			c.data.ProducerPaused = false
 			paused := c.data.Paused
 			resumeListeners := c.resumeListeners
+			producerResumeListeners := c.producerResumeListeners
 			c.mu.Unlock()
 
+			for _, listener := range producerResumeListeners {
+				listener()
+			}
 			if !paused {
 				for _, listener := range resumeListeners {
 					listener()
@@ -542,10 +567,15 @@ func (c *Consumer) handleWorkerNotifications() {
 		case FbsNotification.EventCONSUMER_SCORE:
 			notification := body.Value.(*FbsConsumer.ScoreNotificationT)
 			score := ConsumerScore{
-				Score:          notification.Score.Score,
-				ProducerScore:  notification.Score.ProducerScore,
-				ProducerScores: notification.Score.ProducerScores,
+				Score:         int(notification.Score.Score),
+				ProducerScore: int(notification.Score.ProducerScore),
+				ProducerScores: ifElse(notification.Score.ProducerScores != nil, func() []int {
+					return collect(notification.Score.ProducerScores, func(v byte) int {
+						return int(v)
+					})
+				}),
 			}
+
 			c.mu.Lock()
 			c.data.Score = score
 			listeners := c.scoreListeners
@@ -556,12 +586,15 @@ func (c *Consumer) handleWorkerNotifications() {
 
 		case FbsNotification.EventCONSUMER_LAYERS_CHANGE:
 			notification := body.Value.(*FbsConsumer.LayersChangeNotificationT)
-			layers := ConsumerLayers{
-				SpatialLayer:  notification.Layers.SpatialLayer,
-				TemporalLayer: notification.Layers.TemporalLayer,
+			var layers *ConsumerLayers
+			if notification.Layers != nil {
+				layers = &ConsumerLayers{
+					SpatialLayer:  notification.Layers.SpatialLayer,
+					TemporalLayer: notification.Layers.TemporalLayer,
+				}
 			}
 			c.mu.Lock()
-			c.currentLayers = &layers
+			c.currentLayers = layers
 			listeners := c.layersChangeListeners
 			c.mu.Unlock()
 			for _, listener := range listeners {

@@ -1,24 +1,7 @@
 package mediasoup
 
-type RtpStreamRecvStats struct {
-	BaseRtpStreamStats
-	Type           string            `json:"type"`
-	Jitter         uint32            `json:"jitter"`
-	PacketCount    uint64            `json:"packetCount"`
-	ByteCount      uint64            `json:"byteCount"`
-	Bitrate        uint32            `json:"bitrate"`
-	BitrateByLayer map[string]uint32 `json:"bitrateByLayer,omitempty"`
-}
-
-type RtpStreamSendStats struct {
-	BaseRtpStreamStats
-	Type        string `json:"type"`
-	PacketCount uint64 `json:"packetCount"`
-	ByteCount   uint64 `json:"byteCount"`
-	Bitrate     uint32 `json:"bitrate"`
-}
-
-type BaseRtpStreamStats struct {
+type RtpStreamStats struct {
+	Type                 string    `json:"type"`
 	Timestamp            uint64    `json:"timestamp"`
 	Ssrc                 uint32    `json:"ssrc"`
 	Kind                 MediaKind `json:"kind"`
@@ -37,4 +20,11 @@ type BaseRtpStreamStats struct {
 	RtxSsrc              *uint32   `json:"rtxSsrc,omitempty"`
 	RoundTripTime        float32   `json:"roundTripTime,omitempty"`
 	RtxPacketsDiscarded  uint64    `json:"rtxPacketsDiscarded,omitempty"`
+	PacketCount          uint64    `json:"packetCount"`
+	ByteCount            uint64    `json:"byteCount"`
+	Bitrate              uint32    `json:"bitrate"`
+
+	// specific stats of our recv stream.
+	Jitter         uint32            `json:"jitter,omitempty"`
+	BitrateByLayer map[string]uint32 `json:"bitrateByLayer,omitempty"`
 }

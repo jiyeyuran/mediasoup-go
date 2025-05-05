@@ -165,7 +165,7 @@ func TestConsumerDump(t *testing.T) {
 	assert.Equal(t, []*RtpEncodingParameters{
 		{Ssrc: audioProducer.ConsumableRtpParameters().Encodings[0].Ssrc, Dtx: true, ScalabilityMode: "S1T1"},
 	}, data.ConsumableRtpEncodings)
-	assert.Equal(t, []uint8{100}, data.SupportedCodecPayloadTypes)
+	assert.Equal(t, []int{100}, data.SupportedCodecPayloadTypes)
 	assert.False(t, data.Paused)
 	assert.False(t, data.ProducerPaused)
 
@@ -239,7 +239,7 @@ func TestConsumerDump(t *testing.T) {
 		{Ssrc: videoProducer.ConsumableRtpParameters().Encodings[2].Ssrc, ScalabilityMode: "L1T5"},
 		{Ssrc: videoProducer.ConsumableRtpParameters().Encodings[3].Ssrc, ScalabilityMode: "L1T5"},
 	}, data.ConsumableRtpEncodings)
-	assert.Equal(t, []byte{103}, data.SupportedCodecPayloadTypes)
+	assert.Equal(t, []int{103}, data.SupportedCodecPayloadTypes)
 	assert.True(t, data.Paused)
 	assert.True(t, data.ProducerPaused)
 }
@@ -255,22 +255,18 @@ func TestConsumerGetStats(t *testing.T) {
 	expectedConsumerStats := []*ConsumerStat{}
 	for _, stats := range consumerStats {
 		expectedConsumerStats = append(expectedConsumerStats, &ConsumerStat{
-			Type: stats.Type,
-			BaseRtpStreamStats: BaseRtpStreamStats{
-				Kind:     stats.Kind,
-				MimeType: stats.MimeType,
-				Ssrc:     stats.Ssrc,
-			},
+			Type:     stats.Type,
+			Kind:     stats.Kind,
+			MimeType: stats.MimeType,
+			Ssrc:     stats.Ssrc,
 		})
 	}
 
 	assert.Contains(t, expectedConsumerStats, &ConsumerStat{
-		Type: "outbound-rtp",
-		BaseRtpStreamStats: BaseRtpStreamStats{
-			Kind:     "audio",
-			MimeType: "audio/opus",
-			Ssrc:     audioConsumer.RtpParameters().Encodings[0].Ssrc,
-		},
+		Type:     "outbound-rtp",
+		Kind:     "audio",
+		MimeType: "audio/opus",
+		Ssrc:     audioConsumer.RtpParameters().Encodings[0].Ssrc,
 	})
 
 	videoProducer := createVideoProducer(transport)
@@ -281,22 +277,18 @@ func TestConsumerGetStats(t *testing.T) {
 	expectedConsumerStats = []*ConsumerStat{}
 	for _, stats := range consumerStats {
 		expectedConsumerStats = append(expectedConsumerStats, &ConsumerStat{
-			Type: stats.Type,
-			BaseRtpStreamStats: BaseRtpStreamStats{
-				Kind:     stats.Kind,
-				MimeType: stats.MimeType,
-				Ssrc:     stats.Ssrc,
-			},
+			Type:     stats.Type,
+			Kind:     stats.Kind,
+			MimeType: stats.MimeType,
+			Ssrc:     stats.Ssrc,
 		})
 	}
 
 	assert.Contains(t, expectedConsumerStats, &ConsumerStat{
-		Type: "outbound-rtp",
-		BaseRtpStreamStats: BaseRtpStreamStats{
-			Kind:     "video",
-			MimeType: "video/H264",
-			Ssrc:     videoConsumer.RtpParameters().Encodings[0].Ssrc,
-		},
+		Type:     "outbound-rtp",
+		Kind:     "video",
+		MimeType: "video/H264",
+		Ssrc:     videoConsumer.RtpParameters().Encodings[0].Ssrc,
 	})
 }
 

@@ -54,7 +54,7 @@ func (p *DataProducer) Type() DataProducerType {
 
 // SctpStreamParameters returns SCTP stream parameters.
 func (p *DataProducer) SctpStreamParameters() *SctpStreamParameters {
-	return p.data.SctpStreamParameters
+	return clone(p.data.SctpStreamParameters)
 }
 
 // Label returns DataChannel label.

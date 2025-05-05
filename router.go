@@ -345,7 +345,7 @@ func (r *Router) CreateWebRtcTransport(options *WebRtcTransportOptions) (*Transp
 	if options.InitialAvailableOutgoingBitrate > 0 {
 		o.InitialAvailableOutgoingBitrate = options.InitialAvailableOutgoingBitrate
 	}
-	if options.NumSctpStreams != nil {
+	if options.NumSctpStreams != nil && options.NumSctpStreams.OS > 0 && options.NumSctpStreams.MIS > 0 {
 		o.NumSctpStreams = options.NumSctpStreams
 	}
 	if options.MaxSctpMessageSize > 0 {
@@ -715,7 +715,7 @@ func (r *Router) PipeToRouter(options *PipeToRouterOptions) (result *PipeToRoute
 	o := &PipeToRouterOptions{
 		ListenInfo: TransportListenInfo{
 			Protocol: TransportProtocolUDP,
-			IP:       "127.0.0.1",
+			Ip:       "127.0.0.1",
 		},
 		ProducerId:     options.ProducerId,
 		DataProducerId: options.DataProducerId,

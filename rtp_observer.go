@@ -197,7 +197,7 @@ func (r *RtpObserver) handleWorkerNotifications() {
 
 			for _, handler := range handlers {
 				handler(AudioLevelObserverDominantSpeaker{
-					ProducerId: notification.ProducerId,
+					Producer: producer,
 				})
 			}
 
@@ -216,8 +216,8 @@ func (r *RtpObserver) handleWorkerNotifications() {
 					continue
 				}
 				volumes = append(volumes, AudioLevelObserverVolume{
-					ProducerId: volume.ProducerId,
-					Volume:     volume.Volume,
+					Producer: producer,
+					Volume:   volume.Volume,
 				})
 			}
 			for _, handler := range handlers {
