@@ -5,7 +5,7 @@ package Consumer
 import (
 	flatbuffers "github.com/google/flatbuffers/go"
 
-	FBS__RtpStream "github.com/jiyeyuran/mediasoup-go/internal/FBS/RtpStream"
+	FBS__RtpStream "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/RtpStream"
 )
 
 type GetStatsResponseT struct {

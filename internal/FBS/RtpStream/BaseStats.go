@@ -5,7 +5,7 @@ package RtpStream
 import (
 	flatbuffers "github.com/google/flatbuffers/go"
 
-	FBS__RtpParameters "github.com/jiyeyuran/mediasoup-go/internal/FBS/RtpParameters"
+	FBS__RtpParameters "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/RtpParameters"
 )
 
 type BaseStatsT struct {

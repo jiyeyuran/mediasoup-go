@@ -5,7 +5,7 @@ package Transport
 import (
 	flatbuffers "github.com/google/flatbuffers/go"
 
-	FBS__SctpAssociation "github.com/jiyeyuran/mediasoup-go/internal/FBS/SctpAssociation"
+	FBS__SctpAssociation "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/SctpAssociation"
 )
 
 type SctpStateChangeNotificationT struct {

@@ -3,13 +3,13 @@ package mediasoup
 import (
 	"log/slog"
 
-	FbsActiveSpeakerObserver "github.com/jiyeyuran/mediasoup-go/internal/FBS/ActiveSpeakerObserver"
-	FbsAudioLevelObserver "github.com/jiyeyuran/mediasoup-go/internal/FBS/AudioLevelObserver"
-	FbsNotification "github.com/jiyeyuran/mediasoup-go/internal/FBS/Notification"
-	FbsRequest "github.com/jiyeyuran/mediasoup-go/internal/FBS/Request"
-	FbsRouter "github.com/jiyeyuran/mediasoup-go/internal/FBS/Router"
-	FbsRtpObserver "github.com/jiyeyuran/mediasoup-go/internal/FBS/RtpObserver"
-	"github.com/jiyeyuran/mediasoup-go/internal/channel"
+	FbsActiveSpeakerObserver "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/ActiveSpeakerObserver"
+	FbsAudioLevelObserver "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/AudioLevelObserver"
+	FbsNotification "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/Notification"
+	FbsRequest "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/Request"
+	FbsRouter "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/Router"
+	FbsRtpObserver "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/RtpObserver"
+	"github.com/jiyeyuran/mediasoup-go/v2/internal/channel"
 )
 
 type rtpObserverData struct {

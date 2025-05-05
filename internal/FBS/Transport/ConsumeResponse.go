@@ -5,7 +5,7 @@ package Transport
 import (
 	flatbuffers "github.com/google/flatbuffers/go"
 
-	FBS__Consumer "github.com/jiyeyuran/mediasoup-go/internal/FBS/Consumer"
+	FBS__Consumer "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/Consumer"
 )
 
 type ConsumeResponseT struct {

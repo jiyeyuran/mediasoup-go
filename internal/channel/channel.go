@@ -12,11 +12,11 @@ import (
 	"time"
 
 	flatbuffers "github.com/google/flatbuffers/go"
-	FbsLog "github.com/jiyeyuran/mediasoup-go/internal/FBS/Log"
-	FbsMessage "github.com/jiyeyuran/mediasoup-go/internal/FBS/Message"
-	FbsNotification "github.com/jiyeyuran/mediasoup-go/internal/FBS/Notification"
-	FbsRequest "github.com/jiyeyuran/mediasoup-go/internal/FBS/Request"
-	FbsResponse "github.com/jiyeyuran/mediasoup-go/internal/FBS/Response"
+	FbsLog "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/Log"
+	FbsMessage "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/Message"
+	FbsNotification "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/Notification"
+	FbsRequest "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/Request"
+	FbsResponse "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/Response"
 )
 
 const (

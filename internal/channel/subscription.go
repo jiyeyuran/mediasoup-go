@@ -3,7 +3,7 @@ package channel
 import (
 	"sync"
 
-	FbsNotification "github.com/jiyeyuran/mediasoup-go/internal/FBS/Notification"
+	FbsNotification "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/Notification"
 )
 
 type Handler func(event FbsNotification.Event, body *FbsNotification.BodyT)

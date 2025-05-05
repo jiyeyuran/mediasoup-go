@@ -5,8 +5,8 @@ package Producer
 import (
 	flatbuffers "github.com/google/flatbuffers/go"
 
-	FBS__RtpParameters "github.com/jiyeyuran/mediasoup-go/internal/FBS/RtpParameters"
-	FBS__RtpStream "github.com/jiyeyuran/mediasoup-go/internal/FBS/RtpStream"
+	FBS__RtpParameters "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/RtpParameters"
+	FBS__RtpStream "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/RtpStream"
 )
 
 type DumpResponseT struct {

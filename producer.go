@@ -4,15 +4,15 @@ import (
 	"log/slog"
 	"strings"
 
-	FbsCommon "github.com/jiyeyuran/mediasoup-go/internal/FBS/Common"
-	FbsNotification "github.com/jiyeyuran/mediasoup-go/internal/FBS/Notification"
-	FbsProducer "github.com/jiyeyuran/mediasoup-go/internal/FBS/Producer"
-	FbsRequest "github.com/jiyeyuran/mediasoup-go/internal/FBS/Request"
-	FbsRtpParameters "github.com/jiyeyuran/mediasoup-go/internal/FBS/RtpParameters"
-	FbsRtpStream "github.com/jiyeyuran/mediasoup-go/internal/FBS/RtpStream"
-	FbsTransport "github.com/jiyeyuran/mediasoup-go/internal/FBS/Transport"
+	FbsCommon "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/Common"
+	FbsNotification "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/Notification"
+	FbsProducer "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/Producer"
+	FbsRequest "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/Request"
+	FbsRtpParameters "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/RtpParameters"
+	FbsRtpStream "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/RtpStream"
+	FbsTransport "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/Transport"
 
-	"github.com/jiyeyuran/mediasoup-go/internal/channel"
+	"github.com/jiyeyuran/mediasoup-go/v2/internal/channel"
 )
 
 type producerData struct {

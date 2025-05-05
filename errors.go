@@ -3,7 +3,7 @@ package mediasoup
 import (
 	"errors"
 
-	"github.com/jiyeyuran/mediasoup-go/internal/channel"
+	"github.com/jiyeyuran/mediasoup-go/v2/internal/channel"
 )
 
 var (

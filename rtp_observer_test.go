@@ -4,9 +4,9 @@ import (
 	"testing"
 	"time"
 
-	FbsActiveSpeakerObserver "github.com/jiyeyuran/mediasoup-go/internal/FBS/ActiveSpeakerObserver"
-	FbsAudioLevelObserver "github.com/jiyeyuran/mediasoup-go/internal/FBS/AudioLevelObserver"
-	FbsNotification "github.com/jiyeyuran/mediasoup-go/internal/FBS/Notification"
+	FbsActiveSpeakerObserver "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/ActiveSpeakerObserver"
+	FbsAudioLevelObserver "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/AudioLevelObserver"
+	FbsNotification "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/Notification"
 	"github.com/stretchr/testify/assert"
 )
 

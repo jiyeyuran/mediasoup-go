@@ -3,12 +3,12 @@ package mediasoup
 import (
 	"log/slog"
 
-	FbsDataProducer "github.com/jiyeyuran/mediasoup-go/internal/FBS/DataProducer"
-	FbsNotification "github.com/jiyeyuran/mediasoup-go/internal/FBS/Notification"
-	FbsRequest "github.com/jiyeyuran/mediasoup-go/internal/FBS/Request"
-	FbsTransport "github.com/jiyeyuran/mediasoup-go/internal/FBS/Transport"
+	FbsDataProducer "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/DataProducer"
+	FbsNotification "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/Notification"
+	FbsRequest "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/Request"
+	FbsTransport "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/Transport"
 
-	"github.com/jiyeyuran/mediasoup-go/internal/channel"
+	"github.com/jiyeyuran/mediasoup-go/v2/internal/channel"
 )
 
 type dataProducerData struct {

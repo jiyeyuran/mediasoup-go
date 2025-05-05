@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	FbsConsumer "github.com/jiyeyuran/mediasoup-go/internal/FBS/Consumer"
-	FbsNotification "github.com/jiyeyuran/mediasoup-go/internal/FBS/Notification"
+	FbsConsumer "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/Consumer"
+	FbsNotification "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/Notification"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

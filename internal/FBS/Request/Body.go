@@ -6,16 +6,16 @@ import (
 	flatbuffers "github.com/google/flatbuffers/go"
 	"strconv"
 
-	FBS__Consumer "github.com/jiyeyuran/mediasoup-go/internal/FBS/Consumer"
-	FBS__DataConsumer "github.com/jiyeyuran/mediasoup-go/internal/FBS/DataConsumer"
-	FBS__PipeTransport "github.com/jiyeyuran/mediasoup-go/internal/FBS/PipeTransport"
-	FBS__PlainTransport "github.com/jiyeyuran/mediasoup-go/internal/FBS/PlainTransport"
-	FBS__Producer "github.com/jiyeyuran/mediasoup-go/internal/FBS/Producer"
-	FBS__Router "github.com/jiyeyuran/mediasoup-go/internal/FBS/Router"
-	FBS__RtpObserver "github.com/jiyeyuran/mediasoup-go/internal/FBS/RtpObserver"
-	FBS__Transport "github.com/jiyeyuran/mediasoup-go/internal/FBS/Transport"
-	FBS__WebRtcTransport "github.com/jiyeyuran/mediasoup-go/internal/FBS/WebRtcTransport"
-	FBS__Worker "github.com/jiyeyuran/mediasoup-go/internal/FBS/Worker"
+	FBS__Consumer "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/Consumer"
+	FBS__DataConsumer "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/DataConsumer"
+	FBS__PipeTransport "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/PipeTransport"
+	FBS__PlainTransport "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/PlainTransport"
+	FBS__Producer "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/Producer"
+	FBS__Router "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/Router"
+	FBS__RtpObserver "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/RtpObserver"
+	FBS__Transport "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/Transport"
+	FBS__WebRtcTransport "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/WebRtcTransport"
+	FBS__Worker "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/Worker"
 )
 
 type Body byte
