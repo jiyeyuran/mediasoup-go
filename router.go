@@ -29,7 +29,7 @@ import (
 // at the same time.
 var pipeRouterGroup = &singleflight.Group{}
 
-type RouterData struct {
+type routerData struct {
 	RouterId        string
 	RtpCapabilities *RtpCapabilities
 	AppData         H
@@ -39,7 +39,7 @@ type Router struct {
 	baseNotifier
 
 	channel *channel.Channel
-	data    *RouterData
+	data    *routerData
 	closed  bool
 	logger  *slog.Logger
 
@@ -54,7 +54,7 @@ type Router struct {
 	mapRouterPipeTransports map[*Router][2]*Transport
 }
 
-func newRouter(channel *channel.Channel, logger *slog.Logger, data *RouterData) *Router {
+func newRouter(channel *channel.Channel, logger *slog.Logger, data *routerData) *Router {
 	return &Router{
 		channel:                 channel,
 		data:                    data,

@@ -451,7 +451,7 @@ func (w *Worker) CreateRouter(options *RouterOptions) (*Router, error) {
 	if err != nil {
 		return nil, err
 	}
-	data := &RouterData{
+	data := &routerData{
 		RouterId:        routerId,
 		RtpCapabilities: rtpCapabilities,
 		AppData:         options.AppData,

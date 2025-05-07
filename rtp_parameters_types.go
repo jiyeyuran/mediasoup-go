@@ -354,7 +354,7 @@ type RtpCodecSpecificParameters struct {
 	LevelAsymmetryAllowed uint32 `json:"level-asymmetry-allowed,omitempty"`
 
 	// ProfileId is the profile id used by VP9 or AV1 codec.
-	ProfileId string `json:"profile-id,omitempty"`
+	ProfileId uint32 `json:"profile-id,omitempty"`
 
 	// Apt is the apt value used by rtx codec.
 	Apt uint8 `json:"apt,omitempty"`
