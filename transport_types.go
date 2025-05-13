@@ -252,55 +252,49 @@ type TransportTraceEventData struct {
 }
 
 type TransportDump struct {
-	BaseTransportDump
-	// plain transport
-	*PlainTransportDump
-	// webrtc transport
-	*WebRtcTransportDump
-	// pipe transport
-	*PipeTransportDump
-}
-
-// BaseTransportDump represents base transport dump information.
-type BaseTransportDump struct {
-	Id                      string                     `json:"id,omitempty"`
+	Id                      string                     `json:"id"`
+	Type                    TransportType              `json:"type"`
 	Direct                  bool                       `json:"direct,omitempty"`
-	ProducerIds             []string                   `json:"producerIds,omitempty"`
-	ConsumerIds             []string                   `json:"consumerIds,omitempty"`
-	MapSsrcConsumerId       []KeyValue[uint32, string] `json:"mapSsrcConsumerId,omitempty"`
-	MapRtxSsrcConsumerId    []KeyValue[uint32, string] `json:"mapRtxSsrcConsumerId,omitempty"`
-	DataProducerIds         []string                   `json:"dataProducerIds,omitempty"`
-	DataConsumerIds         []string                   `json:"dataConsumerIds,omitempty"`
-	RecvRtpHeaderExtensions *RecvRtpHeaderExtensions   `json:"recvRtpHeaderExtensions,omitempty"`
-	RtpListener             *RtpListener               `json:"rtpListener,omitempty"`
+	ProducerIds             []string                   `json:"producerIds"`
+	ConsumerIds             []string                   `json:"consumerIds"`
+	MapSsrcConsumerId       []KeyValue[uint32, string] `json:"mapSsrcConsumerId"`
+	MapRtxSsrcConsumerId    []KeyValue[uint32, string] `json:"mapRtxSsrcConsumerId"`
+	DataProducerIds         []string                   `json:"dataProducerIds"`
+	DataConsumerIds         []string                   `json:"dataConsumerIds"`
+	RecvRtpHeaderExtensions *RecvRtpHeaderExtensions   `json:"recvRtpHeaderExtensions"`
+	RtpListener             *RtpListener               `json:"rtpListener"`
 	MaxMessageSize          uint32                     `json:"maxMessageSize,omitempty"`
 	SctpParameters          *SctpParameters            `json:"SctpParameters,omitempty"`
 	SctpState               SctpState                  `json:"sctpState,omitempty"`
 	SctpListener            *SctpListener              `json:"sctpListener,omitempty"`
-	TraceEventTypes         []TransportTraceEventType  `json:"traceEventTypes,omitempty"`
+	TraceEventTypes         []TransportTraceEventType  `json:"traceEventTypes"`
+
+	*PlainTransportDump
+	*WebRtcTransportDump
+	*PipeTransportDump
 }
 
 type PlainTransportDump struct {
 	RtcpMux        bool            `json:"rtcpMux,omitempty"`
 	Comedia        bool            `json:"comedia,omitempty"`
-	Tuple          TransportTuple  `json:"tuple,omitempty"`
+	Tuple          TransportTuple  `json:"tuple"`
 	RtcpTuple      *TransportTuple `json:"rtcpTuple,omitempty"`
 	SrtpParameters *SrtpParameters `json:"srtpParameters,omitempty"`
 }
 
 type PipeTransportDump struct {
-	Tuple          TransportTuple  `json:"tuple,omitempty"`
+	Tuple          TransportTuple  `json:"tuple"`
 	Rtx            bool            `json:"rtx,omitempty"`
 	SrtpParameters *SrtpParameters `json:"srtpParameters,omitempty"`
 }
 
 type WebRtcTransportDump struct {
 	IceRole          string          `json:"iceRole,omitempty"`
-	IceParameters    IceParameters   `json:"iceParameters,omitempty"`
-	IceCandidates    []IceCandidate  `json:"iceCandidates,omitempty"`
+	IceParameters    IceParameters   `json:"iceParameters"`
+	IceCandidates    []IceCandidate  `json:"iceCandidates"`
 	IceState         IceState        `json:"iceState,omitempty"`
 	IceSelectedTuple *TransportTuple `json:"iceSelectedTuple,omitempty"`
-	DtlsParameters   DtlsParameters  `json:"dtlsParameters,omitempty"`
+	DtlsParameters   DtlsParameters  `json:"dtlsParameters"`
 	DtlsState        DtlsState       `json:"dtlsState,omitempty"`
 }
 

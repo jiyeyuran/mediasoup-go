@@ -192,41 +192,31 @@ func (c *Consumer) Dump() (*ConsumerDump, error) {
 		return nil, err
 	}
 	resp := msg.(*FbsConsumer.DumpResponseT)
-
-	parseBaseConsumerDump := func(base *FbsConsumer.BaseConsumerDumpT) BaseConsumerDump {
-		return BaseConsumerDump{
-			Id:                         base.Id,
-			ProducerId:                 base.ProducerId,
-			Kind:                       MediaKind(strings.ToLower(base.Kind.String())),
-			RtpParameters:              parseRtpParameters(base.RtpParameters),
-			ConsumableRtpEncodings:     collect(base.ConsumableRtpEncodings, parseRtpEncodingParameters),
-			SupportedCodecPayloadTypes: collect(base.SupportedCodecPayloadTypes, func(v byte) int { return int(v) }),
-			TraceEventTypes: collect(base.TraceEventTypes, func(v FbsConsumer.TraceEventType) ConsumerTraceEventType {
-				return ConsumerTraceEventType(strings.ToLower(v.String()))
-			}),
-			Paused:         base.Paused,
-			ProducerPaused: base.ProducerPaused,
-			Priority:       base.Priority,
-		}
+	base := resp.Data.Base
+	dump := &ConsumerDump{
+		Id:                         base.Id,
+		ProducerId:                 base.ProducerId,
+		Type:                       ConsumerType(strings.ToLower(base.Type.String())),
+		Kind:                       MediaKind(strings.ToLower(base.Kind.String())),
+		RtpParameters:              parseRtpParameters(base.RtpParameters),
+		ConsumableRtpEncodings:     collect(base.ConsumableRtpEncodings, parseRtpEncodingParameters),
+		SupportedCodecPayloadTypes: collect(base.SupportedCodecPayloadTypes, func(v byte) int { return int(v) }),
+		TraceEventTypes: collect(base.TraceEventTypes, func(v FbsConsumer.TraceEventType) ConsumerTraceEventType {
+			return ConsumerTraceEventType(strings.ToLower(v.String()))
+		}),
+		Paused:         base.Paused,
+		ProducerPaused: base.ProducerPaused,
+		Priority:       base.Priority,
 	}
-
-	baseDump := parseBaseConsumerDump(resp.Data.Base)
 
 	switch data := resp.Data; data.Base.Type {
 	case FbsRtpParameters.TypeSIMPLE:
-		baseDump.Type = ConsumerSimple
-
-		return &ConsumerDump{
-			BaseConsumerDump: baseDump,
-			SimpleConsumerDump: &SimpleConsumerDump{
-				RtpStream: parseRtpStreamDump(data.RtpStreams[0]),
-			},
-		}, nil
+		dump.SimpleConsumerDump = &SimpleConsumerDump{
+			RtpStream: parseRtpStreamDump(data.RtpStreams[0]),
+		}
 
 	case FbsRtpParameters.TypeSIMULCAST, FbsRtpParameters.TypeSVC:
-		baseDump.Type = orElse(data.Base.Type == FbsRtpParameters.TypeSVC, ConsumerSvc, ConsumerSimulcast)
-
-		dump := &SimulcastConsumerDump{
+		specificDump := &SimulcastConsumerDump{
 			RtpStream:              parseRtpStreamDump(data.RtpStreams[0]),
 			PreferredSpatialLayer:  *data.PreferredSpatialLayer,
 			TargetSpatialLayer:     *data.TargetSpatialLayer,
@@ -236,31 +226,21 @@ func (c *Consumer) Dump() (*ConsumerDump, error) {
 			CurrentTemporalLayer:   *data.CurrentTemporalLayer,
 		}
 		if data.Base.Type == FbsRtpParameters.TypeSVC {
-			return &ConsumerDump{
-				BaseConsumerDump: baseDump,
-				SvcConsumerDump:  dump,
-			}, nil
+			dump.SvcConsumerDump = specificDump
 		} else {
-			return &ConsumerDump{
-				BaseConsumerDump:      baseDump,
-				SimulcastConsumerDump: dump,
-			}, nil
+			dump.SimulcastConsumerDump = specificDump
 		}
 
 	case FbsRtpParameters.TypePIPE:
-		baseDump.Type = ConsumerPipe
-
-		return &ConsumerDump{
-			BaseConsumerDump: baseDump,
-			PipeConsumerDump: &PipeConsumerDump{
-				RtpStreams: collect(data.RtpStreams, parseRtpStreamDump),
-			},
-		}, nil
+		dump.PipeConsumerDump = &PipeConsumerDump{
+			RtpStreams: collect(data.RtpStreams, parseRtpStreamDump),
+		}
 
 	default:
 		return nil, fmt.Errorf("invalid Consumer type: %s", data.Base.Type)
 	}
 
+	return dump, nil
 }
 
 // GetStats returns Consumer stats.
