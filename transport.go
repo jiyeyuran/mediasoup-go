@@ -164,8 +164,8 @@ func (t *Transport) Dump() (*TransportDump, error) {
 		return nil, err
 	}
 
-	parseBaseTransportDump := func(dump *FbsTransport.DumpT) *TransportDump {
-		return &TransportDump{
+	parseBaseTransportDump := func(dump *FbsTransport.DumpT) BaseTransportDump {
+		return BaseTransportDump{
 			Id:          dump.Id,
 			Type:        t.Type(),
 			Direct:      dump.Direct,
@@ -245,72 +245,80 @@ func (t *Transport) Dump() (*TransportDump, error) {
 	switch t.Type() {
 	case TransportWebRTC:
 		resp := msg.(*FbsWebRtcTransport.DumpResponseT)
-		dump := parseBaseTransportDump(resp.Base)
-		dump.WebRtcTransportDump = &WebRtcTransportDump{
-			IceRole: strings.ToLower(resp.IceRole.String()),
-			IceParameters: IceParameters{
-				UsernameFragment: resp.IceParameters.UsernameFragment,
-				Password:         resp.IceParameters.Password,
-			},
-			IceCandidates: collect(resp.IceCandidates,
-				func(item *FbsWebRtcTransport.IceCandidateT) IceCandidate {
-					return IceCandidate{
-						Foundation: item.Foundation,
-						Priority:   item.Priority,
-						Address:    item.Address,
-						Protocol:   TransportProtocol(strings.ToLower(item.Protocol.String())),
-						Port:       item.Port,
-						Type:       strings.ToLower(item.Type.String()),
-						TcpType: ifElse(item.TcpType != nil, func() string {
-							return strings.ToLower(item.TcpType.String())
-						}),
-					}
-				}),
-			IceState:         IceState(strings.ToLower(resp.IceState.String())),
-			IceSelectedTuple: parseTransportTuple(resp.IceSelectedTuple),
-			DtlsParameters: DtlsParameters{
-				Role: DtlsRole(strings.ToLower(resp.DtlsParameters.Role.String())),
-				Fingerprints: collect(resp.DtlsParameters.Fingerprints,
-					func(item *FbsWebRtcTransport.FingerprintT) DtlsFingerprint {
-						return DtlsFingerprint{
-							Algorithm: strings.ToLower(item.Algorithm.String()),
-							Value:     item.Value,
+		dump := &TransportDump{
+			BaseTransportDump: parseBaseTransportDump(resp.Base),
+			WebRtcTransportDump: &WebRtcTransportDump{
+				IceRole: strings.ToLower(resp.IceRole.String()),
+				IceParameters: IceParameters{
+					UsernameFragment: resp.IceParameters.UsernameFragment,
+					Password:         resp.IceParameters.Password,
+				},
+				IceCandidates: collect(resp.IceCandidates,
+					func(item *FbsWebRtcTransport.IceCandidateT) IceCandidate {
+						return IceCandidate{
+							Foundation: item.Foundation,
+							Priority:   item.Priority,
+							Address:    item.Address,
+							Protocol:   TransportProtocol(strings.ToLower(item.Protocol.String())),
+							Port:       item.Port,
+							Type:       strings.ToLower(item.Type.String()),
+							TcpType: ifElse(item.TcpType != nil, func() string {
+								return strings.ToLower(item.TcpType.String())
+							}),
 						}
-					},
-				),
+					}),
+				IceState:         IceState(strings.ToLower(resp.IceState.String())),
+				IceSelectedTuple: parseTransportTuple(resp.IceSelectedTuple),
+				DtlsParameters: DtlsParameters{
+					Role: DtlsRole(strings.ToLower(resp.DtlsParameters.Role.String())),
+					Fingerprints: collect(resp.DtlsParameters.Fingerprints,
+						func(item *FbsWebRtcTransport.FingerprintT) DtlsFingerprint {
+							return DtlsFingerprint{
+								Algorithm: strings.ToLower(item.Algorithm.String()),
+								Value:     item.Value,
+							}
+						},
+					),
+				},
+				DtlsState: DtlsState(strings.ToLower(resp.DtlsState.String())),
 			},
-			DtlsState: DtlsState(strings.ToLower(resp.DtlsState.String())),
 		}
 
 		return dump, nil
 
 	case TransportPlain:
 		resp := msg.(*FbsPlainTransport.DumpResponseT)
-		dump := parseBaseTransportDump(resp.Base)
-		dump.PlainTransportDump = &PlainTransportDump{
-			RtcpMux:        resp.RtcpMux,
-			Comedia:        resp.Comedia,
-			Tuple:          *parseTransportTuple(resp.Tuple),
-			RtcpTuple:      parseTransportTuple(resp.Tuple),
-			SrtpParameters: parseSrtpParameters(resp.SrtpParameters),
+		dump := &TransportDump{
+			BaseTransportDump: parseBaseTransportDump(resp.Base),
+			PlainTransportDump: &PlainTransportDump{
+				RtcpMux:        resp.RtcpMux,
+				Comedia:        resp.Comedia,
+				Tuple:          *parseTransportTuple(resp.Tuple),
+				RtcpTuple:      parseTransportTuple(resp.Tuple),
+				SrtpParameters: parseSrtpParameters(resp.SrtpParameters),
+			},
 		}
 
 		return dump, nil
 
 	case TransportPipe:
 		resp := msg.(*FbsPipeTransport.DumpResponseT)
-		dump := parseBaseTransportDump(resp.Base)
-		dump.PipeTransportDump = &PipeTransportDump{
-			Tuple:          *parseTransportTuple(resp.Tuple),
-			Rtx:            resp.Rtx,
-			SrtpParameters: parseSrtpParameters(resp.SrtpParameters),
+		dump := &TransportDump{
+			BaseTransportDump: parseBaseTransportDump(resp.Base),
+			PipeTransportDump: &PipeTransportDump{
+				Tuple:          *parseTransportTuple(resp.Tuple),
+				Rtx:            resp.Rtx,
+				SrtpParameters: parseSrtpParameters(resp.SrtpParameters),
+			},
 		}
 
 		return dump, nil
 
 	case TransportDirect:
 		resp := msg.(*FbsDirectTransport.DumpResponseT)
-		dump := parseBaseTransportDump(resp.Base)
+		dump := &TransportDump{
+			BaseTransportDump: parseBaseTransportDump(resp.Base),
+		}
 
 		return dump, nil
 

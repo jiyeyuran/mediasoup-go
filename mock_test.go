@@ -28,6 +28,14 @@ func (m *MockedHandler) OnProducerClosed() {
 	m.Called()
 }
 
+func (m *MockedHandler) OnProducerPause() {
+	m.Called()
+}
+
+func (m *MockedHandler) OnProducerResume() {
+	m.Called()
+}
+
 func (m *MockedHandler) OnConsumeScore(arg1 ConsumerScore) {
 	m.Called(arg1)
 }

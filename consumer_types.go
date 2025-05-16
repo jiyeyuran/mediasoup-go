@@ -82,6 +82,14 @@ const (
 )
 
 type ConsumerDump struct {
+	BaseConsumerDump
+	*SimpleConsumerDump
+	*SimulcastConsumerDump
+	*SvcConsumerDump
+	*PipeConsumerDump
+}
+
+type BaseConsumerDump struct {
 	Id                         string                   `json:"id"`
 	Type                       ConsumerType             `json:"type"`
 	ProducerId                 string                   `json:"producerId"`
@@ -93,11 +101,6 @@ type ConsumerDump struct {
 	Paused                     bool                     `json:"paused"`
 	ProducerPaused             bool                     `json:"producerPaused"`
 	Priority                   uint8                    `json:"priority"`
-
-	*SimpleConsumerDump
-	*SimulcastConsumerDump
-	*SvcConsumerDump
-	*PipeConsumerDump
 }
 
 type SimpleConsumerDump struct {

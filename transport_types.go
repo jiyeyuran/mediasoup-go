@@ -252,6 +252,13 @@ type TransportTraceEventData struct {
 }
 
 type TransportDump struct {
+	BaseTransportDump
+	*PlainTransportDump
+	*WebRtcTransportDump
+	*PipeTransportDump
+}
+
+type BaseTransportDump struct {
 	Id                      string                     `json:"id"`
 	Type                    TransportType              `json:"type"`
 	Direct                  bool                       `json:"direct,omitempty"`
@@ -268,10 +275,6 @@ type TransportDump struct {
 	SctpState               SctpState                  `json:"sctpState,omitempty"`
 	SctpListener            *SctpListener              `json:"sctpListener,omitempty"`
 	TraceEventTypes         []TransportTraceEventType  `json:"traceEventTypes"`
-
-	*PlainTransportDump
-	*WebRtcTransportDump
-	*PipeTransportDump
 }
 
 type PlainTransportDump struct {
