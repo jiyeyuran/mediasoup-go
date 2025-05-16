@@ -194,19 +194,21 @@ func (c *Consumer) Dump() (*ConsumerDump, error) {
 	resp := msg.(*FbsConsumer.DumpResponseT)
 	base := resp.Data.Base
 	dump := &ConsumerDump{
-		Id:                         base.Id,
-		ProducerId:                 base.ProducerId,
-		Type:                       ConsumerType(strings.ToLower(base.Type.String())),
-		Kind:                       MediaKind(strings.ToLower(base.Kind.String())),
-		RtpParameters:              parseRtpParameters(base.RtpParameters),
-		ConsumableRtpEncodings:     collect(base.ConsumableRtpEncodings, parseRtpEncodingParameters),
-		SupportedCodecPayloadTypes: collect(base.SupportedCodecPayloadTypes, func(v byte) int { return int(v) }),
-		TraceEventTypes: collect(base.TraceEventTypes, func(v FbsConsumer.TraceEventType) ConsumerTraceEventType {
-			return ConsumerTraceEventType(strings.ToLower(v.String()))
-		}),
-		Paused:         base.Paused,
-		ProducerPaused: base.ProducerPaused,
-		Priority:       base.Priority,
+		BaseConsumerDump: BaseConsumerDump{
+			Id:                         base.Id,
+			ProducerId:                 base.ProducerId,
+			Type:                       ConsumerType(strings.ToLower(base.Type.String())),
+			Kind:                       MediaKind(strings.ToLower(base.Kind.String())),
+			RtpParameters:              parseRtpParameters(base.RtpParameters),
+			ConsumableRtpEncodings:     collect(base.ConsumableRtpEncodings, parseRtpEncodingParameters),
+			SupportedCodecPayloadTypes: collect(base.SupportedCodecPayloadTypes, func(v byte) int { return int(v) }),
+			TraceEventTypes: collect(base.TraceEventTypes, func(v FbsConsumer.TraceEventType) ConsumerTraceEventType {
+				return ConsumerTraceEventType(strings.ToLower(v.String()))
+			}),
+			Paused:         base.Paused,
+			ProducerPaused: base.ProducerPaused,
+			Priority:       base.Priority,
+		},
 	}
 
 	switch data := resp.Data; data.Base.Type {

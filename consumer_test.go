@@ -393,9 +393,14 @@ func TestConsumerEmitsProducerPauseAndProducerResume(t *testing.T) {
 	mock := new(MockedHandler)
 	defer mock.AssertExpectations(t)
 
+	mock.On("OnProducerPause").Once()
+	mock.On("OnProducerResume").Once()
+
 	transport := createPlainTransport(nil)
 	audioProducer := createAudioProducer(transport)
 	audioConsumer := createConsumer(transport, audioProducer.Id())
+	audioConsumer.OnProducerPause(mock.OnProducerPause)
+	audioConsumer.OnProducerResume(mock.OnProducerResume)
 
 	audioProducer.Pause()
 
