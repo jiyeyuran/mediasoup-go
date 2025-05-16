@@ -27,7 +27,7 @@ type producerData struct {
 }
 
 type Producer struct {
-	baseNotifier
+	baseListener
 
 	channel                         *channel.Channel
 	logger                          *slog.Logger
@@ -78,8 +78,8 @@ func (p *Producer) ConsumableRtpParameters() *RtpParameters {
 
 // Paused returns whether the Producer is paused.
 func (p *Producer) Paused() bool {
-	p.mu.Lock()
-	defer p.mu.Unlock()
+	p.mu.RLock()
+	defer p.mu.RUnlock()
 
 	return p.data.Paused
 }
@@ -348,9 +348,9 @@ func (p *Producer) handleWorkerNotifications() {
 				Rotation: notification.Rotation,
 			}
 
-			p.mu.Lock()
+			p.mu.RLock()
 			listeners := p.videoOrientationChangeListeners
-			p.mu.Unlock()
+			p.mu.RUnlock()
 
 			for _, listener := range listeners {
 				listener(videoOrientation)
@@ -365,9 +365,10 @@ func (p *Producer) handleWorkerNotifications() {
 				Info:      parseProducerTraceInfo(notification.Info),
 			}
 
-			p.mu.Lock()
+			p.mu.RLock()
 			listeners := p.traceListeners
-			p.mu.Unlock()
+			p.mu.RUnlock()
+
 			for _, listener := range listeners {
 				listener(trace)
 			}

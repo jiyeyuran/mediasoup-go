@@ -56,7 +56,7 @@ type internalTransportData struct {
 }
 
 type Transport struct {
-	baseNotifier
+	baseListener
 
 	channel *channel.Channel
 	sub     *channel.Subscription
@@ -189,14 +189,14 @@ func (t *Transport) Dump() (*TransportDump, error) {
 			DataConsumerIds: dump.DataConsumerIds,
 			RecvRtpHeaderExtensions: ifElse(dump.RecvRtpHeaderExtensions != nil, func() *RecvRtpHeaderExtensions {
 				return &RecvRtpHeaderExtensions{
-					MID:               dump.RecvRtpHeaderExtensions.Mid,
-					RID:               dump.RecvRtpHeaderExtensions.Rid,
-					RRID:              dump.RecvRtpHeaderExtensions.Rrid,
+					Mid:               dump.RecvRtpHeaderExtensions.Mid,
+					Rid:               dump.RecvRtpHeaderExtensions.Rid,
+					Rrid:              dump.RecvRtpHeaderExtensions.Rrid,
 					AbsSendTime:       dump.RecvRtpHeaderExtensions.AbsSendTime,
 					TransportWideCC01: dump.RecvRtpHeaderExtensions.TransportWideCc01,
 				}
 			}),
-			RtpListener: &RtpListener{
+			RtpListener: &RtpListenerDump{
 				SsrcTable: collect(dump.RtpListener.SsrcTable,
 					func(item *FbsCommon.Uint32StringT) KeyValue[uint32, string] {
 						return KeyValue[uint32, string]{
@@ -1265,9 +1265,9 @@ func (t *Transport) handleWorkerNotifications() {
 			notification := body.Value.(*FbsDirectTransport.RtcpNotificationT)
 			rtcpPacket := notification.Data
 
-			t.mu.Lock()
+			t.mu.RLock()
 			listeners := t.rtcpListeners
-			t.mu.Unlock()
+			t.mu.RUnlock()
 
 			for _, listener := range listeners {
 				listener(rtcpPacket)
@@ -1294,9 +1294,9 @@ func (t *Transport) handleWorkerNotifications() {
 				}
 			}
 
-			t.mu.Lock()
+			t.mu.RLock()
 			listeners := t.traceListeners
-			t.mu.Unlock()
+			t.mu.RUnlock()
 
 			for _, listener := range listeners {
 				listener(trace)

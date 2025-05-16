@@ -31,7 +31,7 @@ type dataconsumerData struct {
 }
 
 type DataConsumer struct {
-	baseNotifier
+	baseListener
 
 	channel                     *channel.Channel
 	data                        *dataconsumerData
@@ -489,27 +489,29 @@ func (c *DataConsumer) handleWorkerNotifications() *channel.Subscription {
 			}
 
 		case FbsNotification.EventDATACONSUMER_SCTP_SENDBUFFER_FULL:
-			c.mu.Lock()
+			c.mu.RLock()
 			listeners := c.sctpSendBufferFullListeners
-			c.mu.Unlock()
+			c.mu.RUnlock()
+
 			for _, handler := range listeners {
 				handler()
 			}
 
 		case FbsNotification.EventDATACONSUMER_BUFFERED_AMOUNT_LOW:
 			Notification := body.Value.(*FbsDataConsumer.BufferedAmountLowNotificationT)
-			c.mu.Lock()
+			c.mu.RLock()
 			listeners := c.bufferedAmountLowListeners
-			c.mu.Unlock()
+			c.mu.RUnlock()
+
 			for _, handler := range listeners {
 				handler(Notification.BufferedAmount)
 			}
 
 		case FbsNotification.EventDATACONSUMER_MESSAGE:
 			notification := body.Value.(*FbsDataConsumer.MessageNotificationT)
-			c.mu.Lock()
+			c.mu.RLock()
 			listeners := c.messageListeners
-			c.mu.Unlock()
+			c.mu.RUnlock()
 
 			for _, handler := range listeners {
 				handler(notification.Data, SctpPayloadType(notification.Ppid))

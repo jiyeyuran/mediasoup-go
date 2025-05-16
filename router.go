@@ -36,7 +36,7 @@ type routerData struct {
 }
 
 type Router struct {
-	baseNotifier
+	baseListener
 
 	channel *channel.Channel
 	data    *routerData
@@ -180,8 +180,8 @@ func (r *Router) Close() error {
 }
 
 func (r *Router) Closed() bool {
-	r.mu.Lock()
-	defer r.mu.Unlock()
+	r.mu.RLock()
+	defer r.mu.RUnlock()
 
 	return r.closed
 }

@@ -8,7 +8,7 @@ import (
 )
 
 func TestCloseNotifier(t *testing.T) {
-	notifier := baseNotifier{}
+	notifier := baseListener{}
 	called := 0
 	notifier.OnClose(func() {
 		called++

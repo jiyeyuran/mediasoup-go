@@ -21,7 +21,7 @@ import (
 // The WebRTC transport implementation of mediasoup is ICE Lite, meaning that it does not initiate
 // ICE connections but expects ICE Binding Requests from endpoints.
 type WebRtcServer struct {
-	baseNotifier
+	baseListener
 	id               string
 	channel          *channel.Channel
 	appData          H

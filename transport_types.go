@@ -214,13 +214,6 @@ const (
 	SctpStateClosed     SctpState = "closed"
 )
 
-// RtpListenerDump represents RTP listener dump information.
-type RtpListenerDump struct {
-	SSRCTable []KeyValue[int, string] `json:"ssrcTable"`
-	MIDTable  []KeyValue[int, string] `json:"midTable"`
-	RIDTable  []KeyValue[int, string] `json:"ridTable"`
-}
-
 // SctpListenerDump represents SCTP listener dump information.
 type SctpListenerDump struct {
 	StreamIDTable []KeyValue[int, string] `json:"streamIdTable"`
@@ -228,9 +221,9 @@ type SctpListenerDump struct {
 
 // RecvRtpHeaderExtensions represents received RTP header extensions.
 type RecvRtpHeaderExtensions struct {
-	MID               *byte `json:"mid,omitempty"`
-	RID               *byte `json:"rid,omitempty"`
-	RRID              *byte `json:"rrid,omitempty"`
+	Mid               *byte `json:"mid,omitempty"`
+	Rid               *byte `json:"rid,omitempty"`
+	Rrid              *byte `json:"rrid,omitempty"`
 	AbsSendTime       *byte `json:"absSendTime,omitempty"`
 	TransportWideCC01 *byte `json:"transportWideCc01,omitempty"`
 }
@@ -269,7 +262,7 @@ type BaseTransportDump struct {
 	DataProducerIds         []string                   `json:"dataProducerIds"`
 	DataConsumerIds         []string                   `json:"dataConsumerIds"`
 	RecvRtpHeaderExtensions *RecvRtpHeaderExtensions   `json:"recvRtpHeaderExtensions"`
-	RtpListener             *RtpListener               `json:"rtpListener"`
+	RtpListener             *RtpListenerDump           `json:"rtpListener"`
 	MaxMessageSize          uint32                     `json:"maxMessageSize,omitempty"`
 	SctpParameters          *SctpParameters            `json:"SctpParameters,omitempty"`
 	SctpState               SctpState                  `json:"sctpState,omitempty"`
@@ -301,7 +294,8 @@ type WebRtcTransportDump struct {
 	DtlsState        DtlsState       `json:"dtlsState,omitempty"`
 }
 
-type RtpListener struct {
+// RtpListenerDump represents RTP listener dump information.
+type RtpListenerDump struct {
 	SsrcTable []KeyValue[uint32, string] `json:"ssrcTable,omitempty"`
 	MidTable  []KeyValue[string, string] `json:"midTable,omitempty"`
 	RidTable  []KeyValue[string, string] `json:"ridTable,omitempty"`

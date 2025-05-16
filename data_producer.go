@@ -25,7 +25,7 @@ type dataProducerData struct {
 }
 
 type DataProducer struct {
-	baseNotifier
+	baseListener
 
 	channel         *channel.Channel
 	data            *dataProducerData
@@ -81,8 +81,8 @@ func (p *DataProducer) AppData() H {
 
 // Closed returns whether the DataProducer is closed.
 func (p *DataProducer) Closed() bool {
-	p.mu.Lock()
-	defer p.mu.Unlock()
+	p.mu.RLock()
+	defer p.mu.RUnlock()
 
 	return p.closed
 }

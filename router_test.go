@@ -299,6 +299,11 @@ func TestCreatePipeTransport(t *testing.T) {
 				Id:      13,
 				Encrypt: false,
 			},
+			{
+				Uri:     "http://www.webrtc.org/experiments/rtp-hdrext/playout-delay",
+				Id:      14,
+				Encrypt: false,
+			},
 		}, pipeConsumer.RtpParameters().HeaderExtensions)
 		assert.EqualValues(t, "pipe", pipeConsumer.Type())
 		assert.False(t, pipeConsumer.Paused())
@@ -611,6 +616,11 @@ func TestPipeToRouter(t *testing.T) {
 				Id:      13,
 				Encrypt: false,
 			},
+			{
+				Uri:     "http://www.webrtc.org/experiments/rtp-hdrext/playout-delay",
+				Id:      14,
+				Encrypt: false,
+			},
 		}, pipeConsumer.RtpParameters().HeaderExtensions)
 		assert.EqualValues(t, ConsumerPipe, pipeConsumer.Type())
 		assert.False(t, pipeConsumer.Paused())
@@ -644,6 +654,11 @@ func TestPipeToRouter(t *testing.T) {
 			{
 				Uri:     "http://www.webrtc.org/experiments/rtp-hdrext/abs-capture-time",
 				Id:      13,
+				Encrypt: false,
+			},
+			{
+				Uri:     "http://www.webrtc.org/experiments/rtp-hdrext/playout-delay",
+				Id:      14,
 				Encrypt: false,
 			},
 		}, pipeProducer.RtpParameters().HeaderExtensions)
@@ -714,6 +729,11 @@ func TestPipeToRouter(t *testing.T) {
 				Id:      13,
 				Encrypt: false,
 			},
+			{
+				Uri:     "http://www.webrtc.org/experiments/rtp-hdrext/playout-delay",
+				Id:      14,
+				Encrypt: false,
+			},
 		}, pipeConsumer.RtpParameters().HeaderExtensions)
 		assert.EqualValues(t, "pipe", pipeConsumer.Type())
 		assert.False(t, pipeConsumer.Paused())
@@ -763,6 +783,11 @@ func TestPipeToRouter(t *testing.T) {
 			{
 				Uri:     "http://www.webrtc.org/experiments/rtp-hdrext/abs-capture-time",
 				Id:      13,
+				Encrypt: false,
+			},
+			{
+				Uri:     "http://www.webrtc.org/experiments/rtp-hdrext/playout-delay",
+				Id:      14,
 				Encrypt: false,
 			},
 		}, pipeProducer.RtpParameters().HeaderExtensions)
