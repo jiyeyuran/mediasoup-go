@@ -3,7 +3,7 @@ package mediasoup
 var supportedRtpCapabilities = RtpCapabilities{
 	Codecs: []*RtpCodecCapability{
 		{
-			Kind:      "audio",
+			Kind:      MediaKindAudio,
 			MimeType:  "audio/opus",
 			ClockRate: 48000,
 			Channels:  2,
@@ -13,7 +13,7 @@ var supportedRtpCapabilities = RtpCapabilities{
 			},
 		},
 		{
-			Kind:      "audio",
+			Kind:      MediaKindAudio,
 			MimeType:  "audio/multiopus",
 			ClockRate: 48000,
 			Channels:  4,
@@ -28,7 +28,7 @@ var supportedRtpCapabilities = RtpCapabilities{
 			},
 		},
 		{
-			Kind:      "audio",
+			Kind:      MediaKindAudio,
 			MimeType:  "audio/multiopus",
 			ClockRate: 48000,
 			Channels:  6,
@@ -43,7 +43,7 @@ var supportedRtpCapabilities = RtpCapabilities{
 			},
 		},
 		{
-			Kind:      "audio",
+			Kind:      MediaKindAudio,
 			MimeType:  "audio/multiopus",
 			ClockRate: 48000,
 			Channels:  8,
@@ -58,7 +58,7 @@ var supportedRtpCapabilities = RtpCapabilities{
 			},
 		},
 		{
-			Kind:                 "audio",
+			Kind:                 MediaKindAudio,
 			MimeType:             "audio/PCMU",
 			PreferredPayloadType: 0,
 			ClockRate:            8000,
@@ -67,7 +67,7 @@ var supportedRtpCapabilities = RtpCapabilities{
 			},
 		},
 		{
-			Kind:                 "audio",
+			Kind:                 MediaKindAudio,
 			MimeType:             "audio/PCMA",
 			PreferredPayloadType: 8,
 			ClockRate:            8000,
@@ -76,7 +76,7 @@ var supportedRtpCapabilities = RtpCapabilities{
 			},
 		},
 		{
-			Kind:      "audio",
+			Kind:      MediaKindAudio,
 			MimeType:  "audio/ISAC",
 			ClockRate: 32000,
 			RtcpFeedback: []*RtcpFeedback{
@@ -84,7 +84,7 @@ var supportedRtpCapabilities = RtpCapabilities{
 			},
 		},
 		{
-			Kind:      "audio",
+			Kind:      MediaKindAudio,
 			MimeType:  "audio/ISAC",
 			ClockRate: 16000,
 			RtcpFeedback: []*RtcpFeedback{
@@ -92,7 +92,7 @@ var supportedRtpCapabilities = RtpCapabilities{
 			},
 		},
 		{
-			Kind:                 "audio",
+			Kind:                 MediaKindAudio,
 			MimeType:             "audio/G722",
 			PreferredPayloadType: 9,
 			ClockRate:            8000,
@@ -101,7 +101,7 @@ var supportedRtpCapabilities = RtpCapabilities{
 			},
 		},
 		{
-			Kind:      "audio",
+			Kind:      MediaKindAudio,
 			MimeType:  "audio/iLBC",
 			ClockRate: 8000,
 			RtcpFeedback: []*RtcpFeedback{
@@ -109,7 +109,7 @@ var supportedRtpCapabilities = RtpCapabilities{
 			},
 		},
 		{
-			Kind:      "audio",
+			Kind:      MediaKindAudio,
 			MimeType:  "audio/SILK",
 			ClockRate: 24000,
 			RtcpFeedback: []*RtcpFeedback{
@@ -117,7 +117,7 @@ var supportedRtpCapabilities = RtpCapabilities{
 			},
 		},
 		{
-			Kind:      "audio",
+			Kind:      MediaKindAudio,
 			MimeType:  "audio/SILK",
 			ClockRate: 16000,
 			RtcpFeedback: []*RtcpFeedback{
@@ -125,7 +125,7 @@ var supportedRtpCapabilities = RtpCapabilities{
 			},
 		},
 		{
-			Kind:      "audio",
+			Kind:      MediaKindAudio,
 			MimeType:  "audio/SILK",
 			ClockRate: 12000,
 			RtcpFeedback: []*RtcpFeedback{
@@ -133,7 +133,7 @@ var supportedRtpCapabilities = RtpCapabilities{
 			},
 		},
 		{
-			Kind:      "audio",
+			Kind:      MediaKindAudio,
 			MimeType:  "audio/SILK",
 			ClockRate: 8000,
 			RtcpFeedback: []*RtcpFeedback{
@@ -141,46 +141,46 @@ var supportedRtpCapabilities = RtpCapabilities{
 			},
 		},
 		{
-			Kind:                 "audio",
+			Kind:                 MediaKindAudio,
 			MimeType:             "audio/CN",
 			PreferredPayloadType: 13,
 			ClockRate:            32000,
 		},
 		{
-			Kind:                 "audio",
+			Kind:                 MediaKindAudio,
 			MimeType:             "audio/CN",
 			PreferredPayloadType: 13,
 			ClockRate:            16000,
 		},
 		{
-			Kind:                 "audio",
+			Kind:                 MediaKindAudio,
 			MimeType:             "audio/CN",
 			PreferredPayloadType: 13,
 			ClockRate:            8000,
 		},
 		{
-			Kind:      "audio",
+			Kind:      MediaKindAudio,
 			MimeType:  "audio/telephone-event",
 			ClockRate: 48000,
 		},
 		{
-			Kind:      "audio",
+			Kind:      MediaKindAudio,
 			MimeType:  "audio/telephone-event",
 			ClockRate: 32000,
 		},
 
 		{
-			Kind:      "audio",
+			Kind:      MediaKindAudio,
 			MimeType:  "audio/telephone-event",
 			ClockRate: 16000,
 		},
 		{
-			Kind:      "audio",
+			Kind:      MediaKindAudio,
 			MimeType:  "audio/telephone-event",
 			ClockRate: 8000,
 		},
 		{
-			Kind:      "video",
+			Kind:      MediaKindVideo,
 			MimeType:  "video/VP8",
 			ClockRate: 90000,
 			RtcpFeedback: []*RtcpFeedback{
@@ -192,7 +192,7 @@ var supportedRtpCapabilities = RtpCapabilities{
 			},
 		},
 		{
-			Kind:      "video",
+			Kind:      MediaKindVideo,
 			MimeType:  "video/VP9",
 			ClockRate: 90000,
 			RtcpFeedback: []*RtcpFeedback{
@@ -204,7 +204,7 @@ var supportedRtpCapabilities = RtpCapabilities{
 			},
 		},
 		{
-			Kind:      "video",
+			Kind:      MediaKindVideo,
 			MimeType:  "video/H264",
 			ClockRate: 90000,
 			Parameters: RtpCodecSpecificParameters{
@@ -219,7 +219,7 @@ var supportedRtpCapabilities = RtpCapabilities{
 			},
 		},
 		{
-			Kind:      "video",
+			Kind:      MediaKindVideo,
 			MimeType:  "video/H264-SVC",
 			ClockRate: 90000,
 			Parameters: RtpCodecSpecificParameters{
@@ -234,7 +234,7 @@ var supportedRtpCapabilities = RtpCapabilities{
 			},
 		},
 		{
-			Kind:      "video",
+			Kind:      MediaKindVideo,
 			MimeType:  "video/H265",
 			ClockRate: 90000,
 			Parameters: RtpCodecSpecificParameters{
@@ -251,42 +251,42 @@ var supportedRtpCapabilities = RtpCapabilities{
 	},
 	HeaderExtensions: []*RtpHeaderExtension{
 		{
-			Kind:             "audio",
+			Kind:             MediaKindAudio,
 			Uri:              "urn:ietf:params:rtp-hdrext:sdes:mid",
 			PreferredId:      1,
 			PreferredEncrypt: false,
 			Direction:        MediaDirectionSendrecv,
 		},
 		{
-			Kind:             "video",
+			Kind:             MediaKindVideo,
 			Uri:              "urn:ietf:params:rtp-hdrext:sdes:mid",
 			PreferredId:      1,
 			PreferredEncrypt: false,
 			Direction:        MediaDirectionSendrecv,
 		},
 		{
-			Kind:             "video",
+			Kind:             MediaKindVideo,
 			Uri:              "urn:ietf:params:rtp-hdrext:sdes:rtp-stream-id",
 			PreferredId:      2,
 			PreferredEncrypt: false,
 			Direction:        MediaDirectionRecvonly,
 		},
 		{
-			Kind:             "video",
+			Kind:             MediaKindVideo,
 			Uri:              "urn:ietf:params:rtp-hdrext:sdes:repaired-rtp-stream-id",
 			PreferredId:      3,
 			PreferredEncrypt: false,
 			Direction:        MediaDirectionRecvonly,
 		},
 		{
-			Kind:             "audio",
+			Kind:             MediaKindAudio,
 			Uri:              "http://www.webrtc.org/experiments/rtp-hdrext/abs-send-time",
 			PreferredId:      4,
 			PreferredEncrypt: false,
 			Direction:        MediaDirectionSendrecv,
 		},
 		{
-			Kind:             "video",
+			Kind:             MediaKindVideo,
 			Uri:              "http://www.webrtc.org/experiments/rtp-hdrext/abs-send-time",
 			PreferredId:      4,
 			PreferredEncrypt: false,
@@ -294,14 +294,14 @@ var supportedRtpCapabilities = RtpCapabilities{
 		},
 		// NOTE: For audio we just enable transport-wide-cc-01 when receiving media.
 		{
-			Kind:             "audio",
+			Kind:             MediaKindAudio,
 			Uri:              "http://www.ietf.org/id/draft-holmer-rmcat-transport-wide-cc-extensions-01",
 			PreferredId:      5,
 			PreferredEncrypt: false,
 			Direction:        MediaDirectionRecvonly,
 		},
 		{
-			Kind:             "video",
+			Kind:             MediaKindVideo,
 			Uri:              "http://www.ietf.org/id/draft-holmer-rmcat-transport-wide-cc-extensions-01",
 			PreferredId:      5,
 			PreferredEncrypt: false,
@@ -309,51 +309,65 @@ var supportedRtpCapabilities = RtpCapabilities{
 		},
 		// NOTE: Remove this once framemarking draft becomes RFC.
 		{
-			Kind:             "video",
+			Kind:             MediaKindVideo,
 			Uri:              "http://tools.ietf.org/html/draft-ietf-avtext-framemarking-07",
 			PreferredId:      6,
 			PreferredEncrypt: false,
 			Direction:        MediaDirectionSendrecv,
 		},
 		{
-			Kind:             "video",
+			Kind:             MediaKindVideo,
 			Uri:              "urn:ietf:params:rtp-hdrext:framemarking",
 			PreferredId:      7,
 			PreferredEncrypt: false,
 			Direction:        MediaDirectionSendrecv,
 		},
 		{
-			Kind:             "audio",
+			Kind:             MediaKindAudio,
 			Uri:              "urn:ietf:params:rtp-hdrext:ssrc-audio-level",
 			PreferredId:      10,
 			PreferredEncrypt: false,
 			Direction:        MediaDirectionSendrecv,
 		},
 		{
-			Kind:             "video",
+			Kind:             MediaKindVideo,
 			Uri:              "urn:3gpp:video-orientation",
 			PreferredId:      11,
 			PreferredEncrypt: false,
 			Direction:        MediaDirectionSendrecv,
 		},
 		{
-			Kind:             "video",
+			Kind:             MediaKindVideo,
 			Uri:              "urn:ietf:params:rtp-hdrext:toffset",
 			PreferredId:      12,
 			PreferredEncrypt: false,
 			Direction:        MediaDirectionSendrecv,
 		},
 		{
-			Kind:             "video",
+			Kind:             MediaKindVideo,
 			Uri:              "http://www.webrtc.org/experiments/rtp-hdrext/abs-capture-time",
 			PreferredId:      13,
 			PreferredEncrypt: false,
 			Direction:        MediaDirectionSendrecv,
 		},
 		{
-			Kind:             "audio",
+			Kind:             MediaKindAudio,
 			Uri:              "http://www.webrtc.org/experiments/rtp-hdrext/abs-capture-time",
 			PreferredId:      13,
+			PreferredEncrypt: false,
+			Direction:        MediaDirectionSendrecv,
+		},
+		{
+			Kind:             MediaKindAudio,
+			Uri:              "http://www.webrtc.org/experiments/rtp-hdrext/playout-delay",
+			PreferredId:      14,
+			PreferredEncrypt: false,
+			Direction:        MediaDirectionSendrecv,
+		},
+		{
+			Kind:             MediaKindVideo,
+			Uri:              "http://www.webrtc.org/experiments/rtp-hdrext/playout-delay",
+			PreferredId:      14,
 			PreferredEncrypt: false,
 			Direction:        MediaDirectionSendrecv,
 		},

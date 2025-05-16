@@ -32,7 +32,7 @@ type consumerData struct {
 }
 
 type Consumer struct {
-	baseNotifier
+	baseListener
 
 	channel                 *channel.Channel
 	logger                  *slog.Logger
@@ -562,6 +562,7 @@ func (c *Consumer) handleWorkerNotifications() {
 			c.data.Score = score
 			listeners := c.scoreListeners
 			c.mu.Unlock()
+
 			for _, listener := range listeners {
 				listener(score)
 			}
@@ -579,6 +580,7 @@ func (c *Consumer) handleWorkerNotifications() {
 			c.currentLayers = layers
 			listeners := c.layersChangeListeners
 			c.mu.Unlock()
+
 			for _, listener := range listeners {
 				listener(layers)
 			}
@@ -591,9 +593,10 @@ func (c *Consumer) handleWorkerNotifications() {
 				Direction: orElse(notification.Direction == FbsCommon.TraceDirectionDIRECTION_IN, "in", "out"),
 				Info:      parseConsumerTraceInfo(notification.Info),
 			}
-			c.mu.Lock()
+			c.mu.RLock()
 			listeners := c.traceListeners
-			c.mu.Unlock()
+			c.mu.RUnlock()
+
 			for _, listener := range listeners {
 				listener(trace)
 			}
@@ -601,9 +604,10 @@ func (c *Consumer) handleWorkerNotifications() {
 		case FbsNotification.EventCONSUMER_RTP:
 			notification := body.Value.(*FbsConsumer.RtpNotificationT)
 			data := notification.Data
-			c.mu.Lock()
+			c.mu.RLock()
 			listeners := c.rtpListeners
-			c.mu.Unlock()
+			c.mu.RUnlock()
+
 			for _, listener := range listeners {
 				listener(data)
 			}

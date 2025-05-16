@@ -20,7 +20,7 @@ type rtpObserverData struct {
 }
 
 type RtpObserver struct {
-	baseNotifier
+	baseListener
 
 	data                    *rtpObserverData
 	sub                     *channel.Subscription
@@ -52,15 +52,15 @@ func (r *RtpObserver) AppData() H {
 }
 
 func (r *RtpObserver) Paused() bool {
-	r.mu.Lock()
-	defer r.mu.Unlock()
+	r.mu.RLock()
+	defer r.mu.RUnlock()
 
 	return r.paused
 }
 
 func (r *RtpObserver) Closed() bool {
-	r.mu.Lock()
-	defer r.mu.Unlock()
+	r.mu.RLock()
+	defer r.mu.RUnlock()
 
 	return r.closed
 }
@@ -186,9 +186,9 @@ func (r *RtpObserver) handleWorkerNotifications() {
 		case FbsNotification.EventACTIVESPEAKEROBSERVER_DOMINANT_SPEAKER:
 			notification := body.Value.(*FbsActiveSpeakerObserver.DominantSpeakerNotificationT)
 
-			r.mu.Lock()
+			r.mu.RLock()
 			handlers := r.dominantSpeakerHandlers
-			r.mu.Unlock()
+			r.mu.RUnlock()
 
 			producer := r.data.GetProducerById(notification.ProducerId)
 			if producer == nil {
@@ -204,9 +204,9 @@ func (r *RtpObserver) handleWorkerNotifications() {
 		case FbsNotification.EventAUDIOLEVELOBSERVER_VOLUMES:
 			notification := body.Value.(*FbsAudioLevelObserver.VolumesNotificationT)
 
-			r.mu.Lock()
+			r.mu.RLock()
 			handlers := r.volumeHandlers
-			r.mu.Unlock()
+			r.mu.RUnlock()
 
 			volumes := make([]AudioLevelObserverVolume, 0, len(notification.Volumes))
 
@@ -225,9 +225,9 @@ func (r *RtpObserver) handleWorkerNotifications() {
 			}
 
 		case FbsNotification.EventAUDIOLEVELOBSERVER_SILENCE:
-			r.mu.Lock()
+			r.mu.RLock()
 			handlers := r.silenceHandlers
-			r.mu.Unlock()
+			r.mu.RUnlock()
 			for _, handler := range handlers {
 				handler()
 			}

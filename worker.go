@@ -27,7 +27,7 @@ import (
 // Worker represents a mediasoup C++ subprocess that runs in a single CPU core and handles Router
 // instances.
 type Worker struct {
-	baseNotifier
+	baseListener
 	cmd           *exec.Cmd
 	channel       *channel.Channel
 	logger        *slog.Logger
