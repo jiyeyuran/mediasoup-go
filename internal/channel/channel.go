@@ -26,23 +26,23 @@ const (
 )
 
 type Channel struct {
-	mu            sync.RWMutex
-	subsMu        sync.RWMutex
-	nextId        uint32
-	w             io.WriteCloser
-	r             io.ReadCloser
-	reader        *bufio.Reader
-	writeBuf      *bytes.Buffer
-	readWaitGroup sync.WaitGroup
-	fbsBuilder    *flatbuffers.Builder
-	message       *FbsMessage.MessageT
-	timerPool     *sync.Pool
-	ssid          int64
-	subs          map[string][]*Subscription
-	responsesCh   map[uint32]chan *FbsResponse.ResponseT
-	logger        *slog.Logger
-	timeout       time.Duration
-	closed        bool
+	mu          sync.RWMutex
+	subsMu      sync.RWMutex
+	nextId      uint32
+	w           io.WriteCloser
+	r           io.ReadCloser
+	reader      *bufio.Reader
+	writeBuf    *bytes.Buffer
+	waitGroup   sync.WaitGroup
+	fbsBuilder  *flatbuffers.Builder
+	message     *FbsMessage.MessageT
+	timerPool   *sync.Pool
+	ssid        int64
+	subs        map[string][]*Subscription
+	responsesCh map[uint32]chan *FbsResponse.ResponseT
+	logger      *slog.Logger
+	timeout     time.Duration
+	closed      bool
 }
 
 func NewChannel(w io.WriteCloser, r io.ReadCloser, logger *slog.Logger) *Channel {
@@ -66,7 +66,11 @@ func NewChannel(w io.WriteCloser, r io.ReadCloser, logger *slog.Logger) *Channel
 func (c *Channel) Start() {
 	c.logger.Debug("Start()")
 
-	go c.readLoop()
+	c.waitGroup.Add(1)
+	go func() {
+		defer c.waitGroup.Done()
+		c.readLoop()
+	}()
 }
 
 func (c *Channel) Notify(notification *FbsNotification.NotificationT) error {
@@ -213,17 +217,11 @@ func (c *Channel) Close() {
 	}
 	c.logger.Debug("Close()")
 
-	c.doClose()
-}
-
-func (c *Channel) doClose() {
-	c.closed = true
-
 	c.w.Close()
 	c.r.Close()
 
 	// wait for readLoop to finish
-	c.readWaitGroup.Wait()
+	c.waitGroup.Wait()
 
 	var allsubs []*Subscription
 	c.subsMu.RLock()
@@ -238,6 +236,8 @@ func (c *Channel) doClose() {
 	for _, ch := range c.responsesCh {
 		close(ch)
 	}
+
+	c.closed = true
 }
 
 // Closed tests if Channel has been closed.
@@ -355,16 +355,6 @@ func (c *Channel) write(payload []byte) error {
 }
 
 func (c *Channel) readLoop() {
-	c.readWaitGroup.Add(1)
-	defer func() {
-		c.readWaitGroup.Done()
-		c.mu.Lock()
-		defer c.mu.Unlock()
-		if !c.closed {
-			c.doClose()
-		}
-	}()
-
 	sizeBuf := [4]byte{}
 
 	for {
