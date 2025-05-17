@@ -722,7 +722,7 @@ func getPipeConsumerRtpParameters(consumableRtpParameters *RtpParameters, enable
 
 func findMatchedCodec(
 	bCodecs []*RtpCodecCapability,
-	aCodec interface{},
+	aCodec any,
 	options matchOptions,
 ) (codec *RtpCodecCapability, matched bool) {
 	var rtpCodecParameters *RtpCodecParameters

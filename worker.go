@@ -34,6 +34,7 @@ type Worker struct {
 	routers       sync.Map
 	webRtcServers sync.Map
 	appData       H
+	closed        bool
 	err           error
 }
 
@@ -239,7 +240,7 @@ func (w *Worker) wait(cmd *exec.Cmd, spawnDone *uint32, doneCh chan error) {
 		w.logger.Info("worker process quited")
 	}
 
-	w.doClose()
+	w.processQuited()
 }
 
 func (w *Worker) Pid() int {
@@ -259,7 +260,7 @@ func (w *Worker) Err() error {
 
 func (w *Worker) Close() {
 	w.mu.Lock()
-	if w.channel.Closed() {
+	if w.closed {
 		w.mu.Unlock()
 		return
 	}
@@ -286,30 +287,47 @@ func (w *Worker) Close() {
 			}
 		}()
 
-		w.channel.Request(&FbsRequest.RequestT{
-			Method: FbsRequest.MethodWORKER_CLOSE,
-		})
+		// w.channel.Request(&FbsRequest.RequestT{
+		// 	Method: FbsRequest.MethodWORKER_CLOSE,
+		// })
+		w.cmd.Process.Signal(os.Interrupt)
 	}
 
-	w.channel.Close()
+	w.closed = true
 	w.mu.Unlock()
 
-	w.doClose()
+	w.cleanupAfterClosed()
 }
 
-func (w *Worker) doClose() {
+func (w *Worker) processQuited() {
+	w.mu.Lock()
+	if w.closed {
+		w.mu.Unlock()
+		return
+	}
+	w.closed = true
+	w.mu.Unlock()
+
+	w.cleanupAfterClosed()
+}
+
+func (w *Worker) cleanupAfterClosed() {
+	w.channel.Close()
+
 	// close all pipes
 	for _, file := range w.cmd.ExtraFiles {
 		file.Close()
 	}
 
-	w.routers.Range(func(key, value interface{}) bool {
+	w.routers.Range(func(key, value any) bool {
 		value.(*Router).workerClosed()
+		w.routers.Delete(key)
 		return true
 	})
 
-	w.webRtcServers.Range(func(key, value interface{}) bool {
+	w.webRtcServers.Range(func(key, value any) bool {
 		value.(*WebRtcServer).workerClosed()
+		w.webRtcServers.Delete(key)
 		return true
 	})
 
@@ -317,7 +335,10 @@ func (w *Worker) doClose() {
 }
 
 func (w *Worker) Closed() bool {
-	return w.channel.Closed()
+	w.mu.RLock()
+	defer w.mu.RUnlock()
+
+	return w.closed
 }
 
 // Dump returns the resources allocated by the worker.
