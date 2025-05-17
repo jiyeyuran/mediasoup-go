@@ -321,7 +321,7 @@ func (c *Consumer) Resume() error {
 
 // SetPreferredLayers set preferred video layers.
 func (c *Consumer) SetPreferredLayers(layers ConsumerLayers) error {
-	c.logger.Debug("SetPreferredLayers()", "layers", layers)
+	c.logger.Debug("SetPreferredLayers()")
 
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -354,7 +354,7 @@ func (c *Consumer) SetPreferredLayers(layers ConsumerLayers) error {
 
 // SetPriority set priority.
 func (c *Consumer) SetPriority(priority byte) error {
-	c.logger.Debug("SetPriority()", "priority", priority)
+	c.logger.Debug("SetPriority()")
 
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -394,7 +394,7 @@ func (c *Consumer) RequestKeyFrame() error {
 
 // EnableTraceEvent enable "trace" event.
 func (c *Consumer) EnableTraceEvent(events []ConsumerTraceEventType) error {
-	c.logger.Debug("EnableTraceEvent()", "events", events)
+	c.logger.Debug("EnableTraceEvent()")
 
 	events = filter(events, func(typ ConsumerTraceEventType) bool {
 		_, ok := FbsConsumer.EnumValuesTraceEventType[strings.ToUpper(string(typ))]

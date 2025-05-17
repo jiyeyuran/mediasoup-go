@@ -150,8 +150,6 @@ func (r *Router) CanConsume(producerId string, rtpCapabilities *RtpCapabilities)
 }
 
 func (r *Router) Close() error {
-	r.logger.Debug("Close()")
-
 	r.mu.Lock()
 	if r.closed {
 		r.mu.Unlock()

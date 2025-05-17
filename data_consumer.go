@@ -269,7 +269,7 @@ func (c *DataConsumer) Resume() error {
 
 // SetBufferedAmountLowThreshold set buffered amount low threshold.
 func (c *DataConsumer) SetBufferedAmountLowThreshold(threshold uint32) error {
-	c.logger.Debug("SetBufferedAmountLowThreshold()", "threshold", threshold)
+	c.logger.Debug("SetBufferedAmountLowThreshold()")
 
 	_, err := c.channel.Request(&FbsRequest.RequestT{
 		Method:    FbsRequest.MethodDATACONSUMER_SET_BUFFERED_AMOUNT_LOW_THRESHOLD,
@@ -356,7 +356,7 @@ func (c *DataConsumer) send(data []byte, ppid SctpPayloadType) error {
 }
 
 func (c *DataConsumer) SetSubchannels(subchannels []uint16) error {
-	c.logger.Debug("SetSubchannels()", "subchannels", subchannels)
+	c.logger.Debug("SetSubchannels()")
 
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -380,7 +380,7 @@ func (c *DataConsumer) SetSubchannels(subchannels []uint16) error {
 }
 
 func (c *DataConsumer) AddSubChannel(subchannel uint16) error {
-	c.logger.Debug("AddSubChannel()", "subchannel", subchannel)
+	c.logger.Debug("AddSubChannel()")
 
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -404,7 +404,7 @@ func (c *DataConsumer) AddSubChannel(subchannel uint16) error {
 }
 
 func (c *DataConsumer) RemoveSubChannel(subchannel uint16) error {
-	c.logger.Debug("RemoveSubChannel()", "subchannel", subchannel)
+	c.logger.Debug("RemoveSubChannel()")
 
 	c.mu.Lock()
 	defer c.mu.Unlock()

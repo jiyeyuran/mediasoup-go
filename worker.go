@@ -34,6 +34,7 @@ type Worker struct {
 	routers       sync.Map
 	webRtcServers sync.Map
 	appData       H
+	err           error
 }
 
 // NewWorker create a Worker.
@@ -233,6 +234,7 @@ func (w *Worker) wait(cmd *exec.Cmd, spawnDone *uint32, doneCh chan error) {
 
 	if err != nil {
 		w.logger.Error(err.Error())
+		w.err = err
 	} else {
 		w.logger.Info("worker process quited")
 	}
@@ -251,25 +253,47 @@ func (w *Worker) AppData() H {
 	return w.appData
 }
 
-func (w *Worker) Close() {
-	w.logger.Debug("Close()")
+func (w *Worker) Err() error {
+	return w.err
+}
 
+func (w *Worker) Close() {
+	w.mu.Lock()
 	if w.channel.Closed() {
+		w.mu.Unlock()
 		return
 	}
+	w.logger.Debug("Close()")
 
-	if process := w.cmd.Process; process != nil && w.cmd.ProcessState == nil {
-		process.Signal(os.Interrupt)
-		// force kill the worker process.
-		time.AfterFunc(time.Second, func() {
-			if w.cmd.ProcessState == nil {
-				w.logger.Warn("force kill worker process")
-				w.cmd.Cancel()
+	if w.cmd.ProcessState == nil {
+		go func() {
+			now := time.Now()
+			ticker := time.NewTicker(100 * time.Millisecond)
+			defer ticker.Stop()
+
+			for {
+				select {
+				case <-ticker.C:
+					if w.cmd.ProcessState != nil {
+						return
+					}
+					if time.Since(now) > time.Second {
+						w.logger.Warn("force kill worker process")
+						w.cmd.Process.Kill()
+						return
+					}
+				}
 			}
+		}()
+
+		w.channel.Request(&FbsRequest.RequestT{
+			Method: FbsRequest.MethodWORKER_CLOSE,
 		})
 	}
 
 	w.channel.Close()
+	w.mu.Unlock()
+
 	w.doClose()
 }
 
