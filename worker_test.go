@@ -151,6 +151,14 @@ func TestWorkerClose(t *testing.T) {
 	worker := newTestWorker()
 	worker.Close()
 	assert.True(t, worker.Closed())
+	assert.NoError(t, worker.Err())
+
+	worker = newTestWorker()
+	process, _ := os.FindProcess(worker.Pid())
+	process.Kill()
+	time.Sleep(100 * time.Millisecond)
+	assert.True(t, worker.Closed())
+	assert.Error(t, worker.Err())
 }
 
 func TestWorkerNoGoroutineLeaks(t *testing.T) {
