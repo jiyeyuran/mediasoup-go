@@ -225,15 +225,16 @@ func (c *Channel) doClose() {
 	// wait for readLoop to finish
 	c.readWaitGroup.Wait()
 
+	var allsubs []*Subscription
 	c.subsMu.RLock()
-	allSubs := c.subs
-	c.subsMu.RUnlock()
-	for _, subs := range allSubs {
-		for _, sub := range subs {
-			sub.Unsubscribe()
-		}
+	for _, subs := range c.subs {
+		allsubs = append(allsubs, subs...)
 	}
+	c.subsMu.RUnlock()
 
+	for _, sub := range allsubs {
+		sub.Unsubscribe()
+	}
 	for _, ch := range c.responsesCh {
 		close(ch)
 	}
