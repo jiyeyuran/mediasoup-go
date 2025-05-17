@@ -305,11 +305,13 @@ func (w *Worker) doClose() {
 
 	w.routers.Range(func(key, value interface{}) bool {
 		value.(*Router).workerClosed()
+		w.routers.Delete(key)
 		return true
 	})
 
 	w.webRtcServers.Range(func(key, value interface{}) bool {
 		value.(*WebRtcServer).workerClosed()
+		w.webRtcServers.Delete(key)
 		return true
 	})
 
