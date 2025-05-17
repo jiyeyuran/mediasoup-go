@@ -59,13 +59,13 @@ func (s *WebRtcServer) Closed() bool {
 
 // Close the webrtc server.
 func (s *WebRtcServer) Close() error {
-	s.logger.Debug("Close()")
-
 	s.mu.Lock()
 	if s.closed {
 		s.mu.Unlock()
 		return nil
 	}
+	s.logger.Debug("Close()")
+
 	_, err := s.channel.Request(&FbsRequest.RequestT{
 		Method: FbsRequest.MethodWORKER_WEBRTCSERVER_CLOSE,
 		Body: &FbsRequest.BodyT{

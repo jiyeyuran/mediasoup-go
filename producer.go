@@ -252,7 +252,7 @@ func (p *Producer) Resume() error {
 
 // EnableTraceEvent enable "trace" event.
 func (p *Producer) EnableTraceEvent(events []ProducerTraceEventType) error {
-	p.logger.Debug("EnableTraceEvent()", "events", events)
+	p.logger.Debug("EnableTraceEvent()")
 
 	events = filter(events, func(typ ProducerTraceEventType) bool {
 		_, ok := FbsProducer.EnumValuesTraceEventType[strings.ToUpper(string(typ))]
@@ -276,7 +276,7 @@ func (p *Producer) EnableTraceEvent(events []ProducerTraceEventType) error {
 
 // Send RTP packet (just valid for Producers created on a DirectTransport).
 func (p *Producer) Send(rtpPacket []byte) error {
-	p.logger.Debug("Send()", "rtpPacketSize", len(rtpPacket))
+	p.logger.Debug("Send()")
 
 	return p.channel.Notify(&FbsNotification.NotificationT{
 		Event:     FbsNotification.EventPRODUCER_SEND,
