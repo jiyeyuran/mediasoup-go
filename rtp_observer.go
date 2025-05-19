@@ -1,6 +1,7 @@
 package mediasoup
 
 import (
+	"context"
 	"log/slog"
 
 	FbsActiveSpeakerObserver "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/ActiveSpeakerObserver"
@@ -66,14 +67,18 @@ func (r *RtpObserver) Closed() bool {
 }
 
 func (r *RtpObserver) Close() error {
+	return r.CloseContext(context.Background())
+}
+
+func (r *RtpObserver) CloseContext(ctx context.Context) error {
 	r.mu.Lock()
 	if r.closed {
 		r.mu.Unlock()
 		return nil
 	}
-	r.logger.Debug("Close()")
+	r.logger.DebugContext(ctx, "Close()")
 
-	_, err := r.channel.Request(&FbsRequest.RequestT{
+	_, err := r.channel.Request(ctx, &FbsRequest.RequestT{
 		Method:    FbsRequest.MethodROUTER_CLOSE_RTPOBSERVER,
 		HandlerId: r.data.RouterId,
 		Body: &FbsRequest.BodyT{
@@ -96,10 +101,16 @@ func (r *RtpObserver) Close() error {
 
 // Pause the RtpObserver.
 func (r *RtpObserver) Pause() error {
+	return r.PauseContext(context.Background())
+}
+
+func (r *RtpObserver) PauseContext(ctx context.Context) error {
+	r.logger.DebugContext(ctx, "Pause()")
+
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	_, err := r.channel.Request(&FbsRequest.RequestT{
+	_, err := r.channel.Request(ctx, &FbsRequest.RequestT{
 		Method:    FbsRequest.MethodRTPOBSERVER_PAUSE,
 		HandlerId: r.Id(),
 	})
@@ -112,10 +123,16 @@ func (r *RtpObserver) Pause() error {
 
 // Resume the RtpObserver.
 func (r *RtpObserver) Resume() error {
+	return r.ResumeContext(context.Background())
+}
+
+func (r *RtpObserver) ResumeContext(ctx context.Context) error {
+	r.logger.DebugContext(ctx, "Resume()")
+
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	_, err := r.channel.Request(&FbsRequest.RequestT{
+	_, err := r.channel.Request(ctx, &FbsRequest.RequestT{
 		Method:    FbsRequest.MethodRTPOBSERVER_RESUME,
 		HandlerId: r.Id(),
 	})
@@ -128,7 +145,13 @@ func (r *RtpObserver) Resume() error {
 
 // AddProducer add a Producer to the RtpObserver.
 func (r *RtpObserver) AddProducer(producerId string) error {
-	_, err := r.channel.Request(&FbsRequest.RequestT{
+	return r.AddProducerContext(context.Background(), producerId)
+}
+
+func (r *RtpObserver) AddProducerContext(ctx context.Context, producerId string) error {
+	r.logger.DebugContext(ctx, "AddProducer()", "producerId", producerId)
+
+	_, err := r.channel.Request(ctx, &FbsRequest.RequestT{
 		Method:    FbsRequest.MethodRTPOBSERVER_ADD_PRODUCER,
 		HandlerId: r.Id(),
 		Body: &FbsRequest.BodyT{
@@ -143,7 +166,13 @@ func (r *RtpObserver) AddProducer(producerId string) error {
 
 // RemoveProducer remove a Producer from the RtpObserver.
 func (r *RtpObserver) RemoveProducer(producerId string) error {
-	_, err := r.channel.Request(&FbsRequest.RequestT{
+	return r.RemoveProducerContext(context.Background(), producerId)
+}
+
+func (r *RtpObserver) RemoveProducerContext(ctx context.Context, producerId string) error {
+	r.logger.DebugContext(ctx, "RemoveProducer()", "producerId", producerId)
+
+	_, err := r.channel.Request(ctx, &FbsRequest.RequestT{
 		Method:    FbsRequest.MethodRTPOBSERVER_REMOVE_PRODUCER,
 		HandlerId: r.Id(),
 		Body: &FbsRequest.BodyT{

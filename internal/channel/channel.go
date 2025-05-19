@@ -3,6 +3,7 @@ package channel
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"encoding/binary"
 	"errors"
 	"io"
@@ -73,7 +74,7 @@ func (c *Channel) Start() {
 	}()
 }
 
-func (c *Channel) Notify(notification *FbsNotification.NotificationT) error {
+func (c *Channel) Notify(ctx context.Context, notification *FbsNotification.NotificationT) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -81,7 +82,7 @@ func (c *Channel) Notify(notification *FbsNotification.NotificationT) error {
 		return ErrChannelClosed
 	}
 
-	c.logger.Debug("Notify()", "event", notification.Event, "handlerId", notification.HandlerId)
+	c.logger.DebugContext(ctx, "Notify()", "event", notification.Event, "handlerId", notification.HandlerId)
 
 	builder := c.fbsBuilder
 	message := c.message
@@ -96,14 +97,21 @@ func (c *Channel) Notify(notification *FbsNotification.NotificationT) error {
 		return ErrBodyTooLarge
 	}
 
+	// check if context is already done
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
+	}
+
 	err := c.write(payload)
 	if err != nil {
-		c.logger.Error("notify failed", "event", notification.Event, "handlerId", notification.HandlerId, "error", err)
+		c.logger.ErrorContext(ctx, "notify failed", "event", notification.Event, "handlerId", notification.HandlerId, "error", err)
 	}
 	return err
 }
 
-func (c *Channel) Request(req *FbsRequest.RequestT) (any, error) {
+func (c *Channel) Request(ctx context.Context, req *FbsRequest.RequestT) (any, error) {
 	c.mu.Lock()
 
 	if c.closed {
@@ -127,7 +135,7 @@ func (c *Channel) Request(req *FbsRequest.RequestT) (any, error) {
 		}
 	}
 
-	c.logger.Debug("Request()", "requestId", req.Id, "method", req.Method, "handlerId", req.HandlerId)
+	c.logger.DebugContext(ctx, "Request()", "requestId", req.Id, "method", req.Method, "handlerId", req.HandlerId)
 
 	builder := c.fbsBuilder
 	message := c.message
@@ -180,17 +188,18 @@ func (c *Channel) Request(req *FbsRequest.RequestT) (any, error) {
 			}
 			return m.Body.Value, nil
 		}
-		c.logger.Error("request failed", "id", m.Id, "error", m.Error, "reason", m.Reason)
+		c.logger.ErrorContext(ctx, "request failed", "id", m.Id, "error", m.Error, "reason", m.Reason)
 		return nil, errors.New(m.Error + ": " + m.Reason)
 
 	case <-timer.C:
 		return nil, ErrChannelRequestTimeout
+
+	case <-ctx.Done():
+		return nil, ctx.Err()
 	}
 }
 
 func (c *Channel) Subscribe(subj string, cb Handler) *Subscription {
-	c.logger.Debug("Subscribe()", "subject", subj)
-
 	sub := &Subscription{
 		Subject: subj,
 		mcb:     cb,
@@ -208,14 +217,14 @@ func (c *Channel) Subscribe(subj string, cb Handler) *Subscription {
 	return sub
 }
 
-func (c *Channel) Close() {
+func (c *Channel) Close(ctx context.Context) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
 	if c.closed {
 		return
 	}
-	c.logger.Debug("Close()")
+	c.logger.DebugContext(ctx, "Close()")
 
 	c.w.Close()
 	c.r.Close()

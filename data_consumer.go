@@ -1,6 +1,7 @@
 package mediasoup
 
 import (
+	"context"
 	"log/slog"
 
 	FbsDataConsumer "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/DataConsumer"
@@ -121,14 +122,18 @@ func (c *DataConsumer) Closed() bool {
 
 // Close the DataConsumer.
 func (c *DataConsumer) Close() error {
+	return c.CloseContext(context.Background())
+}
+
+func (c *DataConsumer) CloseContext(ctx context.Context) error {
 	c.mu.Lock()
 	if c.closed {
 		c.mu.Unlock()
 		return nil
 	}
-	c.logger.Debug("Close()")
+	c.logger.DebugContext(ctx, "Close()")
 
-	_, err := c.channel.Request(&FbsRequest.RequestT{
+	_, err := c.channel.Request(ctx, &FbsRequest.RequestT{
 		Method:    FbsRequest.MethodTRANSPORT_CLOSE_DATACONSUMER,
 		HandlerId: c.data.TransportId,
 		Body: &FbsRequest.BodyT{
@@ -151,9 +156,13 @@ func (c *DataConsumer) Close() error {
 
 // Dump DataConsumer.
 func (c *DataConsumer) Dump() (*DataConsumerDump, error) {
-	c.logger.Debug("Dump()")
+	return c.DumpContext(context.Background())
+}
 
-	msg, err := c.channel.Request(&FbsRequest.RequestT{
+func (c *DataConsumer) DumpContext(ctx context.Context) (*DataConsumerDump, error) {
+	c.logger.DebugContext(ctx, "Dump()")
+
+	msg, err := c.channel.Request(ctx, &FbsRequest.RequestT{
 		HandlerId: c.Id(),
 		Method:    FbsRequest.MethodDATACONSUMER_DUMP,
 	})
@@ -186,9 +195,13 @@ func (c *DataConsumer) Dump() (*DataConsumerDump, error) {
 
 // GetStats returns DataConsumer stats.
 func (c *DataConsumer) GetStats() ([]*DataConsumerStat, error) {
-	c.logger.Debug("GetStats()")
+	return c.GetStatsContext(context.Background())
+}
 
-	msg, err := c.channel.Request(&FbsRequest.RequestT{
+func (c *DataConsumer) GetStatsContext(ctx context.Context) ([]*DataConsumerStat, error) {
+	c.logger.DebugContext(ctx, "GetStats()")
+
+	msg, err := c.channel.Request(ctx, &FbsRequest.RequestT{
 		Method:    FbsRequest.MethodDATACONSUMER_GET_STATS,
 		HandlerId: c.Id(),
 	})
@@ -212,11 +225,15 @@ func (c *DataConsumer) GetStats() ([]*DataConsumerStat, error) {
 
 // Pause the DataConsumer.
 func (c *DataConsumer) Pause() error {
-	c.logger.Debug("Pause()")
+	return c.PauseContext(context.Background())
+}
+
+func (c *DataConsumer) PauseContext(ctx context.Context) error {
+	c.logger.DebugContext(ctx, "Pause()")
 
 	c.mu.Lock()
 
-	_, err := c.channel.Request(&FbsRequest.RequestT{
+	_, err := c.channel.Request(ctx, &FbsRequest.RequestT{
 		Method:    FbsRequest.MethodDATACONSUMER_PAUSE,
 		HandlerId: c.Id(),
 	})
@@ -240,11 +257,15 @@ func (c *DataConsumer) Pause() error {
 
 // Resume the DataConsumer.
 func (c *DataConsumer) Resume() error {
-	c.logger.Debug("Resume()")
+	return c.ResumeContext(context.Background())
+}
+
+func (c *DataConsumer) ResumeContext(ctx context.Context) error {
+	c.logger.DebugContext(ctx, "Resume()")
 
 	c.mu.Lock()
 
-	_, err := c.channel.Request(&FbsRequest.RequestT{
+	_, err := c.channel.Request(ctx, &FbsRequest.RequestT{
 		Method:    FbsRequest.MethodDATACONSUMER_RESUME,
 		HandlerId: c.Id(),
 	})
@@ -269,9 +290,13 @@ func (c *DataConsumer) Resume() error {
 
 // SetBufferedAmountLowThreshold set buffered amount low threshold.
 func (c *DataConsumer) SetBufferedAmountLowThreshold(threshold uint32) error {
-	c.logger.Debug("SetBufferedAmountLowThreshold()")
+	return c.SetBufferedAmountLowThresholdContext(context.Background(), threshold)
+}
 
-	_, err := c.channel.Request(&FbsRequest.RequestT{
+func (c *DataConsumer) SetBufferedAmountLowThresholdContext(ctx context.Context, threshold uint32) error {
+	c.logger.DebugContext(ctx, "SetBufferedAmountLowThreshold()")
+
+	_, err := c.channel.Request(ctx, &FbsRequest.RequestT{
 		Method:    FbsRequest.MethodDATACONSUMER_SET_BUFFERED_AMOUNT_LOW_THRESHOLD,
 		HandlerId: c.Id(),
 		Body: &FbsRequest.BodyT{
@@ -286,9 +311,13 @@ func (c *DataConsumer) SetBufferedAmountLowThreshold(threshold uint32) error {
 
 // GetBufferedAmount returns buffered amount size.
 func (c *DataConsumer) GetBufferedAmount() (uint32, error) {
-	c.logger.Debug("GetBufferedAmount()")
+	return c.GetBufferedAmountContext(context.Background())
+}
 
-	msg, err := c.channel.Request(&FbsRequest.RequestT{
+func (c *DataConsumer) GetBufferedAmountContext(ctx context.Context) (uint32, error) {
+	c.logger.DebugContext(ctx, "GetBufferedAmount()")
+
+	msg, err := c.channel.Request(ctx, &FbsRequest.RequestT{
 		Method:    FbsRequest.MethodDATACONSUMER_GET_BUFFERED_AMOUNT,
 		HandlerId: c.Id(),
 	})
@@ -301,7 +330,11 @@ func (c *DataConsumer) GetBufferedAmount() (uint32, error) {
 
 // Send data.
 func (c *DataConsumer) Send(data []byte) (err error) {
-	c.logger.Debug("Send()")
+	return c.SendContext(context.Background(), data)
+}
+
+func (c *DataConsumer) SendContext(ctx context.Context, data []byte) (err error) {
+	c.logger.DebugContext(ctx, "Send()")
 
 	/**
 	 * +-------------------------------+----------+
@@ -324,12 +357,16 @@ func (c *DataConsumer) Send(data []byte) (err error) {
 		data, ppid = emptyBytes[:], SctpPayloadWebRTCBinaryEmpty
 	}
 
-	return c.send(data, ppid)
+	return c.send(ctx, data, ppid)
 }
 
 // SendText send text.
 func (c *DataConsumer) SendText(message string) error {
-	c.logger.Debug("SendText()")
+	return c.SendTextContext(context.Background(), message)
+}
+
+func (c *DataConsumer) SendTextContext(ctx context.Context, message string) error {
+	c.logger.DebugContext(ctx, "SendText()")
 
 	ppid, data := SctpPayloadWebRTCString, []byte(message)
 
@@ -337,11 +374,11 @@ func (c *DataConsumer) SendText(message string) error {
 		data, ppid = emptyString[:], SctpPayloadWebRTCBinaryEmpty
 	}
 
-	return c.send(data, ppid)
+	return c.send(ctx, data, ppid)
 }
 
-func (c *DataConsumer) send(data []byte, ppid SctpPayloadType) error {
-	_, err := c.channel.Request(&FbsRequest.RequestT{
+func (c *DataConsumer) send(ctx context.Context, data []byte, ppid SctpPayloadType) error {
+	_, err := c.channel.Request(ctx, &FbsRequest.RequestT{
 		Method:    FbsRequest.MethodDATACONSUMER_SEND,
 		HandlerId: c.Id(),
 		Body: &FbsRequest.BodyT{
@@ -356,12 +393,16 @@ func (c *DataConsumer) send(data []byte, ppid SctpPayloadType) error {
 }
 
 func (c *DataConsumer) SetSubchannels(subchannels []uint16) error {
-	c.logger.Debug("SetSubchannels()")
+	return c.SetSubchannelsContext(context.Background(), subchannels)
+}
+
+func (c *DataConsumer) SetSubchannelsContext(ctx context.Context, subchannels []uint16) error {
+	c.logger.DebugContext(ctx, "SetSubchannels()")
 
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	msg, err := c.channel.Request(&FbsRequest.RequestT{
+	msg, err := c.channel.Request(ctx, &FbsRequest.RequestT{
 		Method:    FbsRequest.MethodDATACONSUMER_SET_SUBCHANNELS,
 		HandlerId: c.Id(),
 		Body: &FbsRequest.BodyT{
@@ -380,12 +421,16 @@ func (c *DataConsumer) SetSubchannels(subchannels []uint16) error {
 }
 
 func (c *DataConsumer) AddSubChannel(subchannel uint16) error {
-	c.logger.Debug("AddSubChannel()")
+	return c.AddSubChannelContext(context.Background(), subchannel)
+}
+
+func (c *DataConsumer) AddSubChannelContext(ctx context.Context, subchannel uint16) error {
+	c.logger.DebugContext(ctx, "AddSubChannel()")
 
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	msg, err := c.channel.Request(&FbsRequest.RequestT{
+	msg, err := c.channel.Request(ctx, &FbsRequest.RequestT{
 		Method:    FbsRequest.MethodDATACONSUMER_ADD_SUBCHANNEL,
 		HandlerId: c.Id(),
 		Body: &FbsRequest.BodyT{
@@ -404,12 +449,16 @@ func (c *DataConsumer) AddSubChannel(subchannel uint16) error {
 }
 
 func (c *DataConsumer) RemoveSubChannel(subchannel uint16) error {
-	c.logger.Debug("RemoveSubChannel()")
+	return c.RemoveSubChannelContext(context.Background(), subchannel)
+}
+
+func (c *DataConsumer) RemoveSubChannelContext(ctx context.Context, subchannel uint16) error {
+	c.logger.DebugContext(ctx, "RemoveSubChannel()")
 
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	msg, err := c.channel.Request(&FbsRequest.RequestT{
+	msg, err := c.channel.Request(ctx, &FbsRequest.RequestT{
 		Method:    FbsRequest.MethodDATACONSUMER_REMOVE_SUBCHANNEL,
 		HandlerId: c.Id(),
 		Body: &FbsRequest.BodyT{

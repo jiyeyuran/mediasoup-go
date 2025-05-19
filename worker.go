@@ -169,25 +169,25 @@ func NewWorker(workerBinaryPath string, options ...Option) (*Worker, error) {
 	defer sub.Unsubscribe()
 
 	go func() {
-		logger := logger.With("stderr", true)
+		stderrLogger := logger.With("stderr", true)
 		r := bufio.NewReader(stderr)
 		for {
 			line, _, err := r.ReadLine()
 			if err != nil {
 				break
 			}
-			logger.Info(string(line))
+			stderrLogger.Info(string(line))
 		}
 	}()
 	go func() {
-		logger := logger.With("stdout", true)
+		stdoutLogger := logger.With("stdout", true)
 		r := bufio.NewReader(stdout)
 		for {
 			line, _, err := r.ReadLine()
 			if err != nil {
 				break
 			}
-			logger.Debug(string(line))
+			stdoutLogger.Debug(string(line))
 		}
 	}()
 
@@ -259,12 +259,16 @@ func (w *Worker) Err() error {
 }
 
 func (w *Worker) Close() {
+	w.CloseContext(context.Background())
+}
+
+func (w *Worker) CloseContext(ctx context.Context) {
 	w.mu.Lock()
 	if w.closed {
 		w.mu.Unlock()
 		return
 	}
-	w.logger.Debug("Close()")
+	w.logger.DebugContext(ctx, "Close()")
 
 	if w.cmd.ProcessState == nil {
 		go func() {
@@ -279,7 +283,7 @@ func (w *Worker) Close() {
 						return
 					}
 					if time.Since(now) > time.Second {
-						w.logger.Warn("force kill worker process")
+						w.logger.WarnContext(ctx, "force kill worker process")
 						w.cmd.Process.Kill()
 						return
 					}
@@ -287,7 +291,7 @@ func (w *Worker) Close() {
 			}
 		}()
 
-		// w.channel.Request(&FbsRequest.RequestT{
+		// w.channel.Request(ctx, &FbsRequest.RequestT{
 		// 	Method: FbsRequest.MethodWORKER_CLOSE,
 		// })
 		w.cmd.Process.Signal(os.Interrupt)
@@ -296,42 +300,7 @@ func (w *Worker) Close() {
 	w.closed = true
 	w.mu.Unlock()
 
-	w.cleanupAfterClosed()
-}
-
-func (w *Worker) processQuited() {
-	w.mu.Lock()
-	if w.closed {
-		w.mu.Unlock()
-		return
-	}
-	w.closed = true
-	w.mu.Unlock()
-
-	w.cleanupAfterClosed()
-}
-
-func (w *Worker) cleanupAfterClosed() {
-	w.channel.Close()
-
-	// close all pipes
-	for _, file := range w.cmd.ExtraFiles {
-		file.Close()
-	}
-
-	w.routers.Range(func(key, value any) bool {
-		value.(*Router).workerClosed()
-		w.routers.Delete(key)
-		return true
-	})
-
-	w.webRtcServers.Range(func(key, value any) bool {
-		value.(*WebRtcServer).workerClosed()
-		w.webRtcServers.Delete(key)
-		return true
-	})
-
-	w.notifyClosed()
+	w.cleanupAfterClosed(ctx)
 }
 
 func (w *Worker) Closed() bool {
@@ -343,9 +312,13 @@ func (w *Worker) Closed() bool {
 
 // Dump returns the resources allocated by the worker.
 func (w *Worker) Dump() (dump *WorkerDump, err error) {
-	w.logger.Debug("Dump()")
+	return w.DumpContext(context.Background())
+}
 
-	respAny, err := w.channel.Request(&FbsRequest.RequestT{
+func (w *Worker) DumpContext(ctx context.Context) (dump *WorkerDump, err error) {
+	w.logger.DebugContext(ctx, "Dump()")
+
+	respAny, err := w.channel.Request(ctx, &FbsRequest.RequestT{
 		Method: FbsRequest.MethodWORKER_DUMP,
 	})
 	if err != nil {
@@ -375,9 +348,13 @@ func (w *Worker) Dump() (dump *WorkerDump, err error) {
 
 // GetResourceUsage returns the worker process resource usage.
 func (w *Worker) GetResourceUsage() (usage *WorkerResourceUsage, err error) {
-	w.logger.Debug("GetResourceUsage()")
+	return w.GetResourceUsageContext(context.Background())
+}
 
-	respAny, err := w.channel.Request(&FbsRequest.RequestT{
+func (w *Worker) GetResourceUsageContext(ctx context.Context) (usage *WorkerResourceUsage, err error) {
+	w.logger.DebugContext(ctx, "GetResourceUsage()")
+
+	respAny, err := w.channel.Request(ctx, &FbsRequest.RequestT{
 		Method: FbsRequest.MethodWORKER_GET_RESOURCE_USAGE,
 	})
 	if err != nil {
@@ -407,9 +384,13 @@ func (w *Worker) GetResourceUsage() (usage *WorkerResourceUsage, err error) {
 
 // UpdateSettings updates worker settings.
 func (w *Worker) UpdateSettings(settings *WorkerUpdatableSettings) (err error) {
-	w.logger.Debug("UpdateSettings()")
+	return w.UpdateSettingsContext(context.Background(), settings)
+}
 
-	_, err = w.channel.Request(&FbsRequest.RequestT{
+func (w *Worker) UpdateSettingsContext(ctx context.Context, settings *WorkerUpdatableSettings) (err error) {
+	w.logger.DebugContext(ctx, "UpdateSettings()")
+
+	_, err = w.channel.Request(ctx, &FbsRequest.RequestT{
 		Method: FbsRequest.MethodWORKER_UPDATE_SETTINGS,
 		Body: &FbsRequest.BodyT{
 			Type: FbsRequest.BodyWorker_UpdateSettingsRequest,
@@ -427,7 +408,11 @@ func (w *Worker) UpdateSettings(settings *WorkerUpdatableSettings) (err error) {
 
 // CreateWebRtcServer creates a WebRtcServer.
 func (w *Worker) CreateWebRtcServer(options *WebRtcServerOptions) (*WebRtcServer, error) {
-	w.logger.Debug("CreateWebRtcServer()")
+	return w.CreateWebRtcServerContext(context.Background(), options)
+}
+
+func (w *Worker) CreateWebRtcServerContext(ctx context.Context, options *WebRtcServerOptions) (*WebRtcServer, error) {
+	w.logger.DebugContext(ctx, "CreateWebRtcServer()")
 
 	id := uuid()
 
@@ -455,7 +440,7 @@ func (w *Worker) CreateWebRtcServer(options *WebRtcServerOptions) (*WebRtcServer
 		}
 	}
 
-	_, err := w.channel.Request(&FbsRequest.RequestT{
+	_, err := w.channel.Request(ctx, &FbsRequest.RequestT{
 		Method: FbsRequest.MethodWORKER_CREATE_WEBRTCSERVER,
 		Body: &FbsRequest.BodyT{
 			Type:  FbsRequest.BodyWorker_CreateWebRtcServerRequest,
@@ -475,7 +460,11 @@ func (w *Worker) CreateWebRtcServer(options *WebRtcServerOptions) (*WebRtcServer
 
 // CreateRouter creates a router.
 func (w *Worker) CreateRouter(options *RouterOptions) (*Router, error) {
-	w.logger.Debug("CreateRouter()")
+	return w.CreateRouterContext(context.Background(), options)
+}
+
+func (w *Worker) CreateRouterContext(ctx context.Context, options *RouterOptions) (*Router, error) {
+	w.logger.DebugContext(ctx, "CreateRouter()")
 
 	rtpCapabilities, err := generateRouterRtpCapabilities(options.MediaCodecs)
 	if err != nil {
@@ -486,7 +475,7 @@ func (w *Worker) CreateRouter(options *RouterOptions) (*Router, error) {
 	req := &FbsWorker.CreateRouterRequestT{
 		RouterId: routerId,
 	}
-	_, err = w.channel.Request(&FbsRequest.RequestT{
+	_, err = w.channel.Request(ctx, &FbsRequest.RequestT{
 		Method: FbsRequest.MethodWORKER_CREATE_ROUTER,
 		Body: &FbsRequest.BodyT{
 			Type:  FbsRequest.BodyWorker_CreateRouterRequest,
@@ -507,4 +496,39 @@ func (w *Worker) CreateRouter(options *RouterOptions) (*Router, error) {
 		w.routers.Delete(router.Id())
 	})
 	return router, nil
+}
+
+func (w *Worker) processQuited() {
+	w.mu.Lock()
+	if w.closed {
+		w.mu.Unlock()
+		return
+	}
+	w.closed = true
+	w.mu.Unlock()
+
+	w.cleanupAfterClosed(context.Background())
+}
+
+func (w *Worker) cleanupAfterClosed(ctx context.Context) {
+	w.channel.Close(ctx)
+
+	// close all pipes
+	for _, file := range w.cmd.ExtraFiles {
+		file.Close()
+	}
+
+	w.routers.Range(func(key, value any) bool {
+		value.(*Router).workerClosed()
+		w.routers.Delete(key)
+		return true
+	})
+
+	w.webRtcServers.Range(func(key, value any) bool {
+		value.(*WebRtcServer).workerClosed()
+		w.webRtcServers.Delete(key)
+		return true
+	})
+
+	w.notifyClosed()
 }

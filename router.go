@@ -1,6 +1,7 @@
 package mediasoup
 
 import (
+	"context"
 	"errors"
 	"log/slog"
 	"strings"
@@ -150,14 +151,18 @@ func (r *Router) CanConsume(producerId string, rtpCapabilities *RtpCapabilities)
 }
 
 func (r *Router) Close() error {
+	return r.CloseContext(context.Background())
+}
+
+func (r *Router) CloseContext(ctx context.Context) error {
 	r.mu.Lock()
 	if r.closed {
 		r.mu.Unlock()
 		return nil
 	}
-	r.logger.Debug("Close()")
+	r.logger.DebugContext(ctx, "Close()")
 
-	_, err := r.channel.Request(&FbsRequest.RequestT{
+	_, err := r.channel.Request(ctx, &FbsRequest.RequestT{
 		Method: FbsRequest.MethodWORKER_CLOSE_ROUTER,
 		Body: &FbsRequest.BodyT{
 			Type: FbsRequest.BodyWorker_CloseRouterRequest,
@@ -185,9 +190,13 @@ func (r *Router) Closed() bool {
 }
 
 func (r *Router) Dump() (dump *RouterDump, err error) {
-	r.logger.Debug("Dump()")
+	return r.DumpContext(context.Background())
+}
 
-	msg, err := r.channel.Request(&FbsRequest.RequestT{
+func (r *Router) DumpContext(ctx context.Context) (dump *RouterDump, err error) {
+	r.logger.DebugContext(ctx, "Dump()")
+
+	msg, err := r.channel.Request(ctx, &FbsRequest.RequestT{
 		Method:    FbsRequest.MethodROUTER_DUMP,
 		HandlerId: r.Id(),
 	})
@@ -239,7 +248,11 @@ func (r *Router) Dump() (dump *RouterDump, err error) {
 }
 
 func (r *Router) CreateActiveSpeakerObserver(options ...ActiveSpeakerObserverOption) (*RtpObserver, error) {
-	r.logger.Debug("CreateActiveSpeakerObserver()")
+	return r.CreateActiveSpeakerObserverContext(context.Background(), options...)
+}
+
+func (r *Router) CreateActiveSpeakerObserverContext(ctx context.Context, options ...ActiveSpeakerObserverOption) (*RtpObserver, error) {
+	r.logger.DebugContext(ctx, "CreateActiveSpeakerObserver()")
 
 	o := &ActiveSpeakerObserverOptions{
 		Interval: 300,
@@ -250,7 +263,7 @@ func (r *Router) CreateActiveSpeakerObserver(options ...ActiveSpeakerObserverOpt
 
 	rtpObserverId := uuid()
 
-	_, err := r.channel.Request(&FbsRequest.RequestT{
+	_, err := r.channel.Request(ctx, &FbsRequest.RequestT{
 		Method:    FbsRequest.MethodROUTER_CREATE_ACTIVESPEAKEROBSERVER,
 		HandlerId: r.Id(),
 		Body: &FbsRequest.BodyT{
@@ -276,7 +289,11 @@ func (r *Router) CreateActiveSpeakerObserver(options ...ActiveSpeakerObserverOpt
 }
 
 func (r *Router) CreateAudioLevelObserver(options ...AudioLevelObserverOption) (*RtpObserver, error) {
-	r.logger.Debug("CreateAudioLevelObserver()")
+	return r.CreateAudioLevelObserverContext(context.Background(), options...)
+}
+
+func (r *Router) CreateAudioLevelObserverContext(ctx context.Context, options ...AudioLevelObserverOption) (*RtpObserver, error) {
+	r.logger.DebugContext(ctx, "CreateAudioLevelObserver()")
 
 	o := &AudioLevelObserverOptions{
 		MaxEntries: 1,
@@ -289,7 +306,7 @@ func (r *Router) CreateAudioLevelObserver(options ...AudioLevelObserverOption) (
 
 	rtpObserverId := uuid()
 
-	_, err := r.channel.Request(&FbsRequest.RequestT{
+	_, err := r.channel.Request(ctx, &FbsRequest.RequestT{
 		Method:    FbsRequest.MethodROUTER_CREATE_AUDIOLEVELOBSERVER,
 		HandlerId: r.Id(),
 		Body: &FbsRequest.BodyT{
@@ -317,7 +334,11 @@ func (r *Router) CreateAudioLevelObserver(options ...AudioLevelObserverOption) (
 }
 
 func (r *Router) CreateWebRtcTransport(options *WebRtcTransportOptions) (*Transport, error) {
-	r.logger.Debug("CreateWebRtcTransport()")
+	return r.CreateWebRtcTransportContext(context.Background(), options)
+}
+
+func (r *Router) CreateWebRtcTransportContext(ctx context.Context, options *WebRtcTransportOptions) (*Transport, error) {
+	r.logger.DebugContext(ctx, "CreateWebRtcTransport()")
 
 	o := &WebRtcTransportOptions{
 		WebRtcServer:                    options.WebRtcServer,
@@ -389,7 +410,7 @@ func (r *Router) CreateWebRtcTransport(options *WebRtcTransportOptions) (*Transp
 		}
 	}
 
-	msg, err := r.channel.Request(&FbsRequest.RequestT{
+	msg, err := r.channel.Request(ctx, &FbsRequest.RequestT{
 		Method:    method,
 		HandlerId: r.Id(),
 		Body: &FbsRequest.BodyT{
@@ -480,7 +501,11 @@ func (r *Router) CreateWebRtcTransport(options *WebRtcTransportOptions) (*Transp
 }
 
 func (r *Router) CreatePlainTransport(options *PlainTransportOptions) (*Transport, error) {
-	r.logger.Debug("CreatePlainTransport()")
+	return r.CreatePlainTransportContext(context.Background(), options)
+}
+
+func (r *Router) CreatePlainTransportContext(ctx context.Context, options *PlainTransportOptions) (*Transport, error) {
+	r.logger.DebugContext(ctx, "CreatePlainTransport()")
 
 	o := &PlainTransportOptions{
 		ListenInfo:         options.ListenInfo,
@@ -520,7 +545,7 @@ func (r *Router) CreatePlainTransport(options *PlainTransportOptions) (*Transpor
 		IsDataChannel:      false,
 	}
 
-	msg, err := r.channel.Request(&FbsRequest.RequestT{
+	msg, err := r.channel.Request(ctx, &FbsRequest.RequestT{
 		Method:    FbsRequest.MethodROUTER_CREATE_PLAINTRANSPORT,
 		HandlerId: r.Id(),
 		Body: &FbsRequest.BodyT{
@@ -579,7 +604,11 @@ func (r *Router) CreatePlainTransport(options *PlainTransportOptions) (*Transpor
 }
 
 func (r *Router) CreatePipeTransport(options *PipeTransportOptions) (*Transport, error) {
-	r.logger.Debug("CreatePipeTransport()")
+	return r.CreatePipeTransportContext(context.Background(), options)
+}
+
+func (r *Router) CreatePipeTransportContext(ctx context.Context, options *PipeTransportOptions) (*Transport, error) {
+	r.logger.DebugContext(ctx, "CreatePipeTransport()")
 
 	o := &PipeTransportOptions{
 		ListenInfo:         options.ListenInfo,
@@ -613,7 +642,7 @@ func (r *Router) CreatePipeTransport(options *PipeTransportOptions) (*Transport,
 		IsDataChannel:      false,
 	}
 
-	msg, err := r.channel.Request(&FbsRequest.RequestT{
+	msg, err := r.channel.Request(ctx, &FbsRequest.RequestT{
 		Method:    FbsRequest.MethodROUTER_CREATE_PIPETRANSPORT,
 		HandlerId: r.Id(),
 		Body: &FbsRequest.BodyT{
@@ -662,7 +691,11 @@ func (r *Router) CreatePipeTransport(options *PipeTransportOptions) (*Transport,
 }
 
 func (r *Router) CreateDirectTransport(options *DirectTransportOptions) (*Transport, error) {
-	r.logger.Debug("CreateDirectTransport()")
+	return r.CreateDirectTransportContext(context.Background(), options)
+}
+
+func (r *Router) CreateDirectTransportContext(ctx context.Context, options *DirectTransportOptions) (*Transport, error) {
+	r.logger.DebugContext(ctx, "CreateDirectTransport()")
 
 	o := &DirectTransportOptions{
 		MaxMessageSize: 262144,
@@ -680,7 +713,7 @@ func (r *Router) CreateDirectTransport(options *DirectTransportOptions) (*Transp
 		MaxMessageSize: &o.MaxMessageSize,
 	}
 
-	_, err := r.channel.Request(&FbsRequest.RequestT{
+	_, err := r.channel.Request(ctx, &FbsRequest.RequestT{
 		Method:    FbsRequest.MethodROUTER_CREATE_DIRECTTRANSPORT,
 		HandlerId: r.Id(),
 		Body: &FbsRequest.BodyT{
@@ -708,7 +741,11 @@ func (r *Router) CreateDirectTransport(options *DirectTransportOptions) (*Transp
 
 // PipeToRouter pipes the given Producer or DataProducer into another Router in same host.
 func (r *Router) PipeToRouter(options *PipeToRouterOptions) (result *PipeToRouterResult, err error) {
-	r.logger.Debug("PipeToRouter()")
+	return r.PipeToRouterContext(context.Background(), options)
+}
+
+func (r *Router) PipeToRouterContext(ctx context.Context, options *PipeToRouterOptions) (result *PipeToRouterResult, err error) {
+	r.logger.DebugContext(ctx, "PipeToRouter()")
 
 	o := &PipeToRouterOptions{
 		ListenInfo: TransportListenInfo{
