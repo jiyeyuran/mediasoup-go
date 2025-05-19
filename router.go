@@ -58,7 +58,7 @@ func newRouter(channel *channel.Channel, logger *slog.Logger, data *routerData) 
 	return &Router{
 		channel:                 channel,
 		data:                    data,
-		logger:                  logger,
+		logger:                  logger.With("routerId", data.RouterId),
 		mapRouterPipeTransports: make(map[*Router][2]*Transport),
 	}
 }
