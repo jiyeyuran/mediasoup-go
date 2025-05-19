@@ -1,6 +1,7 @@
 package mediasoup
 
 import (
+	"context"
 	"log/slog"
 	"sync"
 
@@ -59,14 +60,18 @@ func (s *WebRtcServer) Closed() bool {
 
 // Close the webrtc server.
 func (s *WebRtcServer) Close() error {
+	return s.CloseContext(context.Background())
+}
+
+func (s *WebRtcServer) CloseContext(ctx context.Context) error {
 	s.mu.Lock()
 	if s.closed {
 		s.mu.Unlock()
 		return nil
 	}
-	s.logger.Debug("Close()")
+	s.logger.DebugContext(ctx, "Close()")
 
-	_, err := s.channel.Request(&FbsRequest.RequestT{
+	_, err := s.channel.Request(ctx, &FbsRequest.RequestT{
 		Method: FbsRequest.MethodWORKER_WEBRTCSERVER_CLOSE,
 		Body: &FbsRequest.BodyT{
 			Type: FbsRequest.BodyWorker_CloseWebRtcServerRequest,
@@ -106,9 +111,13 @@ func (s *WebRtcServer) workerClosed() {
 
 // Dump returns WebRtcServer information.
 func (s *WebRtcServer) Dump() (*WebRtcServerDump, error) {
-	s.logger.Debug("Dump()")
+	return s.DumpContext(context.Background())
+}
 
-	val, err := s.channel.Request(&FbsRequest.RequestT{
+func (s *WebRtcServer) DumpContext(ctx context.Context) (*WebRtcServerDump, error) {
+	s.logger.DebugContext(ctx, "Dump()")
+
+	val, err := s.channel.Request(ctx, &FbsRequest.RequestT{
 		HandlerId: s.Id(),
 		Method:    FbsRequest.MethodWEBRTCSERVER_DUMP,
 	})

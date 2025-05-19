@@ -1,6 +1,7 @@
 package mediasoup
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -151,14 +152,18 @@ func (c *Consumer) AppData() H {
 
 // Close the consumer.
 func (c *Consumer) Close() error {
+	return c.CloseContext(context.Background())
+}
+
+func (c *Consumer) CloseContext(ctx context.Context) error {
 	c.mu.Lock()
 	if c.closed {
 		c.mu.Unlock()
 		return nil
 	}
-	c.logger.Debug("Close()")
+	c.logger.DebugContext(ctx, "Close()")
 
-	_, err := c.channel.Request(&FbsRequest.RequestT{
+	_, err := c.channel.Request(ctx, &FbsRequest.RequestT{
 		Method:    FbsRequest.MethodTRANSPORT_CLOSE_CONSUMER,
 		HandlerId: c.data.TransportId,
 		Body: &FbsRequest.BodyT{
@@ -182,9 +187,13 @@ func (c *Consumer) Close() error {
 
 // Dump Consumer.
 func (c *Consumer) Dump() (*ConsumerDump, error) {
-	c.logger.Debug("Dump()")
+	return c.DumpContext(context.Background())
+}
 
-	msg, err := c.channel.Request(&FbsRequest.RequestT{
+func (c *Consumer) DumpContext(ctx context.Context) (*ConsumerDump, error) {
+	c.logger.DebugContext(ctx, "Dump()")
+
+	msg, err := c.channel.Request(ctx, &FbsRequest.RequestT{
 		HandlerId: c.Id(),
 		Method:    FbsRequest.MethodCONSUMER_DUMP,
 	})
@@ -247,9 +256,13 @@ func (c *Consumer) Dump() (*ConsumerDump, error) {
 
 // GetStats returns Consumer stats.
 func (c *Consumer) GetStats() ([]*ConsumerStat, error) {
-	c.logger.Debug("GetStats()")
+	return c.GetStatsContext(context.Background())
+}
 
-	msg, err := c.channel.Request(&FbsRequest.RequestT{
+func (c *Consumer) GetStatsContext(ctx context.Context) ([]*ConsumerStat, error) {
+	c.logger.DebugContext(ctx, "GetStats()")
+
+	msg, err := c.channel.Request(ctx, &FbsRequest.RequestT{
 		Method:    FbsRequest.MethodCONSUMER_GET_STATS,
 		HandlerId: c.Id(),
 	})
@@ -263,11 +276,15 @@ func (c *Consumer) GetStats() ([]*ConsumerStat, error) {
 
 // Pause the Consumer.
 func (c *Consumer) Pause() error {
-	c.logger.Debug("Pause()")
+	return c.PauseContext(context.Background())
+}
+
+func (c *Consumer) PauseContext(ctx context.Context) error {
+	c.logger.DebugContext(ctx, "Pause()")
 
 	c.mu.Lock()
 
-	_, err := c.channel.Request(&FbsRequest.RequestT{
+	_, err := c.channel.Request(ctx, &FbsRequest.RequestT{
 		Method:    FbsRequest.MethodCONSUMER_PAUSE,
 		HandlerId: c.Id(),
 	})
@@ -291,11 +308,15 @@ func (c *Consumer) Pause() error {
 
 // Resume the Consumer.
 func (c *Consumer) Resume() error {
-	c.logger.Debug("Resume()")
+	return c.ResumeContext(context.Background())
+}
+
+func (c *Consumer) ResumeContext(ctx context.Context) error {
+	c.logger.DebugContext(ctx, "Resume()")
 
 	c.mu.Lock()
 
-	_, err := c.channel.Request(&FbsRequest.RequestT{
+	_, err := c.channel.Request(ctx, &FbsRequest.RequestT{
 		Method:    FbsRequest.MethodCONSUMER_RESUME,
 		HandlerId: c.Id(),
 	})
@@ -321,12 +342,16 @@ func (c *Consumer) Resume() error {
 
 // SetPreferredLayers set preferred video layers.
 func (c *Consumer) SetPreferredLayers(layers ConsumerLayers) error {
-	c.logger.Debug("SetPreferredLayers()")
+	return c.SetPreferredLayersContext(context.Background(), layers)
+}
+
+func (c *Consumer) SetPreferredLayersContext(ctx context.Context, layers ConsumerLayers) error {
+	c.logger.DebugContext(ctx, "SetPreferredLayers()")
 
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	msg, err := c.channel.Request(&FbsRequest.RequestT{
+	msg, err := c.channel.Request(ctx, &FbsRequest.RequestT{
 		Method:    FbsRequest.MethodCONSUMER_SET_PREFERRED_LAYERS,
 		HandlerId: c.Id(),
 		Body: &FbsRequest.BodyT{
@@ -354,12 +379,16 @@ func (c *Consumer) SetPreferredLayers(layers ConsumerLayers) error {
 
 // SetPriority set priority.
 func (c *Consumer) SetPriority(priority byte) error {
-	c.logger.Debug("SetPriority()")
+	return c.SetPriorityContext(context.Background(), priority)
+}
+
+func (c *Consumer) SetPriorityContext(ctx context.Context, priority byte) error {
+	c.logger.DebugContext(ctx, "SetPriority()")
 
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	_, err := c.channel.Request(&FbsRequest.RequestT{
+	_, err := c.channel.Request(ctx, &FbsRequest.RequestT{
 		Method:    FbsRequest.MethodCONSUMER_SET_PRIORITY,
 		HandlerId: c.Id(),
 		Body: &FbsRequest.BodyT{
@@ -378,14 +407,22 @@ func (c *Consumer) SetPriority(priority byte) error {
 
 // UnsetPriority unset priority.
 func (c *Consumer) UnsetPriority() error {
-	return c.SetPriority(1)
+	return c.UnsetPriorityContext(context.Background())
+}
+
+func (c *Consumer) UnsetPriorityContext(ctx context.Context) error {
+	return c.SetPriorityContext(ctx, 1)
 }
 
 // RequestKeyFrame request a key frame to the Producer.
 func (c *Consumer) RequestKeyFrame() error {
-	c.logger.Debug("RequestKeyFrame()")
+	return c.RequestKeyFrameContext(context.Background())
+}
 
-	_, err := c.channel.Request(&FbsRequest.RequestT{
+func (c *Consumer) RequestKeyFrameContext(ctx context.Context) error {
+	c.logger.DebugContext(ctx, "RequestKeyFrame()")
+
+	_, err := c.channel.Request(ctx, &FbsRequest.RequestT{
 		Method:    FbsRequest.MethodCONSUMER_REQUEST_KEY_FRAME,
 		HandlerId: c.Id(),
 	})
@@ -394,14 +431,18 @@ func (c *Consumer) RequestKeyFrame() error {
 
 // EnableTraceEvent enable "trace" event.
 func (c *Consumer) EnableTraceEvent(events []ConsumerTraceEventType) error {
-	c.logger.Debug("EnableTraceEvent()")
+	return c.EnableTraceEventContext(context.Background(), events)
+}
+
+func (c *Consumer) EnableTraceEventContext(ctx context.Context, events []ConsumerTraceEventType) error {
+	c.logger.DebugContext(ctx, "EnableTraceEvent()")
 
 	events = filter(events, func(typ ConsumerTraceEventType) bool {
 		_, ok := FbsConsumer.EnumValuesTraceEventType[strings.ToUpper(string(typ))]
 		return ok
 	})
 
-	_, err := c.channel.Request(&FbsRequest.RequestT{
+	_, err := c.channel.Request(ctx, &FbsRequest.RequestT{
 		Method:    FbsRequest.MethodCONSUMER_ENABLE_TRACE_EVENT,
 		HandlerId: c.Id(),
 		Body: &FbsRequest.BodyT{

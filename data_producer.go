@@ -1,6 +1,7 @@
 package mediasoup
 
 import (
+	"context"
 	"log/slog"
 
 	FbsDataProducer "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/DataProducer"
@@ -89,14 +90,18 @@ func (p *DataProducer) Closed() bool {
 
 // Close the DataProducer.
 func (p *DataProducer) Close() error {
+	return p.CloseContext(context.Background())
+}
+
+func (p *DataProducer) CloseContext(ctx context.Context) error {
 	p.mu.Lock()
 	if p.closed {
 		p.mu.Unlock()
 		return nil
 	}
-	p.logger.Debug("Close()")
+	p.logger.DebugContext(ctx, "Close()")
 
-	_, err := p.channel.Request(&FbsRequest.RequestT{
+	_, err := p.channel.Request(ctx, &FbsRequest.RequestT{
 		Method:    FbsRequest.MethodTRANSPORT_CLOSE_DATAPRODUCER,
 		HandlerId: p.data.TransportId,
 		Body: &FbsRequest.BodyT{
@@ -120,9 +125,13 @@ func (p *DataProducer) Close() error {
 
 // Dump DataConsumer.
 func (p *DataProducer) Dump() (*DataProducerDump, error) {
-	p.logger.Debug("Dump()")
+	return p.DumpContext(context.Background())
+}
 
-	msg, err := p.channel.Request(&FbsRequest.RequestT{
+func (p *DataProducer) DumpContext(ctx context.Context) (*DataProducerDump, error) {
+	p.logger.DebugContext(ctx, "Dump()")
+
+	msg, err := p.channel.Request(ctx, &FbsRequest.RequestT{
 		HandlerId: p.Id(),
 		Method:    FbsRequest.MethodDATAPRODUCER_DUMP,
 	})
@@ -152,9 +161,13 @@ func (p *DataProducer) Dump() (*DataProducerDump, error) {
 
 // GetStats returns DataProducer stats.
 func (p *DataProducer) GetStats() ([]*DataProducerStat, error) {
-	p.logger.Debug("GetStats()")
+	return p.GetStatsContext(context.Background())
+}
 
-	msg, err := p.channel.Request(&FbsRequest.RequestT{
+func (p *DataProducer) GetStatsContext(ctx context.Context) ([]*DataProducerStat, error) {
+	p.logger.DebugContext(ctx, "GetStats()")
+
+	msg, err := p.channel.Request(ctx, &FbsRequest.RequestT{
 		Method:    FbsRequest.MethodDATAPRODUCER_GET_STATS,
 		HandlerId: p.Id(),
 	})
@@ -177,11 +190,15 @@ func (p *DataProducer) GetStats() ([]*DataProducerStat, error) {
 
 // Pause the DataProducer.
 func (p *DataProducer) Pause() error {
-	p.logger.Debug("Pause()")
+	return p.PauseContext(context.Background())
+}
+
+func (p *DataProducer) PauseContext(ctx context.Context) error {
+	p.logger.DebugContext(ctx, "Pause()")
 
 	p.mu.Lock()
 
-	_, err := p.channel.Request(&FbsRequest.RequestT{
+	_, err := p.channel.Request(ctx, &FbsRequest.RequestT{
 		Method:    FbsRequest.MethodDATAPRODUCER_PAUSE,
 		HandlerId: p.Id(),
 	})
@@ -205,11 +222,15 @@ func (p *DataProducer) Pause() error {
 
 // Resume the DataProducer.
 func (p *DataProducer) Resume() error {
-	p.logger.Debug("Resume()")
+	return p.ResumeContext(context.Background())
+}
+
+func (p *DataProducer) ResumeContext(ctx context.Context) error {
+	p.logger.DebugContext(ctx, "Resume()")
 
 	p.mu.Lock()
 
-	_, err := p.channel.Request(&FbsRequest.RequestT{
+	_, err := p.channel.Request(ctx, &FbsRequest.RequestT{
 		Method:    FbsRequest.MethodDATAPRODUCER_RESUME,
 		HandlerId: p.Id(),
 	})
@@ -241,30 +262,38 @@ func (p *DataProducer) OnPaused(f func(bool)) {
 
 // Send send binary data.
 func (p *DataProducer) Send(data []byte) (err error) {
-	p.logger.Debug("Send()")
+	return p.SendContext(context.Background(), data)
+}
+
+func (p *DataProducer) SendContext(ctx context.Context, data []byte) (err error) {
+	p.logger.DebugContext(ctx, "Send()")
 
 	ppid := SctpPayloadWebRTCBinary
 
 	if len(data) == 0 {
 		ppid, data = SctpPayloadWebRTCBinaryEmpty, make([]byte, 1)
 	}
-	return p.send(data, ppid)
+	return p.send(ctx, data, ppid)
 }
 
 // SendText send text.
 func (p *DataProducer) SendText(message string) error {
-	p.logger.Debug("SendText()")
+	return p.SendTextContext(context.Background(), message)
+}
+
+func (p *DataProducer) SendTextContext(ctx context.Context, message string) error {
+	p.logger.DebugContext(ctx, "SendText()")
 
 	ppid, payload := SctpPayloadWebRTCString, []byte(message)
 
 	if len(payload) == 0 {
 		ppid, payload = SctpPayloadWebRTCStringEmpty, []byte{' '}
 	}
-	return p.send(payload, ppid)
+	return p.send(ctx, payload, ppid)
 }
 
-func (p *DataProducer) send(data []byte, ppid SctpPayloadType) error {
-	return p.channel.Notify(&FbsNotification.NotificationT{
+func (p *DataProducer) send(ctx context.Context, data []byte, ppid SctpPayloadType) error {
+	return p.channel.Notify(ctx, &FbsNotification.NotificationT{
 		Event:     FbsNotification.EventDATAPRODUCER_SEND,
 		HandlerId: p.Id(),
 		Body: &FbsNotification.BodyT{

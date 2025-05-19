@@ -1,6 +1,7 @@
 package mediasoup
 
 import (
+	"context"
 	"log/slog"
 	"strings"
 
@@ -107,14 +108,18 @@ func (p *Producer) Closed() bool {
 
 // Close the producer.
 func (p *Producer) Close() error {
+	return p.CloseContext(context.Background())
+}
+
+func (p *Producer) CloseContext(ctx context.Context) error {
 	p.mu.Lock()
 	if p.closed {
 		p.mu.Unlock()
 		return nil
 	}
-	p.logger.Debug("Close()")
+	p.logger.DebugContext(ctx, "Close()")
 
-	_, err := p.channel.Request(&FbsRequest.RequestT{
+	_, err := p.channel.Request(ctx, &FbsRequest.RequestT{
 		Method:    FbsRequest.MethodTRANSPORT_CLOSE_PRODUCER,
 		HandlerId: p.data.TransportId,
 		Body: &FbsRequest.BodyT{
@@ -137,9 +142,13 @@ func (p *Producer) Close() error {
 
 // Dump producer.
 func (p *Producer) Dump() (*ProducerDump, error) {
-	p.logger.Debug("Dump()")
+	return p.DumpContext(context.Background())
+}
 
-	msg, err := p.channel.Request(&FbsRequest.RequestT{
+func (p *Producer) DumpContext(ctx context.Context) (*ProducerDump, error) {
+	p.logger.DebugContext(ctx, "Dump()")
+
+	msg, err := p.channel.Request(ctx, &FbsRequest.RequestT{
 		HandlerId: p.Id(),
 		Method:    FbsRequest.MethodPRODUCER_DUMP,
 	})
@@ -179,9 +188,13 @@ func (p *Producer) Dump() (*ProducerDump, error) {
 
 // GetStats returns producer stats.
 func (p *Producer) GetStats() ([]*ProducerStat, error) {
-	p.logger.Debug("GetStats()")
+	return p.GetStatsContext(context.Background())
+}
 
-	msg, err := p.channel.Request(&FbsRequest.RequestT{
+func (p *Producer) GetStatsContext(ctx context.Context) ([]*ProducerStat, error) {
+	p.logger.DebugContext(ctx, "GetStats()")
+
+	msg, err := p.channel.Request(ctx, &FbsRequest.RequestT{
 		Method:    FbsRequest.MethodPRODUCER_GET_STATS,
 		HandlerId: p.Id(),
 	})
@@ -195,11 +208,15 @@ func (p *Producer) GetStats() ([]*ProducerStat, error) {
 
 // Pause the producer.
 func (p *Producer) Pause() error {
-	p.logger.Debug("Pause()")
+	return p.PauseContext(context.Background())
+}
+
+func (p *Producer) PauseContext(ctx context.Context) error {
+	p.logger.DebugContext(ctx, "Pause()")
 
 	p.mu.Lock()
 
-	_, err := p.channel.Request(&FbsRequest.RequestT{
+	_, err := p.channel.Request(ctx, &FbsRequest.RequestT{
 		Method:    FbsRequest.MethodPRODUCER_PAUSE,
 		HandlerId: p.Id(),
 	})
@@ -223,11 +240,15 @@ func (p *Producer) Pause() error {
 
 // Resume the producer.
 func (p *Producer) Resume() error {
-	p.logger.Debug("Resume()")
+	return p.ResumeContext(context.Background())
+}
+
+func (p *Producer) ResumeContext(ctx context.Context) error {
+	p.logger.DebugContext(ctx, "Resume()")
 
 	p.mu.Lock()
 
-	_, err := p.channel.Request(&FbsRequest.RequestT{
+	_, err := p.channel.Request(ctx, &FbsRequest.RequestT{
 		Method:    FbsRequest.MethodPRODUCER_RESUME,
 		HandlerId: p.Id(),
 	})
@@ -252,14 +273,18 @@ func (p *Producer) Resume() error {
 
 // EnableTraceEvent enable "trace" event.
 func (p *Producer) EnableTraceEvent(events []ProducerTraceEventType) error {
-	p.logger.Debug("EnableTraceEvent()")
+	return p.EnableTraceEventContext(context.Background(), events)
+}
+
+func (p *Producer) EnableTraceEventContext(ctx context.Context, events []ProducerTraceEventType) error {
+	p.logger.DebugContext(ctx, "EnableTraceEvent()")
 
 	events = filter(events, func(typ ProducerTraceEventType) bool {
 		_, ok := FbsProducer.EnumValuesTraceEventType[strings.ToUpper(string(typ))]
 		return ok
 	})
 
-	_, err := p.channel.Request(&FbsRequest.RequestT{
+	_, err := p.channel.Request(ctx, &FbsRequest.RequestT{
 		Method:    FbsRequest.MethodPRODUCER_ENABLE_TRACE_EVENT,
 		HandlerId: p.Id(),
 		Body: &FbsRequest.BodyT{
@@ -276,9 +301,13 @@ func (p *Producer) EnableTraceEvent(events []ProducerTraceEventType) error {
 
 // Send RTP packet (just valid for Producers created on a DirectTransport).
 func (p *Producer) Send(rtpPacket []byte) error {
-	p.logger.Debug("Send()")
+	return p.SendContext(context.Background(), rtpPacket)
+}
 
-	return p.channel.Notify(&FbsNotification.NotificationT{
+func (p *Producer) SendContext(ctx context.Context, rtpPacket []byte) error {
+	p.logger.DebugContext(ctx, "Send()")
+
+	return p.channel.Notify(ctx, &FbsNotification.NotificationT{
 		Event:     FbsNotification.EventPRODUCER_SEND,
 		HandlerId: p.Id(),
 		Body: &FbsNotification.BodyT{

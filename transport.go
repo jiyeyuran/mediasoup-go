@@ -1,6 +1,7 @@
 package mediasoup
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -124,14 +125,18 @@ func (t *Transport) Closed() bool {
 }
 
 func (t *Transport) Close() error {
+	return t.CloseContext(context.Background())
+}
+
+func (t *Transport) CloseContext(ctx context.Context) error {
 	t.mu.Lock()
 	if t.closed {
 		t.mu.Unlock()
 		return nil
 	}
-	t.logger.Debug("Close()")
+	t.logger.DebugContext(ctx, "Close()")
 
-	_, err := t.channel.Request(&FbsRequest.RequestT{
+	_, err := t.channel.Request(ctx, &FbsRequest.RequestT{
 		Method:    FbsRequest.MethodROUTER_CLOSE_TRANSPORT,
 		HandlerId: t.data.RouterId,
 		Body: &FbsRequest.BodyT{
@@ -154,9 +159,13 @@ func (t *Transport) Close() error {
 
 // Dump transport.
 func (t *Transport) Dump() (*TransportDump, error) {
-	t.logger.Debug("Dump()")
+	return t.DumpContext(context.Background())
+}
 
-	msg, err := t.channel.Request(&FbsRequest.RequestT{
+func (t *Transport) DumpContext(ctx context.Context) (*TransportDump, error) {
+	t.logger.DebugContext(ctx, "Dump()")
+
+	msg, err := t.channel.Request(ctx, &FbsRequest.RequestT{
 		Method:    FbsRequest.MethodTRANSPORT_DUMP,
 		HandlerId: t.Id(),
 	})
@@ -329,9 +338,13 @@ func (t *Transport) Dump() (*TransportDump, error) {
 
 // GetStats returns the Transport stats.
 func (t *Transport) GetStats() (*TransportStat, error) {
-	t.logger.Debug("GetStats()")
+	return t.GetStatsContext(context.Background())
+}
 
-	msg, err := t.channel.Request(&FbsRequest.RequestT{
+func (t *Transport) GetStatsContext(ctx context.Context) (*TransportStat, error) {
+	t.logger.DebugContext(ctx, "GetStats()")
+
+	msg, err := t.channel.Request(ctx, &FbsRequest.RequestT{
 		Method:    FbsRequest.MethodTRANSPORT_GET_STATS,
 		HandlerId: t.Id(),
 	})
@@ -417,7 +430,11 @@ func (t *Transport) GetStats() (*TransportStat, error) {
 
 // Connect provide the Transport remote parameters.
 func (t *Transport) Connect(connectOpts *TransportConnectOptions) error {
-	t.logger.Debug("Connect()")
+	return t.ConnectContext(context.Background(), connectOpts)
+}
+
+func (t *Transport) ConnectContext(ctx context.Context, connectOpts *TransportConnectOptions) error {
+	t.logger.DebugContext(ctx, "Connect()")
 
 	srtpParameters, err := convertSrtpParameters(connectOpts.SrtpParameters)
 	if err != nil {
@@ -428,7 +445,7 @@ func (t *Transport) Connect(connectOpts *TransportConnectOptions) error {
 		role := FbsWebRtcTransport.EnumValuesDtlsRole[strings.ToUpper(string(connectOpts.DtlsParameters.Role))]
 		fingerprints := collect(connectOpts.DtlsParameters.Fingerprints, convertDtlsFingerprint)
 
-		resp, err := t.channel.Request(&FbsRequest.RequestT{
+		resp, err := t.channel.Request(ctx, &FbsRequest.RequestT{
 			Method:    FbsRequest.MethodWEBRTCTRANSPORT_CONNECT,
 			HandlerId: t.Id(),
 			Body: &FbsRequest.BodyT{
@@ -449,7 +466,7 @@ func (t *Transport) Connect(connectOpts *TransportConnectOptions) error {
 		t.data.DtlsParameters.Role = DtlsRole(strings.ToLower(result.DtlsLocalRole.String()))
 
 	case TransportPlain:
-		resp, err := t.channel.Request(&FbsRequest.RequestT{
+		resp, err := t.channel.Request(ctx, &FbsRequest.RequestT{
 			Method:    FbsRequest.MethodPLAINTRANSPORT_CONNECT,
 			HandlerId: t.Id(),
 			Body: &FbsRequest.BodyT{
@@ -473,7 +490,7 @@ func (t *Transport) Connect(connectOpts *TransportConnectOptions) error {
 		data.SrtpParameters = parseSrtpParameters(result.SrtpParameters)
 
 	case TransportPipe:
-		resp, err := t.channel.Request(&FbsRequest.RequestT{
+		resp, err := t.channel.Request(ctx, &FbsRequest.RequestT{
 			Method:    FbsRequest.MethodPIPETRANSPORT_CONNECT,
 			HandlerId: t.Id(),
 			Body: &FbsRequest.BodyT{
@@ -498,12 +515,16 @@ func (t *Transport) Connect(connectOpts *TransportConnectOptions) error {
 
 // RestartIce restarts webrtc transport ICE.
 func (t *Transport) RestartIce() (*IceParameters, error) {
+	return t.RestartIceContext(context.Background())
+}
+
+func (t *Transport) RestartIceContext(ctx context.Context) (*IceParameters, error) {
 	if t.Type() != TransportWebRTC {
 		return nil, ErrNotImplemented
 	}
-	t.logger.Debug("RestartIce()")
+	t.logger.DebugContext(ctx, "RestartIce()")
 
-	msg, err := t.channel.Request(&FbsRequest.RequestT{
+	msg, err := t.channel.Request(ctx, &FbsRequest.RequestT{
 		Method:    FbsRequest.MethodTRANSPORT_RESTART_ICE,
 		HandlerId: t.Id(),
 	})
@@ -525,12 +546,16 @@ func (t *Transport) RestartIce() (*IceParameters, error) {
 
 // SetMaxIncomingBitrate set maximum incoming bitrate for receiving media.
 func (t *Transport) SetMaxIncomingBitrate(bitrate uint32) error {
+	return t.SetMaxIncomingBitrateContext(context.Background(), bitrate)
+}
+
+func (t *Transport) SetMaxIncomingBitrateContext(ctx context.Context, bitrate uint32) error {
 	if t.Type() == TransportDirect {
 		return ErrNotImplemented
 	}
-	t.logger.Debug("SetMaxIncomingBitrate()")
+	t.logger.DebugContext(ctx, "SetMaxIncomingBitrate()")
 
-	_, err := t.channel.Request(&FbsRequest.RequestT{
+	_, err := t.channel.Request(ctx, &FbsRequest.RequestT{
 		Method:    FbsRequest.MethodTRANSPORT_SET_MAX_INCOMING_BITRATE,
 		HandlerId: t.Id(),
 		Body: &FbsRequest.BodyT{
@@ -545,12 +570,16 @@ func (t *Transport) SetMaxIncomingBitrate(bitrate uint32) error {
 
 // SendRtcp send RTCP packet.
 func (t *Transport) SendRtcp(data []byte) error {
+	return t.SendRtcpContext(context.Background(), data)
+}
+
+func (t *Transport) SendRtcpContext(ctx context.Context, data []byte) error {
 	if t.Type() != TransportDirect {
 		return ErrNotImplemented
 	}
-	t.logger.Debug("SendRtcp()")
+	t.logger.DebugContext(ctx, "SendRtcp()")
 
-	return t.channel.Notify(&FbsNotification.NotificationT{
+	return t.channel.Notify(ctx, &FbsNotification.NotificationT{
 		Event:     FbsNotification.EventTRANSPORT_SEND_RTCP,
 		HandlerId: t.Id(),
 		Body: &FbsNotification.BodyT{
@@ -564,14 +593,18 @@ func (t *Transport) SendRtcp(data []byte) error {
 
 // EnableTraceEvent enables 'trace' events: "probation", "bwe".
 func (t *Transport) EnableTraceEvent(events []TransportTraceEventType) error {
-	t.logger.Debug("EnableTraceEvent()")
+	return t.EnableTraceEventContext(context.Background(), events)
+}
+
+func (t *Transport) EnableTraceEventContext(ctx context.Context, events []TransportTraceEventType) error {
+	t.logger.DebugContext(ctx, "EnableTraceEvent()")
 
 	events = filter(events, func(typ TransportTraceEventType) bool {
 		_, ok := FbsTransport.EnumValuesTraceEventType[strings.ToUpper(string(typ))]
 		return ok
 	})
 
-	_, err := t.channel.Request(&FbsRequest.RequestT{
+	_, err := t.channel.Request(ctx, &FbsRequest.RequestT{
 		Method:    FbsRequest.MethodTRANSPORT_ENABLE_TRACE_EVENT,
 		HandlerId: t.Id(),
 		Body: &FbsRequest.BodyT{
@@ -588,7 +621,11 @@ func (t *Transport) EnableTraceEvent(events []TransportTraceEventType) error {
 
 // Produce creates a Producer.
 func (t *Transport) Produce(options *ProducerOptions) (*Producer, error) {
-	t.logger.Debug("Produce()")
+	return t.ProduceContext(context.Background(), options)
+}
+
+func (t *Transport) ProduceContext(ctx context.Context, options *ProducerOptions) (*Producer, error) {
+	t.logger.DebugContext(ctx, "Produce()")
 
 	id := options.Id
 	kind := options.Kind
@@ -647,7 +684,7 @@ func (t *Transport) Produce(options *ProducerOptions) (*Producer, error) {
 		rtpMapping,
 	)
 
-	msg, err := t.channel.Request(&FbsRequest.RequestT{
+	msg, err := t.channel.Request(ctx, &FbsRequest.RequestT{
 		Method:    FbsRequest.MethodTRANSPORT_PRODUCE,
 		HandlerId: t.Id(),
 		Body: &FbsRequest.BodyT{
@@ -765,7 +802,11 @@ func (t *Transport) Produce(options *ProducerOptions) (*Producer, error) {
 
 // Consume creates a Consumer.
 func (t *Transport) Consume(options *ConsumerOptions) (*Consumer, error) {
-	t.logger.Debug("Consume()")
+	return t.ConsumeContext(context.Background(), options)
+}
+
+func (t *Transport) ConsumeContext(ctx context.Context, options *ConsumerOptions) (*Consumer, error) {
+	t.logger.DebugContext(ctx, "Consume()")
 
 	producer := t.data.GetProducerId(options.ProducerId)
 	if producer == nil {
@@ -797,7 +838,7 @@ func (t *Transport) Consume(options *ConsumerOptions) (*Consumer, error) {
 	consumerId := uuid()
 	typ := orElse(options.Pipe || t.Type() == TransportPipe, ConsumerPipe, ConsumerType(producer.Type()))
 
-	msg, err := t.channel.Request(&FbsRequest.RequestT{
+	msg, err := t.channel.Request(ctx, &FbsRequest.RequestT{
 		Method:    FbsRequest.MethodTRANSPORT_CONSUME,
 		HandlerId: t.Id(),
 		Body: &FbsRequest.BodyT{
@@ -932,7 +973,11 @@ func (t *Transport) Consume(options *ConsumerOptions) (*Consumer, error) {
 
 // ProduceData creates a DataProducer.
 func (t *Transport) ProduceData(options *DataProducerOptions) (*DataProducer, error) {
-	t.logger.Debug("ProduceData()")
+	return t.ProduceDataContext(context.Background(), options)
+}
+
+func (t *Transport) ProduceDataContext(ctx context.Context, options *DataProducerOptions) (*DataProducer, error) {
+	t.logger.DebugContext(ctx, "ProduceData()")
 
 	id := options.Id
 
@@ -963,7 +1008,7 @@ func (t *Transport) ProduceData(options *DataProducerOptions) (*DataProducer, er
 		Paused:               options.Paused,
 		AppData:              options.AppData,
 	}
-	_, err := t.channel.Request(&FbsRequest.RequestT{
+	_, err := t.channel.Request(ctx, &FbsRequest.RequestT{
 		Method:    FbsRequest.MethodTRANSPORT_PRODUCE_DATA,
 		HandlerId: t.Id(),
 		Body: &FbsRequest.BodyT{
@@ -1008,7 +1053,11 @@ func (t *Transport) ProduceData(options *DataProducerOptions) (*DataProducer, er
 
 // ConsumeData creates a DataConsumer.
 func (t *Transport) ConsumeData(options *DataConsumerOptions) (*DataConsumer, error) {
-	t.logger.Debug("ConsumeData()")
+	return t.ConsumeDataContext(context.Background(), options)
+}
+
+func (t *Transport) ConsumeDataContext(ctx context.Context, options *DataConsumerOptions) (*DataConsumer, error) {
+	t.logger.DebugContext(ctx, "ConsumeData()")
 
 	dataProducer := t.data.GetDataProducerId(options.DataProducerId)
 	if dataProducer == nil {
@@ -1048,7 +1097,7 @@ func (t *Transport) ConsumeData(options *DataConsumerOptions) (*DataConsumer, er
 
 	dataConsumerId := uuid()
 
-	_, err = t.channel.Request(&FbsRequest.RequestT{
+	_, err = t.channel.Request(ctx, &FbsRequest.RequestT{
 		Method:    FbsRequest.MethodTRANSPORT_CONSUME_DATA,
 		HandlerId: t.Id(),
 		Body: &FbsRequest.BodyT{
