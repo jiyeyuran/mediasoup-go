@@ -35,7 +35,7 @@ func NewWebRtcServer(worker *Worker, id string, appData H) *WebRtcServer {
 		id:      id,
 		channel: worker.channel,
 		appData: appData,
-		logger:  worker.logger,
+		logger:  worker.logger.With("webRtcServerId", id),
 	}
 }
 

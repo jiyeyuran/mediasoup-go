@@ -36,7 +36,7 @@ type RtpObserver struct {
 func newRtpObserver(channel *channel.Channel, logger *slog.Logger, data *rtpObserverData) *RtpObserver {
 	r := &RtpObserver{
 		channel: channel,
-		logger:  logger,
+		logger:  logger.With("rtpObserverId", data.Id),
 		data:    data,
 	}
 	r.handleWorkerNotifications()
