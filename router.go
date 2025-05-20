@@ -250,19 +250,24 @@ func (r *Router) DumpContext(ctx context.Context) (dump *RouterDump, err error) 
 	}, nil
 }
 
-func (r *Router) CreateActiveSpeakerObserver(options ...ActiveSpeakerObserverOption) (*RtpObserver, error) {
-	return r.CreateActiveSpeakerObserverContext(context.Background(), options...)
+func (r *Router) CreateActiveSpeakerObserver(options *ActiveSpeakerObserverOptions) (*RtpObserver, error) {
+	return r.CreateActiveSpeakerObserverContext(context.Background(), options)
 }
 
-func (r *Router) CreateActiveSpeakerObserverContext(ctx context.Context, options ...ActiveSpeakerObserverOption) (*RtpObserver, error) {
+func (r *Router) CreateActiveSpeakerObserverContext(ctx context.Context, options *ActiveSpeakerObserverOptions) (*RtpObserver, error) {
 	r.logger.DebugContext(ctx, "CreateActiveSpeakerObserver()")
 
 	o := &ActiveSpeakerObserverOptions{
 		Interval: 300,
 		AppData:  H{},
 	}
-	for _, option := range options {
-		option(o)
+	if options != nil {
+		if options.Interval > 0 {
+			o.Interval = options.Interval
+		}
+		if options.AppData != nil {
+			o.AppData = options.AppData
+		}
 	}
 
 	rtpObserverId := UUID(rtpObserverPrefix)
@@ -293,11 +298,11 @@ func (r *Router) CreateActiveSpeakerObserverContext(ctx context.Context, options
 	})
 }
 
-func (r *Router) CreateAudioLevelObserver(options ...AudioLevelObserverOption) (*RtpObserver, error) {
-	return r.CreateAudioLevelObserverContext(context.Background(), options...)
+func (r *Router) CreateAudioLevelObserver(options *AudioLevelObserverOptions) (*RtpObserver, error) {
+	return r.CreateAudioLevelObserverContext(context.Background(), options)
 }
 
-func (r *Router) CreateAudioLevelObserverContext(ctx context.Context, options ...AudioLevelObserverOption) (*RtpObserver, error) {
+func (r *Router) CreateAudioLevelObserverContext(ctx context.Context, options *AudioLevelObserverOptions) (*RtpObserver, error) {
 	r.logger.DebugContext(ctx, "CreateAudioLevelObserver()")
 
 	o := &AudioLevelObserverOptions{
@@ -306,8 +311,22 @@ func (r *Router) CreateAudioLevelObserverContext(ctx context.Context, options ..
 		Interval:   1000,
 		AppData:    H{},
 	}
-	for _, option := range options {
-		option(o)
+	if options != nil {
+		if options.MaxEntries > 0 {
+			o.MaxEntries = options.MaxEntries
+		}
+		if options.Threshold > 0 || options.Threshold < -127 {
+			return nil, errors.New("if given, threshold must be a negative number greater than -127")
+		}
+		if options.Threshold != 0 {
+			o.Threshold = options.Threshold
+		}
+		if options.Interval > 0 {
+			o.Interval = options.Interval
+		}
+		if options.AppData != nil {
+			o.AppData = options.AppData
+		}
 	}
 
 	rtpObserverId := UUID(rtpObserverPrefix)

@@ -15,7 +15,7 @@ import (
 func TestRtpObserverPauseAndResume(t *testing.T) {
 	router := createRouter(nil)
 
-	o, _ := router.CreateActiveSpeakerObserver()
+	o, _ := router.CreateActiveSpeakerObserver(nil)
 	err := o.Pause()
 	assert.NoError(t, err)
 	assert.True(t, o.Paused())
@@ -28,7 +28,7 @@ func TestRtpOberverAddAndRemoveProducer(t *testing.T) {
 	router := createRouter(nil)
 	producer := createAudioProducer(createWebRtcTransport(router))
 
-	o, _ := router.CreateActiveSpeakerObserver()
+	o, _ := router.CreateActiveSpeakerObserver(nil)
 
 	err := o.AddProducer(producer.Id())
 	assert.NoError(t, err)
@@ -47,7 +47,7 @@ func TestRtpObserverClose(t *testing.T) {
 		worker := newTestWorker()
 		router := createRouter(worker)
 
-		o, _ := router.CreateActiveSpeakerObserver()
+		o, _ := router.CreateActiveSpeakerObserver(nil)
 		o.OnClose(mymock.OnClose)
 
 		err := o.Close()
@@ -64,7 +64,7 @@ func TestRtpObserverClose(t *testing.T) {
 		worker := newTestWorker()
 		router := createRouter(worker)
 
-		o, _ := router.CreateActiveSpeakerObserver()
+		o, _ := router.CreateActiveSpeakerObserver(nil)
 		o.OnClose(mymock.OnClose)
 
 		router.Close()
@@ -80,7 +80,7 @@ func TestRtpObserverClose(t *testing.T) {
 		worker := newTestWorker()
 		router := createRouter(worker)
 
-		o, _ := router.CreateActiveSpeakerObserver()
+		o, _ := router.CreateActiveSpeakerObserver(nil)
 		o.OnClose(mymock.OnClose)
 
 		worker.Close()
@@ -103,7 +103,7 @@ func TestRtpObserverNotification(t *testing.T) {
 	mymock.On("OnSilence")
 	mymock.On("OnVolume", volumes)
 
-	o, _ := router.CreateActiveSpeakerObserver()
+	o, _ := router.CreateActiveSpeakerObserver(nil)
 	o.OnDominantSpeaker(mymock.OnDominantSpeaker)
 	o.OnSilence(mymock.OnSilence)
 	o.OnVolume(mymock.OnVolume)

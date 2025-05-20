@@ -441,7 +441,7 @@ func TestCreateActiveSpeakerObserver(t *testing.T) {
 	worker := newTestWorker()
 	router, _ := worker.CreateRouter(&RouterOptions{})
 	router.OnNewRtpObserver(mymock.OnNewRtpObserver)
-	rtpObserver, err := router.CreateActiveSpeakerObserver()
+	rtpObserver, err := router.CreateActiveSpeakerObserver(nil)
 	require.NoError(t, err)
 	assert.NotEmpty(t, rtpObserver.Id())
 
@@ -462,7 +462,7 @@ func TestCreateAudioLevelObserver(t *testing.T) {
 	worker := newTestWorker()
 	router, _ := worker.CreateRouter(&RouterOptions{})
 	router.OnNewRtpObserver(mymock.OnNewRtpObserver)
-	rtpObserver, err := router.CreateAudioLevelObserver()
+	rtpObserver, err := router.CreateAudioLevelObserver(nil)
 	require.NoError(t, err)
 	assert.NotEmpty(t, rtpObserver.Id())
 }
