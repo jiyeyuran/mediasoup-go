@@ -78,6 +78,10 @@ type Transport struct {
 	nextMid   uint32
 
 	// event handlers
+	newConsumerListeners            []func(*Consumer)
+	newProducerListeners            []func(*Producer)
+	newDataConsumerListeners        []func(*DataConsumer)
+	newDataProducerListeners        []func(*DataProducer)
 	tupleListeners                  []func(TransportTuple)
 	rtcpTupleListeners              []func(TransportTuple)
 	sctpStateChangeListeners        []func(SctpState)
@@ -92,7 +96,7 @@ func newTransport(channel *channel.Channel, logger *slog.Logger, data *internalT
 	t := &Transport{
 		channel: channel,
 		data:    data,
-		logger:  logger.With("transportId", data.TransportId),
+		logger:  logger.With("transportId", data.TransportId, "transportType", data.TransportType),
 	}
 	t.handleWorkerNotifications()
 	return t
@@ -774,8 +778,8 @@ func (t *Transport) ProduceContext(ctx context.Context, options *ProducerOptions
 	}
 
 	t.mu.Lock()
-	defer t.mu.Unlock()
 	if t.closed {
+		t.mu.Unlock()
 		return nil, ErrTransportClosed
 	}
 	result := msg.(*FbsTransport.ProduceResponseT)
@@ -788,7 +792,7 @@ func (t *Transport) ProduceContext(ctx context.Context, options *ProducerOptions
 		Type:                    ProducerType(strings.ToLower(result.Type.String())),
 		ConsumableRtpParameters: consumableRtpParameters,
 		Paused:                  options.Paused,
-		AppData:                 options.AppData,
+		AppData:                 orElse(options.AppData != nil, options.AppData, H{}),
 	})
 	producer.OnClose(func() {
 		t.producers.Delete(id)
@@ -796,6 +800,13 @@ func (t *Transport) ProduceContext(ctx context.Context, options *ProducerOptions
 	})
 	t.producers.Store(id, producer)
 	safeCall(t.data.OnAddProducer, producer)
+
+	listeners := t.newProducerListeners
+	t.mu.Unlock()
+
+	for _, listener := range listeners {
+		listener(producer)
+	}
 
 	return producer, nil
 }
@@ -942,7 +953,6 @@ func (t *Transport) ConsumeContext(ctx context.Context, options *ConsumerOptions
 		Kind:           producer.Kind(),
 		Type:           typ,
 		RtpParameters:  rtpParameters,
-		AppData:        options.AppData,
 		Paused:         result.Paused,
 		ProducerPaused: result.ProducerPaused,
 		Score:          score,
@@ -952,11 +962,12 @@ func (t *Transport) ConsumeContext(ctx context.Context, options *ConsumerOptions
 				TemporalLayer: result.PreferredLayers.TemporalLayer,
 			}
 		}),
+		AppData: orElse(options.AppData != nil, options.AppData, H{}),
 	}
 
 	t.mu.Lock()
-	defer t.mu.Unlock()
 	if t.closed {
+		t.mu.Unlock()
 		return nil, ErrTransportClosed
 	}
 
@@ -967,6 +978,14 @@ func (t *Transport) ConsumeContext(ctx context.Context, options *ConsumerOptions
 	})
 	t.consumers.Store(consumer.Id(), consumer)
 	safeCall(t.data.OnAddConsumer, consumer)
+
+	listeners := t.newConsumerListeners
+
+	t.mu.Unlock()
+
+	for _, listener := range listeners {
+		listener(consumer)
+	}
 
 	return consumer, nil
 }
@@ -1006,7 +1025,7 @@ func (t *Transport) ProduceDataContext(ctx context.Context, options *DataProduce
 		Label:                options.Label,
 		Protocol:             options.Protocol,
 		Paused:               options.Paused,
-		AppData:              options.AppData,
+		AppData:              orElse(options.AppData != nil, options.AppData, H{}),
 	}
 	_, err := t.channel.Request(ctx, &FbsRequest.RequestT{
 		Method:    FbsRequest.MethodTRANSPORT_PRODUCE_DATA,
@@ -1035,8 +1054,8 @@ func (t *Transport) ProduceDataContext(ctx context.Context, options *DataProduce
 	}
 
 	t.mu.Lock()
-	defer t.mu.Unlock()
 	if t.closed {
+		t.mu.Unlock()
 		return nil, ErrTransportClosed
 	}
 
@@ -1047,6 +1066,13 @@ func (t *Transport) ProduceDataContext(ctx context.Context, options *DataProduce
 	})
 	t.dataProducers.Store(dataProducer.Id(), dataProducer)
 	safeCall(t.data.OnAddDataProducer, dataProducer)
+
+	listeners := t.newDataProducerListeners
+	t.mu.Unlock()
+
+	for _, listener := range listeners {
+		listener(dataProducer)
+	}
 
 	return dataProducer, nil
 }
@@ -1126,8 +1152,8 @@ func (t *Transport) ConsumeDataContext(ctx context.Context, options *DataConsume
 	}
 
 	t.mu.Lock()
-	defer t.mu.Unlock()
 	if t.closed {
+		t.mu.Unlock()
 		return nil, ErrTransportClosed
 	}
 
@@ -1142,7 +1168,7 @@ func (t *Transport) ConsumeDataContext(ctx context.Context, options *DataConsume
 		Paused:               options.Paused,
 		DataProducerPaused:   dataProducer.Paused(),
 		Subchannels:          options.Subchannels,
-		AppData:              options.AppData,
+		AppData:              orElse(options.AppData != nil, options.AppData, H{}),
 	}
 	dataConsumer := newDataConsumer(t.channel, t.logger, data)
 	dataConsumer.OnClose(func() {
@@ -1155,7 +1181,39 @@ func (t *Transport) ConsumeDataContext(ctx context.Context, options *DataConsume
 	t.dataConsumers.Store(dataConsumer.Id(), dataConsumer)
 	safeCall(t.data.OnAddDataConsumer, dataConsumer)
 
+	listeners := t.newDataConsumerListeners
+
+	t.mu.Unlock()
+
+	for _, listener := range listeners {
+		listener(dataConsumer)
+	}
+
 	return dataConsumer, nil
+}
+
+func (t *Transport) OnNewConsumer(handler func(*Consumer)) {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+	t.newConsumerListeners = append(t.newConsumerListeners, handler)
+}
+
+func (t *Transport) OnNewProducer(handler func(*Producer)) {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+	t.newProducerListeners = append(t.newProducerListeners, handler)
+}
+
+func (t *Transport) OnNewDataProducer(handler func(*DataProducer)) {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+	t.newDataProducerListeners = append(t.newDataProducerListeners, handler)
+}
+
+func (t *Transport) OnNewDataConsumer(handler func(*DataConsumer)) {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+	t.newDataConsumerListeners = append(t.newDataConsumerListeners, handler)
 }
 
 // OnTuple add handler on "tuple" event

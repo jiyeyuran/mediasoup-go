@@ -28,14 +28,16 @@ import (
 // instances.
 type Worker struct {
 	baseListener
-	cmd           *exec.Cmd
-	channel       *channel.Channel
-	logger        *slog.Logger
-	routers       sync.Map
-	webRtcServers sync.Map
-	appData       H
-	closed        bool
-	err           error
+	cmd                      *exec.Cmd
+	channel                  *channel.Channel
+	logger                   *slog.Logger
+	routers                  sync.Map
+	webRtcServers            sync.Map
+	appData                  H
+	newWebRtcServerListeners []func(*WebRtcServer)
+	newRouterListeners       []func(*Router)
+	closed                   bool
+	err                      error
 }
 
 // NewWorker create a Worker.
@@ -450,11 +452,23 @@ func (w *Worker) CreateWebRtcServerContext(ctx context.Context, options *WebRtcS
 	if err != nil {
 		return nil, err
 	}
-	server := NewWebRtcServer(w, id, options.AppData)
+	w.mu.Lock()
+	if w.closed {
+		w.mu.Unlock()
+		return nil, ErrWorkerClosed
+	}
+	server := NewWebRtcServer(w, id, orElse(options.AppData == nil, H{}, options.AppData))
 	w.webRtcServers.Store(id, server)
 	server.OnClose(func() {
 		w.webRtcServers.Delete(id)
 	})
+	listeners := w.newWebRtcServerListeners
+	w.mu.Unlock()
+
+	for _, listener := range listeners {
+		listener(server)
+	}
+
 	return server, nil
 }
 
@@ -485,17 +499,44 @@ func (w *Worker) CreateRouterContext(ctx context.Context, options *RouterOptions
 	if err != nil {
 		return nil, err
 	}
+	w.mu.Lock()
+	if w.closed {
+		w.mu.Unlock()
+		return nil, ErrWorkerClosed
+	}
 	data := &routerData{
 		RouterId:        routerId,
 		RtpCapabilities: rtpCapabilities,
-		AppData:         options.AppData,
+		AppData:         orElse(options.AppData == nil, H{}, options.AppData),
 	}
 	router := newRouter(w.channel, w.logger, data)
 	w.routers.Store(router.Id(), router)
 	router.OnClose(func() {
 		w.routers.Delete(router.Id())
 	})
+
+	listeners := w.newRouterListeners
+	w.mu.Unlock()
+
+	for _, listener := range listeners {
+		listener(router)
+	}
+
 	return router, nil
+}
+
+func (w *Worker) OnNewWebRtcServer(listener func(*WebRtcServer)) {
+	w.mu.RLock()
+	defer w.mu.RUnlock()
+
+	w.newWebRtcServerListeners = append(w.newWebRtcServerListeners, listener)
+}
+
+func (w *Worker) OnNewRouter(listener func(*Router)) {
+	w.mu.RLock()
+	defer w.mu.RUnlock()
+
+	w.newRouterListeners = append(w.newRouterListeners, listener)
 }
 
 func (w *Worker) processQuited() {

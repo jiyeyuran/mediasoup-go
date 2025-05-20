@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
 
@@ -94,7 +95,13 @@ func TestWorkerUpdateSettings(t *testing.T) {
 }
 
 func TestWorkerCreateWebRtcServer(t *testing.T) {
+	myMock := new(MockedHandler)
+	defer myMock.AssertExpectations(t)
+
+	myMock.On("OnNewWebRtcServer", mock.IsType(&WebRtcServer{})).Once()
+
 	worker := newTestWorker()
+	worker.OnNewWebRtcServer(myMock.OnNewWebRtcServer)
 	server, err := worker.CreateWebRtcServer(&WebRtcServerOptions{
 		ListenInfos: []*TransportListenInfo{
 			{Protocol: TransportProtocolUDP, Ip: "127.0.0.1", Port: pickUdpPort()},
@@ -108,7 +115,13 @@ func TestWorkerCreateWebRtcServer(t *testing.T) {
 }
 
 func TestWorkerCreateRouter(t *testing.T) {
+	myMock := new(MockedHandler)
+	defer myMock.AssertExpectations(t)
+
+	myMock.On("OnNewRouter", mock.IsType(&Router{})).Times(2)
+
 	worker := newTestWorker()
+	worker.OnNewRouter(myMock.OnNewRouter)
 	router, err := worker.CreateRouter(&RouterOptions{
 		MediaCodecs: []*RtpCodecCapability{
 			{
