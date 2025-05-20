@@ -417,6 +417,7 @@ func (p *Producer) transportClosed() {
 	}
 	p.closed = true
 	p.mu.Unlock()
+	p.logger.Debug("transportClosed()")
 
 	p.cleanupAfterClosed()
 }

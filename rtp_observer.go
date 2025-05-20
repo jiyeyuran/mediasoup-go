@@ -2,6 +2,7 @@ package mediasoup
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 
 	FbsActiveSpeakerObserver "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/ActiveSpeakerObserver"
@@ -149,7 +150,12 @@ func (r *RtpObserver) AddProducer(producerId string) error {
 }
 
 func (r *RtpObserver) AddProducerContext(ctx context.Context, producerId string) error {
-	r.logger.DebugContext(ctx, "AddProducer()", "producerId", producerId)
+	r.logger.DebugContext(ctx, "AddProducer()")
+
+	producer := r.data.GetProducerById(producerId)
+	if producer == nil {
+		return fmt.Errorf("producer with id %q not found", producerId)
+	}
 
 	_, err := r.channel.Request(ctx, &FbsRequest.RequestT{
 		Method:    FbsRequest.MethodRTPOBSERVER_ADD_PRODUCER,
@@ -170,7 +176,12 @@ func (r *RtpObserver) RemoveProducer(producerId string) error {
 }
 
 func (r *RtpObserver) RemoveProducerContext(ctx context.Context, producerId string) error {
-	r.logger.DebugContext(ctx, "RemoveProducer()", "producerId", producerId)
+	r.logger.DebugContext(ctx, "RemoveProducer()")
+
+	producer := r.data.GetProducerById(producerId)
+	if producer == nil {
+		return fmt.Errorf("producer with id %q not found", producerId)
+	}
 
 	_, err := r.channel.Request(ctx, &FbsRequest.RequestT{
 		Method:    FbsRequest.MethodRTPOBSERVER_REMOVE_PRODUCER,
@@ -275,6 +286,7 @@ func (r *RtpObserver) routerClosed() {
 	}
 	r.closed = true
 	r.mu.Unlock()
+	r.logger.Debug("routerClosed()")
 
 	r.cleanupAfterClosed()
 }

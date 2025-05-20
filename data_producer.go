@@ -314,5 +314,7 @@ func (p *DataProducer) transportClosed() {
 	}
 	p.closed = true
 	p.mu.Unlock()
+	p.logger.Debug("transportClosed()")
+
 	p.notifyClosed()
 }

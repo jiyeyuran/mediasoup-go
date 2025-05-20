@@ -1406,6 +1406,7 @@ func (t *Transport) routerClosed() {
 	}
 	t.closed = true
 	t.mu.Unlock()
+	t.logger.Debug("routerClosed()")
 
 	t.cleanupAfterClosed()
 }

@@ -103,6 +103,7 @@ func (s *WebRtcServer) CloseContext(ctx context.Context) error {
 
 // workerClosed is called when worker was closed.
 func (s *WebRtcServer) workerClosed() {
+	s.logger.Debug("workerClosed()")
 	// NOTE: No need to close WebRtcTransports since they are closed by their
 	// respective Router parents.
 	clearSyncMap(&s.webRtcTransports)

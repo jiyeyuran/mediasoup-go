@@ -667,6 +667,7 @@ func (c *Consumer) transportClosed() {
 	}
 	c.closed = true
 	c.mu.Unlock()
+	c.logger.Debug("transportClosed()")
 
 	c.cleanupAfterClosed()
 }
