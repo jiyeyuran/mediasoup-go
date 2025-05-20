@@ -528,8 +528,8 @@ func (c *Channel) maySaveContextLocked(ctx context.Context, req *FbsRequest.Requ
 }
 
 func (c *Channel) getContext(event FbsNotification.Event) context.Context {
-	c.mu.Lock()
-	defer c.mu.Unlock()
+	c.mu.RLock()
+	defer c.mu.RUnlock()
 
 	ctx := context.Background()
 

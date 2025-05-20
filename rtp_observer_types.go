@@ -17,8 +17,6 @@ type ActiveSpeakerObserverOptions struct {
 	AppData H
 }
 
-type ActiveSpeakerObserverOption func(*ActiveSpeakerObserverOptions)
-
 // AudioLevelObserverOptions define options to create an AudioLevelObserver.
 type AudioLevelObserverOptions struct {
 	// MaxEntries is maximum int of entries in the 'volumes”' event. Default 1.
@@ -34,8 +32,6 @@ type AudioLevelObserverOptions struct {
 	// AppData is custom application data.
 	AppData H
 }
-
-type AudioLevelObserverOption func(*AudioLevelObserverOptions)
 
 type AudioLevelObserverDominantSpeaker struct {
 	// ProducerId is the dominant audio producer instance.
