@@ -5,8 +5,22 @@ import (
 	"reflect"
 	"sync"
 	"time"
+	"unsafe"
 
 	"github.com/rs/xid"
+)
+
+const (
+	charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+
+	routerPrefix       = "rt-"
+	transportPrefix    = "tr-"
+	producerPrefix     = "pr-"
+	consumerPrefix     = "co-"
+	dataProducerPrefix = "dp-"
+	dataConsumerPrefix = "dc-"
+	webRtcServerPrefix = "ws-"
+	rtpObserverPrefix  = "ro-"
 )
 
 func ref[T any](t T) *T {
@@ -66,8 +80,16 @@ func filter[Slice ~[]E, E any](s Slice, f func(E) bool) []E {
 	return results
 }
 
-func uuid() string {
-	return xid.New().String()
+func uuid(prefix string) string {
+	return prefix + xid.New().String()
+}
+
+func randString(length int) string {
+	b := make([]byte, length)
+	for i := range b {
+		b[i] = charset[rand.Intn(len(charset))]
+	}
+	return unsafe.String(unsafe.SliceData(b), len(b))
 }
 
 func generateSsrc() uint32 {

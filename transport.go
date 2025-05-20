@@ -640,7 +640,7 @@ func (t *Transport) ProduceContext(ctx context.Context, options *ProducerOptions
 			return nil, fmt.Errorf(`a Producer with same id "%s" already exists`, id)
 		}
 	} else {
-		id = uuid()
+		id = uuid(transportPrefix)
 	}
 	if rtpParameters == nil {
 		rtpParameters = &RtpParameters{}
@@ -668,7 +668,7 @@ func (t *Transport) ProduceContext(ctx context.Context, options *ProducerOptions
 			} else {
 				// Otherwise if we don't have yet a CNAME for Producers and the RTP parameters
 				// do not include CNAME, create a random one.
-				t.cname = uuid()[:8]
+				t.cname = randString(8)
 			}
 		})
 		// Override Producer's CNAME.
@@ -846,7 +846,7 @@ func (t *Transport) ConsumeContext(ctx context.Context, options *ConsumerOptions
 		}
 	}
 
-	consumerId := uuid()
+	consumerId := uuid(consumerPrefix)
 	typ := orElse(options.Pipe || t.Type() == TransportPipe, ConsumerPipe, ConsumerType(producer.Type()))
 
 	msg, err := t.channel.Request(ctx, &FbsRequest.RequestT{
@@ -1005,7 +1005,7 @@ func (t *Transport) ProduceDataContext(ctx context.Context, options *DataProduce
 			return nil, fmt.Errorf(`a DataProducer with same id "%s" already exists`, id)
 		}
 	} else {
-		id = uuid()
+		id = uuid(dataProducerPrefix)
 	}
 
 	sctpStreamParameters := clone(options.SctpStreamParameters)
@@ -1121,7 +1121,7 @@ func (t *Transport) ConsumeDataContext(ctx context.Context, options *DataConsume
 		}
 	}
 
-	dataConsumerId := uuid()
+	dataConsumerId := uuid(dataConsumerPrefix)
 
 	_, err = t.channel.Request(ctx, &FbsRequest.RequestT{
 		Method:    FbsRequest.MethodTRANSPORT_CONSUME_DATA,
