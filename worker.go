@@ -364,24 +364,7 @@ func (w *Worker) GetResourceUsageContext(ctx context.Context) (usage *WorkerReso
 	}
 	resp := respAny.(*FbsWorker.ResourceUsageResponseT)
 
-	return &WorkerResourceUsage{
-		RuUtime:    resp.RuUtime,
-		RuStime:    resp.RuStime,
-		RuMaxrss:   resp.RuMaxrss,
-		RuIxrss:    resp.RuIxrss,
-		RuIdrss:    resp.RuIdrss,
-		RuIsrss:    resp.RuIsrss,
-		RuMinflt:   resp.RuMinflt,
-		RuMajflt:   resp.RuMajflt,
-		RuNswap:    resp.RuNswap,
-		RuInblock:  resp.RuInblock,
-		RuOublock:  resp.RuOublock,
-		RuMsgsnd:   resp.RuMsgsnd,
-		RuMsgrcv:   resp.RuMsgrcv,
-		RuNsignals: resp.RuNsignals,
-		RuNvcsw:    resp.RuNvcsw,
-		RuNivcsw:   resp.RuNivcsw,
-	}, nil
+	return (*WorkerResourceUsage)(resp), nil
 }
 
 // UpdateSettings updates worker settings.
@@ -416,7 +399,7 @@ func (w *Worker) CreateWebRtcServer(options *WebRtcServerOptions) (*WebRtcServer
 func (w *Worker) CreateWebRtcServerContext(ctx context.Context, options *WebRtcServerOptions) (*WebRtcServer, error) {
 	w.logger.DebugContext(ctx, "CreateWebRtcServer()")
 
-	id := uuid()
+	id := UUID(webRtcServerPrefix)
 
 	req := &FbsWorker.CreateWebRtcServerRequestT{
 		WebRtcServerId: id,
@@ -485,7 +468,7 @@ func (w *Worker) CreateRouterContext(ctx context.Context, options *RouterOptions
 		return nil, err
 	}
 
-	routerId := uuid()
+	routerId := UUID(routerPrefix)
 	req := &FbsWorker.CreateRouterRequestT{
 		RouterId: routerId,
 	}

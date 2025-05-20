@@ -21,9 +21,10 @@ import (
 )
 
 const (
-	RequestTimeout = time.Second * 5
-	MaxMessageLen  = 4194308
-	MaxRequestId   = 4294967295
+	DefaultHandlerID = "worker"
+	RequestTimeout   = time.Second * 5
+	MaxMessageLen    = 4194308
+	MaxRequestId     = 4294967295
 )
 
 type Channel struct {
@@ -127,7 +128,7 @@ func (c *Channel) Request(ctx context.Context, req *FbsRequest.RequestT) (any, e
 
 	req.Id = c.nextId
 	if len(req.HandlerId) == 0 {
-		req.HandlerId = "default"
+		req.HandlerId = DefaultHandlerID
 	}
 	if req.Body == nil {
 		req.Body = &FbsRequest.BodyT{
