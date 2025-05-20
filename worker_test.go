@@ -1,6 +1,7 @@
 package mediasoup
 
 import (
+	"context"
 	"fmt"
 	"math/rand"
 	"net"
@@ -95,13 +96,13 @@ func TestWorkerUpdateSettings(t *testing.T) {
 }
 
 func TestWorkerCreateWebRtcServer(t *testing.T) {
-	myMock := new(MockedHandler)
-	defer myMock.AssertExpectations(t)
+	mymock := new(MockedHandler)
+	defer mymock.AssertExpectations(t)
 
-	myMock.On("OnNewWebRtcServer", mock.IsType(&WebRtcServer{})).Once()
+	mymock.On("OnNewWebRtcServer", mock.IsType(context.Background()), mock.IsType(&WebRtcServer{})).Once()
 
 	worker := newTestWorker()
-	worker.OnNewWebRtcServer(myMock.OnNewWebRtcServer)
+	worker.OnNewWebRtcServer(mymock.OnNewWebRtcServer)
 	server, err := worker.CreateWebRtcServer(&WebRtcServerOptions{
 		ListenInfos: []*TransportListenInfo{
 			{Protocol: TransportProtocolUDP, Ip: "127.0.0.1", Port: pickUdpPort()},
@@ -115,13 +116,13 @@ func TestWorkerCreateWebRtcServer(t *testing.T) {
 }
 
 func TestWorkerCreateRouter(t *testing.T) {
-	myMock := new(MockedHandler)
-	defer myMock.AssertExpectations(t)
+	mymock := new(MockedHandler)
+	defer mymock.AssertExpectations(t)
 
-	myMock.On("OnNewRouter", mock.IsType(&Router{})).Times(2)
+	mymock.On("OnNewRouter", mock.IsType(context.Background()), mock.IsType(&Router{})).Times(2)
 
 	worker := newTestWorker()
-	worker.OnNewRouter(myMock.OnNewRouter)
+	worker.OnNewRouter(mymock.OnNewRouter)
 	router, err := worker.CreateRouter(&RouterOptions{
 		MediaCodecs: []*RtpCodecCapability{
 			{

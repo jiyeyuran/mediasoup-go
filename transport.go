@@ -78,10 +78,10 @@ type Transport struct {
 	nextMid   uint32
 
 	// event handlers
-	newConsumerListeners            []func(*Consumer)
-	newProducerListeners            []func(*Producer)
-	newDataConsumerListeners        []func(*DataConsumer)
-	newDataProducerListeners        []func(*DataProducer)
+	newConsumerListeners            []func(context.Context, *Consumer)
+	newProducerListeners            []func(context.Context, *Producer)
+	newDataConsumerListeners        []func(context.Context, *DataConsumer)
+	newDataProducerListeners        []func(context.Context, *DataProducer)
 	tupleListeners                  []func(TransportTuple)
 	rtcpTupleListeners              []func(TransportTuple)
 	sctpStateChangeListeners        []func(SctpState)
@@ -157,7 +157,7 @@ func (t *Transport) CloseContext(ctx context.Context) error {
 	t.closed = true
 	t.mu.Unlock()
 
-	t.cleanupAfterClosed()
+	t.cleanupAfterClosed(ctx)
 	return nil
 }
 
@@ -794,7 +794,7 @@ func (t *Transport) ProduceContext(ctx context.Context, options *ProducerOptions
 		Paused:                  options.Paused,
 		AppData:                 orElse(options.AppData != nil, options.AppData, H{}),
 	})
-	producer.OnClose(func() {
+	producer.OnClose(func(ctx context.Context) {
 		t.producers.Delete(id)
 		safeCall(t.data.OnRemoveProducer, producer)
 	})
@@ -805,7 +805,7 @@ func (t *Transport) ProduceContext(ctx context.Context, options *ProducerOptions
 	t.mu.Unlock()
 
 	for _, listener := range listeners {
-		listener(producer)
+		listener(ctx, producer)
 	}
 
 	return producer, nil
@@ -972,7 +972,7 @@ func (t *Transport) ConsumeContext(ctx context.Context, options *ConsumerOptions
 	}
 
 	consumer := newConsumer(t.channel, t.logger, data)
-	consumer.OnClose(func() {
+	consumer.OnClose(func(ctx context.Context) {
 		t.consumers.Delete(consumer.Id())
 		safeCall(t.data.OnRemoveConsumer, consumer)
 	})
@@ -984,7 +984,7 @@ func (t *Transport) ConsumeContext(ctx context.Context, options *ConsumerOptions
 	t.mu.Unlock()
 
 	for _, listener := range listeners {
-		listener(consumer)
+		listener(ctx, consumer)
 	}
 
 	return consumer, nil
@@ -1060,7 +1060,7 @@ func (t *Transport) ProduceDataContext(ctx context.Context, options *DataProduce
 	}
 
 	dataProducer := newDataProducer(t.channel, t.logger, data)
-	dataProducer.OnClose(func() {
+	dataProducer.OnClose(func(ctx context.Context) {
 		t.dataProducers.Delete(dataProducer.Id())
 		safeCall(t.data.OnRemoveDataProducer, dataProducer)
 	})
@@ -1071,7 +1071,7 @@ func (t *Transport) ProduceDataContext(ctx context.Context, options *DataProduce
 	t.mu.Unlock()
 
 	for _, listener := range listeners {
-		listener(dataProducer)
+		listener(ctx, dataProducer)
 	}
 
 	return dataProducer, nil
@@ -1171,7 +1171,7 @@ func (t *Transport) ConsumeDataContext(ctx context.Context, options *DataConsume
 		AppData:              orElse(options.AppData != nil, options.AppData, H{}),
 	}
 	dataConsumer := newDataConsumer(t.channel, t.logger, data)
-	dataConsumer.OnClose(func() {
+	dataConsumer.OnClose(func(ctx context.Context) {
 		if sctpStreamParameters != nil {
 			t.streamIds.Delete(sctpStreamParameters.StreamId)
 		}
@@ -1186,103 +1186,103 @@ func (t *Transport) ConsumeDataContext(ctx context.Context, options *DataConsume
 	t.mu.Unlock()
 
 	for _, listener := range listeners {
-		listener(dataConsumer)
+		listener(ctx, dataConsumer)
 	}
 
 	return dataConsumer, nil
 }
 
-func (t *Transport) OnNewConsumer(handler func(*Consumer)) {
+func (t *Transport) OnNewConsumer(listener func(context.Context, *Consumer)) {
 	t.mu.RLock()
 	defer t.mu.RUnlock()
-	t.newConsumerListeners = append(t.newConsumerListeners, handler)
+	t.newConsumerListeners = append(t.newConsumerListeners, listener)
 }
 
-func (t *Transport) OnNewProducer(handler func(*Producer)) {
+func (t *Transport) OnNewProducer(listener func(context.Context, *Producer)) {
 	t.mu.RLock()
 	defer t.mu.RUnlock()
-	t.newProducerListeners = append(t.newProducerListeners, handler)
+	t.newProducerListeners = append(t.newProducerListeners, listener)
 }
 
-func (t *Transport) OnNewDataProducer(handler func(*DataProducer)) {
+func (t *Transport) OnNewDataProducer(listener func(context.Context, *DataProducer)) {
 	t.mu.RLock()
 	defer t.mu.RUnlock()
-	t.newDataProducerListeners = append(t.newDataProducerListeners, handler)
+	t.newDataProducerListeners = append(t.newDataProducerListeners, listener)
 }
 
-func (t *Transport) OnNewDataConsumer(handler func(*DataConsumer)) {
+func (t *Transport) OnNewDataConsumer(listener func(context.Context, *DataConsumer)) {
 	t.mu.RLock()
 	defer t.mu.RUnlock()
-	t.newDataConsumerListeners = append(t.newDataConsumerListeners, handler)
+	t.newDataConsumerListeners = append(t.newDataConsumerListeners, listener)
 }
 
-// OnTuple add handler on "tuple" event
-func (t *Transport) OnTuple(handler func(TransportTuple)) {
+// OnTuple add listener on "tuple" event
+func (t *Transport) OnTuple(listener func(TransportTuple)) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
-	t.tupleListeners = append(t.tupleListeners, handler)
+	t.tupleListeners = append(t.tupleListeners, listener)
 }
 
-// OnRtcpTuple add handler on "rtcptuple" event
-func (t *Transport) OnRtcpTuple(handler func(TransportTuple)) {
+// OnRtcpTuple add listener on "rtcptuple" event
+func (t *Transport) OnRtcpTuple(listener func(TransportTuple)) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
-	t.rtcpTupleListeners = append(t.rtcpTupleListeners, handler)
+	t.rtcpTupleListeners = append(t.rtcpTupleListeners, listener)
 }
 
-// OnSctpStateChange add handler on "sctpstatechange" event
-func (t *Transport) OnSctpStateChange(handler func(SctpState)) {
+// OnSctpStateChange add listener on "sctpstatechange" event
+func (t *Transport) OnSctpStateChange(listener func(SctpState)) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
-	t.sctpStateChangeListeners = append(t.sctpStateChangeListeners, handler)
+	t.sctpStateChangeListeners = append(t.sctpStateChangeListeners, listener)
 }
 
-// OnIceStateChange add handler on "icestatechange" event
-func (t *Transport) OnIceStateChange(handler func(IceState)) {
+// OnIceStateChange add listener on "icestatechange" event
+func (t *Transport) OnIceStateChange(listener func(IceState)) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
-	t.iceStateChangeListeners = append(t.iceStateChangeListeners, handler)
+	t.iceStateChangeListeners = append(t.iceStateChangeListeners, listener)
 }
 
-// OnIceSelectedTupleChange add handler on "iceselectedtuplechange" event
-func (t *Transport) OnIceSelectedTupleChange(handler func(TransportTuple)) {
+// OnIceSelectedTupleChange add listener on "iceselectedtuplechange" event
+func (t *Transport) OnIceSelectedTupleChange(listener func(TransportTuple)) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
-	t.iceSelectedTupleChangeListeners = append(t.iceSelectedTupleChangeListeners, handler)
+	t.iceSelectedTupleChangeListeners = append(t.iceSelectedTupleChangeListeners, listener)
 }
 
-// OnDtlsStateChange add handler on "dtlsstatechange" event
-func (t *Transport) OnDtlsStateChange(handler func(DtlsState)) {
+// OnDtlsStateChange add listener on "dtlsstatechange" event
+func (t *Transport) OnDtlsStateChange(listener func(DtlsState)) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
-	t.dtlsStateChangeListeners = append(t.dtlsStateChangeListeners, handler)
+	t.dtlsStateChangeListeners = append(t.dtlsStateChangeListeners, listener)
 }
 
-// OnRtcp add handler on "directtransport.rtcp" event
-func (t *Transport) OnRtcp(handler func(data []byte)) {
+// OnRtcp add listener on "directtransport.rtcp" event
+func (t *Transport) OnRtcp(listener func(data []byte)) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
-	t.rtcpListeners = append(t.rtcpListeners, handler)
+	t.rtcpListeners = append(t.rtcpListeners, listener)
 }
 
-// OnTrace add handler on "trace" event
-func (t *Transport) OnTrace(handler func(trace *TransportTraceEventData)) {
+// OnTrace add listener on "trace" event
+func (t *Transport) OnTrace(listener func(trace *TransportTraceEventData)) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
-	t.traceListeners = append(t.traceListeners, handler)
+	t.traceListeners = append(t.traceListeners, listener)
 }
 
 func (t *Transport) handleWorkerNotifications() {
-	t.sub = t.channel.Subscribe(t.Id(), func(event FbsNotification.Event, body *FbsNotification.BodyT) {
-		switch event {
+	t.sub = t.channel.Subscribe(t.Id(), func(ctx context.Context, notification *FbsNotification.NotificationT) {
+		switch event, body := notification.Event, notification.Body; event {
 		case FbsNotification.EventPLAINTRANSPORT_TUPLE:
 			notification := body.Value.(*FbsPlainTransport.TupleNotificationT)
 			tuple := *parseTransportTuple(notification.Tuple)
@@ -1456,7 +1456,7 @@ func (t *Transport) getSctpParameters() *SctpParameters {
 	return nil
 }
 
-func (t *Transport) routerClosed() {
+func (t *Transport) routerClosed(ctx context.Context) {
 	t.mu.Lock()
 	if t.closed {
 		t.mu.Unlock()
@@ -1464,12 +1464,12 @@ func (t *Transport) routerClosed() {
 	}
 	t.closed = true
 	t.mu.Unlock()
-	t.logger.Debug("routerClosed()")
+	t.logger.DebugContext(ctx, "routerClosed()")
 
-	t.cleanupAfterClosed()
+	t.cleanupAfterClosed(ctx)
 }
 
-func (t *Transport) listenServerClosed() {
+func (t *Transport) listenServerClosed(ctx context.Context) {
 	t.mu.Lock()
 	if t.closed {
 		t.mu.Unlock()
@@ -1478,13 +1478,11 @@ func (t *Transport) listenServerClosed() {
 	t.closed = true
 	t.mu.Unlock()
 
-	t.cleanupAfterClosed()
+	t.cleanupAfterClosed(ctx)
 }
 
-func (t *Transport) cleanupAfterClosed() {
-	var children []interface {
-		transportClosed()
-	}
+func (t *Transport) cleanupAfterClosed(ctx context.Context) {
+	var children []interface{ transportClosed(ctx context.Context) }
 
 	t.producers.Range(func(key, value any) bool {
 		children = append(children, value.(*Producer))
@@ -1508,9 +1506,9 @@ func (t *Transport) cleanupAfterClosed() {
 	})
 
 	for _, child := range children {
-		child.transportClosed()
+		child.transportClosed(ctx)
 	}
 
 	t.sub.Unsubscribe()
-	t.notifyClosed()
+	t.notifyClosed(ctx)
 }

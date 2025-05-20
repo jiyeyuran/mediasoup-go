@@ -101,7 +101,7 @@ func (r *RtpObserver) CloseContext(ctx context.Context) error {
 	r.closed = true
 	r.mu.Unlock()
 
-	r.cleanupAfterClosed()
+	r.cleanupAfterClosed(ctx)
 	return nil
 }
 
@@ -201,33 +201,33 @@ func (r *RtpObserver) RemoveProducerContext(ctx context.Context, producerId stri
 	return err
 }
 
-// HandleAudioLevelObserverDominantSpeaker add handler on "dominantspeaker" event
-func (r *RtpObserver) OnDominantSpeaker(handler func(AudioLevelObserverDominantSpeaker)) {
+// HandleAudioLevelObserverDominantSpeaker add listener on "dominantspeaker" event
+func (r *RtpObserver) OnDominantSpeaker(listener func(AudioLevelObserverDominantSpeaker)) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	r.dominantSpeakerHandlers = append(r.dominantSpeakerHandlers, handler)
+	r.dominantSpeakerHandlers = append(r.dominantSpeakerHandlers, listener)
 }
 
-// HandleVolume add handler on "volumes" event
-func (r *RtpObserver) OnVolume(handler func([]AudioLevelObserverVolume)) {
+// HandleVolume add listener on "volumes" event
+func (r *RtpObserver) OnVolume(listener func([]AudioLevelObserverVolume)) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	r.volumeHandlers = append(r.volumeHandlers, handler)
+	r.volumeHandlers = append(r.volumeHandlers, listener)
 }
 
-// HandleSilence add handler on "silence" event
-func (r *RtpObserver) OnSilence(handler func()) {
+// HandleSilence add listener on "silence" event
+func (r *RtpObserver) OnSilence(listener func()) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	r.silenceHandlers = append(r.silenceHandlers, handler)
+	r.silenceHandlers = append(r.silenceHandlers, listener)
 }
 
 func (r *RtpObserver) handleWorkerNotifications() {
-	r.sub = r.channel.Subscribe(r.Id(), func(event FbsNotification.Event, body *FbsNotification.BodyT) {
-		switch event {
+	r.sub = r.channel.Subscribe(r.Id(), func(ctx context.Context, notification *FbsNotification.NotificationT) {
+		switch event, body := notification.Event, notification.Body; event {
 		case FbsNotification.EventACTIVESPEAKEROBSERVER_DOMINANT_SPEAKER:
 			notification := body.Value.(*FbsActiveSpeakerObserver.DominantSpeakerNotificationT)
 
@@ -240,8 +240,8 @@ func (r *RtpObserver) handleWorkerNotifications() {
 				break
 			}
 
-			for _, handler := range handlers {
-				handler(AudioLevelObserverDominantSpeaker{
+			for _, listener := range handlers {
+				listener(AudioLevelObserverDominantSpeaker{
 					Producer: producer,
 				})
 			}
@@ -265,16 +265,16 @@ func (r *RtpObserver) handleWorkerNotifications() {
 					Volume:   volume.Volume,
 				})
 			}
-			for _, handler := range handlers {
-				handler(volumes)
+			for _, listener := range handlers {
+				listener(volumes)
 			}
 
 		case FbsNotification.EventAUDIOLEVELOBSERVER_SILENCE:
 			r.mu.RLock()
 			handlers := r.silenceHandlers
 			r.mu.RUnlock()
-			for _, handler := range handlers {
-				handler()
+			for _, listener := range handlers {
+				listener()
 			}
 
 		default:
@@ -283,7 +283,7 @@ func (r *RtpObserver) handleWorkerNotifications() {
 	})
 }
 
-func (r *RtpObserver) routerClosed() {
+func (r *RtpObserver) routerClosed(ctx context.Context) {
 	r.mu.Lock()
 	if r.closed {
 		r.mu.Unlock()
@@ -291,12 +291,12 @@ func (r *RtpObserver) routerClosed() {
 	}
 	r.closed = true
 	r.mu.Unlock()
-	r.logger.Debug("routerClosed()")
+	r.logger.DebugContext(ctx, "routerClosed()")
 
-	r.cleanupAfterClosed()
+	r.cleanupAfterClosed(ctx)
 }
 
-func (r *RtpObserver) cleanupAfterClosed() {
+func (r *RtpObserver) cleanupAfterClosed(ctx context.Context) {
 	r.sub.Unsubscribe()
-	r.notifyClosed()
+	r.notifyClosed(ctx)
 }

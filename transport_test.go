@@ -1,6 +1,7 @@
 package mediasoup
 
 import (
+	"context"
 	"regexp"
 	"slices"
 	"strconv"
@@ -65,7 +66,7 @@ func TestTransportClose(t *testing.T) {
 		m := MockedHandler{}
 		defer m.AssertExpectations(t)
 
-		m.On("OnClose").Times(1)
+		m.On("OnClose", mock.IsType(context.Background())).Once()
 
 		router := createRouter(newTestWorker())
 		transport := createWebRtcTransport(router)
@@ -86,7 +87,7 @@ func TestTransportClose(t *testing.T) {
 		m := MockedHandler{}
 		defer m.AssertExpectations(t)
 
-		m.On("OnClose").Times(1)
+		m.On("OnClose", mock.IsType(context.Background())).Once()
 
 		router := createRouter(newTestWorker())
 		transport := createWebRtcTransport(router)
@@ -217,14 +218,14 @@ func TestTransportEnableTraceEvent(t *testing.T) {
 }
 
 func TestTransportProduce(t *testing.T) {
-	myMock := new(MockedHandler)
-	defer myMock.AssertExpectations(t)
+	mymock := new(MockedHandler)
+	defer mymock.AssertExpectations(t)
 
-	myMock.On("OnNewProducer", mock.IsType(&Producer{})).Times(2)
+	mymock.On("OnNewProducer", mock.IsType(context.Background()), mock.IsType(&Producer{})).Times(2)
 
 	router := createRouter(nil)
 	transport := createWebRtcTransport(router)
-	transport.OnNewProducer(myMock.OnNewProducer)
+	transport.OnNewProducer(mymock.OnNewProducer)
 	aproducer := createAudioProducer(transport)
 	vproducer := createVideoProducer(transport)
 
@@ -451,14 +452,14 @@ func TestTransportProduceError(t *testing.T) {
 }
 
 func TestTransportConsume(t *testing.T) {
-	myMock := new(MockedHandler)
-	defer myMock.AssertExpectations(t)
+	mymock := new(MockedHandler)
+	defer mymock.AssertExpectations(t)
 
-	myMock.On("OnNewConsumer", mock.IsType(&Consumer{})).Times(3)
+	mymock.On("OnNewConsumer", mock.IsType(context.Background()), mock.IsType(&Consumer{})).Times(3)
 
 	router := createRouter(nil)
 	transport := createWebRtcTransport(router)
-	transport.OnNewConsumer(myMock.OnNewConsumer)
+	transport.OnNewConsumer(mymock.OnNewConsumer)
 	aproducer := createAudioProducer(transport)
 	aconsumer := createConsumer(transport, aproducer.Id())
 
@@ -707,17 +708,17 @@ func TestTransportConsumeUnsupportedError(t *testing.T) {
 }
 
 func TestTransportProduceData(t *testing.T) {
-	myMock := new(MockedHandler)
-	defer myMock.AssertExpectations(t)
+	mymock := new(MockedHandler)
+	defer mymock.AssertExpectations(t)
 
-	myMock.On("OnNewDataProducer", mock.IsType(&DataProducer{})).Times(2)
+	mymock.On("OnNewDataProducer", mock.IsType(context.Background()), mock.IsType(&DataProducer{})).Times(2)
 
 	router := createRouter(newTestWorker())
 	transport1 := createWebRtcTransport(router, func(o *WebRtcTransportOptions) { o.EnableSctp = true })
 	transport2 := createPlainTransport(router, func(o *PlainTransportOptions) { o.EnableSctp = true })
 
 	for i, transport := range []*Transport{transport1, transport2} {
-		transport.OnNewDataProducer(myMock.OnNewDataProducer)
+		transport.OnNewDataProducer(mymock.OnNewDataProducer)
 		dataProducer, err := transport.ProduceData(&DataProducerOptions{
 			SctpStreamParameters: &SctpStreamParameters{StreamId: uint16(i + 1), MaxRetransmits: ref[uint16](3)},
 			Label:                "foo",
@@ -775,10 +776,10 @@ func TestTransportProduceData(t *testing.T) {
 }
 
 func TestTransportConsumeData(t *testing.T) {
-	myMock := new(MockedHandler)
-	defer myMock.AssertExpectations(t)
+	mymock := new(MockedHandler)
+	defer mymock.AssertExpectations(t)
 
-	myMock.On("OnNewDataConsumer", mock.IsType(&DataConsumer{})).Times(2)
+	mymock.On("OnNewDataConsumer", mock.IsType(context.Background()), mock.IsType(&DataConsumer{})).Times(2)
 
 	worker := newTestWorker()
 	router1 := createRouter(worker)
@@ -790,7 +791,7 @@ func TestTransportConsumeData(t *testing.T) {
 		transport1: router1,
 		transport2: router2,
 	} {
-		transport.OnNewDataConsumer(myMock.OnNewDataConsumer)
+		transport.OnNewDataConsumer(mymock.OnNewDataConsumer)
 		dataProducer, _ := transport.ProduceData(&DataProducerOptions{
 			SctpStreamParameters: &SctpStreamParameters{
 				StreamId:          12345,

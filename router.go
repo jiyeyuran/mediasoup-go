@@ -51,8 +51,8 @@ type Router struct {
 	dataProducers sync.Map
 	dataConsumers sync.Map
 
-	newRtpObserverListeners []func(*RtpObserver)
-	newTransportListeners   []func(*Transport)
+	newRtpObserverListeners []func(context.Context, *RtpObserver)
+	newTransportListeners   []func(context.Context, *Transport)
 
 	routerPipeMu            sync.Mutex
 	mapRouterPipeTransports map[*Router][2]*Transport
@@ -181,7 +181,7 @@ func (r *Router) CloseContext(ctx context.Context) error {
 	r.closed = true
 	r.mu.Unlock()
 
-	r.cleanupAfterClosed()
+	r.cleanupAfterClosed(ctx)
 	return nil
 }
 
@@ -284,7 +284,7 @@ func (r *Router) CreateActiveSpeakerObserverContext(ctx context.Context, options
 		return nil, err
 	}
 
-	return r.newRtpObserver(&rtpObserverData{
+	return r.newRtpObserver(ctx, &rtpObserverData{
 		Id:              rtpObserverId,
 		Type:            RtpObserverTypeActiveSpeaker,
 		RouterId:        r.Id(),
@@ -331,7 +331,7 @@ func (r *Router) CreateAudioLevelObserverContext(ctx context.Context, options ..
 		return nil, err
 	}
 
-	return r.newRtpObserver(&rtpObserverData{
+	return r.newRtpObserver(ctx, &rtpObserverData{
 		Id:              rtpObserverId,
 		Type:            RtpObserverTypeAudioLevel,
 		RouterId:        r.Id(),
@@ -497,7 +497,7 @@ func (r *Router) CreateWebRtcTransportContext(ctx context.Context, options *WebR
 			},
 		},
 	}
-	transport, err := r.newTransport(data)
+	transport, err := r.newTransport(ctx, data)
 	if err != nil {
 		return nil, err
 	}
@@ -607,7 +607,7 @@ func (r *Router) CreatePlainTransportContext(ctx context.Context, options *Plain
 		Comedia: result.Comedia,
 		AppData: o.AppData,
 	}
-	return r.newTransport(data)
+	return r.newTransport(ctx, data)
 }
 
 func (r *Router) CreatePipeTransport(options *PipeTransportOptions) (*Transport, error) {
@@ -694,7 +694,7 @@ func (r *Router) CreatePipeTransportContext(ctx context.Context, options *PipeTr
 		Rtx:     result.Rtx,
 		AppData: o.AppData,
 	}
-	return r.newTransport(data)
+	return r.newTransport(ctx, data)
 }
 
 func (r *Router) CreateDirectTransport(options *DirectTransportOptions) (*Transport, error) {
@@ -705,8 +705,16 @@ func (r *Router) CreateDirectTransportContext(ctx context.Context, options *Dire
 	r.logger.DebugContext(ctx, "CreateDirectTransport()")
 
 	o := &DirectTransportOptions{
-		MaxMessageSize: orElse(options != nil && options.MaxMessageSize > 0, options.MaxMessageSize, 262144),
-		AppData:        orElse(options != nil && options.AppData != nil, options.AppData, H{}),
+		MaxMessageSize: 262144,
+		AppData:        H{},
+	}
+	if options != nil {
+		if options.MaxMessageSize > 0 {
+			o.MaxMessageSize = options.MaxMessageSize
+		}
+		if options.AppData != nil {
+			o.AppData = options.AppData
+		}
 	}
 
 	transportId := UUID(transportPrefix)
@@ -738,7 +746,7 @@ func (r *Router) CreateDirectTransportContext(ctx context.Context, options *Dire
 		TransportData: &TransportData{},
 		AppData:       o.AppData,
 	}
-	return r.newTransport(data)
+	return r.newTransport(ctx, data)
 }
 
 // PipeToRouter pipes the given Producer or DataProducer into another Router in same host.
@@ -818,10 +826,10 @@ func (r *Router) PipeToRouterContext(ctx context.Context, options *PipeToRouterO
 			defer func() {
 				if err != nil {
 					if localPipeTransport != nil {
-						localPipeTransport.Close()
+						localPipeTransport.CloseContext(ctx)
 					}
 					if remotePipeTransport != nil {
-						remotePipeTransport.Close()
+						remotePipeTransport.CloseContext(ctx)
 					}
 				}
 			}()
@@ -836,11 +844,11 @@ func (r *Router) PipeToRouterContext(ctx context.Context, options *PipeToRouterO
 			errgroup := new(errgroup.Group)
 
 			errgroup.Go(func() error {
-				localPipeTransport, err = r.CreatePipeTransport(options)
+				localPipeTransport, err = r.CreatePipeTransportContext(ctx, options)
 				return err
 			})
 			errgroup.Go(func() error {
-				remotePipeTransport, err = o.Router.CreatePipeTransport(options)
+				remotePipeTransport, err = o.Router.CreatePipeTransportContext(ctx, options)
 				return err
 			})
 			if err = errgroup.Wait(); err != nil {
@@ -848,7 +856,7 @@ func (r *Router) PipeToRouterContext(ctx context.Context, options *PipeToRouterO
 			}
 			errgroup.Go(func() error {
 				data := remotePipeTransport.Data().PipeTransportData
-				return localPipeTransport.Connect(&TransportConnectOptions{
+				return localPipeTransport.ConnectContext(ctx, &TransportConnectOptions{
 					Ip:             data.Tuple.LocalAddress,
 					Port:           ref(data.Tuple.LocalPort),
 					SrtpParameters: data.SrtpParameters,
@@ -856,7 +864,7 @@ func (r *Router) PipeToRouterContext(ctx context.Context, options *PipeToRouterO
 			})
 			errgroup.Go(func() error {
 				data := localPipeTransport.Data().PipeTransportData
-				return remotePipeTransport.Connect(&TransportConnectOptions{
+				return remotePipeTransport.ConnectContext(ctx, &TransportConnectOptions{
 					Ip:             data.Tuple.LocalAddress,
 					Port:           ref(data.Tuple.LocalPort),
 					SrtpParameters: data.SrtpParameters,
@@ -879,8 +887,8 @@ func (r *Router) PipeToRouterContext(ctx context.Context, options *PipeToRouterO
 		}
 		r.mapRouterPipeTransports[o.Router] = pipeTransportPair
 
-		pipeTransportPair[0].OnClose(func() {
-			pipeTransportPair[1].Close()
+		pipeTransportPair[0].OnClose(func(ctx context.Context) {
+			pipeTransportPair[1].CloseContext(ctx)
 			r.routerPipeMu.Lock()
 			delete(r.mapRouterPipeTransports, o.Router)
 			r.routerPipeMu.Unlock()
@@ -891,13 +899,13 @@ func (r *Router) PipeToRouterContext(ctx context.Context, options *PipeToRouterO
 	localPipeTransport, remotePipeTransport := pipeTransportPair[0], pipeTransportPair[1]
 
 	if producer != nil {
-		pipeConsumer, err := localPipeTransport.Consume(&ConsumerOptions{
+		pipeConsumer, err := localPipeTransport.ConsumeContext(ctx, &ConsumerOptions{
 			ProducerId: o.ProducerId,
 		})
 		if err != nil {
 			return nil, err
 		}
-		pipeProducer, err := remotePipeTransport.Produce(&ProducerOptions{
+		pipeProducer, err := remotePipeTransport.ProduceContext(ctx, &ProducerOptions{
 			Id:            producer.Id(),
 			Kind:          pipeConsumer.Kind(),
 			RtpParameters: pipeConsumer.RtpParameters(),
@@ -905,13 +913,13 @@ func (r *Router) PipeToRouterContext(ctx context.Context, options *PipeToRouterO
 			AppData:       producer.AppData(),
 		})
 		if err != nil {
-			pipeConsumer.Close()
+			pipeConsumer.CloseContext(ctx)
 			return nil, err
 		}
 		// Ensure that the producer has not been closed in the meanwhile.
 		if producer.Closed() {
-			pipeConsumer.Close()
-			pipeProducer.Close()
+			pipeConsumer.CloseContext(ctx)
+			pipeProducer.CloseContext(ctx)
 			return nil, errors.New("original Producer closed")
 		}
 
@@ -919,9 +927,9 @@ func (r *Router) PipeToRouterContext(ctx context.Context, options *PipeToRouterO
 		// so, sych the pipeProducer.
 		if pipeProducer.Paused() != producer.Paused() {
 			if producer.Paused() {
-				err = pipeProducer.Pause()
+				err = pipeProducer.PauseContext(ctx)
 			} else {
-				err = pipeProducer.Resume()
+				err = pipeProducer.ResumeContext(ctx)
 			}
 			if err != nil {
 				pipeConsumer.Close()
@@ -931,19 +939,19 @@ func (r *Router) PipeToRouterContext(ctx context.Context, options *PipeToRouterO
 		}
 
 		// Pipe events from the pipe Consumer to the pipe Producer.
-		pipeConsumer.OnClose(func() {
-			pipeProducer.Close()
+		pipeConsumer.OnClose(func(ctx context.Context) {
+			pipeProducer.CloseContext(ctx)
 		})
-		pipeConsumer.OnPause(func() {
-			pipeProducer.Pause()
+		pipeConsumer.OnPause(func(ctx context.Context) {
+			pipeProducer.PauseContext(ctx)
 		})
-		pipeConsumer.OnResume(func() {
-			pipeProducer.Resume()
+		pipeConsumer.OnResume(func(ctx context.Context) {
+			pipeProducer.ResumeContext(ctx)
 		})
 
 		// Pipe events from the pipe Producer to the pipe Consumer.
-		pipeProducer.OnClose(func() {
-			pipeConsumer.Close()
+		pipeProducer.OnClose(func(ctx context.Context) {
+			pipeConsumer.CloseContext(ctx)
 		})
 
 		return &PipeToRouterResult{
@@ -952,13 +960,13 @@ func (r *Router) PipeToRouterContext(ctx context.Context, options *PipeToRouterO
 		}, nil
 	}
 
-	pipeDataConsumer, err := localPipeTransport.ConsumeData(&DataConsumerOptions{
+	pipeDataConsumer, err := localPipeTransport.ConsumeDataContext(ctx, &DataConsumerOptions{
 		DataProducerId: o.DataProducerId,
 	})
 	if err != nil {
 		return nil, err
 	}
-	pipeDataProducer, err := remotePipeTransport.ProduceData(&DataProducerOptions{
+	pipeDataProducer, err := remotePipeTransport.ProduceDataContext(ctx, &DataProducerOptions{
 		Id:                   dataProducer.Id(),
 		SctpStreamParameters: pipeDataConsumer.SctpStreamParameters(),
 		Label:                pipeDataConsumer.Label(),
@@ -966,23 +974,23 @@ func (r *Router) PipeToRouterContext(ctx context.Context, options *PipeToRouterO
 		AppData:              dataProducer.AppData(),
 	})
 	if err != nil {
-		pipeDataConsumer.Close()
+		pipeDataConsumer.CloseContext(ctx)
 		return nil, err
 	}
 	// Ensure that the dataProducer has not been closed in the meanwhile.
 	if dataProducer.Closed() {
-		pipeDataConsumer.Close()
-		pipeDataProducer.Close()
+		pipeDataConsumer.CloseContext(ctx)
+		pipeDataProducer.CloseContext(ctx)
 		return nil, errors.New("original DataProducer closed")
 	}
 
 	// Pipe events from the pipe DataConsumer to the pipe DataProducer.
-	pipeDataConsumer.OnClose(func() {
-		pipeDataProducer.Close()
+	pipeDataConsumer.OnClose(func(ctx context.Context) {
+		pipeDataProducer.CloseContext(ctx)
 	})
 	// Pipe events from the pipe DataProducer to the pipe DataConsumer.
-	pipeDataProducer.OnClose(func() {
-		pipeDataConsumer.Close()
+	pipeDataProducer.OnClose(func(ctx context.Context) {
+		pipeDataConsumer.CloseContext(ctx)
 	})
 
 	return &PipeToRouterResult{
@@ -991,19 +999,19 @@ func (r *Router) PipeToRouterContext(ctx context.Context, options *PipeToRouterO
 	}, nil
 }
 
-func (r *Router) OnNewRtpObserver(listener func(*RtpObserver)) {
+func (r *Router) OnNewRtpObserver(listener func(context.Context, *RtpObserver)) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.newRtpObserverListeners = append(r.newRtpObserverListeners, listener)
 }
 
-func (r *Router) OnNewTransport(listener func(*Transport)) {
+func (r *Router) OnNewTransport(listener func(context.Context, *Transport)) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.newTransportListeners = append(r.newTransportListeners, listener)
 }
 
-func (r *Router) workerClosed() {
+func (r *Router) workerClosed(ctx context.Context) {
 	r.mu.Lock()
 	if r.closed {
 		r.mu.Unlock()
@@ -1011,13 +1019,13 @@ func (r *Router) workerClosed() {
 	}
 	r.closed = true
 	r.mu.Unlock()
-	r.logger.Debug("workerClosed()")
+	r.logger.DebugContext(ctx, "workerClosed()")
 
-	r.cleanupAfterClosed()
+	r.cleanupAfterClosed(ctx)
 }
 
-func (r *Router) cleanupAfterClosed() {
-	var children []interface{ routerClosed() }
+func (r *Router) cleanupAfterClosed(ctx context.Context) {
+	var children []interface{ routerClosed(ctx context.Context) }
 
 	r.transports.Range(func(key, value any) bool {
 		children = append(children, value.(*Transport))
@@ -1036,12 +1044,12 @@ func (r *Router) cleanupAfterClosed() {
 	clearSyncMap(&r.dataConsumers)
 
 	for _, child := range children {
-		child.routerClosed()
+		child.routerClosed(ctx)
 	}
-	r.notifyClosed()
+	r.notifyClosed(ctx)
 }
 
-func (r *Router) newRtpObserver(data *rtpObserverData) (*RtpObserver, error) {
+func (r *Router) newRtpObserver(ctx context.Context, data *rtpObserverData) (*RtpObserver, error) {
 	r.mu.Lock()
 
 	if r.closed {
@@ -1051,7 +1059,7 @@ func (r *Router) newRtpObserver(data *rtpObserverData) (*RtpObserver, error) {
 
 	rtpObserver := newRtpObserver(r.channel, r.logger, data)
 	r.rtpObservers.Store(rtpObserver.Id(), rtpObserver)
-	rtpObserver.OnClose(func() {
+	rtpObserver.OnClose(func(ctx context.Context) {
 		r.rtpObservers.Delete(rtpObserver.Id())
 	})
 
@@ -1060,13 +1068,13 @@ func (r *Router) newRtpObserver(data *rtpObserverData) (*RtpObserver, error) {
 	r.mu.Unlock()
 
 	for _, listener := range listeners {
-		listener(rtpObserver)
+		listener(ctx, rtpObserver)
 	}
 
 	return rtpObserver, nil
 }
 
-func (r *Router) newTransport(data *internalTransportData) (*Transport, error) {
+func (r *Router) newTransport(ctx context.Context, data *internalTransportData) (*Transport, error) {
 	r.mu.Lock()
 
 	if r.closed {
@@ -1105,7 +1113,7 @@ func (r *Router) newTransport(data *internalTransportData) (*Transport, error) {
 
 	transport := newTransport(r.channel, r.logger, data)
 	r.transports.Store(transport.Id(), transport)
-	transport.OnClose(func() {
+	transport.OnClose(func(ctx context.Context) {
 		r.transports.Delete(transport.Id())
 	})
 
@@ -1114,7 +1122,7 @@ func (r *Router) newTransport(data *internalTransportData) (*Transport, error) {
 	r.mu.Unlock()
 
 	for _, listener := range listeners {
-		listener(transport)
+		listener(ctx, transport)
 	}
 
 	return transport, nil

@@ -95,19 +95,19 @@ func (s *WebRtcServer) CloseContext(ctx context.Context) error {
 	})
 
 	for _, transport := range transports {
-		transport.listenServerClosed()
+		transport.listenServerClosed(ctx)
 	}
 
 	return err
 }
 
 // workerClosed is called when worker was closed.
-func (s *WebRtcServer) workerClosed() {
-	s.logger.Debug("workerClosed()")
+func (s *WebRtcServer) workerClosed(ctx context.Context) {
+	s.logger.DebugContext(ctx, "workerClosed()")
 	// NOTE: No need to close WebRtcTransports since they are closed by their
 	// respective Router parents.
 	clearSyncMap(&s.webRtcTransports)
-	s.notifyClosed()
+	s.notifyClosed(ctx)
 }
 
 // Dump returns WebRtcServer information.
@@ -153,7 +153,7 @@ func (s *WebRtcServer) DumpContext(ctx context.Context) (*WebRtcServerDump, erro
 
 func (s *WebRtcServer) handleWebRtcTransport(transport *Transport) {
 	s.webRtcTransports.Store(transport.Id(), transport)
-	transport.OnClose(func() {
+	transport.OnClose(func(ctx context.Context) {
 		s.webRtcTransports.Delete(transport.Id())
 	})
 }

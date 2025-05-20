@@ -34,8 +34,8 @@ type Worker struct {
 	routers                  sync.Map
 	webRtcServers            sync.Map
 	appData                  H
-	newWebRtcServerListeners []func(*WebRtcServer)
-	newRouterListeners       []func(*Router)
+	newWebRtcServerListeners []func(context.Context, *WebRtcServer)
+	newRouterListeners       []func(context.Context, *Router)
 	closed                   bool
 	err                      error
 }
@@ -162,9 +162,9 @@ func NewWorker(workerBinaryPath string, options ...Option) (*Worker, error) {
 	// notify the worker process is running or stopped with error
 	doneCh := make(chan error)
 
-	sub := channel.Subscribe(strconv.Itoa(pid), func(event FbsNotification.Event, body *FbsNotification.BodyT) {
-		if event == FbsNotification.EventWORKER_RUNNING && atomic.CompareAndSwapUint32(&spawnDone, 0, 1) {
-			logger.Debug("worker process is running")
+	sub := channel.Subscribe(strconv.Itoa(pid), func(ctx context.Context, notification *FbsNotification.NotificationT) {
+		if notification.Event == FbsNotification.EventWORKER_RUNNING && atomic.CompareAndSwapUint32(&spawnDone, 0, 1) {
+			logger.DebugContext(ctx, "worker process is running")
 			close(doneCh)
 		}
 	})
@@ -442,14 +442,14 @@ func (w *Worker) CreateWebRtcServerContext(ctx context.Context, options *WebRtcS
 	}
 	server := NewWebRtcServer(w, id, orElse(options.AppData == nil, H{}, options.AppData))
 	w.webRtcServers.Store(id, server)
-	server.OnClose(func() {
+	server.OnClose(func(ctx context.Context) {
 		w.webRtcServers.Delete(id)
 	})
 	listeners := w.newWebRtcServerListeners
 	w.mu.Unlock()
 
 	for _, listener := range listeners {
-		listener(server)
+		listener(ctx, server)
 	}
 
 	return server, nil
@@ -494,7 +494,7 @@ func (w *Worker) CreateRouterContext(ctx context.Context, options *RouterOptions
 	}
 	router := newRouter(w.channel, w.logger, data)
 	w.routers.Store(router.Id(), router)
-	router.OnClose(func() {
+	router.OnClose(func(ctx context.Context) {
 		w.routers.Delete(router.Id())
 	})
 
@@ -502,20 +502,20 @@ func (w *Worker) CreateRouterContext(ctx context.Context, options *RouterOptions
 	w.mu.Unlock()
 
 	for _, listener := range listeners {
-		listener(router)
+		listener(ctx, router)
 	}
 
 	return router, nil
 }
 
-func (w *Worker) OnNewWebRtcServer(listener func(*WebRtcServer)) {
+func (w *Worker) OnNewWebRtcServer(listener func(context.Context, *WebRtcServer)) {
 	w.mu.RLock()
 	defer w.mu.RUnlock()
 
 	w.newWebRtcServerListeners = append(w.newWebRtcServerListeners, listener)
 }
 
-func (w *Worker) OnNewRouter(listener func(*Router)) {
+func (w *Worker) OnNewRouter(listener func(context.Context, *Router)) {
 	w.mu.RLock()
 	defer w.mu.RUnlock()
 
@@ -543,16 +543,16 @@ func (w *Worker) cleanupAfterClosed(ctx context.Context) {
 	}
 
 	w.routers.Range(func(key, value any) bool {
-		value.(*Router).workerClosed()
+		value.(*Router).workerClosed(ctx)
 		w.routers.Delete(key)
 		return true
 	})
 
 	w.webRtcServers.Range(func(key, value any) bool {
-		value.(*WebRtcServer).workerClosed()
+		value.(*WebRtcServer).workerClosed(ctx)
 		w.webRtcServers.Delete(key)
 		return true
 	})
 
-	w.notifyClosed()
+	w.notifyClosed(ctx)
 }

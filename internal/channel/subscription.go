@@ -1,16 +1,18 @@
 package channel
 
 import (
+	"context"
 	"sync"
 
 	FbsNotification "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/Notification"
 )
 
-type Handler func(event FbsNotification.Event, body *FbsNotification.BodyT)
+type Handler func(ctx context.Context, notification *FbsNotification.NotificationT)
 
 type Msg struct {
-	Data *FbsNotification.NotificationT
-	next *Msg
+	Context context.Context
+	Data    *FbsNotification.NotificationT
+	next    *Msg
 }
 
 // Subscription represents interest in a given subject.
