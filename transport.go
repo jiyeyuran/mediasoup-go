@@ -640,7 +640,7 @@ func (t *Transport) ProduceContext(ctx context.Context, options *ProducerOptions
 			return nil, fmt.Errorf(`a Producer with same id "%s" already exists`, id)
 		}
 	} else {
-		id = uuid(transportPrefix)
+		id = UUID(transportPrefix)
 	}
 	if rtpParameters == nil {
 		rtpParameters = &RtpParameters{}
@@ -846,7 +846,7 @@ func (t *Transport) ConsumeContext(ctx context.Context, options *ConsumerOptions
 		}
 	}
 
-	consumerId := uuid(consumerPrefix)
+	consumerId := UUID(consumerPrefix)
 	typ := orElse(options.Pipe || t.Type() == TransportPipe, ConsumerPipe, ConsumerType(producer.Type()))
 
 	msg, err := t.channel.Request(ctx, &FbsRequest.RequestT{
@@ -1005,7 +1005,7 @@ func (t *Transport) ProduceDataContext(ctx context.Context, options *DataProduce
 			return nil, fmt.Errorf(`a DataProducer with same id "%s" already exists`, id)
 		}
 	} else {
-		id = uuid(dataProducerPrefix)
+		id = UUID(dataProducerPrefix)
 	}
 
 	sctpStreamParameters := clone(options.SctpStreamParameters)
@@ -1121,7 +1121,7 @@ func (t *Transport) ConsumeDataContext(ctx context.Context, options *DataConsume
 		}
 	}
 
-	dataConsumerId := uuid(dataConsumerPrefix)
+	dataConsumerId := UUID(dataConsumerPrefix)
 
 	_, err = t.channel.Request(ctx, &FbsRequest.RequestT{
 		Method:    FbsRequest.MethodTRANSPORT_CONSUME_DATA,

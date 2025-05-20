@@ -1,5 +1,7 @@
 package mediasoup
 
+var UUID = uuid
+
 type H = map[string]any
 
 // KeyValue represents a key-value pair.

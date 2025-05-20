@@ -265,7 +265,7 @@ func (r *Router) CreateActiveSpeakerObserverContext(ctx context.Context, options
 		option(o)
 	}
 
-	rtpObserverId := uuid(rtpObserverPrefix)
+	rtpObserverId := UUID(rtpObserverPrefix)
 
 	_, err := r.channel.Request(ctx, &FbsRequest.RequestT{
 		Method:    FbsRequest.MethodROUTER_CREATE_ACTIVESPEAKEROBSERVER,
@@ -310,7 +310,7 @@ func (r *Router) CreateAudioLevelObserverContext(ctx context.Context, options ..
 		option(o)
 	}
 
-	rtpObserverId := uuid(rtpObserverPrefix)
+	rtpObserverId := UUID(rtpObserverPrefix)
 
 	_, err := r.channel.Request(ctx, &FbsRequest.RequestT{
 		Method:    FbsRequest.MethodROUTER_CREATE_AUDIOLEVELOBSERVER,
@@ -384,7 +384,7 @@ func (r *Router) CreateWebRtcTransportContext(ctx context.Context, options *WebR
 		o.AppData = options.AppData
 	}
 
-	transportId := uuid(transportPrefix)
+	transportId := UUID(transportPrefix)
 	baseTranportOptions := &FbsTransport.OptionsT{
 		InitialAvailableOutgoingBitrate: ref(o.InitialAvailableOutgoingBitrate),
 		EnableSctp:                      o.EnableSctp,
@@ -546,7 +546,7 @@ func (r *Router) CreatePlainTransportContext(ctx context.Context, options *Plain
 		o.AppData = options.AppData
 	}
 
-	transportId := uuid(transportPrefix)
+	transportId := UUID(transportPrefix)
 	baseTranportOptions := &FbsTransport.OptionsT{
 		EnableSctp: o.EnableSctp,
 		NumSctpStreams: &FbsSctpParameters.NumSctpStreamsT{
@@ -646,7 +646,7 @@ func (r *Router) CreatePipeTransportContext(ctx context.Context, options *PipeTr
 		o.AppData = options.AppData
 	}
 
-	transportId := uuid(transportPrefix)
+	transportId := UUID(transportPrefix)
 	baseTranportOptions := &FbsTransport.OptionsT{
 		EnableSctp: o.EnableSctp,
 		NumSctpStreams: &FbsSctpParameters.NumSctpStreamsT{
@@ -726,7 +726,7 @@ func (r *Router) CreateDirectTransportContext(ctx context.Context, options *Dire
 		}
 	}
 
-	transportId := uuid(transportPrefix)
+	transportId := UUID(transportPrefix)
 	baseTranportOptions := &FbsTransport.OptionsT{
 		Direct:         true,
 		MaxMessageSize: &o.MaxMessageSize,
