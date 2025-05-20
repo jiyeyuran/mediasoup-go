@@ -360,7 +360,7 @@ func (r *Router) CreateWebRtcTransportContext(ctx context.Context, options *WebR
 		NumSctpStreams:                  &NumSctpStreams{OS: 1024, MIS: 1024},
 		MaxSctpMessageSize:              262144,
 		SctpSendBufferSize:              262144,
-		AppData:                         H{},
+		AppData:                         orElse(options.AppData != nil, options.AppData, H{}),
 	}
 	if len(o.ListenInfos) == 0 && o.WebRtcServer == nil {
 		return nil, errors.New("missing webRtcServerId and listenIps (one of them is mandatory)")
@@ -379,9 +379,6 @@ func (r *Router) CreateWebRtcTransportContext(ctx context.Context, options *WebR
 	}
 	if options.SctpSendBufferSize > 0 {
 		o.SctpSendBufferSize = options.SctpSendBufferSize
-	}
-	if options.AppData != nil {
-		o.AppData = options.AppData
 	}
 
 	transportId := UUID(transportPrefix)
@@ -528,7 +525,7 @@ func (r *Router) CreatePlainTransportContext(ctx context.Context, options *Plain
 		SctpSendBufferSize: 262144,
 		EnableSrtp:         options.EnableSrtp,
 		SrtpCryptoSuite:    AES_CM_128_HMAC_SHA1_80,
-		AppData:            H{},
+		AppData:            orElse(options.AppData != nil, options.AppData, H{}),
 	}
 	if options.RtcpMux != nil {
 		o.RtcpMux = options.RtcpMux
@@ -541,9 +538,6 @@ func (r *Router) CreatePlainTransportContext(ctx context.Context, options *Plain
 	}
 	if options.SctpSendBufferSize > 0 {
 		o.SctpSendBufferSize = options.SctpSendBufferSize
-	}
-	if options.AppData != nil {
-		o.AppData = options.AppData
 	}
 
 	transportId := UUID(transportPrefix)
@@ -631,7 +625,7 @@ func (r *Router) CreatePipeTransportContext(ctx context.Context, options *PipeTr
 		SctpSendBufferSize: 268435456,
 		EnableSrtp:         options.EnableSrtp,
 		EnableRtx:          options.EnableRtx,
-		AppData:            H{},
+		AppData:            orElse(options.AppData != nil, options.AppData, H{}),
 	}
 	if options.NumSctpStreams != nil {
 		o.NumSctpStreams = options.NumSctpStreams
@@ -641,9 +635,6 @@ func (r *Router) CreatePipeTransportContext(ctx context.Context, options *PipeTr
 	}
 	if options.SctpSendBufferSize > 0 {
 		o.SctpSendBufferSize = options.SctpSendBufferSize
-	}
-	if options.AppData != nil {
-		o.AppData = options.AppData
 	}
 
 	transportId := UUID(transportPrefix)
@@ -714,16 +705,8 @@ func (r *Router) CreateDirectTransportContext(ctx context.Context, options *Dire
 	r.logger.DebugContext(ctx, "CreateDirectTransport()")
 
 	o := &DirectTransportOptions{
-		MaxMessageSize: 262144,
-		AppData:        H{},
-	}
-	if options != nil {
-		if options.MaxMessageSize > 0 {
-			o.MaxMessageSize = options.MaxMessageSize
-		}
-		if options.AppData != nil {
-			o.AppData = options.AppData
-		}
+		MaxMessageSize: orElse(options != nil && options.MaxMessageSize > 0, options.MaxMessageSize, 262144),
+		AppData:        orElse(options != nil && options.AppData != nil, options.AppData, H{}),
 	}
 
 	transportId := UUID(transportPrefix)

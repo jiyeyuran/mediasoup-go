@@ -200,7 +200,7 @@ func NewWorker(workerBinaryPath string, options ...Option) (*Worker, error) {
 		cmd:     cmd,
 		channel: channel,
 		logger:  logger,
-		appData: opts.AppData,
+		appData: orElse(opts.AppData == nil, H{}, opts.AppData),
 	}
 
 	go w.wait(cmd, &spawnDone, doneCh)
