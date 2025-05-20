@@ -41,11 +41,11 @@ type Consumer struct {
 	priority                byte
 	currentLayers           *ConsumerLayers // Current video layers (just for video with simulcast or SVC).
 	closed                  bool
-	pausedListeners         []func()
-	resumeListeners         []func()
-	producerCloseListeners  []func()
-	producerPauseListeners  []func()
-	producerResumeListeners []func()
+	pauseListeners          []func(ctx context.Context)
+	resumeListeners         []func(ctx context.Context)
+	producerCloseListeners  []func(ctx context.Context)
+	producerPauseListeners  []func(ctx context.Context)
+	producerResumeListeners []func(ctx context.Context)
 	scoreListeners          []func(score ConsumerScore)
 	layersChangeListeners   []func(layers *ConsumerLayers)
 	traceListeners          []func(trace ConsumerTraceEventData)
@@ -180,7 +180,7 @@ func (c *Consumer) CloseContext(ctx context.Context) error {
 	c.closed = true
 	c.mu.Unlock()
 
-	c.cleanupAfterClosed()
+	c.cleanupAfterClosed(ctx)
 
 	return nil
 }
@@ -293,13 +293,13 @@ func (c *Consumer) PauseContext(ctx context.Context) error {
 		return err
 	}
 	wasPaused := c.data.Paused
-	listeners := c.pausedListeners
+	listeners := c.pauseListeners
 	c.data.Paused = true
 	c.mu.Unlock()
 
 	if !wasPaused {
 		for _, listener := range listeners {
-			listener()
+			listener(ctx)
 		}
 	}
 
@@ -333,7 +333,7 @@ func (c *Consumer) ResumeContext(ctx context.Context) error {
 
 	if wasPaused {
 		for _, listener := range listeners {
-			listener()
+			listener(ctx)
 		}
 	}
 
@@ -458,78 +458,78 @@ func (c *Consumer) EnableTraceEventContext(ctx context.Context, events []Consume
 	return err
 }
 
-// OnPause add handler on "pause" event.
-func (p *Consumer) OnPause(handler func()) {
+// OnPause add listener on "pause" event.
+func (p *Consumer) OnPause(listener func(ctx context.Context)) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	p.pausedListeners = append(p.pausedListeners, handler)
+	p.pauseListeners = append(p.pauseListeners, listener)
 }
 
-// OnResume add handler on "resume" event.
-func (p *Consumer) OnResume(handler func()) {
+// OnResume add listener on "resume" event.
+func (p *Consumer) OnResume(listener func(ctx context.Context)) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	p.resumeListeners = append(p.resumeListeners, handler)
+	p.resumeListeners = append(p.resumeListeners, listener)
 }
 
-// OnProducerClose add handler on "producerclose" event.
-func (p *Consumer) OnProducerClose(handler func()) {
+// OnProducerClose add listener on "producerclose" event.
+func (p *Consumer) OnProducerClose(listener func(ctx context.Context)) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	p.producerCloseListeners = append(p.producerCloseListeners, handler)
+	p.producerCloseListeners = append(p.producerCloseListeners, listener)
 }
 
-// OnProducerPause add handler on "producerpause" event.
-func (p *Consumer) OnProducerPause(handler func()) {
+// OnProducerPause add listener on "producerpause" event.
+func (p *Consumer) OnProducerPause(listener func(ctx context.Context)) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	p.producerPauseListeners = append(p.producerPauseListeners, handler)
+	p.producerPauseListeners = append(p.producerPauseListeners, listener)
 }
 
-// OnProducerResume add handler on "producerresume" event.
-func (p *Consumer) OnProducerResume(handler func()) {
+// OnProducerResume add listener on "producerresume" event.
+func (p *Consumer) OnProducerResume(listener func(ctx context.Context)) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	p.producerResumeListeners = append(p.producerResumeListeners, handler)
+	p.producerResumeListeners = append(p.producerResumeListeners, listener)
 }
 
-// OnScore add handler on "score" event.
-func (p *Consumer) OnScore(handler func(score ConsumerScore)) {
+// OnScore add listener on "score" event.
+func (p *Consumer) OnScore(listener func(score ConsumerScore)) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	p.scoreListeners = append(p.scoreListeners, handler)
+	p.scoreListeners = append(p.scoreListeners, listener)
 }
 
-// OnLayersChange add handler on "layerschange" event.
-func (p *Consumer) OnLayersChange(handler func(layers *ConsumerLayers)) {
+// OnLayersChange add listener on "layerschange" event.
+func (p *Consumer) OnLayersChange(listener func(layers *ConsumerLayers)) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	p.layersChangeListeners = append(p.layersChangeListeners, handler)
+	p.layersChangeListeners = append(p.layersChangeListeners, listener)
 }
 
-// OnTrace add handler on "trace" event.
-func (p *Consumer) OnTrace(handler func(trace ConsumerTraceEventData)) {
+// OnTrace add listener on "trace" event.
+func (p *Consumer) OnTrace(listener func(trace ConsumerTraceEventData)) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	p.traceListeners = append(p.traceListeners, handler)
+	p.traceListeners = append(p.traceListeners, listener)
 }
 
-// OnRtp add handler on "rtp" event.
-func (p *Consumer) OnRtp(handler func(data []byte)) {
+// OnRtp add listener on "rtp" event.
+func (p *Consumer) OnRtp(listener func(data []byte)) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	p.rtpListeners = append(p.rtpListeners, handler)
+	p.rtpListeners = append(p.rtpListeners, listener)
 }
 
 func (c *Consumer) handleWorkerNotifications() {
-	c.sub = c.channel.Subscribe(c.Id(), func(event FbsNotification.Event, body *FbsNotification.BodyT) {
-		switch event {
+	c.sub = c.channel.Subscribe(c.Id(), func(ctx context.Context, notification *FbsNotification.NotificationT) {
+		switch event, body := notification.Event, notification.Body; event {
 		case FbsNotification.EventCONSUMER_PRODUCER_CLOSE:
 			c.mu.Lock()
 			if c.closed {
@@ -540,10 +540,12 @@ func (c *Consumer) handleWorkerNotifications() {
 			listeners := c.producerCloseListeners
 			c.mu.Unlock()
 
+			ctx = channel.UnwrapContext(ctx, c.ProducerId())
+
 			for _, listener := range listeners {
-				listener()
+				listener(ctx)
 			}
-			c.cleanupAfterClosed()
+			c.cleanupAfterClosed(ctx)
 
 		case FbsNotification.EventCONSUMER_PRODUCER_PAUSE:
 			c.mu.Lock()
@@ -553,16 +555,18 @@ func (c *Consumer) handleWorkerNotifications() {
 			}
 			c.data.ProducerPaused = true
 			paused := c.data.Paused
-			pausedListeners := c.pausedListeners
+			pauseListeners := c.pauseListeners
 			producerPauseListeners := c.producerPauseListeners
 			c.mu.Unlock()
 
+			ctx = channel.UnwrapContext(ctx, c.ProducerId())
+
 			for _, listener := range producerPauseListeners {
-				listener()
+				listener(ctx)
 			}
 			if !paused {
-				for _, listener := range pausedListeners {
-					listener()
+				for _, listener := range pauseListeners {
+					listener(ctx)
 				}
 			}
 
@@ -578,12 +582,14 @@ func (c *Consumer) handleWorkerNotifications() {
 			producerResumeListeners := c.producerResumeListeners
 			c.mu.Unlock()
 
+			ctx = channel.UnwrapContext(ctx, c.ProducerId())
+
 			for _, listener := range producerResumeListeners {
-				listener()
+				listener(ctx)
 			}
 			if !paused {
 				for _, listener := range resumeListeners {
-					listener()
+					listener(ctx)
 				}
 			}
 
@@ -659,7 +665,7 @@ func (c *Consumer) handleWorkerNotifications() {
 	})
 }
 
-func (c *Consumer) transportClosed() {
+func (c *Consumer) transportClosed(ctx context.Context) {
 	c.mu.Lock()
 	if c.closed {
 		c.mu.Unlock()
@@ -667,14 +673,14 @@ func (c *Consumer) transportClosed() {
 	}
 	c.closed = true
 	c.mu.Unlock()
-	c.logger.Debug("transportClosed()")
+	c.logger.DebugContext(ctx, "transportClosed()")
 
-	c.cleanupAfterClosed()
+	c.cleanupAfterClosed(ctx)
 }
 
-func (c *Consumer) cleanupAfterClosed() {
+func (c *Consumer) cleanupAfterClosed(ctx context.Context) {
 	c.sub.Unsubscribe()
-	c.notifyClosed()
+	c.notifyClosed(ctx)
 }
 
 func parseRtpStreamDump(stream *FbsRtpStream.DumpT) *RtpStreamDump {

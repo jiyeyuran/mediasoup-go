@@ -1,6 +1,7 @@
 package mediasoup
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -47,27 +48,27 @@ func createRouter(worker *Worker) *Router {
 
 func TestRouterClose(t *testing.T) {
 	t.Run("close normally", func(t *testing.T) {
-		mock := new(MockedHandler)
-		defer mock.AssertExpectations(t)
+		mymock := new(MockedHandler)
+		defer mymock.AssertExpectations(t)
 
-		mock.On("OnClose").Times(1)
+		mymock.On("OnClose", mock.IsType(context.Background())).Once()
 
 		worker := newTestWorker()
 		router, _ := worker.CreateRouter(&RouterOptions{})
-		router.OnClose(mock.OnClose)
+		router.OnClose(mymock.OnClose)
 		assert.NoError(t, router.Close())
 		assert.True(t, router.Closed())
 	})
 
 	t.Run("worker closed", func(t *testing.T) {
-		mock := new(MockedHandler)
-		defer mock.AssertExpectations(t)
+		mymock := new(MockedHandler)
+		defer mymock.AssertExpectations(t)
 
-		mock.On("OnClose").Times(1)
+		mymock.On("OnClose", mock.IsType(context.Background())).Once()
 
 		worker := newTestWorker()
 		router, _ := worker.CreateRouter(&RouterOptions{})
-		router.OnClose(mock.OnClose)
+		router.OnClose(mymock.OnClose)
 		worker.Close()
 		assert.True(t, router.Closed())
 	})
@@ -82,14 +83,14 @@ func TestRouterDump(t *testing.T) {
 }
 
 func TestCreateWebRtcTransport(t *testing.T) {
-	myMock := new(MockedHandler)
-	defer myMock.AssertExpectations(t)
+	mymock := new(MockedHandler)
+	defer mymock.AssertExpectations(t)
 
-	myMock.On("OnNewTransport", mock.IsType(&Transport{})).Times(2)
+	mymock.On("OnNewTransport", mock.IsType(context.Background()), mock.IsType(&Transport{})).Times(2)
 
 	worker := newTestWorker()
 	router, _ := worker.CreateRouter(&RouterOptions{})
-	router.OnNewTransport(myMock.OnNewTransport)
+	router.OnNewTransport(mymock.OnNewTransport)
 	transport1, err := router.CreateWebRtcTransport(&WebRtcTransportOptions{
 		ListenInfos: []TransportListenInfo{
 			{Ip: "127.0.0.1"},
@@ -159,14 +160,14 @@ func TestCreateWebRtcTransportWithPortRange(t *testing.T) {
 }
 
 func TestCreatePlainTransport(t *testing.T) {
-	myMock := new(MockedHandler)
-	defer myMock.AssertExpectations(t)
+	mymock := new(MockedHandler)
+	defer mymock.AssertExpectations(t)
 
-	myMock.On("OnNewTransport", mock.IsType(&Transport{})).Once()
+	mymock.On("OnNewTransport", mock.IsType(context.Background()), mock.IsType(&Transport{})).Once()
 
 	worker := newTestWorker()
 	router, _ := worker.CreateRouter(&RouterOptions{})
-	router.OnNewTransport(myMock.OnNewTransport)
+	router.OnNewTransport(mymock.OnNewTransport)
 	transport, err := router.CreatePlainTransport(&PlainTransportOptions{
 		ListenInfo: TransportListenInfo{
 			Ip: "127.0.0.1",
@@ -231,11 +232,11 @@ func TestCreatePipeTransport(t *testing.T) {
 	videoProducer.Pause()
 
 	t.Run("enable rtx", func(t *testing.T) {
-		myMock := new(MockedHandler)
-		defer myMock.AssertExpectations(t)
+		mymock := new(MockedHandler)
+		defer mymock.AssertExpectations(t)
 
-		myMock.On("OnNewTransport", mock.IsType(&Transport{}))
-		router1.OnNewTransport(myMock.OnNewTransport)
+		mymock.On("OnNewTransport", mock.IsType(context.Background()), mock.IsType(&Transport{}))
+		router1.OnNewTransport(mymock.OnNewTransport)
 
 		pipeTransport, err := router1.CreatePipeTransport(&PipeTransportOptions{
 			ListenInfo: TransportListenInfo{Ip: "127.0.0.1"},
@@ -417,14 +418,14 @@ func TestCreatePipeTransport(t *testing.T) {
 }
 
 func TestCreateDirectTransport(t *testing.T) {
-	myMock := new(MockedHandler)
-	defer myMock.AssertExpectations(t)
+	mymock := new(MockedHandler)
+	defer mymock.AssertExpectations(t)
 
-	myMock.On("OnNewTransport", mock.IsType(&Transport{})).Once()
+	mymock.On("OnNewTransport", mock.IsType(context.Background()), mock.IsType(&Transport{})).Once()
 
 	worker := newTestWorker()
 	router, _ := worker.CreateRouter(&RouterOptions{})
-	router.OnNewTransport(myMock.OnNewTransport)
+	router.OnNewTransport(mymock.OnNewTransport)
 	transport, err := router.CreateDirectTransport(&DirectTransportOptions{})
 	require.NoError(t, err)
 	dump, _ := router.Dump()
@@ -432,14 +433,14 @@ func TestCreateDirectTransport(t *testing.T) {
 }
 
 func TestCreateActiveSpeakerObserver(t *testing.T) {
-	myMock := new(MockedHandler)
-	defer myMock.AssertExpectations(t)
+	mymock := new(MockedHandler)
+	defer mymock.AssertExpectations(t)
 
-	myMock.On("OnNewRtpObserver", mock.IsType(&RtpObserver{})).Once()
+	mymock.On("OnNewRtpObserver", mock.IsType(context.Background()), mock.IsType(&RtpObserver{})).Once()
 
 	worker := newTestWorker()
 	router, _ := worker.CreateRouter(&RouterOptions{})
-	router.OnNewRtpObserver(myMock.OnNewRtpObserver)
+	router.OnNewRtpObserver(mymock.OnNewRtpObserver)
 	rtpObserver, err := router.CreateActiveSpeakerObserver()
 	require.NoError(t, err)
 	assert.NotEmpty(t, rtpObserver.Id())
@@ -453,14 +454,14 @@ func TestCreateActiveSpeakerObserver(t *testing.T) {
 }
 
 func TestCreateAudioLevelObserver(t *testing.T) {
-	myMock := new(MockedHandler)
-	defer myMock.AssertExpectations(t)
+	mymock := new(MockedHandler)
+	defer mymock.AssertExpectations(t)
 
-	myMock.On("OnNewRtpObserver", mock.IsType(&RtpObserver{})).Once()
+	mymock.On("OnNewRtpObserver", mock.IsType(context.Background()), mock.IsType(&RtpObserver{})).Once()
 
 	worker := newTestWorker()
 	router, _ := worker.CreateRouter(&RouterOptions{})
-	router.OnNewRtpObserver(myMock.OnNewRtpObserver)
+	router.OnNewRtpObserver(mymock.OnNewRtpObserver)
 	rtpObserver, err := router.CreateAudioLevelObserver()
 	require.NoError(t, err)
 	assert.NotEmpty(t, rtpObserver.Id())

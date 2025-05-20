@@ -1,6 +1,7 @@
 package mediasoup
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -8,6 +9,7 @@ import (
 	FbsNotification "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/Notification"
 	FbsProducer "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/Producer"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 )
 
 func createAudioProducer(tranpsort *Transport) *Producer {
@@ -255,25 +257,25 @@ func TestProducerHandlers(t *testing.T) {
 	transport := createWebRtcTransport(nil)
 	videoProducer := createVideoProducer(transport)
 
-	mock := new(MockedHandler)
-	defer mock.AssertExpectations(t)
+	mymock := new(MockedHandler)
+	defer mymock.AssertExpectations(t)
 
-	mock.On("OnProducerScore", []ProducerScore{
+	mymock.On("OnProducerScore", []ProducerScore{
 		{Ssrc: 11, Score: 10},
 	})
-	mock.On("OnProducerScore", []ProducerScore{
+	mymock.On("OnProducerScore", []ProducerScore{
 		{EncodingIdx: 0, Ssrc: 11, Score: 9},
 		{EncodingIdx: 1, Ssrc: 22, Score: 8},
 	})
-	mock.On("OnProducerScore", []ProducerScore{
+	mymock.On("OnProducerScore", []ProducerScore{
 		{EncodingIdx: 0, Ssrc: 11, Score: 9},
 		{EncodingIdx: 1, Ssrc: 22, Score: 9},
 	})
 
 	channel := videoProducer.channel
-	videoProducer.OnScore(mock.OnProducerScore)
-	videoProducer.OnVideoOrientationChange(mock.OnProducerVideoOrientation)
-	videoProducer.OnTrace(mock.OnProducerEventTrace)
+	videoProducer.OnScore(mymock.OnProducerScore)
+	videoProducer.OnVideoOrientationChange(mymock.OnProducerVideoOrientation)
+	videoProducer.OnTrace(mymock.OnProducerEventTrace)
 
 	channel.ProcessNotificationForTesting(&FbsNotification.NotificationT{
 		HandlerId: videoProducer.Id(),
@@ -314,7 +316,7 @@ func TestProducerHandlers(t *testing.T) {
 		},
 	})
 
-	mock.On("OnProducerVideoOrientation", ProducerVideoOrientation{})
+	mymock.On("OnProducerVideoOrientation", ProducerVideoOrientation{})
 
 	channel.ProcessNotificationForTesting(&FbsNotification.NotificationT{
 		HandlerId: videoProducer.Id(),
@@ -325,7 +327,7 @@ func TestProducerHandlers(t *testing.T) {
 		},
 	})
 
-	mock.On("OnProducerEventTrace", ProducerTraceEventData{
+	mymock.On("OnProducerEventTrace", ProducerTraceEventData{
 		Type:      ProducerTraceEventRtp,
 		Direction: "out",
 		Timestamp: 123456789,
@@ -350,15 +352,15 @@ func TestProducerHandlers(t *testing.T) {
 
 func TestProducerClose(t *testing.T) {
 	t.Run("close normally", func(t *testing.T) {
-		mock := new(MockedHandler)
-		defer mock.AssertExpectations(t)
+		mymock := new(MockedHandler)
+		defer mymock.AssertExpectations(t)
 
-		mock.On("OnClose").Times(1)
+		mymock.On("OnClose", mock.IsType(context.Background())).Once()
 
 		router := createRouter(nil)
 		transport := createWebRtcTransport(router)
 		audioProducer := createAudioProducer(transport)
-		audioProducer.OnClose(mock.OnClose)
+		audioProducer.OnClose(mymock.OnClose)
 
 		err := audioProducer.Close()
 		assert.NoError(t, err)
@@ -388,30 +390,30 @@ func TestProducerClose(t *testing.T) {
 	})
 
 	t.Run("transport closed", func(t *testing.T) {
-		mock := new(MockedHandler)
-		defer mock.AssertExpectations(t)
+		mymock := new(MockedHandler)
+		defer mymock.AssertExpectations(t)
 
-		mock.On("OnClose").Times(1)
+		mymock.On("OnClose", mock.IsType(context.Background())).Once()
 
 		router := createRouter(nil)
 		transport := createWebRtcTransport(router)
 		audioProducer := createAudioProducer(transport)
-		audioProducer.OnClose(mock.OnClose)
+		audioProducer.OnClose(mymock.OnClose)
 
 		transport.Close()
 		assert.True(t, audioProducer.Closed())
 	})
 
 	t.Run("router closed", func(t *testing.T) {
-		mock := new(MockedHandler)
-		defer mock.AssertExpectations(t)
+		mymock := new(MockedHandler)
+		defer mymock.AssertExpectations(t)
 
-		mock.On("OnClose").Times(1)
+		mymock.On("OnClose", mock.IsType(context.Background())).Once()
 
 		router := createRouter(nil)
 		transport := createWebRtcTransport(router)
 		audioProducer := createAudioProducer(transport)
-		audioProducer.OnClose(mock.OnClose)
+		audioProducer.OnClose(mymock.OnClose)
 
 		router.Close()
 		assert.True(t, audioProducer.Closed())

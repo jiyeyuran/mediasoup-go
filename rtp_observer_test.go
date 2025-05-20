@@ -1,6 +1,7 @@
 package mediasoup
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -8,6 +9,7 @@ import (
 	FbsAudioLevelObserver "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/AudioLevelObserver"
 	FbsNotification "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/Notification"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 )
 
 func TestRtpObserverPauseAndResume(t *testing.T) {
@@ -37,16 +39,16 @@ func TestRtpOberverAddAndRemoveProducer(t *testing.T) {
 
 func TestRtpObserverClose(t *testing.T) {
 	t.Run("close normally", func(t *testing.T) {
-		mock := new(MockedHandler)
-		defer mock.AssertExpectations(t)
+		mymock := new(MockedHandler)
+		defer mymock.AssertExpectations(t)
 
-		mock.On("OnClose").Times(1)
+		mymock.On("OnClose", mock.IsType(context.Background())).Once()
 
 		worker := newTestWorker()
 		router := createRouter(worker)
 
 		o, _ := router.CreateActiveSpeakerObserver()
-		o.OnClose(mock.OnClose)
+		o.OnClose(mymock.OnClose)
 
 		err := o.Close()
 		assert.NoError(t, err)
@@ -54,32 +56,32 @@ func TestRtpObserverClose(t *testing.T) {
 	})
 
 	t.Run("router closed", func(t *testing.T) {
-		mock := new(MockedHandler)
-		defer mock.AssertExpectations(t)
+		mymock := new(MockedHandler)
+		defer mymock.AssertExpectations(t)
 
-		mock.On("OnClose").Times(1)
+		mymock.On("OnClose", mock.IsType(context.Background())).Once()
 
 		worker := newTestWorker()
 		router := createRouter(worker)
 
 		o, _ := router.CreateActiveSpeakerObserver()
-		o.OnClose(mock.OnClose)
+		o.OnClose(mymock.OnClose)
 
 		router.Close()
 		assert.True(t, o.Closed())
 	})
 
 	t.Run("worker closed", func(t *testing.T) {
-		mock := new(MockedHandler)
-		defer mock.AssertExpectations(t)
+		mymock := new(MockedHandler)
+		defer mymock.AssertExpectations(t)
 
-		mock.On("OnClose").Times(1)
+		mymock.On("OnClose", mock.IsType(context.Background())).Once()
 
 		worker := newTestWorker()
 		router := createRouter(worker)
 
 		o, _ := router.CreateActiveSpeakerObserver()
-		o.OnClose(mock.OnClose)
+		o.OnClose(mymock.OnClose)
 
 		worker.Close()
 
@@ -88,8 +90,8 @@ func TestRtpObserverClose(t *testing.T) {
 }
 
 func TestRtpObserverNotification(t *testing.T) {
-	mock := new(MockedHandler)
-	defer mock.AssertExpectations(t)
+	mymock := new(MockedHandler)
+	defer mymock.AssertExpectations(t)
 
 	router := createRouter(nil)
 	producer := createAudioProducer(createWebRtcTransport(router))
@@ -97,14 +99,14 @@ func TestRtpObserverNotification(t *testing.T) {
 	speaker := AudioLevelObserverDominantSpeaker{Producer: producer}
 	volumes := []AudioLevelObserverVolume{{Producer: producer, Volume: -10}}
 
-	mock.On("OnDominantSpeaker", speaker)
-	mock.On("OnSilence")
-	mock.On("OnVolume", volumes)
+	mymock.On("OnDominantSpeaker", speaker)
+	mymock.On("OnSilence")
+	mymock.On("OnVolume", volumes)
 
 	o, _ := router.CreateActiveSpeakerObserver()
-	o.OnDominantSpeaker(mock.OnDominantSpeaker)
-	o.OnSilence(mock.OnSilence)
-	o.OnVolume(mock.OnVolume)
+	o.OnDominantSpeaker(mymock.OnDominantSpeaker)
+	o.OnSilence(mymock.OnSilence)
+	o.OnVolume(mymock.OnVolume)
 
 	o.channel.ProcessNotificationForTesting(&FbsNotification.NotificationT{
 		HandlerId: o.Id(),

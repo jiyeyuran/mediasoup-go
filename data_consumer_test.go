@@ -1,11 +1,13 @@
 package mediasoup
 
 import (
+	"context"
 	"slices"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 )
 
 func createDataConsumer(transport *Transport, dataProucerId string, options ...func(*DataConsumerOptions)) *DataConsumer {
@@ -105,10 +107,10 @@ func TestDataConsumerGetStats(t *testing.T) {
 
 func TestDataConsumerClose(t *testing.T) {
 	t.Run("close normally", func(t *testing.T) {
-		mock := new(MockedHandler)
-		defer mock.AssertExpectations(t)
+		mymock := new(MockedHandler)
+		defer mymock.AssertExpectations(t)
 
-		mock.On("OnClose").Times(1)
+		mymock.On("OnClose", mock.IsType(context.Background())).Once()
 
 		router := createRouter(nil)
 		transport := createDirectTransport(router)
@@ -118,7 +120,7 @@ func TestDataConsumerClose(t *testing.T) {
 			MaxPacketLifeTime: 4000,
 			AppData:           H{"baz": "LOL"},
 		})
-		dataConsumer.OnClose(mock.OnClose)
+		dataConsumer.OnClose(mymock.OnClose)
 
 		err := dataConsumer.Close()
 		assert.NoError(t, err)
@@ -147,10 +149,13 @@ func TestDataConsumerClose(t *testing.T) {
 	})
 
 	t.Run("dataProducer closed", func(t *testing.T) {
-		mock := new(MockedHandler)
-		defer mock.AssertExpectations(t)
+		mymock := new(MockedHandler)
+		defer mymock.AssertExpectations(t)
 
-		mock.On("OnClose").Times(1)
+		ctx := context.WithValue(context.Background(), "key", "value")
+
+		mymock.On("OnClose", ctx).Once()
+		mymock.On("OnDataProducerClose", ctx).Once()
 
 		router := createRouter(nil)
 		transport := createDirectTransport(router)
@@ -160,17 +165,18 @@ func TestDataConsumerClose(t *testing.T) {
 			MaxPacketLifeTime: 4000,
 			AppData:           H{"baz": "LOL"},
 		})
-		dataConsumer.OnClose(mock.OnClose)
-		dataProducer.Close()
+		dataConsumer.OnClose(mymock.OnClose)
+		dataConsumer.OnDataProducerClose(mymock.OnDataProducerClose)
+		dataProducer.CloseContext(ctx)
 		time.Sleep(time.Millisecond)
 		assert.True(t, dataConsumer.Closed())
 	})
 
 	t.Run("transport closed", func(t *testing.T) {
-		mock := new(MockedHandler)
-		defer mock.AssertExpectations(t)
+		mymock := new(MockedHandler)
+		defer mymock.AssertExpectations(t)
 
-		mock.On("OnClose").Times(1)
+		mymock.On("OnClose", mock.IsType(context.Background())).Once()
 
 		router := createRouter(nil)
 		transport := createDirectTransport(router)
@@ -180,17 +186,17 @@ func TestDataConsumerClose(t *testing.T) {
 			MaxPacketLifeTime: 4000,
 			AppData:           H{"baz": "LOL"},
 		})
-		dataConsumer.OnClose(mock.OnClose)
+		dataConsumer.OnClose(mymock.OnClose)
 		transport.Close()
 		assert.True(t, dataConsumer.Closed())
 		time.Sleep(time.Millisecond)
 	})
 
 	t.Run("router closed", func(t *testing.T) {
-		mock := new(MockedHandler)
-		defer mock.AssertExpectations(t)
+		mymock := new(MockedHandler)
+		defer mymock.AssertExpectations(t)
 
-		mock.On("OnClose").Times(1)
+		mymock.On("OnClose", mock.IsType(context.Background())).Once()
 
 		router := createRouter(nil)
 		transport := createDirectTransport(router)
@@ -200,7 +206,7 @@ func TestDataConsumerClose(t *testing.T) {
 			MaxPacketLifeTime: 4000,
 			AppData:           H{"baz": "LOL"},
 		})
-		dataConsumer.OnClose(mock.OnClose)
+		dataConsumer.OnClose(mymock.OnClose)
 		router.Close()
 		assert.True(t, dataConsumer.Closed())
 	})

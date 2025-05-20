@@ -18,6 +18,7 @@ import (
 	FbsNotification "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/Notification"
 	FbsRequest "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/Request"
 	FbsResponse "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/Response"
+	FbsTransport "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/Transport"
 )
 
 const (
@@ -26,6 +27,21 @@ const (
 	MaxMessageLen    = 4194308
 	MaxRequestId     = 4294967295
 )
+
+var methodEventMap = map[FbsRequest.Method]FbsNotification.Event{
+	FbsRequest.MethodTRANSPORT_CLOSE_PRODUCER:     FbsNotification.EventCONSUMER_PRODUCER_CLOSE,
+	FbsRequest.MethodPRODUCER_PAUSE:               FbsNotification.EventCONSUMER_PRODUCER_PAUSE,
+	FbsRequest.MethodPRODUCER_RESUME:              FbsNotification.EventCONSUMER_PRODUCER_RESUME,
+	FbsRequest.MethodTRANSPORT_CLOSE_DATAPRODUCER: FbsNotification.EventDATACONSUMER_DATAPRODUCER_CLOSE,
+	FbsRequest.MethodDATAPRODUCER_PAUSE:           FbsNotification.EventDATACONSUMER_DATAPRODUCER_PAUSE,
+	FbsRequest.MethodDATAPRODUCER_RESUME:          FbsNotification.EventDATACONSUMER_DATAPRODUCER_RESUME,
+}
+
+type listNode struct {
+	value *WrappedContext
+	prev  *listNode
+	next  *listNode
+}
 
 type Channel struct {
 	mu          sync.RWMutex
@@ -45,6 +61,7 @@ type Channel struct {
 	logger      *slog.Logger
 	timeout     time.Duration
 	closed      bool
+	contextList *listNode
 }
 
 func NewChannel(w io.WriteCloser, r io.ReadCloser, logger *slog.Logger) *Channel {
@@ -62,6 +79,7 @@ func NewChannel(w io.WriteCloser, r io.ReadCloser, logger *slog.Logger) *Channel
 		responsesCh: make(map[uint32]chan *FbsResponse.ResponseT),
 		timeout:     RequestTimeout,
 		logger:      logger,
+		contextList: &listNode{},
 	}
 }
 
@@ -165,7 +183,7 @@ func (c *Channel) Request(ctx context.Context, req *FbsRequest.RequestT) (any, e
 		c.mu.Unlock()
 		return nil, err
 	}
-
+	defer c.maySaveContextLocked(ctx, req)()
 	c.mu.Unlock()
 
 	timer := c.timerPool.Get().(*time.Timer)
@@ -220,15 +238,18 @@ func (c *Channel) Subscribe(subj string, cb Handler) *Subscription {
 
 func (c *Channel) Close(ctx context.Context) {
 	c.mu.Lock()
-	defer c.mu.Unlock()
 
 	if c.closed {
+		c.mu.Unlock()
 		return
 	}
+	c.closed = true
 	c.logger.DebugContext(ctx, "Close()")
 
 	c.w.Close()
 	c.r.Close()
+
+	c.mu.Unlock()
 
 	// wait for readLoop to finish
 	c.waitGroup.Wait()
@@ -246,8 +267,6 @@ func (c *Channel) Close(ctx context.Context) {
 	for _, ch := range c.responsesCh {
 		close(ch)
 	}
-
-	c.closed = true
 }
 
 // Closed tests if Channel has been closed.
@@ -290,7 +309,7 @@ func (c *Channel) waitForMsgs(s *Subscription) {
 
 		// Deliver the message.
 		if m != nil && (max == 0 || delivered <= max) {
-			mcb(m.Data.Event, m.Data.Body)
+			mcb(m.Context, m.Data)
 		}
 		// If we have hit the max for delivered msgs, remove sub.
 		if max > 0 && delivered >= max {
@@ -427,10 +446,10 @@ func (c *Channel) processNotification(notification *FbsNotification.Notification
 	}
 
 	for _, sub := range subs {
+		m := &Msg{Context: c.getContext(notification.Event), Data: notification}
 		sub.once.Do(func() {
 			go c.waitForMsgs(sub)
 		})
-		m := &Msg{Data: notification}
 		sub.mu.Lock()
 		// Push onto the async pList
 		if sub.pHead == nil {
@@ -467,4 +486,58 @@ func (c *Channel) processLog(log *FbsLog.LogT) {
 
 func (c *Channel) ProcessNotificationForTesting(notification *FbsNotification.NotificationT) {
 	c.processNotification(notification, 0)
+}
+
+func (c *Channel) maySaveContextLocked(ctx context.Context, req *FbsRequest.RequestT) (cleanup func()) {
+	event, ok := methodEventMap[req.Method]
+	if !ok {
+		return func() {}
+	}
+	handlerID := req.HandlerId
+
+	switch req.Method {
+	case FbsRequest.MethodTRANSPORT_CLOSE_PRODUCER:
+		handlerID = req.Body.Value.(*FbsTransport.CloseProducerRequestT).ProducerId
+
+	case FbsRequest.MethodTRANSPORT_CLOSE_DATAPRODUCER:
+		handlerID = req.Body.Value.(*FbsTransport.CloseDataProducerRequestT).DataProducerId
+	}
+
+	node := &listNode{
+		value: &WrappedContext{
+			Event:     event,
+			HandlerId: handlerID,
+			Context:   ctx,
+		},
+	}
+	tail := c.contextList
+	for tail.next != nil {
+		tail = tail.next
+	}
+	tail.next = node
+	node.prev = tail
+
+	return func() {
+		c.mu.Lock()
+		defer c.mu.Unlock()
+
+		if node.prev.next = node.next; node.next != nil {
+			node.next.prev = node.prev
+		}
+	}
+}
+
+func (c *Channel) getContext(event FbsNotification.Event) context.Context {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	ctx := context.Background()
+
+	for node := c.contextList.next; node != nil; node = node.next {
+		if node.value.Event == event {
+			return withWrappedContext(ctx, node.value)
+		}
+	}
+
+	return ctx
 }

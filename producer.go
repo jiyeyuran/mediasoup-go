@@ -35,7 +35,8 @@ type Producer struct {
 	data                            *producerData
 	score                           []ProducerScore
 	closed                          bool
-	pausedListeners                 []func(bool)
+	pauseListeners                  []func(context.Context)
+	resumeListeners                 []func(context.Context)
 	scoreListeners                  []func([]ProducerScore)
 	videoOrientationChangeListeners []func(ProducerVideoOrientation)
 	traceListeners                  []func(ProducerTraceEventData)
@@ -136,7 +137,7 @@ func (p *Producer) CloseContext(ctx context.Context) error {
 	p.closed = true
 	p.mu.Unlock()
 
-	p.cleanupAfterClosed()
+	p.cleanupAfterClosed(ctx)
 	return nil
 }
 
@@ -225,13 +226,13 @@ func (p *Producer) PauseContext(ctx context.Context) error {
 		return err
 	}
 	wasPaused := p.data.Paused
-	listeners := p.pausedListeners
+	listeners := p.pauseListeners
 	p.data.Paused = true
 	p.mu.Unlock()
 
 	if !wasPaused {
 		for _, listener := range listeners {
-			listener(true)
+			listener(ctx)
 		}
 	}
 
@@ -257,14 +258,14 @@ func (p *Producer) ResumeContext(ctx context.Context) error {
 		return err
 	}
 	wasPaused := p.data.Paused
-	listeners := p.pausedListeners
+	listeners := p.resumeListeners
 	p.data.Paused = false
 
 	p.mu.Unlock()
 
 	if wasPaused {
 		for _, listener := range listeners {
-			listener(false)
+			listener(ctx)
 		}
 	}
 
@@ -319,36 +320,46 @@ func (p *Producer) SendContext(ctx context.Context, rtpPacket []byte) error {
 	})
 }
 
-// OnPause add handler on "pause/resume" event.
-func (p *Producer) OnPause(handler func(paused bool)) {
+// OnPause add listener on "pause" event.
+func (p *Producer) OnPause(listener func(ctx context.Context)) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
+
+	p.pauseListeners = append(p.pauseListeners, listener)
 }
 
-// OnScore add handler on "score" event
-func (p *Producer) OnScore(handler func(score []ProducerScore)) {
+// OnPause add listener on "resume" event.
+func (p *Producer) OnResume(listener func(ctx context.Context)) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	p.scoreListeners = append(p.scoreListeners, handler)
+
+	p.resumeListeners = append(p.resumeListeners, listener)
 }
 
-// OnVideoOrientationChange add handler on "videoorientationchange" event
-func (p *Producer) OnVideoOrientationChange(handler func(videoOrientation ProducerVideoOrientation)) {
+// OnScore add listener on "score" event
+func (p *Producer) OnScore(listener func(score []ProducerScore)) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	p.videoOrientationChangeListeners = append(p.videoOrientationChangeListeners, handler)
+	p.scoreListeners = append(p.scoreListeners, listener)
 }
 
-// OnTrace add handler on "trace" event
-func (p *Producer) OnTrace(handler func(trace ProducerTraceEventData)) {
+// OnVideoOrientationChange add listener on "videoorientationchange" event
+func (p *Producer) OnVideoOrientationChange(listener func(videoOrientation ProducerVideoOrientation)) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	p.traceListeners = append(p.traceListeners, handler)
+	p.videoOrientationChangeListeners = append(p.videoOrientationChangeListeners, listener)
+}
+
+// OnTrace add listener on "trace" event
+func (p *Producer) OnTrace(listener func(trace ProducerTraceEventData)) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.traceListeners = append(p.traceListeners, listener)
 }
 
 func (p *Producer) handleWorkerNotifications() {
-	p.sub = p.channel.Subscribe(p.Id(), func(event FbsNotification.Event, body *FbsNotification.BodyT) {
-		switch event {
+	p.sub = p.channel.Subscribe(p.Id(), func(ctx context.Context, notification *FbsNotification.NotificationT) {
+		switch event, body := notification.Event, notification.Body; event {
 		case FbsNotification.EventPRODUCER_SCORE:
 			Notification := body.Value.(*FbsProducer.ScoreNotificationT)
 			scores := collect(Notification.Scores, func(score *FbsProducer.ScoreT) ProducerScore {
@@ -409,7 +420,7 @@ func (p *Producer) handleWorkerNotifications() {
 }
 
 // transportClosed is called when transport closed.
-func (p *Producer) transportClosed() {
+func (p *Producer) transportClosed(ctx context.Context) {
 	p.mu.Lock()
 	if p.closed {
 		p.mu.Unlock()
@@ -417,14 +428,14 @@ func (p *Producer) transportClosed() {
 	}
 	p.closed = true
 	p.mu.Unlock()
-	p.logger.Debug("transportClosed()")
+	p.logger.DebugContext(ctx, "transportClosed()")
 
-	p.cleanupAfterClosed()
+	p.cleanupAfterClosed(ctx)
 }
 
-func (p *Producer) cleanupAfterClosed() {
+func (p *Producer) cleanupAfterClosed(ctx context.Context) {
 	p.sub.Unsubscribe()
-	p.notifyClosed()
+	p.notifyClosed(ctx)
 }
 
 func parseProducerTraceInfo(info *FbsProducer.TraceInfoT) any {

@@ -1,9 +1,11 @@
 package mediasoup
 
 import (
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 )
 
 func createDataProducer(transport *Transport) *DataProducer {
@@ -71,10 +73,10 @@ func TestDataProducerDumpSucceeds(t *testing.T) {
 
 func TestDataProducerClose(t *testing.T) {
 	t.Run("close normally", func(t *testing.T) {
-		mock := new(MockedHandler)
-		defer mock.AssertExpectations(t)
+		mymock := new(MockedHandler)
+		defer mymock.AssertExpectations(t)
 
-		mock.On("OnClose").Times(1)
+		mymock.On("OnClose", mock.IsType(context.Background())).Once()
 
 		router := createRouter(nil)
 		transport := createDirectTransport(router)
@@ -83,7 +85,7 @@ func TestDataProducerClose(t *testing.T) {
 				StreamId: 666,
 			},
 		})
-		dataProducer.OnClose(mock.OnClose)
+		dataProducer.OnClose(mymock.OnClose)
 		err := dataProducer.Close()
 		assert.NoError(t, err)
 		assert.True(t, dataProducer.Closed())
@@ -104,10 +106,10 @@ func TestDataProducerClose(t *testing.T) {
 	})
 
 	t.Run("transport closed", func(t *testing.T) {
-		mock := new(MockedHandler)
-		defer mock.AssertExpectations(t)
+		mymock := new(MockedHandler)
+		defer mymock.AssertExpectations(t)
 
-		mock.On("OnClose").Times(1)
+		mymock.On("OnClose", mock.IsType(context.Background())).Once()
 
 		router := createRouter(nil)
 		transport := createDirectTransport(router)
@@ -116,16 +118,16 @@ func TestDataProducerClose(t *testing.T) {
 				StreamId: 666,
 			},
 		})
-		dataProducer.OnClose(mock.OnClose)
+		dataProducer.OnClose(mymock.OnClose)
 		transport.Close()
 		assert.True(t, dataProducer.Closed())
 	})
 
 	t.Run("router closed", func(t *testing.T) {
-		mock := new(MockedHandler)
-		defer mock.AssertExpectations(t)
+		mymock := new(MockedHandler)
+		defer mymock.AssertExpectations(t)
 
-		mock.On("OnClose").Times(1)
+		mymock.On("OnClose", mock.IsType(context.Background())).Once()
 
 		router := createRouter(nil)
 		transport := createDirectTransport(router)
@@ -134,7 +136,7 @@ func TestDataProducerClose(t *testing.T) {
 				StreamId: 666,
 			},
 		})
-		dataProducer.OnClose(mock.OnClose)
+		dataProducer.OnClose(mymock.OnClose)
 		router.Close()
 		assert.True(t, dataProducer.Closed())
 	})

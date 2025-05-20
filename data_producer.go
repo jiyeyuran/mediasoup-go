@@ -31,7 +31,8 @@ type DataProducer struct {
 	channel         *channel.Channel
 	data            *dataProducerData
 	closed          bool
-	pausedListeners []func(bool)
+	pauseListeners  []func(context.Context)
+	resumeListeners []func(context.Context)
 	logger          *slog.Logger
 }
 
@@ -118,7 +119,7 @@ func (p *DataProducer) CloseContext(ctx context.Context) error {
 	p.closed = true
 	p.mu.Unlock()
 
-	p.notifyClosed()
+	p.notifyClosed(ctx)
 
 	return nil
 }
@@ -207,13 +208,13 @@ func (p *DataProducer) PauseContext(ctx context.Context) error {
 		return err
 	}
 	wasPaused := p.data.Paused
-	listeners := p.pausedListeners
+	listeners := p.pauseListeners
 	p.data.Paused = true
 	p.mu.Unlock()
 
 	if !wasPaused {
 		for _, listener := range listeners {
-			listener(true)
+			listener(ctx)
 		}
 	}
 
@@ -239,25 +240,34 @@ func (p *DataProducer) ResumeContext(ctx context.Context) error {
 		return err
 	}
 	wasPaused := p.data.Paused
-	listeners := p.pausedListeners
+	listeners := p.resumeListeners
 	p.data.Paused = false
 
 	p.mu.Unlock()
 
 	if wasPaused {
 		for _, listener := range listeners {
-			listener(false)
+			listener(ctx)
 		}
 	}
 
 	return err
 }
 
-func (p *DataProducer) OnPaused(f func(bool)) {
+// OnPause add listener on "pause" event.
+func (p *DataProducer) OnPause(f func(context.Context)) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	p.pausedListeners = append(p.pausedListeners, f)
+	p.pauseListeners = append(p.pauseListeners, f)
+}
+
+// OnResume add listener on "resume" event.
+func (p *DataProducer) OnResume(f func(context.Context)) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	p.resumeListeners = append(p.resumeListeners, f)
 }
 
 // Send send binary data.
@@ -306,7 +316,7 @@ func (p *DataProducer) send(ctx context.Context, data []byte, ppid SctpPayloadTy
 	})
 }
 
-func (p *DataProducer) transportClosed() {
+func (p *DataProducer) transportClosed(ctx context.Context) {
 	p.mu.Lock()
 	if p.closed {
 		p.mu.Unlock()
@@ -314,7 +324,7 @@ func (p *DataProducer) transportClosed() {
 	}
 	p.closed = true
 	p.mu.Unlock()
-	p.logger.Debug("transportClosed()")
+	p.logger.DebugContext(ctx, "transportClosed()")
 
-	p.notifyClosed()
+	p.notifyClosed(ctx)
 }
