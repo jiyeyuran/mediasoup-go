@@ -997,6 +997,7 @@ func (r *Router) workerClosed() {
 	}
 	r.closed = true
 	r.mu.Unlock()
+	r.logger.Debug("workerClosed()")
 
 	r.cleanupAfterClosed()
 }
