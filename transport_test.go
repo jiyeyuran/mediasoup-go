@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 )
 
 func createWebRtcTransport(router *Router, options ...func(o *WebRtcTransportOptions)) *Transport {
@@ -216,8 +217,14 @@ func TestTransportEnableTraceEvent(t *testing.T) {
 }
 
 func TestTransportProduce(t *testing.T) {
+	myMock := new(MockedHandler)
+	defer myMock.AssertExpectations(t)
+
+	myMock.On("OnNewProducer", mock.IsType(&Producer{})).Times(2)
+
 	router := createRouter(nil)
 	transport := createWebRtcTransport(router)
+	transport.OnNewProducer(myMock.OnNewProducer)
 	aproducer := createAudioProducer(transport)
 	vproducer := createVideoProducer(transport)
 
@@ -444,8 +451,14 @@ func TestTransportProduceError(t *testing.T) {
 }
 
 func TestTransportConsume(t *testing.T) {
+	myMock := new(MockedHandler)
+	defer myMock.AssertExpectations(t)
+
+	myMock.On("OnNewConsumer", mock.IsType(&Consumer{})).Times(3)
+
 	router := createRouter(nil)
 	transport := createWebRtcTransport(router)
+	transport.OnNewConsumer(myMock.OnNewConsumer)
 	aproducer := createAudioProducer(transport)
 	aconsumer := createConsumer(transport, aproducer.Id())
 
@@ -694,11 +707,17 @@ func TestTransportConsumeUnsupportedError(t *testing.T) {
 }
 
 func TestTransportProduceData(t *testing.T) {
+	myMock := new(MockedHandler)
+	defer myMock.AssertExpectations(t)
+
+	myMock.On("OnNewDataProducer", mock.IsType(&DataProducer{})).Times(2)
+
 	router := createRouter(newTestWorker())
 	transport1 := createWebRtcTransport(router, func(o *WebRtcTransportOptions) { o.EnableSctp = true })
 	transport2 := createPlainTransport(router, func(o *PlainTransportOptions) { o.EnableSctp = true })
 
 	for i, transport := range []*Transport{transport1, transport2} {
+		transport.OnNewDataProducer(myMock.OnNewDataProducer)
 		dataProducer, err := transport.ProduceData(&DataProducerOptions{
 			SctpStreamParameters: &SctpStreamParameters{StreamId: uint16(i + 1), MaxRetransmits: ref[uint16](3)},
 			Label:                "foo",
@@ -756,6 +775,11 @@ func TestTransportProduceData(t *testing.T) {
 }
 
 func TestTransportConsumeData(t *testing.T) {
+	myMock := new(MockedHandler)
+	defer myMock.AssertExpectations(t)
+
+	myMock.On("OnNewDataConsumer", mock.IsType(&DataConsumer{})).Times(2)
+
 	worker := newTestWorker()
 	router1 := createRouter(worker)
 	router2 := createRouter(worker)
@@ -766,6 +790,7 @@ func TestTransportConsumeData(t *testing.T) {
 		transport1: router1,
 		transport2: router2,
 	} {
+		transport.OnNewDataConsumer(myMock.OnNewDataConsumer)
 		dataProducer, _ := transport.ProduceData(&DataProducerOptions{
 			SctpStreamParameters: &SctpStreamParameters{
 				StreamId:          12345,

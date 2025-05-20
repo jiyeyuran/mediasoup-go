@@ -8,6 +8,38 @@ type MockedHandler struct {
 	mock.Mock
 }
 
+func (m *MockedHandler) OnNewWebRtcServer(arg1 *WebRtcServer) {
+	m.Called(arg1)
+}
+
+func (m *MockedHandler) OnNewRouter(arg1 *Router) {
+	m.Called(arg1)
+}
+
+func (m *MockedHandler) OnNewRtpObserver(arg1 *RtpObserver) {
+	m.Called(arg1)
+}
+
+func (m *MockedHandler) OnNewTransport(arg1 *Transport) {
+	m.Called(arg1)
+}
+
+func (m *MockedHandler) OnNewProducer(arg1 *Producer) {
+	m.Called(arg1)
+}
+
+func (m *MockedHandler) OnNewConsumer(arg1 *Consumer) {
+	m.Called(arg1)
+}
+
+func (m *MockedHandler) OnNewDataProducer(arg1 *DataProducer) {
+	m.Called(arg1)
+}
+
+func (m *MockedHandler) OnNewDataConsumer(arg1 *DataConsumer) {
+	m.Called(arg1)
+}
+
 func (m *MockedHandler) OnClose() {
 	m.Called()
 }

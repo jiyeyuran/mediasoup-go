@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sync/errgroup"
 )
@@ -81,8 +82,14 @@ func TestRouterDump(t *testing.T) {
 }
 
 func TestCreateWebRtcTransport(t *testing.T) {
+	myMock := new(MockedHandler)
+	defer myMock.AssertExpectations(t)
+
+	myMock.On("OnNewTransport", mock.IsType(&Transport{})).Times(2)
+
 	worker := newTestWorker()
 	router, _ := worker.CreateRouter(&RouterOptions{})
+	router.OnNewTransport(myMock.OnNewTransport)
 	transport1, err := router.CreateWebRtcTransport(&WebRtcTransportOptions{
 		ListenInfos: []TransportListenInfo{
 			{Ip: "127.0.0.1"},
@@ -152,8 +159,14 @@ func TestCreateWebRtcTransportWithPortRange(t *testing.T) {
 }
 
 func TestCreatePlainTransport(t *testing.T) {
+	myMock := new(MockedHandler)
+	defer myMock.AssertExpectations(t)
+
+	myMock.On("OnNewTransport", mock.IsType(&Transport{})).Once()
+
 	worker := newTestWorker()
 	router, _ := worker.CreateRouter(&RouterOptions{})
+	router.OnNewTransport(myMock.OnNewTransport)
 	transport, err := router.CreatePlainTransport(&PlainTransportOptions{
 		ListenInfo: TransportListenInfo{
 			Ip: "127.0.0.1",
@@ -218,15 +231,13 @@ func TestCreatePipeTransport(t *testing.T) {
 	videoProducer.Pause()
 
 	t.Run("enable rtx", func(t *testing.T) {
-		pipeTransport, err := router1.CreatePipeTransport(&PipeTransportOptions{
-			ListenInfo: TransportListenInfo{Ip: "127.0.0.1"},
-			EnableRtx:  true,
-		})
-		assert.NoError(t, err)
-		assert.Nil(t, pipeTransport.Data().PipeTransportData.SrtpParameters)
+		myMock := new(MockedHandler)
+		defer myMock.AssertExpectations(t)
 
-		// No SRTP enabled so passing srtpParameters must fail.
-		router1.CreatePipeTransport(&PipeTransportOptions{
+		myMock.On("OnNewTransport", mock.IsType(&Transport{}))
+		router1.OnNewTransport(myMock.OnNewTransport)
+
+		pipeTransport, err := router1.CreatePipeTransport(&PipeTransportOptions{
 			ListenInfo: TransportListenInfo{Ip: "127.0.0.1"},
 			EnableRtx:  true,
 		})
@@ -406,8 +417,14 @@ func TestCreatePipeTransport(t *testing.T) {
 }
 
 func TestCreateDirectTransport(t *testing.T) {
+	myMock := new(MockedHandler)
+	defer myMock.AssertExpectations(t)
+
+	myMock.On("OnNewTransport", mock.IsType(&Transport{})).Once()
+
 	worker := newTestWorker()
 	router, _ := worker.CreateRouter(&RouterOptions{})
+	router.OnNewTransport(myMock.OnNewTransport)
 	transport, err := router.CreateDirectTransport(&DirectTransportOptions{})
 	require.NoError(t, err)
 	dump, _ := router.Dump()
@@ -415,8 +432,14 @@ func TestCreateDirectTransport(t *testing.T) {
 }
 
 func TestCreateActiveSpeakerObserver(t *testing.T) {
+	myMock := new(MockedHandler)
+	defer myMock.AssertExpectations(t)
+
+	myMock.On("OnNewRtpObserver", mock.IsType(&RtpObserver{})).Once()
+
 	worker := newTestWorker()
 	router, _ := worker.CreateRouter(&RouterOptions{})
+	router.OnNewRtpObserver(myMock.OnNewRtpObserver)
 	rtpObserver, err := router.CreateActiveSpeakerObserver()
 	require.NoError(t, err)
 	assert.NotEmpty(t, rtpObserver.Id())
@@ -430,8 +453,14 @@ func TestCreateActiveSpeakerObserver(t *testing.T) {
 }
 
 func TestCreateAudioLevelObserver(t *testing.T) {
+	myMock := new(MockedHandler)
+	defer myMock.AssertExpectations(t)
+
+	myMock.On("OnNewRtpObserver", mock.IsType(&RtpObserver{})).Once()
+
 	worker := newTestWorker()
 	router, _ := worker.CreateRouter(&RouterOptions{})
+	router.OnNewRtpObserver(myMock.OnNewRtpObserver)
 	rtpObserver, err := router.CreateAudioLevelObserver()
 	require.NoError(t, err)
 	assert.NotEmpty(t, rtpObserver.Id())

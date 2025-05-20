@@ -16,6 +16,7 @@ import (
 
 type rtpObserverData struct {
 	Id              string
+	Type            RtpObserverType
 	RouterId        string
 	AppData         H
 	GetProducerById func(string) *Producer
@@ -38,7 +39,7 @@ type RtpObserver struct {
 func newRtpObserver(channel *channel.Channel, logger *slog.Logger, data *rtpObserverData) *RtpObserver {
 	r := &RtpObserver{
 		channel: channel,
-		logger:  logger.With("rtpObserverId", data.Id),
+		logger:  logger.With("rtpObserverId", data.Id, "rtpObserverType", data.Type),
 		data:    data,
 	}
 	r.handleWorkerNotifications()
@@ -47,6 +48,10 @@ func newRtpObserver(channel *channel.Channel, logger *slog.Logger, data *rtpObse
 
 func (r *RtpObserver) Id() string {
 	return r.data.Id
+}
+
+func (r *RtpObserver) Type() RtpObserverType {
+	return r.data.Type
 }
 
 func (r *RtpObserver) AppData() H {

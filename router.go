@@ -51,6 +51,9 @@ type Router struct {
 	dataProducers sync.Map
 	dataConsumers sync.Map
 
+	newRtpObserverListeners []func(*RtpObserver)
+	newTransportListeners   []func(*Transport)
+
 	routerPipeMu            sync.Mutex
 	mapRouterPipeTransports map[*Router][2]*Transport
 }
@@ -256,6 +259,7 @@ func (r *Router) CreateActiveSpeakerObserverContext(ctx context.Context, options
 
 	o := &ActiveSpeakerObserverOptions{
 		Interval: 300,
+		AppData:  H{},
 	}
 	for _, option := range options {
 		option(o)
@@ -282,6 +286,7 @@ func (r *Router) CreateActiveSpeakerObserverContext(ctx context.Context, options
 
 	return r.newRtpObserver(&rtpObserverData{
 		Id:              rtpObserverId,
+		Type:            RtpObserverTypeActiveSpeaker,
 		RouterId:        r.Id(),
 		AppData:         o.AppData,
 		GetProducerById: r.GetProducerById,
@@ -299,6 +304,7 @@ func (r *Router) CreateAudioLevelObserverContext(ctx context.Context, options ..
 		MaxEntries: 1,
 		Threshold:  -80,
 		Interval:   1000,
+		AppData:    H{},
 	}
 	for _, option := range options {
 		option(o)
@@ -327,6 +333,7 @@ func (r *Router) CreateAudioLevelObserverContext(ctx context.Context, options ..
 
 	return r.newRtpObserver(&rtpObserverData{
 		Id:              rtpObserverId,
+		Type:            RtpObserverTypeAudioLevel,
 		RouterId:        r.Id(),
 		AppData:         o.AppData,
 		GetProducerById: r.GetProducerById,
@@ -353,7 +360,7 @@ func (r *Router) CreateWebRtcTransportContext(ctx context.Context, options *WebR
 		NumSctpStreams:                  &NumSctpStreams{OS: 1024, MIS: 1024},
 		MaxSctpMessageSize:              262144,
 		SctpSendBufferSize:              262144,
-		AppData:                         options.AppData,
+		AppData:                         H{},
 	}
 	if len(o.ListenInfos) == 0 && o.WebRtcServer == nil {
 		return nil, errors.New("missing webRtcServerId and listenIps (one of them is mandatory)")
@@ -372,6 +379,9 @@ func (r *Router) CreateWebRtcTransportContext(ctx context.Context, options *WebR
 	}
 	if options.SctpSendBufferSize > 0 {
 		o.SctpSendBufferSize = options.SctpSendBufferSize
+	}
+	if options.AppData != nil {
+		o.AppData = options.AppData
 	}
 
 	transportId := uuid()
@@ -518,7 +528,7 @@ func (r *Router) CreatePlainTransportContext(ctx context.Context, options *Plain
 		SctpSendBufferSize: 262144,
 		EnableSrtp:         options.EnableSrtp,
 		SrtpCryptoSuite:    AES_CM_128_HMAC_SHA1_80,
-		AppData:            options.AppData,
+		AppData:            H{},
 	}
 	if options.RtcpMux != nil {
 		o.RtcpMux = options.RtcpMux
@@ -531,6 +541,9 @@ func (r *Router) CreatePlainTransportContext(ctx context.Context, options *Plain
 	}
 	if options.SctpSendBufferSize > 0 {
 		o.SctpSendBufferSize = options.SctpSendBufferSize
+	}
+	if options.AppData != nil {
+		o.AppData = options.AppData
 	}
 
 	transportId := uuid()
@@ -618,7 +631,7 @@ func (r *Router) CreatePipeTransportContext(ctx context.Context, options *PipeTr
 		SctpSendBufferSize: 268435456,
 		EnableSrtp:         options.EnableSrtp,
 		EnableRtx:          options.EnableRtx,
-		AppData:            options.AppData,
+		AppData:            H{},
 	}
 	if options.NumSctpStreams != nil {
 		o.NumSctpStreams = options.NumSctpStreams
@@ -628,6 +641,9 @@ func (r *Router) CreatePipeTransportContext(ctx context.Context, options *PipeTr
 	}
 	if options.SctpSendBufferSize > 0 {
 		o.SctpSendBufferSize = options.SctpSendBufferSize
+	}
+	if options.AppData != nil {
+		o.AppData = options.AppData
 	}
 
 	transportId := uuid()
@@ -699,12 +715,15 @@ func (r *Router) CreateDirectTransportContext(ctx context.Context, options *Dire
 
 	o := &DirectTransportOptions{
 		MaxMessageSize: 262144,
+		AppData:        H{},
 	}
 	if options != nil {
 		if options.MaxMessageSize > 0 {
 			o.MaxMessageSize = options.MaxMessageSize
 		}
-		o.AppData = options.AppData
+		if options.AppData != nil {
+			o.AppData = options.AppData
+		}
 	}
 
 	transportId := uuid()
@@ -989,6 +1008,18 @@ func (r *Router) PipeToRouterContext(ctx context.Context, options *PipeToRouterO
 	}, nil
 }
 
+func (r *Router) OnNewRtpObserver(listener func(*RtpObserver)) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.newRtpObserverListeners = append(r.newRtpObserverListeners, listener)
+}
+
+func (r *Router) OnNewTransport(listener func(*Transport)) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.newTransportListeners = append(r.newTransportListeners, listener)
+}
+
 func (r *Router) workerClosed() {
 	r.mu.Lock()
 	if r.closed {
@@ -1029,9 +1060,9 @@ func (r *Router) cleanupAfterClosed() {
 
 func (r *Router) newRtpObserver(data *rtpObserverData) (*RtpObserver, error) {
 	r.mu.Lock()
-	defer r.mu.Unlock()
 
 	if r.closed {
+		r.mu.Unlock()
 		return nil, ErrRouterClosed
 	}
 
@@ -1041,14 +1072,22 @@ func (r *Router) newRtpObserver(data *rtpObserverData) (*RtpObserver, error) {
 		r.rtpObservers.Delete(rtpObserver.Id())
 	})
 
+	listeners := r.newRtpObserverListeners
+
+	r.mu.Unlock()
+
+	for _, listener := range listeners {
+		listener(rtpObserver)
+	}
+
 	return rtpObserver, nil
 }
 
 func (r *Router) newTransport(data *internalTransportData) (*Transport, error) {
 	r.mu.Lock()
-	defer r.mu.Unlock()
 
 	if r.closed {
+		r.mu.Unlock()
 		return nil, ErrRouterClosed
 	}
 
@@ -1086,6 +1125,14 @@ func (r *Router) newTransport(data *internalTransportData) (*Transport, error) {
 	transport.OnClose(func() {
 		r.transports.Delete(transport.Id())
 	})
+
+	listeners := r.newTransportListeners
+
+	r.mu.Unlock()
+
+	for _, listener := range listeners {
+		listener(transport)
+	}
 
 	return transport, nil
 }

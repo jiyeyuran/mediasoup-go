@@ -1,5 +1,15 @@
 package mediasoup
 
+type RtpObserverType string
+
+const (
+	// RtpObserverTypeActiveSpeaker is the active speaker observer.
+	RtpObserverTypeActiveSpeaker RtpObserverType = "ActiveSpeaker"
+
+	// RtpObserverTypeAudioLevel is the audio level observer.
+	RtpObserverTypeAudioLevel RtpObserverType = "AudioLevel"
+)
+
 type ActiveSpeakerObserverOptions struct {
 	Interval uint16
 

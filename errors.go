@@ -8,6 +8,7 @@ import (
 
 var (
 	ErrWorkerStartTimeout       = errors.New("start worker timed out")
+	ErrWorkerClosed             = errors.New("worker is closed")
 	ErrRouterClosed             = errors.New("router is closed")
 	ErrTransportClosed          = errors.New("transport is closed")
 	ErrMissSctpStreamParameters = errors.New("sctpStreamParameters is missing")
