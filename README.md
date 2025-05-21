@@ -24,7 +24,7 @@ import "github.com/jiyeyuran/mediasoup-go/v2"
 - [Official mediasoup Documentation](https://mediasoup.org/documentation/v3/mediasoup/api/)
 
 ## Example Usage
-See [mediasoup-go-demo](https://github.com/jiyeyuran/mediasoup-go/v2-demo) for a complete example application.
+See [mediasoup-go-demo](https://github.com/jiyeyuran/mediasoup-go-demo) for a complete example application.
 
 <details>
 <summary>Click to see code example</summary>
