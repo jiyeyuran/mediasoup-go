@@ -28,7 +28,7 @@ const (
 	MaxRequestId     = 4294967295
 )
 
-var methodEventMap = map[FbsRequest.Method]FbsNotification.Event{
+var needContextMethodEvents = map[FbsRequest.Method]FbsNotification.Event{
 	FbsRequest.MethodTRANSPORT_CLOSE_PRODUCER:     FbsNotification.EventCONSUMER_PRODUCER_CLOSE,
 	FbsRequest.MethodPRODUCER_PAUSE:               FbsNotification.EventCONSUMER_PRODUCER_PAUSE,
 	FbsRequest.MethodPRODUCER_RESUME:              FbsNotification.EventCONSUMER_PRODUCER_RESUME,
@@ -489,7 +489,7 @@ func (c *Channel) ProcessNotificationForTesting(notification *FbsNotification.No
 }
 
 func (c *Channel) maySaveContextLocked(ctx context.Context, req *FbsRequest.RequestT) (cleanup func()) {
-	event, ok := methodEventMap[req.Method]
+	event, ok := needContextMethodEvents[req.Method]
 	if !ok {
 		return func() {}
 	}
@@ -524,6 +524,8 @@ func (c *Channel) maySaveContextLocked(ctx context.Context, req *FbsRequest.Requ
 		if node.prev.next = node.next; node.next != nil {
 			node.next.prev = node.prev
 		}
+		node.next = nil // avoid memory leaks
+		node.prev = nil // avoid memory leaks
 	}
 }
 
