@@ -38,7 +38,7 @@ func TestSaveContext(t *testing.T) {
 		HandlerId: "handlerId2",
 	})
 
-	origCtx := UnwrapContext(channel.getContext(methodEventMap[FbsRequest.MethodPRODUCER_PAUSE]), "handlerId1")
+	origCtx := UnwrapContext(channel.getContext(needContextMethodEvents[FbsRequest.MethodPRODUCER_PAUSE]), "handlerId1")
 	if ctx.Value("key") != origCtx.Value("key") {
 		t.Errorf("Expected context to be the same")
 	}
@@ -49,7 +49,7 @@ func TestSaveContext(t *testing.T) {
 		t.Errorf("Expected list length to be 1, got %d", length)
 	}
 
-	origCtx = UnwrapContext(channel.getContext(methodEventMap[FbsRequest.MethodPRODUCER_PAUSE]), "handlerId2")
+	origCtx = UnwrapContext(channel.getContext(needContextMethodEvents[FbsRequest.MethodPRODUCER_PAUSE]), "handlerId2")
 	if ctx.Value("key") != origCtx.Value("key") {
 		t.Errorf("Expected context to be the same")
 	}
