@@ -794,14 +794,17 @@ func (t *Transport) ProduceContext(ctx context.Context, options *ProducerOptions
 		Paused:                  options.Paused,
 		AppData:                 orElse(options.AppData != nil, options.AppData, H{}),
 	})
+
+	t.producers.Store(id, producer)
+	safeCall(t.data.OnAddProducer, producer)
+
 	producer.OnClose(func(ctx context.Context) {
 		t.producers.Delete(id)
 		safeCall(t.data.OnRemoveProducer, producer)
 	})
-	t.producers.Store(id, producer)
-	safeCall(t.data.OnAddProducer, producer)
 
 	listeners := t.newProducerListeners
+
 	t.mu.Unlock()
 
 	for _, listener := range listeners {
@@ -972,12 +975,22 @@ func (t *Transport) ConsumeContext(ctx context.Context, options *ConsumerOptions
 	}
 
 	consumer := newConsumer(t.channel, t.logger, data)
+
+	t.consumers.Store(consumer.Id(), consumer)
+	safeCall(t.data.OnAddConsumer, consumer)
+
 	consumer.OnClose(func(ctx context.Context) {
 		t.consumers.Delete(consumer.Id())
 		safeCall(t.data.OnRemoveConsumer, consumer)
 	})
-	t.consumers.Store(consumer.Id(), consumer)
-	safeCall(t.data.OnAddConsumer, consumer)
+
+	// producer state may change before consumer created.
+	if producer.Closed() {
+		consumer.CloseContext(ctx)
+		return nil, errors.New("original Producer closed")
+	}
+	// sync producer state.
+	consumer.syncProducer(producer)
 
 	listeners := t.newConsumerListeners
 
@@ -1060,14 +1073,17 @@ func (t *Transport) ProduceDataContext(ctx context.Context, options *DataProduce
 	}
 
 	dataProducer := newDataProducer(t.channel, t.logger, data)
+
+	t.dataProducers.Store(dataProducer.Id(), dataProducer)
+	safeCall(t.data.OnAddDataProducer, dataProducer)
+
 	dataProducer.OnClose(func(ctx context.Context) {
 		t.dataProducers.Delete(dataProducer.Id())
 		safeCall(t.data.OnRemoveDataProducer, dataProducer)
 	})
-	t.dataProducers.Store(dataProducer.Id(), dataProducer)
-	safeCall(t.data.OnAddDataProducer, dataProducer)
 
 	listeners := t.newDataProducerListeners
+
 	t.mu.Unlock()
 
 	for _, listener := range listeners {
@@ -1171,6 +1187,10 @@ func (t *Transport) ConsumeDataContext(ctx context.Context, options *DataConsume
 		AppData:              orElse(options.AppData != nil, options.AppData, H{}),
 	}
 	dataConsumer := newDataConsumer(t.channel, t.logger, data)
+
+	t.dataConsumers.Store(dataConsumer.Id(), dataConsumer)
+	safeCall(t.data.OnAddDataConsumer, dataConsumer)
+
 	dataConsumer.OnClose(func(ctx context.Context) {
 		if sctpStreamParameters != nil {
 			t.streamIds.Delete(sctpStreamParameters.StreamId)
@@ -1178,8 +1198,14 @@ func (t *Transport) ConsumeDataContext(ctx context.Context, options *DataConsume
 		t.dataConsumers.Delete(dataConsumer.Id())
 		safeCall(t.data.OnRemoveDataConsumer, dataConsumer)
 	})
-	t.dataConsumers.Store(dataConsumer.Id(), dataConsumer)
-	safeCall(t.data.OnAddDataConsumer, dataConsumer)
+
+	// dataProducer state may change before dataConsumer created.
+	if dataProducer.Closed() {
+		dataConsumer.CloseContext(ctx)
+		return nil, errors.New("original DataProducer closed")
+	}
+	// sync dataProducer state.
+	dataConsumer.syncDataProducer(dataProducer)
 
 	listeners := t.newDataConsumerListeners
 

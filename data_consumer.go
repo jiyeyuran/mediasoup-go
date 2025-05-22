@@ -25,10 +25,12 @@ type dataconsumerData struct {
 	SctpStreamParameters *SctpStreamParameters
 	Label                string
 	Protocol             string
-	Paused               bool
-	DataProducerPaused   bool
-	Subchannels          []uint16
 	AppData              H
+
+	// changable fields
+	Paused             bool
+	DataProducerPaused bool
+	Subchannels        []uint16
 }
 
 type DataConsumer struct {
@@ -37,9 +39,6 @@ type DataConsumer struct {
 	channel                     *channel.Channel
 	data                        *dataconsumerData
 	closed                      bool
-	paused                      bool
-	dataProducerPaused          bool
-	subchannels                 []uint16
 	pauseListeners              []func(context.Context)
 	resumeListeners             []func(context.Context)
 	dataProducerCloseListeners  []func(context.Context)
@@ -54,12 +53,9 @@ type DataConsumer struct {
 
 func newDataConsumer(channel *channel.Channel, logger *slog.Logger, data *dataconsumerData) *DataConsumer {
 	c := &DataConsumer{
-		channel:            channel,
-		data:               data,
-		paused:             data.Paused,
-		dataProducerPaused: data.DataProducerPaused,
-		subchannels:        data.Subchannels,
-		logger:             logger.With("dataConsumerId", data.DataConsumerId),
+		channel: channel,
+		data:    data,
+		logger:  logger.With("dataConsumerId", data.DataConsumerId),
 	}
 	c.sub = c.handleWorkerNotifications()
 	return c
@@ -100,7 +96,7 @@ func (c *DataConsumer) Paused() bool {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
-	return c.paused
+	return c.data.Paused
 }
 
 // DataProducerPaused returns whether the associated DataProducer is paused.
@@ -108,7 +104,7 @@ func (c *DataConsumer) DataProducerPaused() bool {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
-	return c.dataProducerPaused
+	return c.data.DataProducerPaused
 }
 
 // AppData returns app custom data.
@@ -245,12 +241,12 @@ func (c *DataConsumer) PauseContext(ctx context.Context) error {
 		c.mu.Unlock()
 		return err
 	}
-	wasPaused := c.paused
+	wasPaused := c.data.Paused
 	listeners := c.pauseListeners
-	c.paused = true
+	c.data.Paused = true
 	c.mu.Unlock()
 
-	if !wasPaused && !c.dataProducerPaused {
+	if !wasPaused && !c.data.DataProducerPaused {
 		for _, listener := range listeners {
 			listener(ctx)
 		}
@@ -277,13 +273,13 @@ func (c *DataConsumer) ResumeContext(ctx context.Context) error {
 		c.mu.Unlock()
 		return err
 	}
-	wasPaused := c.paused
+	wasPaused := c.data.Paused
 	listeners := c.resumeListeners
-	c.paused = false
+	c.data.Paused = false
 
 	c.mu.Unlock()
 
-	if wasPaused && !c.dataProducerPaused {
+	if wasPaused && !c.data.DataProducerPaused {
 		for _, listener := range listeners {
 			listener(ctx)
 		}
@@ -420,7 +416,7 @@ func (c *DataConsumer) SetSubchannelsContext(ctx context.Context, subchannels []
 		return err
 	}
 	resp := msg.(*FbsDataConsumer.SetSubchannelsResponseT)
-	c.subchannels = resp.Subchannels
+	c.data.Subchannels = resp.Subchannels
 	return nil
 }
 
@@ -448,7 +444,7 @@ func (c *DataConsumer) AddSubChannelContext(ctx context.Context, subchannel uint
 		return err
 	}
 	resp := msg.(*FbsDataConsumer.AddSubchannelResponseT)
-	c.subchannels = resp.Subchannels
+	c.data.Subchannels = resp.Subchannels
 	return nil
 }
 
@@ -476,8 +472,22 @@ func (c *DataConsumer) RemoveSubChannelContext(ctx context.Context, subchannel u
 		return err
 	}
 	resp := msg.(*FbsDataConsumer.RemoveSubchannelResponseT)
-	c.subchannels = resp.Subchannels
+	c.data.Subchannels = resp.Subchannels
 	return nil
+}
+
+// OnPause add listener on "pause" event.
+func (c *DataConsumer) OnPause(listener func(ctx context.Context)) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.pauseListeners = append(c.pauseListeners, listener)
+}
+
+// OnResume add listener on "resume" event.
+func (c *DataConsumer) OnResume(listener func(ctx context.Context)) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.resumeListeners = append(c.resumeListeners, listener)
 }
 
 // OnProducerClose add listener on "dataproducerclose" event.
@@ -538,12 +548,12 @@ func (c *DataConsumer) handleWorkerNotifications() *channel.Subscription {
 
 		case FbsNotification.EventDATACONSUMER_DATAPRODUCER_PAUSE:
 			c.mu.Lock()
-			if c.dataProducerPaused {
+			if c.data.DataProducerPaused {
 				c.mu.Unlock()
 				return
 			}
-			c.dataProducerPaused = true
-			paused := c.paused
+			c.data.DataProducerPaused = true
+			paused := c.data.Paused
 			listeners := c.pauseListeners
 			dataProducerPauseListeners := c.dataProducerPauseListeners
 			c.mu.Unlock()
@@ -561,12 +571,12 @@ func (c *DataConsumer) handleWorkerNotifications() *channel.Subscription {
 
 		case FbsNotification.EventDATACONSUMER_DATAPRODUCER_RESUME:
 			c.mu.Lock()
-			if !c.dataProducerPaused {
+			if !c.data.DataProducerPaused {
 				c.mu.Unlock()
 				return
 			}
-			c.dataProducerPaused = false
-			paused := c.paused
+			c.data.DataProducerPaused = false
+			paused := c.data.Paused
 			listeners := c.resumeListeners
 			dataProducerResumeListeners := c.dataProducerResumeListeners
 			c.mu.Unlock()
@@ -645,4 +655,10 @@ func (c *DataConsumer) transportClosed(ctx context.Context) {
 func (c *DataConsumer) cleanupAfterClosed(ctx context.Context) {
 	c.sub.Unsubscribe()
 	c.notifyClosed(ctx)
+}
+
+func (c *DataConsumer) syncDataProducer(dataProducer *DataProducer) {
+	c.mu.Lock()
+	c.data.DataProducerPaused = dataProducer.Paused()
+	c.mu.Unlock()
 }
