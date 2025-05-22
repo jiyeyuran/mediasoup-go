@@ -213,12 +213,9 @@ func (p *Producer) Pause() error {
 }
 
 func (p *Producer) PauseContext(ctx context.Context) error {
-	p.mu.Lock()
-	if p.data.Paused {
-		p.mu.Unlock()
-		return nil
-	}
 	p.logger.DebugContext(ctx, "Pause()")
+
+	p.mu.Lock()
 
 	_, err := p.channel.Request(ctx, &FbsRequest.RequestT{
 		Method:    FbsRequest.MethodPRODUCER_PAUSE,
@@ -248,12 +245,9 @@ func (p *Producer) Resume() error {
 }
 
 func (p *Producer) ResumeContext(ctx context.Context) error {
-	p.mu.Lock()
-	if !p.data.Paused {
-		p.mu.Unlock()
-		return nil
-	}
 	p.logger.DebugContext(ctx, "Resume()")
+
+	p.mu.Lock()
 
 	_, err := p.channel.Request(ctx, &FbsRequest.RequestT{
 		Method:    FbsRequest.MethodPRODUCER_RESUME,
@@ -442,6 +436,21 @@ func (p *Producer) transportClosed(ctx context.Context) {
 func (p *Producer) cleanupAfterClosed(ctx context.Context) {
 	p.sub.Unsubscribe()
 	p.notifyClosed(ctx)
+}
+
+func (p *Producer) syncState(ctx context.Context, other *Producer) error {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	if p.data.Paused != other.Paused() {
+		if p.data.Paused {
+			return other.PauseContext(ctx)
+		} else {
+			return other.ResumeContext(ctx)
+		}
+	}
+
+	return nil
 }
 
 func parseProducerTraceInfo(info *FbsProducer.TraceInfoT) any {
