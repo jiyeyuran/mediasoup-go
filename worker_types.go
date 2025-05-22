@@ -69,8 +69,11 @@ type WorkerSettings struct {
 	// Env sets environment variables for the worker process.
 	Env []string
 
-	// Logger sets the logger for worker process and API wrapper.
+	// Logger sets the logger for API wrapper.
 	Logger *slog.Logger
+
+	// WorkerLogger sets the logger for worker process, default to Logger.
+	WorkerLogger *slog.Logger
 }
 
 type WorkerUpdatableSettings struct {

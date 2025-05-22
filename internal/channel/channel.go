@@ -44,27 +44,28 @@ type listNode struct {
 }
 
 type Channel struct {
-	mu          sync.RWMutex
-	subsMu      sync.RWMutex
-	nextId      uint32
-	w           io.WriteCloser
-	r           io.ReadCloser
-	reader      *bufio.Reader
-	writeBuf    *bytes.Buffer
-	waitGroup   sync.WaitGroup
-	fbsBuilder  *flatbuffers.Builder
-	message     *FbsMessage.MessageT
-	timerPool   *sync.Pool
-	ssid        int64
-	subs        map[string][]*Subscription
-	responsesCh map[uint32]chan *FbsResponse.ResponseT
-	logger      *slog.Logger
-	timeout     time.Duration
-	closed      bool
-	contextList *listNode
+	mu           sync.RWMutex
+	subsMu       sync.RWMutex
+	nextId       uint32
+	w            io.WriteCloser
+	r            io.ReadCloser
+	reader       *bufio.Reader
+	writeBuf     *bytes.Buffer
+	waitGroup    sync.WaitGroup
+	fbsBuilder   *flatbuffers.Builder
+	message      *FbsMessage.MessageT
+	timerPool    *sync.Pool
+	ssid         int64
+	subs         map[string][]*Subscription
+	responsesCh  map[uint32]chan *FbsResponse.ResponseT
+	logger       *slog.Logger
+	workerLogger *slog.Logger
+	timeout      time.Duration
+	closed       bool
+	contextList  *listNode
 }
 
-func NewChannel(w io.WriteCloser, r io.ReadCloser, logger *slog.Logger) *Channel {
+func NewChannel(w io.WriteCloser, r io.ReadCloser, logger, workerLogger *slog.Logger) *Channel {
 	return &Channel{
 		w:          w,
 		r:          r,
@@ -74,12 +75,13 @@ func NewChannel(w io.WriteCloser, r io.ReadCloser, logger *slog.Logger) *Channel
 		message: &FbsMessage.MessageT{
 			Data: &FbsMessage.BodyT{},
 		},
-		timerPool:   &sync.Pool{New: func() any { return time.NewTimer(RequestTimeout) }},
-		subs:        make(map[string][]*Subscription),
-		responsesCh: make(map[uint32]chan *FbsResponse.ResponseT),
-		timeout:     RequestTimeout,
-		logger:      logger,
-		contextList: &listNode{},
+		timerPool:    &sync.Pool{New: func() any { return time.NewTimer(RequestTimeout) }},
+		subs:         make(map[string][]*Subscription),
+		responsesCh:  make(map[uint32]chan *FbsResponse.ResponseT),
+		timeout:      RequestTimeout,
+		logger:       logger,
+		workerLogger: workerLogger,
+		contextList:  &listNode{},
 	}
 }
 
@@ -471,16 +473,16 @@ func (c *Channel) processLog(log *FbsLog.LogT) {
 
 	switch tp := payload[0]; tp {
 	case 'D':
-		c.logger.Debug(payload[1:])
+		c.workerLogger.Debug(payload[1:])
 
 	case 'W':
-		c.logger.Warn(payload[1:])
+		c.workerLogger.Warn(payload[1:])
 
 	case 'E':
-		c.logger.Error(payload[1:])
+		c.workerLogger.Error(payload[1:])
 
 	case 'X':
-		c.logger.Info(string(payload[1:]))
+		c.workerLogger.Info(string(payload[1:]))
 	}
 }
 
