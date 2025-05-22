@@ -195,9 +195,12 @@ func (p *DataProducer) Pause() error {
 }
 
 func (p *DataProducer) PauseContext(ctx context.Context) error {
-	p.logger.DebugContext(ctx, "Pause()")
-
 	p.mu.Lock()
+	if p.data.Paused {
+		p.mu.Unlock()
+		return nil
+	}
+	p.logger.DebugContext(ctx, "Pause()")
 
 	_, err := p.channel.Request(ctx, &FbsRequest.RequestT{
 		Method:    FbsRequest.MethodDATAPRODUCER_PAUSE,
@@ -227,9 +230,12 @@ func (p *DataProducer) Resume() error {
 }
 
 func (p *DataProducer) ResumeContext(ctx context.Context) error {
-	p.logger.DebugContext(ctx, "Resume()")
-
 	p.mu.Lock()
+	if !p.data.Paused {
+		p.mu.Unlock()
+		return nil
+	}
+	p.logger.DebugContext(ctx, "Resume()")
 
 	_, err := p.channel.Request(ctx, &FbsRequest.RequestT{
 		Method:    FbsRequest.MethodDATAPRODUCER_RESUME,

@@ -683,6 +683,12 @@ func (c *Consumer) cleanupAfterClosed(ctx context.Context) {
 	c.notifyClosed(ctx)
 }
 
+func (c *Consumer) syncProducer(producer *Producer) {
+	c.mu.Lock()
+	c.data.ProducerPaused = producer.Paused()
+	c.mu.Unlock()
+}
+
 func parseRtpStreamDump(stream *FbsRtpStream.DumpT) *RtpStreamDump {
 	return &RtpStreamDump{
 		Params: RtpStreamParametersDump{

@@ -919,7 +919,7 @@ func (r *Router) PipeToRouterContext(ctx context.Context, options *PipeToRouterO
 
 	if producer != nil {
 		pipeConsumer, err := localPipeTransport.ConsumeContext(ctx, &ConsumerOptions{
-			ProducerId: o.ProducerId,
+			ProducerId: producer.Id(),
 		})
 		if err != nil {
 			return nil, err
@@ -934,27 +934,6 @@ func (r *Router) PipeToRouterContext(ctx context.Context, options *PipeToRouterO
 		if err != nil {
 			pipeConsumer.CloseContext(ctx)
 			return nil, err
-		}
-		// Ensure that the producer has not been closed in the meanwhile.
-		if producer.Closed() {
-			pipeConsumer.CloseContext(ctx)
-			pipeProducer.CloseContext(ctx)
-			return nil, errors.New("original Producer closed")
-		}
-
-		// Ensure that producer.paused has not changed in the meanwhile and, if
-		// so, sych the pipeProducer.
-		if pipeProducer.Paused() != producer.Paused() {
-			if producer.Paused() {
-				err = pipeProducer.PauseContext(ctx)
-			} else {
-				err = pipeProducer.ResumeContext(ctx)
-			}
-			if err != nil {
-				pipeConsumer.Close()
-				pipeProducer.Close()
-				return nil, err
-			}
 		}
 
 		// Pipe events from the pipe Consumer to the pipe Producer.
@@ -973,6 +952,28 @@ func (r *Router) PipeToRouterContext(ctx context.Context, options *PipeToRouterO
 			pipeConsumer.CloseContext(ctx)
 		})
 
+		// Ensure that the producer has not been closed in the meanwhile.
+		if producer.Closed() {
+			pipeConsumer.CloseContext(ctx)
+			pipeProducer.CloseContext(ctx)
+			return nil, errors.New("original Producer closed")
+		}
+
+		// Ensure that producer.paused has not changed in the meanwhile and, if
+		// so, sych the pipeProducer.
+		if pipeProducer.Paused() != producer.Paused() {
+			if producer.Paused() {
+				err = pipeProducer.PauseContext(ctx)
+			} else {
+				err = pipeProducer.ResumeContext(ctx)
+			}
+			if err != nil {
+				pipeConsumer.CloseContext(ctx)
+				pipeProducer.CloseContext(ctx)
+				return nil, err
+			}
+		}
+
 		return &PipeToRouterResult{
 			PipeConsumer: pipeConsumer,
 			PipeProducer: pipeProducer,
@@ -980,7 +981,7 @@ func (r *Router) PipeToRouterContext(ctx context.Context, options *PipeToRouterO
 	}
 
 	pipeDataConsumer, err := localPipeTransport.ConsumeDataContext(ctx, &DataConsumerOptions{
-		DataProducerId: o.DataProducerId,
+		DataProducerId: dataProducer.Id(),
 	})
 	if err != nil {
 		return nil, err
@@ -996,6 +997,23 @@ func (r *Router) PipeToRouterContext(ctx context.Context, options *PipeToRouterO
 		pipeDataConsumer.CloseContext(ctx)
 		return nil, err
 	}
+
+	// Pipe events from the pipe DataConsumer to the pipe DataProducer.
+	pipeDataConsumer.OnClose(func(ctx context.Context) {
+		pipeDataProducer.CloseContext(ctx)
+	})
+	pipeDataConsumer.OnPause(func(ctx context.Context) {
+		pipeDataProducer.PauseContext(ctx)
+	})
+	pipeDataConsumer.OnResume(func(ctx context.Context) {
+		pipeDataProducer.ResumeContext(ctx)
+	})
+
+	// Pipe events from the pipe DataProducer to the pipe DataConsumer.
+	pipeDataProducer.OnClose(func(ctx context.Context) {
+		pipeDataConsumer.CloseContext(ctx)
+	})
+
 	// Ensure that the dataProducer has not been closed in the meanwhile.
 	if dataProducer.Closed() {
 		pipeDataConsumer.CloseContext(ctx)
@@ -1003,14 +1021,20 @@ func (r *Router) PipeToRouterContext(ctx context.Context, options *PipeToRouterO
 		return nil, errors.New("original DataProducer closed")
 	}
 
-	// Pipe events from the pipe DataConsumer to the pipe DataProducer.
-	pipeDataConsumer.OnClose(func(ctx context.Context) {
-		pipeDataProducer.CloseContext(ctx)
-	})
-	// Pipe events from the pipe DataProducer to the pipe DataConsumer.
-	pipeDataProducer.OnClose(func(ctx context.Context) {
-		pipeDataConsumer.CloseContext(ctx)
-	})
+	// Ensure that dataProducer.paused has not changed in the meanwhile and, if
+	// so, sych the pipeDataProducer.
+	if pipeDataProducer.Paused() != dataProducer.Paused() {
+		if dataProducer.Paused() {
+			err = pipeDataProducer.PauseContext(ctx)
+		} else {
+			err = pipeDataProducer.ResumeContext(ctx)
+		}
+		if err != nil {
+			pipeDataConsumer.CloseContext(ctx)
+			pipeDataProducer.CloseContext(ctx)
+			return nil, err
+		}
+	}
 
 	return &PipeToRouterResult{
 		PipeDataConsumer: pipeDataConsumer,
