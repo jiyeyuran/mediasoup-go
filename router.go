@@ -960,18 +960,11 @@ func (r *Router) PipeToRouterContext(ctx context.Context, options *PipeToRouterO
 		}
 
 		// Ensure that producer.paused has not changed in the meanwhile and, if
-		// so, sych the pipeProducer.
-		if pipeProducer.Paused() != producer.Paused() {
-			if producer.Paused() {
-				err = pipeProducer.PauseContext(ctx)
-			} else {
-				err = pipeProducer.ResumeContext(ctx)
-			}
-			if err != nil {
-				pipeConsumer.CloseContext(ctx)
-				pipeProducer.CloseContext(ctx)
-				return nil, err
-			}
+		// so, sync the pipeProducer.
+		if err = producer.syncState(ctx, pipeProducer); err != nil {
+			pipeConsumer.CloseContext(ctx)
+			pipeProducer.CloseContext(ctx)
+			return nil, err
 		}
 
 		return &PipeToRouterResult{
@@ -1022,18 +1015,11 @@ func (r *Router) PipeToRouterContext(ctx context.Context, options *PipeToRouterO
 	}
 
 	// Ensure that dataProducer.paused has not changed in the meanwhile and, if
-	// so, sych the pipeDataProducer.
-	if pipeDataProducer.Paused() != dataProducer.Paused() {
-		if dataProducer.Paused() {
-			err = pipeDataProducer.PauseContext(ctx)
-		} else {
-			err = pipeDataProducer.ResumeContext(ctx)
-		}
-		if err != nil {
-			pipeDataConsumer.CloseContext(ctx)
-			pipeDataProducer.CloseContext(ctx)
-			return nil, err
-		}
+	// so, sync the pipeDataProducer.
+	if err = dataProducer.syncState(ctx, pipeDataProducer); err != nil {
+		pipeDataConsumer.CloseContext(ctx)
+		pipeDataProducer.CloseContext(ctx)
+		return nil, err
 	}
 
 	return &PipeToRouterResult{

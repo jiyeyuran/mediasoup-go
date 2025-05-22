@@ -195,12 +195,9 @@ func (p *DataProducer) Pause() error {
 }
 
 func (p *DataProducer) PauseContext(ctx context.Context) error {
-	p.mu.Lock()
-	if p.data.Paused {
-		p.mu.Unlock()
-		return nil
-	}
 	p.logger.DebugContext(ctx, "Pause()")
+
+	p.mu.Lock()
 
 	_, err := p.channel.Request(ctx, &FbsRequest.RequestT{
 		Method:    FbsRequest.MethodDATAPRODUCER_PAUSE,
@@ -230,12 +227,9 @@ func (p *DataProducer) Resume() error {
 }
 
 func (p *DataProducer) ResumeContext(ctx context.Context) error {
-	p.mu.Lock()
-	if !p.data.Paused {
-		p.mu.Unlock()
-		return nil
-	}
 	p.logger.DebugContext(ctx, "Resume()")
+
+	p.mu.Lock()
 
 	_, err := p.channel.Request(ctx, &FbsRequest.RequestT{
 		Method:    FbsRequest.MethodDATAPRODUCER_RESUME,
@@ -333,4 +327,19 @@ func (p *DataProducer) transportClosed(ctx context.Context) {
 	p.logger.DebugContext(ctx, "transportClosed()")
 
 	p.notifyClosed(ctx)
+}
+
+func (p *DataProducer) syncState(ctx context.Context, other *DataProducer) error {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	if p.data.Paused != other.Paused() {
+		if p.data.Paused {
+			return other.PauseContext(ctx)
+		} else {
+			return other.ResumeContext(ctx)
+		}
+	}
+
+	return nil
 }
