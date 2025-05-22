@@ -24,7 +24,7 @@ func getListLength(list *listNode) int {
 
 func TestSaveContext(t *testing.T) {
 	r, w, _ := os.Pipe()
-	channel := NewChannel(w, r, slog.Default())
+	channel := NewChannel(w, r, slog.Default(), slog.Default())
 	defer channel.Close(context.Background())
 
 	ctx := context.WithValue(context.Background(), "key", "value")

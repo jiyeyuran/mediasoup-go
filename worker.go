@@ -82,6 +82,11 @@ func NewWorker(workerBinaryPath string, options ...Option) (*Worker, error) {
 		}))
 	}
 
+	workerLogger := opts.WorkerLogger
+	if workerLogger == nil {
+		workerLogger = logger
+	}
+
 	producerReader, producerWriter, err := os.Pipe()
 	if err != nil {
 		return nil, err
@@ -155,7 +160,8 @@ func NewWorker(workerBinaryPath string, options ...Option) (*Worker, error) {
 
 	pid := cmd.Process.Pid
 	logger = logger.With("pid", pid)
-	channel := channel.NewChannel(producerWriter, consumerReader, logger)
+	workerLogger = workerLogger.With("pid", pid)
+	channel := channel.NewChannel(producerWriter, consumerReader, logger, workerLogger)
 
 	// spawnDone indices the worker process is started
 	spawnDone := uint32(0)
@@ -171,25 +177,23 @@ func NewWorker(workerBinaryPath string, options ...Option) (*Worker, error) {
 	defer sub.Unsubscribe()
 
 	go func() {
-		stderrLogger := logger.With("stderr", true)
 		r := bufio.NewReader(stderr)
 		for {
 			line, _, err := r.ReadLine()
 			if err != nil {
 				break
 			}
-			stderrLogger.Info(string(line))
+			workerLogger.Info("(stderr) " + string(line))
 		}
 	}()
 	go func() {
-		stdoutLogger := logger.With("stdout", true)
 		r := bufio.NewReader(stdout)
 		for {
 			line, _, err := r.ReadLine()
 			if err != nil {
 				break
 			}
-			stdoutLogger.Debug(string(line))
+			workerLogger.Debug("(stdout) " + string(line))
 		}
 	}()
 
