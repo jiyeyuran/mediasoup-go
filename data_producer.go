@@ -271,11 +271,11 @@ func (p *DataProducer) OnResume(f func(context.Context)) {
 }
 
 // Send send binary data.
-func (p *DataProducer) Send(data []byte) (err error) {
-	return p.SendContext(context.Background(), data)
+func (p *DataProducer) Send(data []byte, options ...DataProducerSendOption) (err error) {
+	return p.SendContext(context.Background(), data, options...)
 }
 
-func (p *DataProducer) SendContext(ctx context.Context, data []byte) (err error) {
+func (p *DataProducer) SendContext(ctx context.Context, data []byte, options ...DataProducerSendOption) (err error) {
 	p.logger.DebugContext(ctx, "Send()")
 
 	ppid := SctpPayloadWebRTCBinary
@@ -283,15 +283,15 @@ func (p *DataProducer) SendContext(ctx context.Context, data []byte) (err error)
 	if len(data) == 0 {
 		ppid, data = SctpPayloadWebRTCBinaryEmpty, make([]byte, 1)
 	}
-	return p.send(ctx, data, ppid)
+	return p.send(ctx, data, ppid, options...)
 }
 
 // SendText send text.
-func (p *DataProducer) SendText(message string) error {
-	return p.SendTextContext(context.Background(), message)
+func (p *DataProducer) SendText(message string, options ...DataProducerSendOption) error {
+	return p.SendTextContext(context.Background(), message, options...)
 }
 
-func (p *DataProducer) SendTextContext(ctx context.Context, message string) error {
+func (p *DataProducer) SendTextContext(ctx context.Context, message string, options ...DataProducerSendOption) error {
 	p.logger.DebugContext(ctx, "SendText()")
 
 	ppid, payload := SctpPayloadWebRTCString, []byte(message)
@@ -299,18 +299,29 @@ func (p *DataProducer) SendTextContext(ctx context.Context, message string) erro
 	if len(payload) == 0 {
 		ppid, payload = SctpPayloadWebRTCStringEmpty, []byte{' '}
 	}
-	return p.send(ctx, payload, ppid)
+	return p.send(ctx, payload, ppid, options...)
 }
 
-func (p *DataProducer) send(ctx context.Context, data []byte, ppid SctpPayloadType) error {
+func (p *DataProducer) send(ctx context.Context, data []byte, ppid SctpPayloadType, options ...DataProducerSendOption) error {
+	opts := &DataProducerSendOptions{
+		Subchannels:        []uint16{},
+		RequiredSubchannel: nil,
+	}
+
+	for _, option := range options {
+		option(opts)
+	}
+
 	return p.channel.Notify(ctx, &FbsNotification.NotificationT{
 		Event:     FbsNotification.EventDATAPRODUCER_SEND,
 		HandlerId: p.Id(),
 		Body: &FbsNotification.BodyT{
 			Type: FbsNotification.BodyDataProducer_SendNotification,
 			Value: &FbsDataProducer.SendNotificationT{
-				Data: data,
-				Ppid: uint32(ppid),
+				Data:               data,
+				Ppid:               uint32(ppid),
+				Subchannels:        opts.Subchannels,
+				RequiredSubchannel: opts.RequiredSubchannel,
 			},
 		},
 	})
