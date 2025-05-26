@@ -49,3 +49,27 @@ type DataProducerStat struct {
 	MessagesReceived uint64 `json:"messagesReceived,omitempty"`
 	BytesReceived    uint64 `json:"bytesReceived,omitempty"`
 }
+
+type DataProducerSendOptions struct {
+	// Subchannels specifies that only data consumers subscribed to any of these
+	// subchannels will receive the message.
+	Subchannels []uint16 `json:"subchannels,omitempty"`
+
+	// RequiredSubchannel specifies that only data consumers subscribed to this specific
+	// subchannel will receive the message.
+	RequiredSubchannel *uint16 `json:"requiredSubchannel,omitempty"`
+}
+
+type DataProducerSendOption func(*DataProducerSendOptions)
+
+func SendWithSubchannels(subchannels []uint16) DataProducerSendOption {
+	return func(o *DataProducerSendOptions) {
+		o.Subchannels = subchannels
+	}
+}
+
+func SendWithRequiredSubchannel(subchannel uint16) DataProducerSendOption {
+	return func(o *DataProducerSendOptions) {
+		o.RequiredSubchannel = &subchannel
+	}
+}
