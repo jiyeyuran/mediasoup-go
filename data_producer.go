@@ -3,6 +3,7 @@ package mediasoup
 import (
 	"context"
 	"log/slog"
+	"unsafe"
 
 	FbsDataProducer "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/DataProducer"
 	FbsNotification "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/Notification"
@@ -294,7 +295,8 @@ func (p *DataProducer) SendText(message string, options ...DataProducerSendOptio
 func (p *DataProducer) SendTextContext(ctx context.Context, message string, options ...DataProducerSendOption) error {
 	p.logger.DebugContext(ctx, "SendText()")
 
-	ppid, payload := SctpPayloadWebRTCString, []byte(message)
+	ppid := SctpPayloadWebRTCString
+	payload := unsafe.Slice(unsafe.StringData(message), len(message))
 
 	if len(payload) == 0 {
 		ppid, payload = SctpPayloadWebRTCStringEmpty, []byte{' '}
@@ -306,6 +308,7 @@ func (p *DataProducer) send(ctx context.Context, data []byte, ppid SctpPayloadTy
 	opts := &DataProducerSendOptions{
 		Subchannels:        []uint16{},
 		RequiredSubchannel: nil,
+		PPID:               ppid,
 	}
 
 	for _, option := range options {
@@ -319,7 +322,7 @@ func (p *DataProducer) send(ctx context.Context, data []byte, ppid SctpPayloadTy
 			Type: FbsNotification.BodyDataProducer_SendNotification,
 			Value: &FbsDataProducer.SendNotificationT{
 				Data:               data,
-				Ppid:               uint32(ppid),
+				Ppid:               uint32(opts.PPID),
 				Subchannels:        opts.Subchannels,
 				RequiredSubchannel: opts.RequiredSubchannel,
 			},

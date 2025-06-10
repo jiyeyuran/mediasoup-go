@@ -3,6 +3,7 @@ package mediasoup
 import (
 	"context"
 	"log/slog"
+	"unsafe"
 
 	FbsDataConsumer "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/DataConsumer"
 	FbsDataProducer "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/DataProducer"
@@ -329,12 +330,14 @@ func (c *DataConsumer) GetBufferedAmountContext(ctx context.Context) (uint32, er
 }
 
 // Send data.
-func (c *DataConsumer) Send(data []byte) (err error) {
-	return c.SendContext(context.Background(), data)
+func (c *DataConsumer) Send(data []byte, ppid ...SctpPayloadType) (err error) {
+	return c.SendContext(context.Background(), data, ppid...)
 }
 
-func (c *DataConsumer) SendContext(ctx context.Context, data []byte) (err error) {
+func (c *DataConsumer) SendContext(ctx context.Context, data []byte, ppid ...SctpPayloadType) (err error) {
 	c.logger.DebugContext(ctx, "Send()")
+
+	var payloadType SctpPayloadType
 
 	/**
 	 * +-------------------------------+----------+
@@ -351,13 +354,17 @@ func (c *DataConsumer) SendContext(ctx context.Context, data []byte) (err error)
 	 * | WebRTC Binary Empty           | 57       |
 	 * +-------------------------------+----------+
 	 */
-	ppid := SctpPayloadWebRTCBinary
-
 	if len(data) == 0 {
-		data, ppid = emptyBytes[:], SctpPayloadWebRTCBinaryEmpty
+		data, payloadType = emptyBytes[:], SctpPayloadWebRTCBinaryEmpty
+	} else {
+		payloadType = SctpPayloadWebRTCBinary
 	}
 
-	return c.send(ctx, data, ppid)
+	if len(ppid) > 0 {
+		payloadType = ppid[0]
+	}
+
+	return c.send(ctx, data, payloadType)
 }
 
 // SendText send text.
@@ -368,7 +375,8 @@ func (c *DataConsumer) SendText(message string) error {
 func (c *DataConsumer) SendTextContext(ctx context.Context, message string) error {
 	c.logger.DebugContext(ctx, "SendText()")
 
-	ppid, data := SctpPayloadWebRTCString, []byte(message)
+	ppid := SctpPayloadWebRTCString
+	data := unsafe.Slice(unsafe.StringData(message), len(message))
 
 	if len(data) == 0 {
 		data, ppid = emptyString[:], SctpPayloadWebRTCBinaryEmpty
