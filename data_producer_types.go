@@ -58,18 +58,29 @@ type DataProducerSendOptions struct {
 	// RequiredSubchannel specifies that only data consumers subscribed to this specific
 	// subchannel will receive the message.
 	RequiredSubchannel *uint16 `json:"requiredSubchannel,omitempty"`
+
+	// PPID specifies the SCTP Payload Protocol Identifier to be used when sending
+	PPID SctpPayloadType
 }
 
 type DataProducerSendOption func(*DataProducerSendOptions)
 
-func SendWithSubchannels(subchannels []uint16) DataProducerSendOption {
+func DataProducerSendWithSubchannels(subchannels []uint16) DataProducerSendOption {
 	return func(o *DataProducerSendOptions) {
 		o.Subchannels = subchannels
 	}
 }
 
-func SendWithRequiredSubchannel(subchannel uint16) DataProducerSendOption {
+func DataProducerSendWithRequiredSubchannel(subchannel uint16) DataProducerSendOption {
 	return func(o *DataProducerSendOptions) {
 		o.RequiredSubchannel = &subchannel
+	}
+}
+
+func DataProducerSendWithPPID(ppid SctpPayloadType) DataProducerSendOption {
+	return func(o *DataProducerSendOptions) {
+		if ppid != SctpPayloadUnknown {
+			o.PPID = ppid
+		}
 	}
 }
