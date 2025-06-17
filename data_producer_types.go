@@ -77,7 +77,7 @@ func DataProducerSendWithRequiredSubchannel(subchannel uint16) DataProducerSendO
 	}
 }
 
-func DataProducerSendWithPPID(ppid SctpPayloadType) DataProducerSendOption {
+func DataProducerSendWithPayloadType(ppid SctpPayloadType) DataProducerSendOption {
 	return func(o *DataProducerSendOptions) {
 		if ppid != SctpPayloadUnknown {
 			o.PPID = ppid

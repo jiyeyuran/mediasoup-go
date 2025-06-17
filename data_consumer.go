@@ -330,11 +330,11 @@ func (c *DataConsumer) GetBufferedAmountContext(ctx context.Context) (uint32, er
 }
 
 // Send data.
-func (c *DataConsumer) Send(data []byte, ppid ...SctpPayloadType) (err error) {
-	return c.SendContext(context.Background(), data, ppid...)
+func (c *DataConsumer) Send(data []byte, options ...DataConsumerSendOption) (err error) {
+	return c.SendContext(context.Background(), data, options...)
 }
 
-func (c *DataConsumer) SendContext(ctx context.Context, data []byte, ppid ...SctpPayloadType) (err error) {
+func (c *DataConsumer) SendContext(ctx context.Context, data []byte, options ...DataConsumerSendOption) (err error) {
 	c.logger.DebugContext(ctx, "Send()")
 
 	var payloadType SctpPayloadType
@@ -360,11 +360,15 @@ func (c *DataConsumer) SendContext(ctx context.Context, data []byte, ppid ...Sct
 		payloadType = SctpPayloadWebRTCBinary
 	}
 
-	if len(ppid) > 0 {
-		payloadType = ppid[0]
+	opts := &DataConsumerSendOptions{
+		PPID: payloadType,
 	}
 
-	return c.send(ctx, data, payloadType)
+	for _, option := range options {
+		option(opts)
+	}
+
+	return c.send(ctx, data, opts.PPID)
 }
 
 // SendText send text.
