@@ -1,5 +1,9 @@
 # Changelog
 
+### NEXT
+
+- feat: Add initial AV1 codec support
+
 ### 2.0.2
 
 - feat: DataConsumer and DataProducer to use options for sending data
