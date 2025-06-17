@@ -79,3 +79,18 @@ type DataConsumerStat struct {
 	BytesSent      uint64 `json:"bytesSent,omitempty"`
 	BufferedAmount uint32 `json:"bufferedAmount,omitempty"`
 }
+
+type DataConsumerSendOptions struct {
+	// PPID specifies the SCTP Payload Protocol Identifier to be used when sending
+	PPID SctpPayloadType
+}
+
+type DataConsumerSendOption func(*DataConsumerSendOptions)
+
+func DataConsumerSendWithPayloadType(ppid SctpPayloadType) DataConsumerSendOption {
+	return func(o *DataConsumerSendOptions) {
+		if ppid != SctpPayloadUnknown {
+			o.PPID = ppid
+		}
+	}
+}
