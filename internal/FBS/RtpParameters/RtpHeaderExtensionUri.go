@@ -19,6 +19,7 @@ const (
 	RtpHeaderExtensionUriAbsSendTime            RtpHeaderExtensionUri = 9
 	RtpHeaderExtensionUriAbsCaptureTime         RtpHeaderExtensionUri = 10
 	RtpHeaderExtensionUriPlayoutDelay           RtpHeaderExtensionUri = 11
+	RtpHeaderExtensionUriDependencyDescriptor   RtpHeaderExtensionUri = 12
 )
 
 var EnumNamesRtpHeaderExtensionUri = map[RtpHeaderExtensionUri]string{
@@ -34,6 +35,7 @@ var EnumNamesRtpHeaderExtensionUri = map[RtpHeaderExtensionUri]string{
 	RtpHeaderExtensionUriAbsSendTime:            "AbsSendTime",
 	RtpHeaderExtensionUriAbsCaptureTime:         "AbsCaptureTime",
 	RtpHeaderExtensionUriPlayoutDelay:           "PlayoutDelay",
+	RtpHeaderExtensionUriDependencyDescriptor:   "DependencyDescriptor",
 }
 
 var EnumValuesRtpHeaderExtensionUri = map[string]RtpHeaderExtensionUri{
@@ -49,6 +51,7 @@ var EnumValuesRtpHeaderExtensionUri = map[string]RtpHeaderExtensionUri{
 	"AbsSendTime":            RtpHeaderExtensionUriAbsSendTime,
 	"AbsCaptureTime":         RtpHeaderExtensionUriAbsCaptureTime,
 	"PlayoutDelay":           RtpHeaderExtensionUriPlayoutDelay,
+	"DependencyDescriptor":   RtpHeaderExtensionUriDependencyDescriptor,
 }
 
 func (v RtpHeaderExtensionUri) String() string {

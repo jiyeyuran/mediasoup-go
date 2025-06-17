@@ -165,6 +165,9 @@ func parseRtpHeaderExtensionParameters(headerExtension *FbsRtpParameters.RtpHead
 
 	case FbsRtpParameters.RtpHeaderExtensionUriPlayoutDelay:
 		uri = "urn:ietf:params:rtp-hdrext:playout-delay"
+
+	case FbsRtpParameters.RtpHeaderExtensionUriDependencyDescriptor:
+		uri = "https://aomediacodec.github.io/av1-rtp-spec/#dependency-descriptor-rtp-header-extension"
 	}
 
 	return &RtpHeaderExtensionParameters{
@@ -211,6 +214,9 @@ func convertHeaderExtensionUri(uri string) FbsRtpParameters.RtpHeaderExtensionUr
 
 	case "urn:ietf:params:rtp-hdrext:playout-delay":
 		return FbsRtpParameters.RtpHeaderExtensionUriPlayoutDelay
+
+	case "https://aomediacodec.github.io/av1-rtp-spec/#dependency-descriptor-rtp-header-extension":
+		return FbsRtpParameters.RtpHeaderExtensionUriDependencyDescriptor
 
 	default:
 		return FbsRtpParameters.EnumValuesRtpHeaderExtensionUri[uri]

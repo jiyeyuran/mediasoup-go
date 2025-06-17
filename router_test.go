@@ -296,6 +296,12 @@ func TestCreatePipeTransport(t *testing.T) {
 				Id:      7,
 				Encrypt: false,
 			},
+			// TODO: Enable when DD is sendrecv.
+			// {
+			// 	Uri:     "https://aomediacodec.github.io/av1-rtp-spec/#dependency-descriptor-rtp-header-extension",
+			// 	Id:      8,
+			// 	Encrypt: false,
+			// },
 			{
 				Uri:     "urn:3gpp:video-orientation",
 				Id:      11,
@@ -744,6 +750,12 @@ func TestPipeToRouter(t *testing.T) {
 				Id:      7,
 				Encrypt: false,
 			},
+			// TODO: Enable when DD is sendrecv.
+			// {
+			// 	Uri:     "https://aomediacodec.github.io/av1-rtp-spec/#dependency-descriptor-rtp-header-extension",
+			// 	Id:      8,
+			// 	Encrypt: false,
+			// },
 			{
 				Uri:     "urn:3gpp:video-orientation",
 				Id:      11,
@@ -800,6 +812,12 @@ func TestPipeToRouter(t *testing.T) {
 				Id:      7,
 				Encrypt: false,
 			},
+			// TODO: Enable when DD is sendrecv.
+			// {
+			// 	Uri:     "https://aomediacodec.github.io/av1-rtp-spec/#dependency-descriptor-rtp-header-extension",
+			// 	Id:      8,
+			// 	Encrypt: false,
+			// },
 			{
 				Uri:     "urn:3gpp:video-orientation",
 				Id:      11,
