@@ -1,5 +1,9 @@
 # Changelog
 
+### 2.0.2
+
+- feat: DataConsumer and DataProducer to use options for sending data
+
 ### 2.0.1
 
 - feat: enhance DataProducer with send options for subchannels
