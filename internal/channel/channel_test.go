@@ -27,7 +27,7 @@ func TestSaveContext(t *testing.T) {
 	channel := NewChannel(w, r, slog.Default(), slog.Default())
 	defer channel.Close(context.Background())
 
-	ctx := context.WithValue(context.Background(), "key", "value")
+	ctx := context.TODO()
 
 	cleanup1 := channel.maySaveContextLocked(ctx, &FbsRequest.RequestT{
 		Method:    FbsRequest.MethodPRODUCER_PAUSE,

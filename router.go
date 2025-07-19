@@ -773,7 +773,7 @@ func (r *Router) PipeToRouter(options *PipeToRouterOptions) (result *PipeToRoute
 	return r.PipeToRouterContext(context.Background(), options)
 }
 
-func (r *Router) PipeToRouterContext(ctx context.Context, options *PipeToRouterOptions) (result *PipeToRouterResult, err error) {
+func (r *Router) PipeToRouterContext(ctx context.Context, options *PipeToRouterOptions) (*PipeToRouterResult, error) {
 	r.logger.DebugContext(ctx, "PipeToRouter()")
 
 	o := &PipeToRouterOptions{

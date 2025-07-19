@@ -179,8 +179,8 @@ func NewWorker(workerBinaryPath string, options ...Option) (*Worker, error) {
 	go func() {
 		r := bufio.NewReader(stderr)
 		for {
-			line, _, err := r.ReadLine()
-			if err != nil {
+			line, _, readErr := r.ReadLine()
+			if readErr != nil {
 				break
 			}
 			workerLogger.Info("(stderr) " + string(line))
@@ -189,8 +189,8 @@ func NewWorker(workerBinaryPath string, options ...Option) (*Worker, error) {
 	go func() {
 		r := bufio.NewReader(stdout)
 		for {
-			line, _, err := r.ReadLine()
-			if err != nil {
+			line, _, readErr := r.ReadLine()
+			if readErr != nil {
 				break
 			}
 			workerLogger.Debug("(stdout) " + string(line))
@@ -282,17 +282,14 @@ func (w *Worker) CloseContext(ctx context.Context) {
 			ticker := time.NewTicker(100 * time.Millisecond)
 			defer ticker.Stop()
 
-			for {
-				select {
-				case <-ticker.C:
-					if w.cmd.ProcessState != nil {
-						return
-					}
-					if time.Since(now) > time.Second {
-						w.logger.WarnContext(ctx, "force kill worker process")
-						w.cmd.Process.Kill()
-						return
-					}
+			for range ticker.C {
+				if w.cmd.ProcessState != nil {
+					return
+				}
+				if time.Since(now) > time.Second {
+					w.logger.WarnContext(ctx, "force kill worker process")
+					w.cmd.Process.Kill()
+					return
 				}
 			}
 		}()

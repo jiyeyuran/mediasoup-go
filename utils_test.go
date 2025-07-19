@@ -34,6 +34,5 @@ func BenchmarkClone(b *testing.B) {
 
 func TestRef(t *testing.T) {
 	val := 1
-	assert.Same(t, &val, &(*(&val))) //nolint
 	assert.NotSame(t, &val, ref(val))
 }

@@ -608,7 +608,7 @@ func getConsumerRtpParameters(
 		baseRtxSsrc := generateSsrc()
 
 		for i, encoding := range consumableRtpParameters.Encodings {
-			encoding := ref(*encoding)
+			encoding = ref(*encoding)
 
 			encoding.Ssrc = baseSsrc + uint32(i)
 			if rtxSupported {
@@ -705,7 +705,7 @@ func getPipeConsumerRtpParameters(consumableRtpParameters *RtpParameters, enable
 	baseRtxSsrc := generateSsrc()
 
 	for i, encoding := range consumableRtpParameters.Encodings {
-		encoding := ref(*encoding)
+		encoding = ref(*encoding)
 		encoding.Ssrc = baseSsrc + uint32(i)
 
 		if enableRtx {

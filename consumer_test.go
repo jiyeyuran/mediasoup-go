@@ -525,7 +525,7 @@ func TestConsumerCloseByOthers(t *testing.T) {
 		mymock := new(MockedHandler)
 		defer mymock.AssertExpectations(t)
 
-		ctx := context.WithValue(context.Background(), "key", "value")
+		ctx := context.TODO()
 
 		mymock.On("OnProducerClose", ctx).Twice()
 		mymock.On("OnClose", ctx).Twice()
