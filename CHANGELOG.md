@@ -1,6 +1,6 @@
 # Changelog
 
-### NEXT
+### 2.0.3
 
 - feat: Add initial AV1 codec support
 
