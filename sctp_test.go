@@ -97,14 +97,14 @@ func TestSctpMessage(t *testing.T) {
 
 	for i := 0; i < numMessages/2; i++ {
 		data := []byte(fmt.Sprintf("%d", i))
-		_, err := stcpStream.WriteSCTP(data, sctp.PayloadTypeWebRTCBinary)
+		_, err = stcpStream.WriteSCTP(data, sctp.PayloadTypeWebRTCBinary)
 		require.NoError(t, err)
 		sendData = append(sendData, data...)
 	}
 
 	for i := 0; i < numMessages/2; i++ {
 		data := []byte(fmt.Sprintf("%d", i))
-		_, err := stcpStream.WriteSCTP(data, sctp.PayloadTypeWebRTCString)
+		_, err = stcpStream.WriteSCTP(data, sctp.PayloadTypeWebRTCString)
 		require.NoError(t, err)
 		sendData = append(sendData, data...)
 	}

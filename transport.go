@@ -933,7 +933,7 @@ func (t *Transport) ConsumeContext(ctx context.Context, options *ConsumerOptions
 		return nil, err
 	}
 	result := msg.(*FbsTransport.ConsumeResponseT)
-	score := ConsumerScore{}
+	var score ConsumerScore
 	if t.Type() == TransportPipe {
 		score = ConsumerScore{
 			Score:          10,
@@ -1108,7 +1108,6 @@ func (t *Transport) ConsumeDataContext(ctx context.Context, options *DataConsume
 	var (
 		typ                  = DataConsumerDirect
 		sctpStreamParameters *SctpStreamParameters
-		err                  error
 	)
 
 	if t.Type() != TransportDirect {
@@ -1139,7 +1138,7 @@ func (t *Transport) ConsumeDataContext(ctx context.Context, options *DataConsume
 
 	dataConsumerId := UUID(dataConsumerPrefix)
 
-	_, err = t.channel.Request(ctx, &FbsRequest.RequestT{
+	_, err := t.channel.Request(ctx, &FbsRequest.RequestT{
 		Method:    FbsRequest.MethodTRANSPORT_CONSUME_DATA,
 		HandlerId: t.Id(),
 		Body: &FbsRequest.BodyT{
@@ -1327,7 +1326,7 @@ func (t *Transport) handleWorkerNotifications() {
 			rtcpTuple := *parseTransportTuple(notification.Tuple)
 
 			t.mu.Lock()
-			t.data.PlainTransportData.RtcpTuple = &rtcpTuple
+			t.data.RtcpTuple = &rtcpTuple
 			listeners := t.tupleListeners
 			t.mu.Unlock()
 
@@ -1360,7 +1359,7 @@ func (t *Transport) handleWorkerNotifications() {
 			state := IceState(strings.ToLower(notification.IceState.String()))
 
 			t.mu.Lock()
-			t.data.WebRtcTransportData.IceState = state
+			t.data.IceState = state
 			listeners := t.iceStateChangeListeners
 			t.mu.Unlock()
 
@@ -1373,7 +1372,7 @@ func (t *Transport) handleWorkerNotifications() {
 			tuple := *parseTransportTuple(notification.Tuple)
 
 			t.mu.Lock()
-			t.data.WebRtcTransportData.IceSelectedTuple = &tuple
+			t.data.IceSelectedTuple = &tuple
 			listeners := t.iceSelectedTupleChangeListeners
 			t.mu.Unlock()
 
@@ -1386,7 +1385,7 @@ func (t *Transport) handleWorkerNotifications() {
 			state := DtlsState(strings.ToLower(notification.DtlsState.String()))
 
 			t.mu.Lock()
-			t.data.WebRtcTransportData.DtlsState = state
+			t.data.DtlsState = state
 			listeners := t.dtlsStateChangeListeners
 			t.mu.Unlock()
 

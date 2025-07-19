@@ -6,7 +6,9 @@ import (
 	FbsNotification "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/Notification"
 )
 
-var wrappedContextKey = struct{}{}
+type wrappedContextKeyType struct{}
+
+var wrappedContextKey = wrappedContextKeyType{}
 
 type WrappedContext struct {
 	Event     FbsNotification.Event

@@ -152,7 +152,7 @@ func TestDataConsumerClose(t *testing.T) {
 		mymock := new(MockedHandler)
 		defer mymock.AssertExpectations(t)
 
-		ctx := context.WithValue(context.Background(), "key", "value")
+		ctx := context.TODO()
 
 		mymock.On("OnClose", ctx).Once()
 		mymock.On("OnDataProducerClose", ctx).Once()

@@ -133,7 +133,7 @@ func TestCreateWebRtcTransportWithPortRange(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	iceCandidate1 := transport1.Data().WebRtcTransportData.IceCandidates[0]
+	iceCandidate1 := transport1.Data().IceCandidates[0]
 	assert.Equal(t, "127.0.0.1", iceCandidate1.Address)
 	assert.True(t, iceCandidate1.Port >= portRange.Min && iceCandidate1.Port <= portRange.Max)
 	assert.Equal(t, TransportProtocolUDP, iceCandidate1.Protocol)
@@ -145,7 +145,7 @@ func TestCreateWebRtcTransportWithPortRange(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	iceCandidate2 := transport2.Data().WebRtcTransportData.IceCandidates[0]
+	iceCandidate2 := transport2.Data().IceCandidates[0]
 	assert.Equal(t, "127.0.0.1", iceCandidate2.Address)
 	assert.True(t, iceCandidate2.Port >= portRange.Min && iceCandidate2.Port <= portRange.Max)
 	assert.EqualValues(t, TransportProtocolUDP, iceCandidate2.Protocol)
@@ -535,7 +535,7 @@ func TestPipeToRouter(t *testing.T) {
 		AppData: H{"foo": "bar2"},
 	})
 
-	var consumerDeviceCapabilities = &RtpCapabilities{
+	var myDeviceCapabilities = &RtpCapabilities{
 		Codecs: []*RtpCodecCapability{
 			{
 				Kind:                 "audio",
@@ -859,7 +859,7 @@ func TestPipeToRouter(t *testing.T) {
 		})
 		videoConsumer, _ := transport2.Consume(&ConsumerOptions{
 			ProducerId:      videoProducer.Id(),
-			RtpCapabilities: consumerDeviceCapabilities,
+			RtpCapabilities: myDeviceCapabilities,
 		})
 
 		assert.False(t, videoConsumer.Closed())
@@ -919,7 +919,7 @@ func TestPipeToRouter(t *testing.T) {
 		})
 		videoConsumer, _ := transport2.Consume(&ConsumerOptions{
 			ProducerId:      videoProducer.Id(),
-			RtpCapabilities: consumerDeviceCapabilities,
+			RtpCapabilities: myDeviceCapabilities,
 		})
 
 		assert.True(t, videoProducer.Paused())
@@ -948,7 +948,7 @@ func TestPipeToRouter(t *testing.T) {
 		})
 		videoConsumer, _ := transport2.Consume(&ConsumerOptions{
 			ProducerId:      videoProducer.Id(),
-			RtpCapabilities: consumerDeviceCapabilities,
+			RtpCapabilities: myDeviceCapabilities,
 		})
 
 		videoProducer.Close()
