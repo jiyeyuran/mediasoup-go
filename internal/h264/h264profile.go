@@ -13,6 +13,7 @@ const (
 	ProfileMain                byte = 3
 	ProfileConstrainedHigh     byte = 4
 	ProfileHigh                byte = 5
+	ProfilePredictiveHigh444   byte = 6
 
 	// All values are equal to ten times the level number, except level 1b which is
 	// special.
@@ -82,31 +83,15 @@ func (profileLevelId ProfileLevelId) String() string {
 	case ProfileHigh:
 		profileIdcIopString = "6400"
 
+	case ProfilePredictiveHigh444:
+		profileIdcIopString = "f400"
+
 	default:
 		return ""
 	}
 
 	return fmt.Sprintf("%s%02x", profileIdcIopString, profileLevelId.Level)
 }
-
-// DefaultProfileLevelId.
-//
-// TODO: The default should really be profile Baseline and level 1 according to
-// the spec: https://tools.ietf.org/html/rfc6184#section-8.1. In order to not
-// break backwards compatibility with older versions of WebRTC where external
-// codecs don"t have any parameters, use profile ConstrainedBaseline level 3_1
-// instead. This workaround will only be done in an interim period to allow
-// external clients to update their code.
-//
-// http://crbug/webrtc/6337.
-var DefaultProfileLevelId = ProfileLevelId{
-	Profile: ProfileConstrainedBaseline,
-	Level:   Level3_1,
-}
-
-// ConstraintSet3Flag for level_idc=11 and profile_idc=0x42, 0x4D, or 0x58, the constraint set3
-// flag specifies if level 1b or level 1.1 is used.
-const ConstraintSet3Flag byte = 0x10
 
 // BitPattern is class for matching bit patterns such as "x1xx0000" where "x" is allowed to be
 // either 0 or 1.
@@ -155,6 +140,162 @@ var ProfilePatterns = []ProfilePattern{
 	{0x4D, NewBitPattern("0x0x0000"), ProfileMain},
 	{0x64, NewBitPattern("00000000"), ProfileHigh},
 	{0x64, NewBitPattern("00001100"), ProfileConstrainedHigh},
+	{0xF4, NewBitPattern("00000000"), ProfilePredictiveHigh444},
+}
+
+type LevelConstraint struct {
+	MaxMacroblocksPerSecond uint32
+	MaxMacroblockFrameSize  uint32
+	Level                   byte
+}
+
+// This is from ITU-T H.264 (02/2016) Table A-1 – Level limits.
+var LevelConstraints = []LevelConstraint{
+	{
+		MaxMacroblocksPerSecond: 1485,
+		MaxMacroblockFrameSize:  99,
+		Level:                   Level1,
+	},
+	{
+		MaxMacroblocksPerSecond: 1485,
+		MaxMacroblockFrameSize:  99,
+		Level:                   Level1_b,
+	},
+	{
+		MaxMacroblocksPerSecond: 3000,
+		MaxMacroblockFrameSize:  396,
+		Level:                   Level1_1,
+	},
+	{
+		MaxMacroblocksPerSecond: 6000,
+		MaxMacroblockFrameSize:  396,
+		Level:                   Level1_2,
+	},
+	{
+		MaxMacroblocksPerSecond: 11880,
+		MaxMacroblockFrameSize:  396,
+		Level:                   Level1_3,
+	},
+	{
+		MaxMacroblocksPerSecond: 11880,
+		MaxMacroblockFrameSize:  396,
+		Level:                   Level2,
+	},
+	{
+		MaxMacroblocksPerSecond: 19800,
+		MaxMacroblockFrameSize:  792,
+		Level:                   Level2_1,
+	},
+	{
+		MaxMacroblocksPerSecond: 20250,
+		MaxMacroblockFrameSize:  1620,
+		Level:                   Level2_2,
+	},
+	{
+		MaxMacroblocksPerSecond: 40500,
+		MaxMacroblockFrameSize:  1620,
+		Level:                   Level3,
+	},
+	{
+		MaxMacroblocksPerSecond: 108000,
+		MaxMacroblockFrameSize:  3600,
+		Level:                   Level3_1,
+	},
+	{
+		MaxMacroblocksPerSecond: 216000,
+		MaxMacroblockFrameSize:  5120,
+		Level:                   Level3_2,
+	},
+	{
+		MaxMacroblocksPerSecond: 245760,
+		MaxMacroblockFrameSize:  8192,
+		Level:                   Level4,
+	},
+	{
+		MaxMacroblocksPerSecond: 245760,
+		MaxMacroblockFrameSize:  8192,
+		Level:                   Level4_1,
+	},
+	{
+		MaxMacroblocksPerSecond: 522240,
+		MaxMacroblockFrameSize:  8704,
+		Level:                   Level4_2,
+	},
+	{
+		MaxMacroblocksPerSecond: 589824,
+		MaxMacroblockFrameSize:  22080,
+		Level:                   Level5,
+	},
+	{
+		MaxMacroblocksPerSecond: 983040,
+		MaxMacroblockFrameSize:  36864,
+		Level:                   Level5_1,
+	},
+	{
+		MaxMacroblocksPerSecond: 2073600,
+		MaxMacroblockFrameSize:  36864,
+		Level:                   Level5_2,
+	},
+}
+
+// ProfileToString prints name of given profile.
+func ProfileToString(profile byte) string {
+	switch profile {
+	case ProfileConstrainedBaseline:
+		return "ConstrainedBaseline"
+	case ProfileBaseline:
+		return "Baseline"
+	case ProfileMain:
+		return "Main"
+	case ProfileConstrainedHigh:
+		return "ConstrainedHigh"
+	case ProfileHigh:
+		return "High"
+	default:
+		return ""
+	}
+}
+
+// LevelToString prints name of given level.
+func LevelToString(level byte) string {
+	switch level {
+	case Level1_b:
+		return "1b"
+	case Level1:
+		return "1"
+	case Level1_1:
+		return "1.1"
+	case Level1_2:
+		return "1.2"
+	case Level1_3:
+		return "1.3"
+	case Level2:
+		return "2"
+	case Level2_1:
+		return "2.1"
+	case Level2_2:
+		return "2.2"
+	case Level3:
+		return "3"
+	case Level3_1:
+		return "3.1"
+	case Level3_2:
+		return "3.2"
+	case Level4:
+		return "4"
+	case Level4_1:
+		return "4.1"
+	case Level4_2:
+		return "4.2"
+	case Level5:
+		return "5"
+	case Level5_1:
+		return "5.1"
+	case Level5_2:
+		return "5.2"
+	default:
+		return ""
+	}
 }
 
 // ParseProfileLevelId parse profile level id that is represented as a string of 3 hex bytes.
@@ -162,13 +303,17 @@ var ProfilePatterns = []ProfilePattern{
 //
 // @param str - profile-level-id value as a string of 3 hex bytes.
 func ParseProfileLevelId(str string) (profileLevelId *ProfileLevelId) {
+	// ConstraintSet3Flag for level_idc=11 and profile_idc=0x42, 0x4D, or 0x58, the constraint set3
+	// flag specifies if level 1b or level 1.1 is used.
+	const constraintSet3Flag byte = 0x10
+
 	// The string should consist of 3 bytes in hexadecimal format.
 	if len(str) != 6 {
-		return
+		return nil
 	}
 	profileLevelIdNumeric, _ := strconv.ParseInt(str, 16, 32)
 	if profileLevelIdNumeric == 0 {
-		return
+		return nil
 	}
 	// Separate into three bytes.
 	levelIdc := byte(profileLevelIdNumeric & 0xFF)
@@ -180,7 +325,7 @@ func ParseProfileLevelId(str string) (profileLevelId *ProfileLevelId) {
 
 	switch levelIdc {
 	case Level1_1:
-		if (profileIop & ConstraintSet3Flag) != 0 {
+		if (profileIop & constraintSet3Flag) != 0 {
 			level = Level1_b
 		} else {
 			level = Level1_1
@@ -190,7 +335,7 @@ func ParseProfileLevelId(str string) (profileLevelId *ProfileLevelId) {
 		Level5, Level5_1, Level5_2:
 		level = levelIdc
 	default:
-		return
+		return nil
 	}
 
 	// Parse profile_idc/profile_iop into a Profile enum.
@@ -204,14 +349,28 @@ func ParseProfileLevelId(str string) (profileLevelId *ProfileLevelId) {
 		}
 	}
 
-	return
+	return nil
 }
 
 // ParseSdpProfileLevelId parse profile level id that is represented as a string of 3 hex bytes.
 // A default profile level id will be returned if profile level id is empty.
 func ParseSdpProfileLevelId(profileLevelIdStr string) *ProfileLevelId {
+	// DefaultProfileLevelId.
+	//
+	// TODO: The default should really be profile Baseline and level 1 according to
+	// the spec: https://tools.ietf.org/html/rfc6184#section-8.1. In order to not
+	// break backwards compatibility with older versions of WebRTC where external
+	// codecs don"t have any parameters, use profile ConstrainedBaseline level 3_1
+	// instead. This workaround will only be done in an interim period to allow
+	// external clients to update their code.
+	//
+	// http://crbug/webrtc/6337.
+	defaultProfileLevelId := &ProfileLevelId{
+		Profile: ProfileConstrainedBaseline,
+		Level:   Level3_1,
+	}
 	if len(profileLevelIdStr) == 0 {
-		return &DefaultProfileLevelId
+		return defaultProfileLevelId
 	}
 	return ParseProfileLevelId(profileLevelIdStr)
 }
@@ -224,6 +383,17 @@ func IsSameProfile(profileLevelIdStr1, profileLevelIdStr2 string) bool {
 
 	return profileLevelId1 != nil && profileLevelId2 != nil &&
 		profileLevelId1.Profile == profileLevelId2.Profile
+}
+
+// IsSameProfileAndLevel returns true if the codec parameters have the same H264 profile, i.e. the
+// same H264 profile (Baseline, High, etc) and same level.
+func IsSameProfileAndLevel(profileLevelIdStr1, profileLevelIdStr2 string) bool {
+	profileLevelId1 := ParseSdpProfileLevelId(profileLevelIdStr1)
+	profileLevelId2 := ParseSdpProfileLevelId(profileLevelIdStr2)
+
+	return profileLevelId1 != nil && profileLevelId2 != nil &&
+		profileLevelId1.Profile == profileLevelId2.Profile &&
+		profileLevelId1.Level == profileLevelId2.Level
 }
 
 type RtpParameter struct {
@@ -298,6 +468,25 @@ func GenerateProfileLevelIdForAnswer(
 	}
 
 	return profileLevelId.String(), nil
+}
+
+// SupportedLevel given that a decoder supports up to a given frame size (in pixels) at up to
+// a given number of frames per second, return the highest H264 level where it
+// can guarantee that it will be able to support all valid encoded streams that
+// are within that level.
+func SupportedLevel(maxFramePixelCount, maxFps uint32) (level byte, ok bool) {
+	const PixelsPerMacroblock = 16 * 16
+
+	for i := len(LevelConstraints) - 1; i >= 0; i-- {
+		levelConstraint := LevelConstraints[i]
+
+		if levelConstraint.MaxMacroblockFrameSize*PixelsPerMacroblock <= maxFramePixelCount &&
+			levelConstraint.MaxMacroblocksPerSecond <= maxFps*levelConstraint.MaxMacroblockFrameSize {
+			return levelConstraint.Level, true
+		}
+	}
+
+	return 0, false
 }
 
 // byteMaskString convert a string of 8 characters into a byte where the positions containing

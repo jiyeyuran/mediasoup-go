@@ -120,9 +120,57 @@ func TestIsNotSameProfile(t *testing.T) {
 	assert.False(t, IsSameProfile("42000a", "64002a"))
 }
 
+func TestIsSameProfileAndLevel(t *testing.T) {
+	t.Run("same profile and level", func(t *testing.T) {
+		assert.True(t, IsSameProfileAndLevel("", ""))
+		assert.True(t, IsSameProfileAndLevel("42e01f", "42e01f"))
+		assert.True(t, IsSameProfileAndLevel("42a01f", "58A01F"))
+		assert.True(t, IsSameProfileAndLevel("42e01f", ""))
+	})
+
+	t.Run("not same profile", func(t *testing.T) {
+		assert.False(t, IsSameProfileAndLevel("", "4d001f"))
+		assert.False(t, IsSameProfileAndLevel("42a01f", "640c1f"))
+		assert.False(t, IsSameProfileAndLevel("42000a", "64002a"))
+	})
+
+	t.Run("not same level", func(t *testing.T) {
+		assert.False(t, IsSameProfileAndLevel("42e01f", "42e020"))
+	})
+}
+
+func TestProfileToString(t *testing.T) {
+	assert.Equal(t, "ConstrainedBaseline", ProfileToString(ProfileConstrainedBaseline))
+	assert.Equal(t, "Baseline", ProfileToString(ProfileBaseline))
+	assert.Equal(t, "Main", ProfileToString(ProfileMain))
+	assert.Equal(t, "ConstrainedHigh", ProfileToString(ProfileConstrainedHigh))
+	assert.Equal(t, "High", ProfileToString(ProfileHigh))
+	assert.Equal(t, "", ProfileToString(255))
+}
+
+func TestLevelToString(t *testing.T) {
+	assert.Equal(t, "1b", LevelToString(Level1_b))
+	assert.Equal(t, "1", LevelToString(Level1))
+	assert.Equal(t, "1.1", LevelToString(Level1_1))
+	assert.Equal(t, "1.2", LevelToString(Level1_2))
+	assert.Equal(t, "1.3", LevelToString(Level1_3))
+	assert.Equal(t, "2", LevelToString(Level2))
+	assert.Equal(t, "2.1", LevelToString(Level2_1))
+	assert.Equal(t, "2.2", LevelToString(Level2_2))
+	assert.Equal(t, "3", LevelToString(Level3))
+	assert.Equal(t, "3.1", LevelToString(Level3_1))
+	assert.Equal(t, "3.2", LevelToString(Level3_2))
+	assert.Equal(t, "4", LevelToString(Level4))
+	assert.Equal(t, "4.1", LevelToString(Level4_1))
+	assert.Equal(t, "4.2", LevelToString(Level4_2))
+	assert.Equal(t, "5", LevelToString(Level5))
+	assert.Equal(t, "5.1", LevelToString(Level5_1))
+	assert.Equal(t, "5.2", LevelToString(Level5_2))
+	assert.Equal(t, "", LevelToString(255))
+}
+
 func TestGenerateProfileLevelIdForAnswerEmpty(t *testing.T) {
 	answer, _ := GenerateProfileLevelIdForAnswer(RtpParameter{}, RtpParameter{})
-
 	assert.Empty(t, answer)
 }
 
@@ -174,6 +222,35 @@ func TestByteMaskString(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestSupportedLevel(t *testing.T) {
+	t.Run("valid values", func(t *testing.T) {
+		level, ok := SupportedLevel(640*480, 25)
+		assert.True(t, ok)
+		assert.Equal(t, byte(Level2_1), level)
+
+		level, ok = SupportedLevel(1280*720, 30)
+		assert.True(t, ok)
+		assert.Equal(t, byte(Level3_1), level)
+
+		level, ok = SupportedLevel(1920*1280, 60)
+		assert.True(t, ok)
+		assert.Equal(t, byte(Level4_2), level)
+	})
+
+	t.Run("invalid values", func(t *testing.T) {
+		_, ok := SupportedLevel(0, 0)
+		assert.False(t, ok)
+
+		// All levels support fps > 5.
+		_, ok = SupportedLevel(1280*720, 5)
+		assert.False(t, ok)
+
+		// All levels support frame sizes > 183 * 137.
+		_, ok = SupportedLevel(183*137, 30)
+		assert.False(t, ok)
+	})
 }
 
 func bitstoByte(str string) byte {
