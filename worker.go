@@ -17,12 +17,16 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/Masterminds/semver/v3"
 	FbsNotification "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/Notification"
 	FbsRequest "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/Request"
 	FbsTransport "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/Transport"
 	FbsWorker "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/Worker"
 	"github.com/jiyeyuran/mediasoup-go/v2/internal/channel"
 )
+
+// MEDIASOUP_WORKER_VERSION is the max supported version of the mediasoup C++ subprocess.
+const MEDIASOUP_WORKER_VERSION = "3.16.7"
 
 // Worker represents a mediasoup C++ subprocess that runs in a single CPU core and handles Router
 // instances.
@@ -33,6 +37,7 @@ type Worker struct {
 	logger                   *slog.Logger
 	routers                  sync.Map
 	webRtcServers            sync.Map
+	version                  *semver.Version
 	appData                  H
 	newWebRtcServerListeners []func(context.Context, *WebRtcServer)
 	newRouterListeners       []func(context.Context, *Router)
@@ -43,10 +48,17 @@ type Worker struct {
 // NewWorker create a Worker.
 func NewWorker(workerBinaryPath string, options ...Option) (*Worker, error) {
 	opts := &WorkerSettings{
-		LogLevel: WorkerLogLevelWarn,
+		LogLevel:      WorkerLogLevelWarn,
+		WorkerVersion: MEDIASOUP_WORKER_VERSION,
+		AppData:       H{},
 	}
 	for _, opt := range options {
 		opt(opts)
+	}
+
+	version, err := semver.NewVersion(opts.WorkerVersion)
+	if err != nil {
+		return nil, fmt.Errorf("invalid worker version, %w", err)
 	}
 
 	logger := opts.Logger
@@ -204,7 +216,8 @@ func NewWorker(workerBinaryPath string, options ...Option) (*Worker, error) {
 		cmd:     cmd,
 		channel: channel,
 		logger:  logger,
-		appData: orElse(opts.AppData == nil, H{}, opts.AppData),
+		version: version,
+		appData: opts.AppData,
 	}
 
 	go w.wait(cmd, &spawnDone, doneCh)
@@ -294,10 +307,13 @@ func (w *Worker) CloseContext(ctx context.Context) {
 			}
 		}()
 
-		// w.channel.Request(ctx, &FbsRequest.RequestT{
-		// 	Method: FbsRequest.MethodWORKER_CLOSE,
-		// })
-		w.cmd.Process.Signal(os.Interrupt)
+		if versionSatisfies(w.version, ">= 3.16.0") {
+			go w.channel.Request(ctx, &FbsRequest.RequestT{
+				Method: FbsRequest.MethodWORKER_CLOSE,
+			})
+		} else {
+			w.cmd.Process.Signal(os.Interrupt)
+		}
 	}
 
 	w.closed = true

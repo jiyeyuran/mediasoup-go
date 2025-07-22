@@ -788,7 +788,7 @@ func matchCodecs(
 			return false
 		}
 
-	case "video/h264", "video/h264-svc":
+	case "video/h264":
 		if options.strict {
 			if aParameters.PacketizationMode != bParameters.PacketizationMode {
 				return false

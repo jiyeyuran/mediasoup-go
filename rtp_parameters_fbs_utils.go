@@ -139,12 +139,6 @@ func parseRtpHeaderExtensionParameters(headerExtension *FbsRtpParameters.RtpHead
 	case FbsRtpParameters.RtpHeaderExtensionUriRepairRtpStreamId:
 		uri = "urn:ietf:params:rtp-hdrext:sdes:repaired-rtp-stream-id"
 
-	case FbsRtpParameters.RtpHeaderExtensionUriFrameMarkingDraft07:
-		uri = "http://tools.ietf.org/html/draft-ietf-avtext-framemarking-07"
-
-	case FbsRtpParameters.RtpHeaderExtensionUriFrameMarking:
-		uri = "urn:ietf:params:rtp-hdrext:framemarking"
-
 	case FbsRtpParameters.RtpHeaderExtensionUriAudioLevel:
 		uri = "urn:ietf:params:rtp-hdrext:ssrc-audio-level"
 
@@ -187,12 +181,6 @@ func convertHeaderExtensionUri(uri string) FbsRtpParameters.RtpHeaderExtensionUr
 
 	case "urn:ietf:params:rtp-hdrext:sdes:repaired-rtp-stream-id":
 		return FbsRtpParameters.RtpHeaderExtensionUriRepairRtpStreamId
-
-	case "http://tools.ietf.org/html/draft-ietf-avtext-framemarking-07":
-		return FbsRtpParameters.RtpHeaderExtensionUriFrameMarkingDraft07
-
-	case "urn:ietf:params:rtp-hdrext:framemarking":
-		return FbsRtpParameters.RtpHeaderExtensionUriFrameMarking
 
 	case "urn:ietf:params:rtp-hdrext:ssrc-audio-level":
 		return FbsRtpParameters.RtpHeaderExtensionUriAudioLevel

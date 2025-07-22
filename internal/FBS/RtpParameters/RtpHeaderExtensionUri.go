@@ -10,24 +10,20 @@ const (
 	RtpHeaderExtensionUriMid                    RtpHeaderExtensionUri = 0
 	RtpHeaderExtensionUriRtpStreamId            RtpHeaderExtensionUri = 1
 	RtpHeaderExtensionUriRepairRtpStreamId      RtpHeaderExtensionUri = 2
-	RtpHeaderExtensionUriFrameMarkingDraft07    RtpHeaderExtensionUri = 3
-	RtpHeaderExtensionUriFrameMarking           RtpHeaderExtensionUri = 4
-	RtpHeaderExtensionUriAudioLevel             RtpHeaderExtensionUri = 5
-	RtpHeaderExtensionUriVideoOrientation       RtpHeaderExtensionUri = 6
-	RtpHeaderExtensionUriTimeOffset             RtpHeaderExtensionUri = 7
-	RtpHeaderExtensionUriTransportWideCcDraft01 RtpHeaderExtensionUri = 8
-	RtpHeaderExtensionUriAbsSendTime            RtpHeaderExtensionUri = 9
-	RtpHeaderExtensionUriAbsCaptureTime         RtpHeaderExtensionUri = 10
-	RtpHeaderExtensionUriPlayoutDelay           RtpHeaderExtensionUri = 11
-	RtpHeaderExtensionUriDependencyDescriptor   RtpHeaderExtensionUri = 12
+	RtpHeaderExtensionUriAudioLevel             RtpHeaderExtensionUri = 3
+	RtpHeaderExtensionUriVideoOrientation       RtpHeaderExtensionUri = 4
+	RtpHeaderExtensionUriTimeOffset             RtpHeaderExtensionUri = 5
+	RtpHeaderExtensionUriTransportWideCcDraft01 RtpHeaderExtensionUri = 6
+	RtpHeaderExtensionUriAbsSendTime            RtpHeaderExtensionUri = 7
+	RtpHeaderExtensionUriAbsCaptureTime         RtpHeaderExtensionUri = 8
+	RtpHeaderExtensionUriPlayoutDelay           RtpHeaderExtensionUri = 9
+	RtpHeaderExtensionUriDependencyDescriptor   RtpHeaderExtensionUri = 10
 )
 
 var EnumNamesRtpHeaderExtensionUri = map[RtpHeaderExtensionUri]string{
 	RtpHeaderExtensionUriMid:                    "Mid",
 	RtpHeaderExtensionUriRtpStreamId:            "RtpStreamId",
 	RtpHeaderExtensionUriRepairRtpStreamId:      "RepairRtpStreamId",
-	RtpHeaderExtensionUriFrameMarkingDraft07:    "FrameMarkingDraft07",
-	RtpHeaderExtensionUriFrameMarking:           "FrameMarking",
 	RtpHeaderExtensionUriAudioLevel:             "AudioLevel",
 	RtpHeaderExtensionUriVideoOrientation:       "VideoOrientation",
 	RtpHeaderExtensionUriTimeOffset:             "TimeOffset",
@@ -42,8 +38,6 @@ var EnumValuesRtpHeaderExtensionUri = map[string]RtpHeaderExtensionUri{
 	"Mid":                    RtpHeaderExtensionUriMid,
 	"RtpStreamId":            RtpHeaderExtensionUriRtpStreamId,
 	"RepairRtpStreamId":      RtpHeaderExtensionUriRepairRtpStreamId,
-	"FrameMarkingDraft07":    RtpHeaderExtensionUriFrameMarkingDraft07,
-	"FrameMarking":           RtpHeaderExtensionUriFrameMarking,
 	"AudioLevel":             RtpHeaderExtensionUriAudioLevel,
 	"VideoOrientation":       RtpHeaderExtensionUriVideoOrientation,
 	"TimeOffset":             RtpHeaderExtensionUriTimeOffset,
