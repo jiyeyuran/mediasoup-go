@@ -2,6 +2,7 @@
 
 ### NEXT
 - Remove H265 codec and deprecated frame-marking RTP extension
+- Remove H264-SVC codec
 
 ### 2.0.3
 

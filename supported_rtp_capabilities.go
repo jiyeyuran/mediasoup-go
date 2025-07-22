@@ -220,21 +220,6 @@ var supportedRtpCapabilities = RtpCapabilities{
 		},
 		{
 			Kind:      MediaKindVideo,
-			MimeType:  "video/H264-SVC",
-			ClockRate: 90000,
-			Parameters: RtpCodecSpecificParameters{
-				LevelAsymmetryAllowed: 1,
-			},
-			RtcpFeedback: []*RtcpFeedback{
-				{Type: "nack"},
-				{Type: "nack", Parameter: "pli"},
-				{Type: "ccm", Parameter: "fir"},
-				{Type: "goog-remb"},
-				{Type: "transport-cc"},
-			},
-		},
-		{
-			Kind:      MediaKindVideo,
 			MimeType:  "video/AV1",
 			ClockRate: 90000,
 			RtcpFeedback: []*RtcpFeedback{
