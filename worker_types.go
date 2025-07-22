@@ -74,6 +74,9 @@ type WorkerSettings struct {
 
 	// WorkerLogger sets the logger for worker process, default to Logger.
 	WorkerLogger *slog.Logger
+
+	// WorkerVersion sets the version of the mediasoup C++ subprocess.
+	WorkerVersion string
 }
 
 type WorkerUpdatableSettings struct {

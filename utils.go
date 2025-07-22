@@ -7,6 +7,7 @@ import (
 	"time"
 	"unsafe"
 
+	"github.com/Masterminds/semver/v3"
 	"github.com/rs/xid"
 )
 
@@ -202,4 +203,12 @@ func clearSyncMap(m *sync.Map) {
 		m.Delete(key)
 		return true
 	})
+}
+
+func versionSatisfies(version *semver.Version, constraint string) bool {
+	c, err := semver.NewConstraint(constraint)
+	if err != nil {
+		return false
+	}
+	return c.Check(version)
 }

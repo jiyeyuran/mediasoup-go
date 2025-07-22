@@ -4,6 +4,7 @@
 - Remove H265 codec and deprecated frame-marking RTP extension
 - Remove H264-SVC codec
 - `Router`: Add `UpdateMediaCodecs()` method to dynamically change Router's RTP capabilities
+- add version support for mediasoup C++ subprocess
 
 ### 2.0.3
 
