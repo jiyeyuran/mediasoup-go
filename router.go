@@ -153,6 +153,19 @@ func (r *Router) CanConsume(producerId string, rtpCapabilities *RtpCapabilities)
 	return ok
 }
 
+func (r *Router) UpdateMediaCodecs(mediaCodecs []*RtpCodecCapability) error {
+	r.logger.Debug("UpdateMediaCodecs()")
+
+	cloneMediaCodecs := clone(mediaCodecs)
+
+	rtpCapabilities, err := generateRouterRtpCapabilities(cloneMediaCodecs)
+	if err != nil {
+		return err
+	}
+	r.data.RtpCapabilities = rtpCapabilities
+	return nil
+}
+
 func (r *Router) Close() error {
 	return r.CloseContext(context.Background())
 }

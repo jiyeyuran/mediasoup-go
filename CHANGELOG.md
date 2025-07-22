@@ -3,6 +3,7 @@
 ### NEXT
 - Remove H265 codec and deprecated frame-marking RTP extension
 - Remove H264-SVC codec
+- `Router`: Add `UpdateMediaCodecs()` method to dynamically change Router's RTP capabilities
 
 ### 2.0.3
 

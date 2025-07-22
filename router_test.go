@@ -46,6 +46,22 @@ func createRouter(worker *Worker) *Router {
 	return router
 }
 
+func TestRouter_UpdateMediaCodecs(t *testing.T) {
+	router := createRouter(nil)
+
+	assert.NotNil(t, router.RtpCapabilities())
+	// 3 codecs + 2 RTX codecs.
+	assert.Len(t, router.RtpCapabilities().Codecs, 5)
+	assert.NotNil(t, router.RtpCapabilities().HeaderExtensions)
+
+	err := router.UpdateMediaCodecs([]*RtpCodecCapability{})
+	require.NoError(t, err)
+
+	assert.NotNil(t, router.RtpCapabilities())
+	assert.Len(t, router.RtpCapabilities().Codecs, 0)
+	assert.NotNil(t, router.RtpCapabilities().HeaderExtensions)
+}
+
 func TestRouterClose(t *testing.T) {
 	t.Run("close normally", func(t *testing.T) {
 		mymock := new(MockedHandler)
