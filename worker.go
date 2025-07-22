@@ -48,17 +48,20 @@ type Worker struct {
 // NewWorker create a Worker.
 func NewWorker(workerBinaryPath string, options ...Option) (*Worker, error) {
 	opts := &WorkerSettings{
-		LogLevel:      WorkerLogLevelWarn,
-		WorkerVersion: MEDIASOUP_WORKER_VERSION,
-		AppData:       H{},
+		LogLevel: WorkerLogLevelWarn,
+		AppData:  H{},
 	}
 	for _, opt := range options {
 		opt(opts)
 	}
 
+	if len(opts.WorkerVersion) == 0 {
+		opts.WorkerVersion = MEDIASOUP_WORKER_VERSION
+	}
+
 	version, err := semver.NewVersion(opts.WorkerVersion)
 	if err != nil {
-		return nil, fmt.Errorf("invalid worker version, %w", err)
+		return nil, fmt.Errorf("invalid worker version: %s, error: %w", opts.WorkerVersion, err)
 	}
 
 	logger := opts.Logger
