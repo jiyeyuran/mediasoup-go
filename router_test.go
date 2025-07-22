@@ -286,16 +286,6 @@ func TestCreatePipeTransport(t *testing.T) {
 			},
 		}, pipeConsumer.RtpParameters().Codecs)
 		assert.Equal(t, []*RtpHeaderExtensionParameters{
-			{
-				Uri:     "http://tools.ietf.org/html/draft-ietf-avtext-framemarking-07",
-				Id:      6,
-				Encrypt: false,
-			},
-			{
-				Uri:     "urn:ietf:params:rtp-hdrext:framemarking",
-				Id:      7,
-				Encrypt: false,
-			},
 			// TODO: Enable when DD is sendrecv.
 			// {
 			// 	Uri:     "https://aomediacodec.github.io/av1-rtp-spec/#dependency-descriptor-rtp-header-extension",
@@ -740,16 +730,6 @@ func TestPipeToRouter(t *testing.T) {
 			},
 		}, pipeConsumer.RtpParameters().Codecs)
 		assert.EqualValues(t, []*RtpHeaderExtensionParameters{
-			{
-				Uri:     "http://tools.ietf.org/html/draft-ietf-avtext-framemarking-07",
-				Id:      6,
-				Encrypt: false,
-			},
-			{
-				Uri:     "urn:ietf:params:rtp-hdrext:framemarking",
-				Id:      7,
-				Encrypt: false,
-			},
 			// TODO: Enable when DD is sendrecv.
 			// {
 			// 	Uri:     "https://aomediacodec.github.io/av1-rtp-spec/#dependency-descriptor-rtp-header-extension",
@@ -802,16 +782,6 @@ func TestPipeToRouter(t *testing.T) {
 			},
 		}, pipeProducer.RtpParameters().Codecs)
 		assert.Equal(t, []*RtpHeaderExtensionParameters{
-			{
-				Uri:     "http://tools.ietf.org/html/draft-ietf-avtext-framemarking-07",
-				Id:      6,
-				Encrypt: false,
-			},
-			{
-				Uri:     "urn:ietf:params:rtp-hdrext:framemarking",
-				Id:      7,
-				Encrypt: false,
-			},
 			// TODO: Enable when DD is sendrecv.
 			// {
 			// 	Uri:     "https://aomediacodec.github.io/av1-rtp-spec/#dependency-descriptor-rtp-header-extension",

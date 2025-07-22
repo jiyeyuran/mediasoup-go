@@ -235,21 +235,6 @@ var supportedRtpCapabilities = RtpCapabilities{
 		},
 		{
 			Kind:      MediaKindVideo,
-			MimeType:  "video/H265",
-			ClockRate: 90000,
-			Parameters: RtpCodecSpecificParameters{
-				LevelAsymmetryAllowed: 1,
-			},
-			RtcpFeedback: []*RtcpFeedback{
-				{Type: "nack"},
-				{Type: "nack", Parameter: "pli"},
-				{Type: "ccm", Parameter: "fir"},
-				{Type: "goog-remb"},
-				{Type: "transport-cc"},
-			},
-		},
-		{
-			Kind:      MediaKindVideo,
 			MimeType:  "video/AV1",
 			ClockRate: 90000,
 			RtcpFeedback: []*RtcpFeedback{
@@ -316,21 +301,6 @@ var supportedRtpCapabilities = RtpCapabilities{
 			Kind:             MediaKindVideo,
 			Uri:              "http://www.ietf.org/id/draft-holmer-rmcat-transport-wide-cc-extensions-01",
 			PreferredId:      5,
-			PreferredEncrypt: false,
-			Direction:        MediaDirectionSendrecv,
-		},
-		// NOTE: Remove this once framemarking draft becomes RFC.
-		{
-			Kind:             MediaKindVideo,
-			Uri:              "http://tools.ietf.org/html/draft-ietf-avtext-framemarking-07",
-			PreferredId:      6,
-			PreferredEncrypt: false,
-			Direction:        MediaDirectionSendrecv,
-		},
-		{
-			Kind:             MediaKindVideo,
-			Uri:              "urn:ietf:params:rtp-hdrext:framemarking",
-			PreferredId:      7,
 			PreferredEncrypt: false,
 			Direction:        MediaDirectionSendrecv,
 		},

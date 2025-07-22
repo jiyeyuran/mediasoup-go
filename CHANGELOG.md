@@ -1,5 +1,8 @@
 # Changelog
 
+### NEXT
+- Remove H265 codec and deprecated frame-marking RTP extension
+
 ### 2.0.3
 
 - feat: Add initial AV1 codec support
