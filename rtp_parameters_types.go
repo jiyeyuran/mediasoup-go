@@ -47,6 +47,7 @@ type RtpCodecCapability struct {
 	MimeType string `json:"mimeType"`
 
 	// PreferredPayloadType is the preferred RTP payload type.
+	// NOTE: it's optional in `MediaCodecs` of RouterOptions.
 	PreferredPayloadType uint8 `json:"preferredPayloadType,omitempty"`
 
 	// ClockRate is the codec clock rate expressed in Hertz.

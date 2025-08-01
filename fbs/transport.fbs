@@ -32,6 +32,7 @@ table ListenInfo {
     flags: SocketFlags (required);
     send_buffer_size: uint32 = 0;
     recv_buffer_size: uint32 = 0;
+    expose_internal_ip: bool = false;
 }
 
 table RestartIceResponse {

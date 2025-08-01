@@ -87,6 +87,7 @@ func convertTransportListenInfo(info TransportListenInfo) *FbsTransport.ListenIn
 		Protocol:         orElse(info.Protocol == TransportProtocolTCP, FbsTransport.ProtocolTCP, FbsTransport.ProtocolUDP),
 		Ip:               info.Ip,
 		AnnouncedAddress: info.AnnouncedAddress,
+		ExposeInternalIp: info.ExposeInternalIp,
 		Port:             info.Port,
 		PortRange: &FbsTransport.PortRangeT{
 			Min: info.PortRange.Min,

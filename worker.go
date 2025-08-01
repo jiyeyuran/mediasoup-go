@@ -26,7 +26,7 @@ import (
 )
 
 // MEDIASOUP_WORKER_VERSION is the max supported version of the mediasoup C++ subprocess.
-const MEDIASOUP_WORKER_VERSION = "3.16.7"
+const MEDIASOUP_WORKER_VERSION = "3.18.0"
 
 // Worker represents a mediasoup C++ subprocess that runs in a single CPU core and handles Router
 // instances.
@@ -432,6 +432,7 @@ func (w *Worker) CreateWebRtcServerContext(ctx context.Context, options *WebRtcS
 			Ip:               info.Ip,
 			Port:             info.Port,
 			AnnouncedAddress: info.AnnouncedAddress,
+			ExposeInternalIp: info.ExposeInternalIp,
 			SendBufferSize:   info.SendBufferSize,
 			RecvBufferSize:   info.RecvBufferSize,
 			PortRange: &FbsTransport.PortRangeT{
