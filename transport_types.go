@@ -158,6 +158,11 @@ type TransportListenInfo struct {
 	// AnnouncedAddress announced IPv4, IPv6 or hostname (useful when running mediasoup behind NAT with private IP)
 	AnnouncedAddress string `json:"announcedAddress,omitempty"`
 
+	// In transports with ICE candidates, this field determines whether to also
+	// expose an ICE candidate with the IP of the |ip| field when |announcedAddress| is given.
+	// ExposeInternalIp indicates whether to expose an ICE candidate with the internal IP when AnnouncedAddress is set.
+	ExposeInternalIp bool `json:"exposeInternalIp,omitempty"`
+
 	// Port listening port
 	Port uint16 `json:"port,omitempty"`
 

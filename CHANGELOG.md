@@ -1,5 +1,8 @@
 # Changelog
 
+### NEXT
+- ListenInfo: Add ExposeInternalIp field
+
 ### 2.1.0
 - Remove H265 codec and deprecated frame-marking RTP extension
 - Remove H264-SVC codec

@@ -15,6 +15,7 @@ type ListenInfoT struct {
 	Flags *SocketFlagsT `json:"flags"`
 	SendBufferSize uint32 `json:"send_buffer_size"`
 	RecvBufferSize uint32 `json:"recv_buffer_size"`
+	ExposeInternalIp bool `json:"expose_internal_ip"`
 }
 
 func (t *ListenInfoT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
@@ -40,6 +41,7 @@ func (t *ListenInfoT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	ListenInfoAddFlags(builder, flagsOffset)
 	ListenInfoAddSendBufferSize(builder, t.SendBufferSize)
 	ListenInfoAddRecvBufferSize(builder, t.RecvBufferSize)
+	ListenInfoAddExposeInternalIp(builder, t.ExposeInternalIp)
 	return ListenInfoEnd(builder)
 }
 
@@ -52,6 +54,7 @@ func (rcv *ListenInfo) UnPackTo(t *ListenInfoT) {
 	t.Flags = rcv.Flags(nil).UnPack()
 	t.SendBufferSize = rcv.SendBufferSize()
 	t.RecvBufferSize = rcv.RecvBufferSize()
+	t.ExposeInternalIp = rcv.ExposeInternalIp()
 }
 
 func (rcv *ListenInfo) UnPack() *ListenInfoT {
@@ -188,8 +191,20 @@ func (rcv *ListenInfo) MutateRecvBufferSize(n uint32) bool {
 	return rcv._tab.MutateUint32Slot(18, n)
 }
 
+func (rcv *ListenInfo) ExposeInternalIp() bool {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(20))
+	if o != 0 {
+		return rcv._tab.GetBool(o + rcv._tab.Pos)
+	}
+	return false
+}
+
+func (rcv *ListenInfo) MutateExposeInternalIp(n bool) bool {
+	return rcv._tab.MutateBoolSlot(20, n)
+}
+
 func ListenInfoStart(builder *flatbuffers.Builder) {
-	builder.StartObject(8)
+	builder.StartObject(9)
 }
 func ListenInfoAddProtocol(builder *flatbuffers.Builder, protocol Protocol) {
 	builder.PrependByteSlot(0, byte(protocol), 1)
@@ -214,6 +229,9 @@ func ListenInfoAddSendBufferSize(builder *flatbuffers.Builder, sendBufferSize ui
 }
 func ListenInfoAddRecvBufferSize(builder *flatbuffers.Builder, recvBufferSize uint32) {
 	builder.PrependUint32Slot(7, recvBufferSize, 0)
+}
+func ListenInfoAddExposeInternalIp(builder *flatbuffers.Builder, exposeInternalIp bool) {
+	builder.PrependBoolSlot(8, exposeInternalIp, false)
 }
 func ListenInfoEnd(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	return builder.EndObject()
