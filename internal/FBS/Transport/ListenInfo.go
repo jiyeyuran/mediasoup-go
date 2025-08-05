@@ -10,12 +10,12 @@ type ListenInfoT struct {
 	Protocol Protocol `json:"protocol"`
 	Ip string `json:"ip"`
 	AnnouncedAddress string `json:"announced_address"`
+	ExposeInternalIp bool `json:"expose_internal_ip"`
 	Port uint16 `json:"port"`
 	PortRange *PortRangeT `json:"port_range"`
 	Flags *SocketFlagsT `json:"flags"`
 	SendBufferSize uint32 `json:"send_buffer_size"`
 	RecvBufferSize uint32 `json:"recv_buffer_size"`
-	ExposeInternalIp bool `json:"expose_internal_ip"`
 }
 
 func (t *ListenInfoT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
@@ -36,12 +36,12 @@ func (t *ListenInfoT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	ListenInfoAddProtocol(builder, t.Protocol)
 	ListenInfoAddIp(builder, ipOffset)
 	ListenInfoAddAnnouncedAddress(builder, announcedAddressOffset)
+	ListenInfoAddExposeInternalIp(builder, t.ExposeInternalIp)
 	ListenInfoAddPort(builder, t.Port)
 	ListenInfoAddPortRange(builder, portRangeOffset)
 	ListenInfoAddFlags(builder, flagsOffset)
 	ListenInfoAddSendBufferSize(builder, t.SendBufferSize)
 	ListenInfoAddRecvBufferSize(builder, t.RecvBufferSize)
-	ListenInfoAddExposeInternalIp(builder, t.ExposeInternalIp)
 	return ListenInfoEnd(builder)
 }
 
@@ -49,12 +49,12 @@ func (rcv *ListenInfo) UnPackTo(t *ListenInfoT) {
 	t.Protocol = rcv.Protocol()
 	t.Ip = string(rcv.Ip())
 	t.AnnouncedAddress = string(rcv.AnnouncedAddress())
+	t.ExposeInternalIp = rcv.ExposeInternalIp()
 	t.Port = rcv.Port()
 	t.PortRange = rcv.PortRange(nil).UnPack()
 	t.Flags = rcv.Flags(nil).UnPack()
 	t.SendBufferSize = rcv.SendBufferSize()
 	t.RecvBufferSize = rcv.RecvBufferSize()
-	t.ExposeInternalIp = rcv.ExposeInternalIp()
 }
 
 func (rcv *ListenInfo) UnPack() *ListenInfoT {
@@ -129,8 +129,20 @@ func (rcv *ListenInfo) AnnouncedAddress() []byte {
 	return nil
 }
 
-func (rcv *ListenInfo) Port() uint16 {
+func (rcv *ListenInfo) ExposeInternalIp() bool {
 	o := flatbuffers.UOffsetT(rcv._tab.Offset(10))
+	if o != 0 {
+		return rcv._tab.GetBool(o + rcv._tab.Pos)
+	}
+	return false
+}
+
+func (rcv *ListenInfo) MutateExposeInternalIp(n bool) bool {
+	return rcv._tab.MutateBoolSlot(10, n)
+}
+
+func (rcv *ListenInfo) Port() uint16 {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(12))
 	if o != 0 {
 		return rcv._tab.GetUint16(o + rcv._tab.Pos)
 	}
@@ -138,11 +150,11 @@ func (rcv *ListenInfo) Port() uint16 {
 }
 
 func (rcv *ListenInfo) MutatePort(n uint16) bool {
-	return rcv._tab.MutateUint16Slot(10, n)
+	return rcv._tab.MutateUint16Slot(12, n)
 }
 
 func (rcv *ListenInfo) PortRange(obj *PortRange) *PortRange {
-	o := flatbuffers.UOffsetT(rcv._tab.Offset(12))
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(14))
 	if o != 0 {
 		x := rcv._tab.Indirect(o + rcv._tab.Pos)
 		if obj == nil {
@@ -155,7 +167,7 @@ func (rcv *ListenInfo) PortRange(obj *PortRange) *PortRange {
 }
 
 func (rcv *ListenInfo) Flags(obj *SocketFlags) *SocketFlags {
-	o := flatbuffers.UOffsetT(rcv._tab.Offset(14))
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(16))
 	if o != 0 {
 		x := rcv._tab.Indirect(o + rcv._tab.Pos)
 		if obj == nil {
@@ -168,18 +180,6 @@ func (rcv *ListenInfo) Flags(obj *SocketFlags) *SocketFlags {
 }
 
 func (rcv *ListenInfo) SendBufferSize() uint32 {
-	o := flatbuffers.UOffsetT(rcv._tab.Offset(16))
-	if o != 0 {
-		return rcv._tab.GetUint32(o + rcv._tab.Pos)
-	}
-	return 0
-}
-
-func (rcv *ListenInfo) MutateSendBufferSize(n uint32) bool {
-	return rcv._tab.MutateUint32Slot(16, n)
-}
-
-func (rcv *ListenInfo) RecvBufferSize() uint32 {
 	o := flatbuffers.UOffsetT(rcv._tab.Offset(18))
 	if o != 0 {
 		return rcv._tab.GetUint32(o + rcv._tab.Pos)
@@ -187,20 +187,20 @@ func (rcv *ListenInfo) RecvBufferSize() uint32 {
 	return 0
 }
 
-func (rcv *ListenInfo) MutateRecvBufferSize(n uint32) bool {
+func (rcv *ListenInfo) MutateSendBufferSize(n uint32) bool {
 	return rcv._tab.MutateUint32Slot(18, n)
 }
 
-func (rcv *ListenInfo) ExposeInternalIp() bool {
+func (rcv *ListenInfo) RecvBufferSize() uint32 {
 	o := flatbuffers.UOffsetT(rcv._tab.Offset(20))
 	if o != 0 {
-		return rcv._tab.GetBool(o + rcv._tab.Pos)
+		return rcv._tab.GetUint32(o + rcv._tab.Pos)
 	}
-	return false
+	return 0
 }
 
-func (rcv *ListenInfo) MutateExposeInternalIp(n bool) bool {
-	return rcv._tab.MutateBoolSlot(20, n)
+func (rcv *ListenInfo) MutateRecvBufferSize(n uint32) bool {
+	return rcv._tab.MutateUint32Slot(20, n)
 }
 
 func ListenInfoStart(builder *flatbuffers.Builder) {
@@ -215,23 +215,23 @@ func ListenInfoAddIp(builder *flatbuffers.Builder, ip flatbuffers.UOffsetT) {
 func ListenInfoAddAnnouncedAddress(builder *flatbuffers.Builder, announcedAddress flatbuffers.UOffsetT) {
 	builder.PrependUOffsetTSlot(2, flatbuffers.UOffsetT(announcedAddress), 0)
 }
+func ListenInfoAddExposeInternalIp(builder *flatbuffers.Builder, exposeInternalIp bool) {
+	builder.PrependBoolSlot(3, exposeInternalIp, false)
+}
 func ListenInfoAddPort(builder *flatbuffers.Builder, port uint16) {
-	builder.PrependUint16Slot(3, port, 0)
+	builder.PrependUint16Slot(4, port, 0)
 }
 func ListenInfoAddPortRange(builder *flatbuffers.Builder, portRange flatbuffers.UOffsetT) {
-	builder.PrependUOffsetTSlot(4, flatbuffers.UOffsetT(portRange), 0)
+	builder.PrependUOffsetTSlot(5, flatbuffers.UOffsetT(portRange), 0)
 }
 func ListenInfoAddFlags(builder *flatbuffers.Builder, flags flatbuffers.UOffsetT) {
-	builder.PrependUOffsetTSlot(5, flatbuffers.UOffsetT(flags), 0)
+	builder.PrependUOffsetTSlot(6, flatbuffers.UOffsetT(flags), 0)
 }
 func ListenInfoAddSendBufferSize(builder *flatbuffers.Builder, sendBufferSize uint32) {
-	builder.PrependUint32Slot(6, sendBufferSize, 0)
+	builder.PrependUint32Slot(7, sendBufferSize, 0)
 }
 func ListenInfoAddRecvBufferSize(builder *flatbuffers.Builder, recvBufferSize uint32) {
-	builder.PrependUint32Slot(7, recvBufferSize, 0)
-}
-func ListenInfoAddExposeInternalIp(builder *flatbuffers.Builder, exposeInternalIp bool) {
-	builder.PrependBoolSlot(8, exposeInternalIp, false)
+	builder.PrependUint32Slot(8, recvBufferSize, 0)
 }
 func ListenInfoEnd(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	return builder.EndObject()
