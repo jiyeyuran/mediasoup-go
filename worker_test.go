@@ -20,7 +20,7 @@ var WorkerBinPath = os.Getenv("MEDIASOUP_WORKER_BIN")
 
 func init() {
 	if len(WorkerBinPath) == 0 {
-		WorkerBinPath = "../mediasoup/worker/out/Debug/mediasoup-worker"
+		WorkerBinPath = "../mediasoup/worker/out/Release/mediasoup-worker"
 	}
 }
 
