@@ -828,13 +828,25 @@ func TestPipeToRouter(t *testing.T) {
 		assert.True(t, pipeProducer.Paused())
 	})
 
-	t.Run("pipeToRouter fails if both Routers belong to the same Worker", func(t *testing.T) {
+	t.Run("pipeToRouter with KeepID: true fails if both Routers belong to the same Worker", func(t *testing.T) {
 		router1bis := createRouter(worker1)
 		_, err := router1.PipeToRouter(&PipeToRouterOptions{
 			ProducerId: videoProducer.Id(),
 			Router:     router1bis,
+			KeepId:     ref(true),
 		})
 		assert.Error(t, err)
+		router1bis.Close()
+	})
+
+	t.Run("pipeToRouter with KeepID: false does not fail if both Routers belong to the same Worker", func(t *testing.T) {
+		router1bis := createRouter(worker1)
+		_, err := router1.PipeToRouter(&PipeToRouterOptions{
+			ProducerId: videoProducer.Id(),
+			Router:     router1bis,
+			KeepId:     ref(false),
+		})
+		assert.NoError(t, err)
 		router1bis.Close()
 	})
 

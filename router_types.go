@@ -23,6 +23,11 @@ type PipeToRouterOptions struct {
 	// Router is the target Router instance
 	Router *Router `json:"-"`
 
+	// KeepId controls whether the created Producer/DataProducer keeps the same
+	// id as the origin. If nil the default behaviour is true. If set to true,
+	// then the origin router and target router cannot be in the same worker.
+	KeepId *bool `json:"keepId,omitempty"`
+
 	// EnableSctp creates a SCTP association. Default true
 	EnableSctp *bool `json:"enableSctp,omitempty"`
 
