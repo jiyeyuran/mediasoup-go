@@ -1,6 +1,6 @@
 # Changelog
 
-### NEXT
+### 2.2.0
 - ListenInfo: Add ExposeInternalIp field
 
 ### 2.1.0
