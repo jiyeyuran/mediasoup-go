@@ -12,6 +12,7 @@ The following table shows which mediasoup versions are supported by each mediaso
 | v2.0.0~v2.2.0 | v3.14.0~v3.17.0 |
 | not supported | v3.13.0~v3.14.0 |
 | v1.x.x | < v3.13.0 |
+
 Note: Make sure to download the prebuilt mediasoup worker that matches the version you are using. Be aware that future mediasoup releases may change the FlatBuffers (fbs) protocol, which can break compatibility with mediasoup-go — always use a worker version that matches the mediasoup-go release you are running or rebuild the worker accordingly.
 
 ## Features
