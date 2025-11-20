@@ -797,6 +797,7 @@ func (r *Router) PipeToRouterContext(ctx context.Context, options *PipeToRouterO
 		ProducerId:     options.ProducerId,
 		DataProducerId: options.DataProducerId,
 		Router:         options.Router,
+		KeepId:         ref(true),
 		EnableSctp:     ref(true),
 		NumSctpStreams: &NumSctpStreams{OS: 1024, MIS: 1024},
 		EnableRtx:      options.EnableRtx,
@@ -810,6 +811,9 @@ func (r *Router) PipeToRouterContext(ctx context.Context, options *PipeToRouterO
 	}
 	if options.NumSctpStreams != nil {
 		o.NumSctpStreams = options.NumSctpStreams
+	}
+	if options.KeepId != nil {
+		o.KeepId = options.KeepId
 	}
 
 	if len(o.ProducerId) == 0 && len(o.DataProducerId) == 0 {
@@ -937,8 +941,12 @@ func (r *Router) PipeToRouterContext(ctx context.Context, options *PipeToRouterO
 		if err != nil {
 			return nil, err
 		}
+		producerID := producer.Id()
+		if !*o.KeepId {
+			producerID = uuid(producerPrefix)
+		}
 		pipeProducer, err := remotePipeTransport.ProduceContext(ctx, &ProducerOptions{
-			Id:            producer.Id(),
+			Id:            producerID,
 			Kind:          pipeConsumer.Kind(),
 			RtpParameters: pipeConsumer.RtpParameters(),
 			Paused:        pipeConsumer.ProducerPaused(),
@@ -992,8 +1000,12 @@ func (r *Router) PipeToRouterContext(ctx context.Context, options *PipeToRouterO
 	if err != nil {
 		return nil, err
 	}
+	dataProducerID := dataProducer.Id()
+	if !*o.KeepId {
+		dataProducerID = uuid(dataProducerPrefix)
+	}
 	pipeDataProducer, err := remotePipeTransport.ProduceDataContext(ctx, &DataProducerOptions{
-		Id:                   dataProducer.Id(),
+		Id:                   dataProducerID,
 		SctpStreamParameters: pipeDataConsumer.SctpStreamParameters(),
 		Label:                pipeDataConsumer.Label(),
 		Protocol:             pipeDataConsumer.Protocol(),
