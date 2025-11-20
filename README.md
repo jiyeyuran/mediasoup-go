@@ -2,7 +2,17 @@
 
 A Go library for [mediasoup](https://github.com/versatica/mediasoup) that enables WebRTC Selective Forwarding Unit (SFU) functionality without Node.js dependencies.
 
-> **Note**: v2.x.x tag only supports mediasoup v3.14.0 and above. For mediasoup v3.13.0 below, please use v1.x.x tag.
+## Version compatibility
+
+The following table shows which mediasoup versions are supported by each mediasoup-go release:
+
+| mediasoup-go version | Supported mediasoup version |
+| --- | --- |
+| v2.2.0(latest) | v3.17.0 |
+| v2.0.0~v2.2.0 | v3.14.0~v3.17.0 |
+| not supported | v3.13.0~v3.14.0 |
+| v1.x.x | < v3.13.0 |
+Note: Make sure to download the prebuilt mediasoup worker that matches the version you are using. Be aware that future mediasoup releases may change the FlatBuffers (fbs) protocol, which can break compatibility with mediasoup-go — always use a worker version that matches the mediasoup-go release you are running or rebuild the worker accordingly.
 
 ## Features
 - Full mediasoup v3 API support in Go
