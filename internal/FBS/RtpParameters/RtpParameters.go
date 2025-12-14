@@ -12,6 +12,7 @@ type RtpParametersT struct {
 	HeaderExtensions []*RtpHeaderExtensionParametersT `json:"header_extensions"`
 	Encodings []*RtpEncodingParametersT `json:"encodings"`
 	Rtcp *RtcpParametersT `json:"rtcp"`
+	Msid string `json:"msid"`
 }
 
 func (t *RtpParametersT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
@@ -62,12 +63,17 @@ func (t *RtpParametersT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT
 		encodingsOffset = builder.EndVector(encodingsLength)
 	}
 	rtcpOffset := t.Rtcp.Pack(builder)
+	msidOffset := flatbuffers.UOffsetT(0)
+	if t.Msid != "" {
+		msidOffset = builder.CreateString(t.Msid)
+	}
 	RtpParametersStart(builder)
 	RtpParametersAddMid(builder, midOffset)
 	RtpParametersAddCodecs(builder, codecsOffset)
 	RtpParametersAddHeaderExtensions(builder, headerExtensionsOffset)
 	RtpParametersAddEncodings(builder, encodingsOffset)
 	RtpParametersAddRtcp(builder, rtcpOffset)
+	RtpParametersAddMsid(builder, msidOffset)
 	return RtpParametersEnd(builder)
 }
 
@@ -95,6 +101,7 @@ func (rcv *RtpParameters) UnPackTo(t *RtpParametersT) {
 		t.Encodings[j] = x.UnPack()
 	}
 	t.Rtcp = rcv.Rtcp(nil).UnPack()
+	t.Msid = string(rcv.Msid())
 }
 
 func (rcv *RtpParameters) UnPack() *RtpParametersT {
@@ -222,8 +229,16 @@ func (rcv *RtpParameters) Rtcp(obj *RtcpParameters) *RtcpParameters {
 	return nil
 }
 
+func (rcv *RtpParameters) Msid() []byte {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(14))
+	if o != 0 {
+		return rcv._tab.ByteVector(o + rcv._tab.Pos)
+	}
+	return nil
+}
+
 func RtpParametersStart(builder *flatbuffers.Builder) {
-	builder.StartObject(5)
+	builder.StartObject(6)
 }
 func RtpParametersAddMid(builder *flatbuffers.Builder, mid flatbuffers.UOffsetT) {
 	builder.PrependUOffsetTSlot(0, flatbuffers.UOffsetT(mid), 0)
@@ -248,6 +263,9 @@ func RtpParametersStartEncodingsVector(builder *flatbuffers.Builder, numElems in
 }
 func RtpParametersAddRtcp(builder *flatbuffers.Builder, rtcp flatbuffers.UOffsetT) {
 	builder.PrependUOffsetTSlot(4, flatbuffers.UOffsetT(rtcp), 0)
+}
+func RtpParametersAddMsid(builder *flatbuffers.Builder, msid flatbuffers.UOffsetT) {
+	builder.PrependUOffsetTSlot(5, flatbuffers.UOffsetT(msid), 0)
 }
 func RtpParametersEnd(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	return builder.EndObject()

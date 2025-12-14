@@ -422,7 +422,16 @@ func getConsumableRtpParameters(
 	caps *RtpCapabilities,
 	rtpMapping *RtpMapping,
 ) *RtpParameters {
-	consumableRtpParameters := &RtpParameters{}
+	consumableRtpParameters := &RtpParameters{
+		Rtcp: &RtcpParameters{
+			ReducedSize: ref(true),
+		},
+		Msid: params.Msid,
+	}
+
+	if params.Rtcp != nil {
+		consumableRtpParameters.Rtcp.Cname = params.Rtcp.Cname
+	}
 
 	for _, codec := range params.Codecs {
 		if codec.isRtxCodec() {
@@ -500,11 +509,6 @@ func getConsumableRtpParameters(
 		})
 	}
 
-	consumableRtpParameters.Rtcp = &RtcpParameters{
-		Cname:       params.Rtcp.Cname,
-		ReducedSize: ref(true),
-	}
-
 	return consumableRtpParameters
 }
 
@@ -550,7 +554,10 @@ func getConsumerRtpParameters(
 		}
 	}
 
-	consumerParams := &RtpParameters{}
+	consumerParams := &RtpParameters{
+		Rtcp: consumableRtpParameters.Rtcp,
+		Msid: consumableRtpParameters.Msid,
+	}
 	rtxSupported := false
 
 	for _, codec := range consumableRtpParameters.Codecs {
@@ -698,8 +705,10 @@ func getConsumerRtpParameters(
 // It keeps all original consumable encodings and removes support for BWE. If
 // enableRtx is false, it also removes RTX and NACK support.
 func getPipeConsumerRtpParameters(consumableRtpParameters *RtpParameters, enableRtx bool) *RtpParameters {
-	consumerParams := &RtpParameters{}
-	consumerParams.Rtcp = consumableRtpParameters.Rtcp
+	consumerParams := &RtpParameters{
+		Rtcp: consumableRtpParameters.Rtcp,
+		Msid: consumableRtpParameters.Msid,
+	}
 
 	for _, codec := range consumableRtpParameters.Codecs {
 		codec = ref(*codec)

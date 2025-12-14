@@ -481,6 +481,7 @@ func TestTransportConsume(t *testing.T) {
 		},
 		RtcpFeedback: []*RtcpFeedback{{Type: "nack"}},
 	}, aconsumer.RtpParameters().Codecs[0])
+	assert.Equal(t, "1111-1111-1111-1111 2222-2222-2222-2222", aconsumer.RtpParameters().Msid)
 
 	assert.Equal(t, ConsumerSimple, aconsumer.Type())
 	assert.False(t, aconsumer.Paused())
@@ -527,6 +528,7 @@ func TestTransportConsume(t *testing.T) {
 			Apt: 103,
 		},
 	}, vconsumer.RtpParameters().Codecs[1])
+	assert.Empty(t, vconsumer.RtpParameters().Msid)
 
 	assert.Equal(t, ConsumerSimulcast, vconsumer.Type())
 	assert.True(t, vconsumer.Paused())

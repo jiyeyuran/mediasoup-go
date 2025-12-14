@@ -541,6 +541,7 @@ func TestPipeToRouter(t *testing.T) {
 			Rtcp: &RtcpParameters{
 				Cname: "FOOBAR",
 			},
+			Msid: "aaaa-bbbb",
 		},
 		AppData: H{"foo": "bar2"},
 	})
@@ -801,6 +802,7 @@ func TestPipeToRouter(t *testing.T) {
 				Encrypt: false,
 			},
 		}, pipeConsumer.RtpParameters().HeaderExtensions)
+		assert.Equal(t, "aaaa-bbbb", pipeConsumer.RtpParameters().Msid)
 		assert.EqualValues(t, "pipe", pipeConsumer.Type())
 		assert.False(t, pipeConsumer.Paused())
 		assert.True(t, pipeConsumer.ProducerPaused())

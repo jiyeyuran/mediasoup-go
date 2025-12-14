@@ -43,6 +43,7 @@ func createAudioProducer(tranpsort *Transport) *Producer {
 			Rtcp: &RtcpParameters{
 				Cname: "audio-1",
 			},
+			Msid: "1111-1111-1111-1111 2222-2222-2222-2222",
 		},
 		AppData: H{"foo": 1, "bar": "2"},
 	})
