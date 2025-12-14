@@ -170,6 +170,7 @@ func TestConsumerDump(t *testing.T) {
 	assert.Equal(t, []int{100}, data.SupportedCodecPayloadTypes)
 	assert.False(t, data.Paused)
 	assert.False(t, data.ProducerPaused)
+	assert.Equal(t, "1111-1111-1111-1111 2222-2222-2222-2222", data.RtpParameters.Msid)
 
 	videoProducer := createVideoProducer(transport)
 	videoProducer.Pause()
@@ -244,6 +245,7 @@ func TestConsumerDump(t *testing.T) {
 	assert.Equal(t, []int{103}, data.SupportedCodecPayloadTypes)
 	assert.True(t, data.Paused)
 	assert.True(t, data.ProducerPaused)
+	assert.Empty(t, data.RtpParameters.Msid)
 }
 
 func TestConsumerGetStats(t *testing.T) {

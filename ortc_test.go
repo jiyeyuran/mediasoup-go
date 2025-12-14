@@ -409,7 +409,10 @@ func TestRtpParameters(t *testing.T) {
 		},
 	}, consumerRtpParameters.HeaderExtensions)
 
-	assert.Nil(t, consumerRtpParameters.Rtcp)
+	assert.Equal(t, &RtcpParameters{
+		Cname:       rtpParameters.Rtcp.Cname,
+		ReducedSize: ref(true),
+	}, consumerRtpParameters.Rtcp)
 
 	pipeConsumerRtpParameters := getPipeConsumerRtpParameters(consumableRtpParameters, false)
 

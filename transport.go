@@ -694,62 +694,9 @@ func (t *Transport) ProduceContext(ctx context.Context, options *ProducerOptions
 		Body: &FbsRequest.BodyT{
 			Type: FbsRequest.BodyTransport_ProduceRequest,
 			Value: &FbsTransport.ProduceRequestT{
-				ProducerId: id,
-				Kind:       FbsRtpParameters.EnumValuesMediaKind[strings.ToUpper(string(kind))],
-				RtpParameters: &FbsRtpParameters.RtpParametersT{
-					Mid: rtpParameters.Mid,
-					Codecs: collect(rtpParameters.Codecs,
-						func(item *RtpCodecParameters) *FbsRtpParameters.RtpCodecParametersT {
-							return &FbsRtpParameters.RtpCodecParametersT{
-								MimeType:    item.MimeType,
-								PayloadType: item.PayloadType,
-								ClockRate:   item.ClockRate,
-								Channels:    orElse(item.Channels > 0, ref(item.Channels), nil),
-								Parameters:  convertRtpCodecSpecificParameters(&item.Parameters),
-								RtcpFeedback: collect(item.RtcpFeedback, func(item *RtcpFeedback) *FbsRtpParameters.RtcpFeedbackT {
-									return &FbsRtpParameters.RtcpFeedbackT{
-										Type:      item.Type,
-										Parameter: item.Parameter,
-									}
-								}),
-							}
-						}),
-					HeaderExtensions: collect(rtpParameters.HeaderExtensions,
-						func(item *RtpHeaderExtensionParameters) *FbsRtpParameters.RtpHeaderExtensionParametersT {
-							return &FbsRtpParameters.RtpHeaderExtensionParametersT{
-								Uri:        convertHeaderExtensionUri(item.Uri),
-								Id:         item.Id,
-								Encrypt:    item.Encrypt,
-								Parameters: convertRtpCodecSpecificParameters(&item.Parameters),
-							}
-						}),
-					Encodings: collect(rtpParameters.Encodings,
-						func(item *RtpEncodingParameters) *FbsRtpParameters.RtpEncodingParametersT {
-							return &FbsRtpParameters.RtpEncodingParametersT{
-								Ssrc:             orElse(item.Ssrc > 0, ref(item.Ssrc), nil),
-								Rid:              item.Rid,
-								CodecPayloadType: item.CodecPayloadType,
-								Rtx: ifElse(item.Rtx != nil, func() *FbsRtpParameters.RtxT {
-									return &FbsRtpParameters.RtxT{
-										Ssrc: item.Rtx.Ssrc,
-									}
-								}),
-								Dtx:             item.Dtx,
-								ScalabilityMode: item.ScalabilityMode,
-								MaxBitrate:      orElse(item.MaxBitrate > 0, ref(item.MaxBitrate), nil),
-							}
-						}),
-					Rtcp: ifElse(rtpParameters.Rtcp != nil, func() *FbsRtpParameters.RtcpParametersT {
-						return &FbsRtpParameters.RtcpParametersT{
-							Cname:       rtpParameters.Rtcp.Cname,
-							ReducedSize: unref(rtpParameters.Rtcp.ReducedSize, true),
-						}
-					}, func() *FbsRtpParameters.RtcpParametersT {
-						return &FbsRtpParameters.RtcpParametersT{
-							ReducedSize: true,
-						}
-					}),
-				},
+				ProducerId:    id,
+				Kind:          FbsRtpParameters.EnumValuesMediaKind[strings.ToUpper(string(kind))],
+				RtpParameters: convertRtpParameters(rtpParameters),
 				RtpMapping: &FbsRtpParameters.RtpMappingT{
 					Codecs: collect(rtpMapping.Codecs,
 						func(item *RtpMappingCodec) *FbsRtpParameters.CodecMappingT {
@@ -859,66 +806,12 @@ func (t *Transport) ConsumeContext(ctx context.Context, options *ConsumerOptions
 		Body: &FbsRequest.BodyT{
 			Type: FbsRequest.BodyTransport_ConsumeRequest,
 			Value: &FbsTransport.ConsumeRequestT{
-				ConsumerId: consumerId,
-				ProducerId: producer.Id(),
-				Kind:       FbsRtpParameters.EnumValuesMediaKind[strings.ToUpper(string(producer.Kind()))],
-				Type:       FbsRtpParameters.EnumValuesType[strings.ToUpper(string(typ))],
-				Paused:     options.Paused,
-				RtpParameters: &FbsRtpParameters.RtpParametersT{
-					Mid: rtpParameters.Mid,
-					Codecs: collect(rtpParameters.Codecs,
-						func(item *RtpCodecParameters) *FbsRtpParameters.RtpCodecParametersT {
-							return &FbsRtpParameters.RtpCodecParametersT{
-								MimeType:    item.MimeType,
-								PayloadType: item.PayloadType,
-								ClockRate:   item.ClockRate,
-								Channels:    orElse(item.Channels > 0, ref(item.Channels), nil),
-								Parameters:  convertRtpCodecSpecificParameters(&item.Parameters),
-								RtcpFeedback: collect(item.RtcpFeedback,
-									func(item *RtcpFeedback) *FbsRtpParameters.RtcpFeedbackT {
-										return &FbsRtpParameters.RtcpFeedbackT{
-											Type:      item.Type,
-											Parameter: item.Parameter,
-										}
-									}),
-							}
-						}),
-					HeaderExtensions: collect(rtpParameters.HeaderExtensions,
-						func(item *RtpHeaderExtensionParameters) *FbsRtpParameters.RtpHeaderExtensionParametersT {
-							return &FbsRtpParameters.RtpHeaderExtensionParametersT{
-								Uri:        convertHeaderExtensionUri(item.Uri),
-								Id:         item.Id,
-								Encrypt:    item.Encrypt,
-								Parameters: convertRtpCodecSpecificParameters(&item.Parameters),
-							}
-						}),
-					Encodings: collect(rtpParameters.Encodings,
-						func(item *RtpEncodingParameters) *FbsRtpParameters.RtpEncodingParametersT {
-							return &FbsRtpParameters.RtpEncodingParametersT{
-								Ssrc:             orElse(item.Ssrc > 0, ref(item.Ssrc), nil),
-								Rid:              item.Rid,
-								CodecPayloadType: item.CodecPayloadType,
-								Rtx: ifElse(item.Rtx != nil, func() *FbsRtpParameters.RtxT {
-									return &FbsRtpParameters.RtxT{
-										Ssrc: item.Rtx.Ssrc,
-									}
-								}),
-								Dtx:             item.Dtx,
-								ScalabilityMode: item.ScalabilityMode,
-							}
-						},
-					),
-					Rtcp: ifElse(rtpParameters.Rtcp != nil, func() *FbsRtpParameters.RtcpParametersT {
-						return &FbsRtpParameters.RtcpParametersT{
-							Cname:       rtpParameters.Rtcp.Cname,
-							ReducedSize: unref(rtpParameters.Rtcp.ReducedSize, true),
-						}
-					}, func() *FbsRtpParameters.RtcpParametersT {
-						return &FbsRtpParameters.RtcpParametersT{
-							ReducedSize: true,
-						}
-					}),
-				},
+				ConsumerId:             consumerId,
+				ProducerId:             producer.Id(),
+				Kind:                   FbsRtpParameters.EnumValuesMediaKind[strings.ToUpper(string(producer.Kind()))],
+				Type:                   FbsRtpParameters.EnumValuesType[strings.ToUpper(string(typ))],
+				Paused:                 options.Paused,
+				RtpParameters:          convertRtpParameters(rtpParameters),
 				ConsumableRtpEncodings: collect(producer.ConsumableRtpParameters().Encodings, convertRtpEncodingParameters),
 				PreferredLayers: ifElse(options.PreferredLayers != nil, func() *FbsConsumer.ConsumerLayersT {
 					return &FbsConsumer.ConsumerLayersT{

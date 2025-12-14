@@ -7,6 +7,65 @@ import (
 	FbsRtpParameters "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/RtpParameters"
 )
 
+func convertRtpParameters(rtpParameters *RtpParameters) *FbsRtpParameters.RtpParametersT {
+	return &FbsRtpParameters.RtpParametersT{
+		Mid: rtpParameters.Mid,
+		Codecs: collect(rtpParameters.Codecs,
+			func(item *RtpCodecParameters) *FbsRtpParameters.RtpCodecParametersT {
+				return &FbsRtpParameters.RtpCodecParametersT{
+					MimeType:    item.MimeType,
+					PayloadType: item.PayloadType,
+					ClockRate:   item.ClockRate,
+					Channels:    orElse(item.Channels > 0, ref(item.Channels), nil),
+					Parameters:  convertRtpCodecSpecificParameters(&item.Parameters),
+					RtcpFeedback: collect(item.RtcpFeedback,
+						func(item *RtcpFeedback) *FbsRtpParameters.RtcpFeedbackT {
+							return &FbsRtpParameters.RtcpFeedbackT{
+								Type:      item.Type,
+								Parameter: item.Parameter,
+							}
+						}),
+				}
+			}),
+		HeaderExtensions: collect(rtpParameters.HeaderExtensions,
+			func(item *RtpHeaderExtensionParameters) *FbsRtpParameters.RtpHeaderExtensionParametersT {
+				return &FbsRtpParameters.RtpHeaderExtensionParametersT{
+					Uri:        convertHeaderExtensionUri(item.Uri),
+					Id:         item.Id,
+					Encrypt:    item.Encrypt,
+					Parameters: convertRtpCodecSpecificParameters(&item.Parameters),
+				}
+			}),
+		Encodings: collect(rtpParameters.Encodings,
+			func(item *RtpEncodingParameters) *FbsRtpParameters.RtpEncodingParametersT {
+				return &FbsRtpParameters.RtpEncodingParametersT{
+					Ssrc:             orElse(item.Ssrc > 0, ref(item.Ssrc), nil),
+					Rid:              item.Rid,
+					CodecPayloadType: item.CodecPayloadType,
+					Rtx: ifElse(item.Rtx != nil, func() *FbsRtpParameters.RtxT {
+						return &FbsRtpParameters.RtxT{
+							Ssrc: item.Rtx.Ssrc,
+						}
+					}),
+					Dtx:             item.Dtx,
+					ScalabilityMode: item.ScalabilityMode,
+				}
+			},
+		),
+		Rtcp: ifElse(rtpParameters.Rtcp != nil, func() *FbsRtpParameters.RtcpParametersT {
+			return &FbsRtpParameters.RtcpParametersT{
+				Cname:       rtpParameters.Rtcp.Cname,
+				ReducedSize: unref(rtpParameters.Rtcp.ReducedSize, true),
+			}
+		}, func() *FbsRtpParameters.RtcpParametersT {
+			return &FbsRtpParameters.RtcpParametersT{
+				ReducedSize: true,
+			}
+		}),
+		Msid: rtpParameters.Msid,
+	}
+}
+
 func parseRtpParameters(rtpParameters *FbsRtpParameters.RtpParametersT) *RtpParameters {
 	return &RtpParameters{
 		Mid:              rtpParameters.Mid,
@@ -14,6 +73,7 @@ func parseRtpParameters(rtpParameters *FbsRtpParameters.RtpParametersT) *RtpPara
 		HeaderExtensions: collect(rtpParameters.HeaderExtensions, parseRtpHeaderExtensionParameters),
 		Encodings:        collect(rtpParameters.Encodings, parseRtpEncodingParameters),
 		Rtcp:             parseRtcpParameters(rtpParameters.Rtcp),
+		Msid:             rtpParameters.Msid,
 	}
 }
 

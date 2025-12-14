@@ -166,6 +166,9 @@ type RtpParameters struct {
 
 	// Rtcp is the parameters used for RTCP.
 	Rtcp *RtcpParameters `json:"rtcp,omitempty"`
+
+	// MSID (WebRTC MediaStream Identification). @see https://datatracker.ietf.org/doc/html/rfc8830
+	Msid string `json:"msid,omitempty"`
 }
 
 // RtpCodecParameters provides information on codec settings within the RTP parameters.
