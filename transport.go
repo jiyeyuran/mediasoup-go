@@ -768,8 +768,9 @@ func (t *Transport) ProduceContext(ctx context.Context, options *ProducerOptions
 							}
 						}),
 				},
-				KeyFrameRequestDelay: options.KeyFrameRequestDelay,
-				Paused:               options.Paused,
+				Paused:                                 options.Paused,
+				KeyFrameRequestDelay:                   options.KeyFrameRequestDelay,
+				EnableMediasoupPacketIdHeaderExtension: options.EnableMediasoupPacketIdHeaderExtension,
 			},
 		},
 	})

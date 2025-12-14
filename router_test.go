@@ -302,30 +302,34 @@ func TestCreatePipeTransport(t *testing.T) {
 			},
 		}, pipeConsumer.RtpParameters().Codecs)
 		assert.Equal(t, []*RtpHeaderExtensionParameters{
-			// TODO: Enable when DD is sendrecv.
-			// {
-			// 	Uri:     "https://aomediacodec.github.io/av1-rtp-spec/#dependency-descriptor-rtp-header-extension",
-			// 	Id:      8,
-			// 	Encrypt: false,
-			// },
+			{
+				Uri:     "https://aomediacodec.github.io/av1-rtp-spec/#dependency-descriptor-rtp-header-extension",
+				Id:      7,
+				Encrypt: false,
+			},
 			{
 				Uri:     "urn:3gpp:video-orientation",
-				Id:      11,
+				Id:      8,
 				Encrypt: false,
 			},
 			{
 				Uri:     "urn:ietf:params:rtp-hdrext:toffset",
-				Id:      12,
+				Id:      9,
 				Encrypt: false,
 			},
 			{
 				Uri:     "http://www.webrtc.org/experiments/rtp-hdrext/abs-capture-time",
-				Id:      13,
+				Id:      10,
 				Encrypt: false,
 			},
 			{
 				Uri:     "http://www.webrtc.org/experiments/rtp-hdrext/playout-delay",
-				Id:      14,
+				Id:      11,
+				Encrypt: false,
+			},
+			{
+				Uri:     "urn:mediasoup:params:rtp-hdrext:packet-id",
+				Id:      12,
 				Encrypt: false,
 			},
 		}, pipeConsumer.RtpParameters().HeaderExtensions)
@@ -589,7 +593,7 @@ func TestPipeToRouter(t *testing.T) {
 			{
 				Kind:             "audio",
 				Uri:              "urn:ietf:params:rtp-hdrext:ssrc-audio-level",
-				PreferredId:      10,
+				PreferredId:      6,
 				PreferredEncrypt: false,
 			},
 		},
@@ -650,17 +654,22 @@ func TestPipeToRouter(t *testing.T) {
 		assert.Equal(t, []*RtpHeaderExtensionParameters{
 			{
 				Uri:     "urn:ietf:params:rtp-hdrext:ssrc-audio-level",
-				Id:      10,
+				Id:      6,
 				Encrypt: false,
 			},
 			{
 				Uri:     "http://www.webrtc.org/experiments/rtp-hdrext/abs-capture-time",
-				Id:      13,
+				Id:      10,
 				Encrypt: false,
 			},
 			{
 				Uri:     "http://www.webrtc.org/experiments/rtp-hdrext/playout-delay",
-				Id:      14,
+				Id:      11,
+				Encrypt: false,
+			},
+			{
+				Uri:     "urn:mediasoup:params:rtp-hdrext:packet-id",
+				Id:      12,
 				Encrypt: false,
 			},
 		}, pipeConsumer.RtpParameters().HeaderExtensions)
@@ -690,17 +699,22 @@ func TestPipeToRouter(t *testing.T) {
 		assert.Equal(t, []*RtpHeaderExtensionParameters{
 			{
 				Uri:     "urn:ietf:params:rtp-hdrext:ssrc-audio-level",
-				Id:      10,
+				Id:      6,
 				Encrypt: false,
 			},
 			{
 				Uri:     "http://www.webrtc.org/experiments/rtp-hdrext/abs-capture-time",
-				Id:      13,
+				Id:      10,
 				Encrypt: false,
 			},
 			{
 				Uri:     "http://www.webrtc.org/experiments/rtp-hdrext/playout-delay",
-				Id:      14,
+				Id:      11,
+				Encrypt: false,
+			},
+			{
+				Uri:     "urn:mediasoup:params:rtp-hdrext:packet-id",
+				Id:      12,
 				Encrypt: false,
 			},
 		}, pipeProducer.RtpParameters().HeaderExtensions)
@@ -746,30 +760,34 @@ func TestPipeToRouter(t *testing.T) {
 			},
 		}, pipeConsumer.RtpParameters().Codecs)
 		assert.EqualValues(t, []*RtpHeaderExtensionParameters{
-			// TODO: Enable when DD is sendrecv.
-			// {
-			// 	Uri:     "https://aomediacodec.github.io/av1-rtp-spec/#dependency-descriptor-rtp-header-extension",
-			// 	Id:      8,
-			// 	Encrypt: false,
-			// },
+			{
+				Uri:     "https://aomediacodec.github.io/av1-rtp-spec/#dependency-descriptor-rtp-header-extension",
+				Id:      7,
+				Encrypt: false,
+			},
 			{
 				Uri:     "urn:3gpp:video-orientation",
-				Id:      11,
+				Id:      8,
 				Encrypt: false,
 			},
 			{
 				Uri:     "urn:ietf:params:rtp-hdrext:toffset",
-				Id:      12,
+				Id:      9,
 				Encrypt: false,
 			},
 			{
 				Uri:     "http://www.webrtc.org/experiments/rtp-hdrext/abs-capture-time",
-				Id:      13,
+				Id:      10,
 				Encrypt: false,
 			},
 			{
 				Uri:     "http://www.webrtc.org/experiments/rtp-hdrext/playout-delay",
-				Id:      14,
+				Id:      11,
+				Encrypt: false,
+			},
+			{
+				Uri:     "urn:mediasoup:params:rtp-hdrext:packet-id",
+				Id:      12,
 				Encrypt: false,
 			},
 		}, pipeConsumer.RtpParameters().HeaderExtensions)
@@ -798,30 +816,34 @@ func TestPipeToRouter(t *testing.T) {
 			},
 		}, pipeProducer.RtpParameters().Codecs)
 		assert.Equal(t, []*RtpHeaderExtensionParameters{
-			// TODO: Enable when DD is sendrecv.
-			// {
-			// 	Uri:     "https://aomediacodec.github.io/av1-rtp-spec/#dependency-descriptor-rtp-header-extension",
-			// 	Id:      8,
-			// 	Encrypt: false,
-			// },
+			{
+				Uri:     "https://aomediacodec.github.io/av1-rtp-spec/#dependency-descriptor-rtp-header-extension",
+				Id:      7,
+				Encrypt: false,
+			},
 			{
 				Uri:     "urn:3gpp:video-orientation",
-				Id:      11,
+				Id:      8,
 				Encrypt: false,
 			},
 			{
 				Uri:     "urn:ietf:params:rtp-hdrext:toffset",
-				Id:      12,
+				Id:      9,
 				Encrypt: false,
 			},
 			{
 				Uri:     "http://www.webrtc.org/experiments/rtp-hdrext/abs-capture-time",
-				Id:      13,
+				Id:      10,
 				Encrypt: false,
 			},
 			{
 				Uri:     "http://www.webrtc.org/experiments/rtp-hdrext/playout-delay",
-				Id:      14,
+				Id:      11,
+				Encrypt: false,
+			},
+			{
+				Uri:     "urn:mediasoup:params:rtp-hdrext:packet-id",
+				Id:      12,
 				Encrypt: false,
 			},
 		}, pipeProducer.RtpParameters().HeaderExtensions)
