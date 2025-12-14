@@ -658,6 +658,11 @@ func TestPipeToRouter(t *testing.T) {
 				Encrypt: false,
 			},
 			{
+				Uri:     "https://aomediacodec.github.io/av1-rtp-spec/#dependency-descriptor-rtp-header-extension",
+				Id:      7,
+				Encrypt: false,
+			},
+			{
 				Uri:     "http://www.webrtc.org/experiments/rtp-hdrext/abs-capture-time",
 				Id:      10,
 				Encrypt: false,
@@ -700,6 +705,11 @@ func TestPipeToRouter(t *testing.T) {
 			{
 				Uri:     "urn:ietf:params:rtp-hdrext:ssrc-audio-level",
 				Id:      6,
+				Encrypt: false,
+			},
+			{
+				Uri:     "https://aomediacodec.github.io/av1-rtp-spec/#dependency-descriptor-rtp-header-extension",
+				Id:      7,
 				Encrypt: false,
 			},
 			{

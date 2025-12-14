@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/jiyeyuran/mediasoup-go/v2/internal/h264"
@@ -15,6 +16,29 @@ var availablePayloadTypes = [...]uint8{
 	78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 35, 36,
 	37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56,
 	57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71,
+}
+
+// TODO: Remove this if we switch to 'sendrecv' in Dependency-Descriptor header
+// extension.
+var dependencyDescriptorHeaderExtensionParametersForPipeConsumer *RtpHeaderExtensionParameters
+
+func init() {
+	// TODO: Remove this if we switch to 'sendrecv' in Dependency-Descriptor header
+	// extension.
+	//
+	// We need to create and store this Dependency-Descriptor header extension to
+	// leter be used by `getPipeConsumerRtpParameters()` function.
+	for _, ext := range supportedRtpCapabilities.HeaderExtensions {
+		if ext.Uri == "https://aomediacodec.github.io/av1-rtp-spec/#dependency-descriptor-rtp-header-extension" &&
+			ext.Direction != MediaDirectionSendrecv {
+			dependencyDescriptorHeaderExtensionParametersForPipeConsumer = &RtpHeaderExtensionParameters{
+				Uri:     ext.Uri,
+				Id:      ext.PreferredId,
+				Encrypt: ext.PreferredEncrypt,
+			}
+			break
+		}
+	}
 }
 
 type matchOptions struct {
@@ -699,6 +723,19 @@ func getPipeConsumerRtpParameters(consumableRtpParameters *RtpParameters, enable
 			ext.Uri != "http://www.ietf.org/id/draft-holmer-rmcat-transport-wide-cc-extensions-01" {
 			consumerParams.HeaderExtensions = append(consumerParams.HeaderExtensions, ext)
 		}
+	}
+
+	// TODO: Remove this if we switch to 'sendrecv' in Dependency-Descriptor header
+	// extension.
+	//
+	// We need to add Dependency-Descriptor header extension manually since it's
+	// 'recvonly' so it's not present in received `consumableRtpParameters`.
+	if dependencyDescriptorHeaderExtensionParametersForPipeConsumer != nil {
+		consumerParams.HeaderExtensions = append(consumerParams.HeaderExtensions, dependencyDescriptorHeaderExtensionParametersForPipeConsumer)
+		// Sort header extensions by ID.
+		sort.Slice(consumerParams.HeaderExtensions, func(i, j int) bool {
+			return consumerParams.HeaderExtensions[i].Id < consumerParams.HeaderExtensions[j].Id
+		})
 	}
 
 	baseSsrc := generateSsrc()
