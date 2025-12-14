@@ -86,19 +86,19 @@ var consumerDeviceCapabilities = &RtpCapabilities{
 		{
 			Kind:             "audio",
 			Uri:              "urn:ietf:params:rtp-hdrext:ssrc-audio-level",
-			PreferredId:      10,
+			PreferredId:      6,
 			PreferredEncrypt: false,
 		},
 		{
 			Kind:             "video",
 			Uri:              "urn:3gpp:video-orientation",
-			PreferredId:      11,
+			PreferredId:      8,
 			PreferredEncrypt: false,
 		},
 		{
 			Kind:             "video",
 			Uri:              "urn:ietf:params:rtp-hdrext:toffset",
-			PreferredId:      12,
+			PreferredId:      9,
 			PreferredEncrypt: false,
 		},
 	},
@@ -153,7 +153,7 @@ func TestConsumerDump(t *testing.T) {
 		},
 		{
 			Uri:        "urn:ietf:params:rtp-hdrext:ssrc-audio-level",
-			Id:         10,
+			Id:         6,
 			Encrypt:    false,
 			Parameters: RtpCodecSpecificParameters{},
 		},
@@ -211,14 +211,14 @@ func TestConsumerDump(t *testing.T) {
 			Parameters: RtpCodecSpecificParameters{},
 		},
 		{
-			Id:         11,
 			Uri:        "urn:3gpp:video-orientation",
+			Id:         8,
 			Encrypt:    false,
 			Parameters: RtpCodecSpecificParameters{},
 		},
 		{
 			Uri:        "urn:ietf:params:rtp-hdrext:toffset",
-			Id:         12,
+			Id:         9,
 			Encrypt:    false,
 			Parameters: RtpCodecSpecificParameters{},
 		},

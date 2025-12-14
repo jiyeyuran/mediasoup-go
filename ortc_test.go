@@ -335,21 +335,21 @@ func TestRtpParameters(t *testing.T) {
 			{
 				Kind:             "audio",
 				Uri:              "urn:ietf:params:rtp-hdrext:ssrc-audio-level",
-				PreferredId:      10,
+				PreferredId:      6,
 				PreferredEncrypt: false,
 				Direction:        MediaDirectionSendrecv,
 			},
 			{
 				Kind:             "video",
 				Uri:              "urn:3gpp:video-orientation",
-				PreferredId:      11,
+				PreferredId:      8,
 				PreferredEncrypt: false,
 				Direction:        MediaDirectionSendrecv,
 			},
 			{
 				Kind:             "video",
 				Uri:              "urn:ietf:params:rtp-hdrext:toffset",
-				PreferredId:      12,
+				PreferredId:      9,
 				PreferredEncrypt: false,
 				Direction:        MediaDirectionSendrecv,
 			},
@@ -399,12 +399,12 @@ func TestRtpParameters(t *testing.T) {
 		},
 		{
 			Uri:     "urn:3gpp:video-orientation",
-			Id:      11,
+			Id:      8,
 			Encrypt: false,
 		},
 		{
 			Uri:     "urn:ietf:params:rtp-hdrext:toffset",
-			Id:      12,
+			Id:      9,
 			Encrypt: false,
 		},
 	}, consumerRtpParameters.HeaderExtensions)

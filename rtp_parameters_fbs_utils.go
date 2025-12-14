@@ -139,8 +139,17 @@ func parseRtpHeaderExtensionParameters(headerExtension *FbsRtpParameters.RtpHead
 	case FbsRtpParameters.RtpHeaderExtensionUriRepairRtpStreamId:
 		uri = "urn:ietf:params:rtp-hdrext:sdes:repaired-rtp-stream-id"
 
-	case FbsRtpParameters.RtpHeaderExtensionUriAudioLevel:
+	case FbsRtpParameters.RtpHeaderExtensionUriAbsSendTime:
+		uri = "http://www.webrtc.org/experiments/rtp-hdrext/abs-send-time"
+
+	case FbsRtpParameters.RtpHeaderExtensionUriTransportWideCcDraft01:
+		uri = "http://www.ietf.org/id/draft-holmer-rmcat-transport-wide-cc-extensions-01"
+
+	case FbsRtpParameters.RtpHeaderExtensionUriSsrcAudioLevel:
 		uri = "urn:ietf:params:rtp-hdrext:ssrc-audio-level"
+
+	case FbsRtpParameters.RtpHeaderExtensionUriDependencyDescriptor:
+		uri = "https://aomediacodec.github.io/av1-rtp-spec/#dependency-descriptor-rtp-header-extension"
 
 	case FbsRtpParameters.RtpHeaderExtensionUriVideoOrientation:
 		uri = "urn:3gpp:video-orientation"
@@ -148,20 +157,14 @@ func parseRtpHeaderExtensionParameters(headerExtension *FbsRtpParameters.RtpHead
 	case FbsRtpParameters.RtpHeaderExtensionUriTimeOffset:
 		uri = "urn:ietf:params:rtp-hdrext:toffset"
 
-	case FbsRtpParameters.RtpHeaderExtensionUriTransportWideCcDraft01:
-		uri = "http://www.ietf.org/id/draft-holmer-rmcat-transport-wide-cc-extensions-01"
-
-	case FbsRtpParameters.RtpHeaderExtensionUriAbsSendTime:
-		uri = "http://www.webrtc.org/experiments/rtp-hdrext/abs-send-time"
-
 	case FbsRtpParameters.RtpHeaderExtensionUriAbsCaptureTime:
 		uri = "http://www.webrtc.org/experiments/rtp-hdrext/abs-capture-time"
 
 	case FbsRtpParameters.RtpHeaderExtensionUriPlayoutDelay:
 		uri = "urn:ietf:params:rtp-hdrext:playout-delay"
 
-	case FbsRtpParameters.RtpHeaderExtensionUriDependencyDescriptor:
-		uri = "https://aomediacodec.github.io/av1-rtp-spec/#dependency-descriptor-rtp-header-extension"
+	case FbsRtpParameters.RtpHeaderExtensionUriMediasoupPacketId:
+		uri = "urn:mediasoup:params:rtp-hdrext:packet-id"
 	}
 
 	return &RtpHeaderExtensionParameters{
@@ -182,8 +185,17 @@ func convertHeaderExtensionUri(uri string) FbsRtpParameters.RtpHeaderExtensionUr
 	case "urn:ietf:params:rtp-hdrext:sdes:repaired-rtp-stream-id":
 		return FbsRtpParameters.RtpHeaderExtensionUriRepairRtpStreamId
 
+	case "http://www.webrtc.org/experiments/rtp-hdrext/abs-send-time":
+		return FbsRtpParameters.RtpHeaderExtensionUriAbsSendTime
+
+	case "http://www.ietf.org/id/draft-holmer-rmcat-transport-wide-cc-extensions-01":
+		return FbsRtpParameters.RtpHeaderExtensionUriTransportWideCcDraft01
+
 	case "urn:ietf:params:rtp-hdrext:ssrc-audio-level":
-		return FbsRtpParameters.RtpHeaderExtensionUriAudioLevel
+		return FbsRtpParameters.RtpHeaderExtensionUriSsrcAudioLevel
+
+	case "https://aomediacodec.github.io/av1-rtp-spec/#dependency-descriptor-rtp-header-extension":
+		return FbsRtpParameters.RtpHeaderExtensionUriDependencyDescriptor
 
 	case "urn:3gpp:video-orientation":
 		return FbsRtpParameters.RtpHeaderExtensionUriVideoOrientation
@@ -191,20 +203,14 @@ func convertHeaderExtensionUri(uri string) FbsRtpParameters.RtpHeaderExtensionUr
 	case "urn:ietf:params:rtp-hdrext:toffset":
 		return FbsRtpParameters.RtpHeaderExtensionUriTimeOffset
 
-	case "http://www.ietf.org/id/draft-holmer-rmcat-transport-wide-cc-extensions-01":
-		return FbsRtpParameters.RtpHeaderExtensionUriTransportWideCcDraft01
-
-	case "http://www.webrtc.org/experiments/rtp-hdrext/abs-send-time":
-		return FbsRtpParameters.RtpHeaderExtensionUriAbsSendTime
-
 	case "http://www.webrtc.org/experiments/rtp-hdrext/abs-capture-time":
 		return FbsRtpParameters.RtpHeaderExtensionUriAbsCaptureTime
 
 	case "urn:ietf:params:rtp-hdrext:playout-delay":
 		return FbsRtpParameters.RtpHeaderExtensionUriPlayoutDelay
 
-	case "https://aomediacodec.github.io/av1-rtp-spec/#dependency-descriptor-rtp-header-extension":
-		return FbsRtpParameters.RtpHeaderExtensionUriDependencyDescriptor
+	case "urn:mediasoup:params:rtp-hdrext:packet-id":
+		return FbsRtpParameters.RtpHeaderExtensionUriMediasoupPacketId
 
 	default:
 		return FbsRtpParameters.EnumValuesRtpHeaderExtensionUri[uri]

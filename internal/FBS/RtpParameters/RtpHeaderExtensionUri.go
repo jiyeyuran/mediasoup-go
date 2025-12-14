@@ -10,42 +10,45 @@ const (
 	RtpHeaderExtensionUriMid                    RtpHeaderExtensionUri = 0
 	RtpHeaderExtensionUriRtpStreamId            RtpHeaderExtensionUri = 1
 	RtpHeaderExtensionUriRepairRtpStreamId      RtpHeaderExtensionUri = 2
-	RtpHeaderExtensionUriAudioLevel             RtpHeaderExtensionUri = 3
-	RtpHeaderExtensionUriVideoOrientation       RtpHeaderExtensionUri = 4
-	RtpHeaderExtensionUriTimeOffset             RtpHeaderExtensionUri = 5
-	RtpHeaderExtensionUriTransportWideCcDraft01 RtpHeaderExtensionUri = 6
-	RtpHeaderExtensionUriAbsSendTime            RtpHeaderExtensionUri = 7
-	RtpHeaderExtensionUriAbsCaptureTime         RtpHeaderExtensionUri = 8
-	RtpHeaderExtensionUriPlayoutDelay           RtpHeaderExtensionUri = 9
-	RtpHeaderExtensionUriDependencyDescriptor   RtpHeaderExtensionUri = 10
+	RtpHeaderExtensionUriAbsSendTime            RtpHeaderExtensionUri = 3
+	RtpHeaderExtensionUriTransportWideCcDraft01 RtpHeaderExtensionUri = 4
+	RtpHeaderExtensionUriSsrcAudioLevel         RtpHeaderExtensionUri = 5
+	RtpHeaderExtensionUriDependencyDescriptor   RtpHeaderExtensionUri = 6
+	RtpHeaderExtensionUriVideoOrientation       RtpHeaderExtensionUri = 7
+	RtpHeaderExtensionUriTimeOffset             RtpHeaderExtensionUri = 8
+	RtpHeaderExtensionUriAbsCaptureTime         RtpHeaderExtensionUri = 9
+	RtpHeaderExtensionUriPlayoutDelay           RtpHeaderExtensionUri = 10
+	RtpHeaderExtensionUriMediasoupPacketId      RtpHeaderExtensionUri = 11
 )
 
 var EnumNamesRtpHeaderExtensionUri = map[RtpHeaderExtensionUri]string{
 	RtpHeaderExtensionUriMid:                    "Mid",
 	RtpHeaderExtensionUriRtpStreamId:            "RtpStreamId",
 	RtpHeaderExtensionUriRepairRtpStreamId:      "RepairRtpStreamId",
-	RtpHeaderExtensionUriAudioLevel:             "AudioLevel",
+	RtpHeaderExtensionUriAbsSendTime:            "AbsSendTime",
+	RtpHeaderExtensionUriTransportWideCcDraft01: "TransportWideCcDraft01",
+	RtpHeaderExtensionUriSsrcAudioLevel:         "SsrcAudioLevel",
+	RtpHeaderExtensionUriDependencyDescriptor:   "DependencyDescriptor",
 	RtpHeaderExtensionUriVideoOrientation:       "VideoOrientation",
 	RtpHeaderExtensionUriTimeOffset:             "TimeOffset",
-	RtpHeaderExtensionUriTransportWideCcDraft01: "TransportWideCcDraft01",
-	RtpHeaderExtensionUriAbsSendTime:            "AbsSendTime",
 	RtpHeaderExtensionUriAbsCaptureTime:         "AbsCaptureTime",
 	RtpHeaderExtensionUriPlayoutDelay:           "PlayoutDelay",
-	RtpHeaderExtensionUriDependencyDescriptor:   "DependencyDescriptor",
+	RtpHeaderExtensionUriMediasoupPacketId:      "MediasoupPacketId",
 }
 
 var EnumValuesRtpHeaderExtensionUri = map[string]RtpHeaderExtensionUri{
 	"Mid":                    RtpHeaderExtensionUriMid,
 	"RtpStreamId":            RtpHeaderExtensionUriRtpStreamId,
 	"RepairRtpStreamId":      RtpHeaderExtensionUriRepairRtpStreamId,
-	"AudioLevel":             RtpHeaderExtensionUriAudioLevel,
+	"AbsSendTime":            RtpHeaderExtensionUriAbsSendTime,
+	"TransportWideCcDraft01": RtpHeaderExtensionUriTransportWideCcDraft01,
+	"SsrcAudioLevel":         RtpHeaderExtensionUriSsrcAudioLevel,
+	"DependencyDescriptor":   RtpHeaderExtensionUriDependencyDescriptor,
 	"VideoOrientation":       RtpHeaderExtensionUriVideoOrientation,
 	"TimeOffset":             RtpHeaderExtensionUriTimeOffset,
-	"TransportWideCcDraft01": RtpHeaderExtensionUriTransportWideCcDraft01,
-	"AbsSendTime":            RtpHeaderExtensionUriAbsSendTime,
 	"AbsCaptureTime":         RtpHeaderExtensionUriAbsCaptureTime,
 	"PlayoutDelay":           RtpHeaderExtensionUriPlayoutDelay,
-	"DependencyDescriptor":   RtpHeaderExtensionUriDependencyDescriptor,
+	"MediasoupPacketId":      RtpHeaderExtensionUriMediasoupPacketId,
 }
 
 func (v RtpHeaderExtensionUri) String() string {

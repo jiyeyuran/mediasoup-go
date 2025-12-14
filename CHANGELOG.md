@@ -1,5 +1,9 @@
 # Changelog
 
+### 2.3.0
+- router.PipeToRouter() can now connect two Routers in the same Worker if KeepId is set to false
+- Add custom 'urn:mediasoup:params:rtp-hdrext:packet-id' (mediasoup-packet-id) header extension
+
 ### 2.2.0
 - ListenInfo: Add ExposeInternalIp field
 

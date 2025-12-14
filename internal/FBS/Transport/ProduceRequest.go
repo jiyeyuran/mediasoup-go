@@ -13,8 +13,9 @@ type ProduceRequestT struct {
 	Kind FBS__RtpParameters.MediaKind `json:"kind"`
 	RtpParameters *FBS__RtpParameters.RtpParametersT `json:"rtp_parameters"`
 	RtpMapping *FBS__RtpParameters.RtpMappingT `json:"rtp_mapping"`
-	KeyFrameRequestDelay uint32 `json:"key_frame_request_delay"`
 	Paused bool `json:"paused"`
+	KeyFrameRequestDelay uint32 `json:"key_frame_request_delay"`
+	EnableMediasoupPacketIdHeaderExtension bool `json:"enable_mediasoup_packet_id_header_extension"`
 }
 
 func (t *ProduceRequestT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
@@ -32,8 +33,9 @@ func (t *ProduceRequestT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffset
 	ProduceRequestAddKind(builder, t.Kind)
 	ProduceRequestAddRtpParameters(builder, rtpParametersOffset)
 	ProduceRequestAddRtpMapping(builder, rtpMappingOffset)
-	ProduceRequestAddKeyFrameRequestDelay(builder, t.KeyFrameRequestDelay)
 	ProduceRequestAddPaused(builder, t.Paused)
+	ProduceRequestAddKeyFrameRequestDelay(builder, t.KeyFrameRequestDelay)
+	ProduceRequestAddEnableMediasoupPacketIdHeaderExtension(builder, t.EnableMediasoupPacketIdHeaderExtension)
 	return ProduceRequestEnd(builder)
 }
 
@@ -42,8 +44,9 @@ func (rcv *ProduceRequest) UnPackTo(t *ProduceRequestT) {
 	t.Kind = rcv.Kind()
 	t.RtpParameters = rcv.RtpParameters(nil).UnPack()
 	t.RtpMapping = rcv.RtpMapping(nil).UnPack()
-	t.KeyFrameRequestDelay = rcv.KeyFrameRequestDelay()
 	t.Paused = rcv.Paused()
+	t.KeyFrameRequestDelay = rcv.KeyFrameRequestDelay()
+	t.EnableMediasoupPacketIdHeaderExtension = rcv.EnableMediasoupPacketIdHeaderExtension()
 }
 
 func (rcv *ProduceRequest) UnPack() *ProduceRequestT {
@@ -136,20 +139,8 @@ func (rcv *ProduceRequest) RtpMapping(obj *FBS__RtpParameters.RtpMapping) *FBS__
 	return nil
 }
 
-func (rcv *ProduceRequest) KeyFrameRequestDelay() uint32 {
-	o := flatbuffers.UOffsetT(rcv._tab.Offset(12))
-	if o != 0 {
-		return rcv._tab.GetUint32(o + rcv._tab.Pos)
-	}
-	return 0
-}
-
-func (rcv *ProduceRequest) MutateKeyFrameRequestDelay(n uint32) bool {
-	return rcv._tab.MutateUint32Slot(12, n)
-}
-
 func (rcv *ProduceRequest) Paused() bool {
-	o := flatbuffers.UOffsetT(rcv._tab.Offset(14))
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(12))
 	if o != 0 {
 		return rcv._tab.GetBool(o + rcv._tab.Pos)
 	}
@@ -157,11 +148,35 @@ func (rcv *ProduceRequest) Paused() bool {
 }
 
 func (rcv *ProduceRequest) MutatePaused(n bool) bool {
-	return rcv._tab.MutateBoolSlot(14, n)
+	return rcv._tab.MutateBoolSlot(12, n)
+}
+
+func (rcv *ProduceRequest) KeyFrameRequestDelay() uint32 {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(14))
+	if o != 0 {
+		return rcv._tab.GetUint32(o + rcv._tab.Pos)
+	}
+	return 0
+}
+
+func (rcv *ProduceRequest) MutateKeyFrameRequestDelay(n uint32) bool {
+	return rcv._tab.MutateUint32Slot(14, n)
+}
+
+func (rcv *ProduceRequest) EnableMediasoupPacketIdHeaderExtension() bool {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(16))
+	if o != 0 {
+		return rcv._tab.GetBool(o + rcv._tab.Pos)
+	}
+	return false
+}
+
+func (rcv *ProduceRequest) MutateEnableMediasoupPacketIdHeaderExtension(n bool) bool {
+	return rcv._tab.MutateBoolSlot(16, n)
 }
 
 func ProduceRequestStart(builder *flatbuffers.Builder) {
-	builder.StartObject(6)
+	builder.StartObject(7)
 }
 func ProduceRequestAddProducerId(builder *flatbuffers.Builder, producerId flatbuffers.UOffsetT) {
 	builder.PrependUOffsetTSlot(0, flatbuffers.UOffsetT(producerId), 0)
@@ -175,11 +190,14 @@ func ProduceRequestAddRtpParameters(builder *flatbuffers.Builder, rtpParameters 
 func ProduceRequestAddRtpMapping(builder *flatbuffers.Builder, rtpMapping flatbuffers.UOffsetT) {
 	builder.PrependUOffsetTSlot(3, flatbuffers.UOffsetT(rtpMapping), 0)
 }
-func ProduceRequestAddKeyFrameRequestDelay(builder *flatbuffers.Builder, keyFrameRequestDelay uint32) {
-	builder.PrependUint32Slot(4, keyFrameRequestDelay, 0)
-}
 func ProduceRequestAddPaused(builder *flatbuffers.Builder, paused bool) {
-	builder.PrependBoolSlot(5, paused, false)
+	builder.PrependBoolSlot(4, paused, false)
+}
+func ProduceRequestAddKeyFrameRequestDelay(builder *flatbuffers.Builder, keyFrameRequestDelay uint32) {
+	builder.PrependUint32Slot(5, keyFrameRequestDelay, 0)
+}
+func ProduceRequestAddEnableMediasoupPacketIdHeaderExtension(builder *flatbuffers.Builder, enableMediasoupPacketIdHeaderExtension bool) {
+	builder.PrependBoolSlot(6, enableMediasoupPacketIdHeaderExtension, false)
 }
 func ProduceRequestEnd(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	return builder.EndObject()

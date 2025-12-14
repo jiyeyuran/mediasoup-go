@@ -18,6 +18,10 @@ type ProducerOptions struct {
 	// the sender for a new key frame after having asked a previous one. Default 0.
 	KeyFrameRequestDelay uint32 `json:"keyFrameRequestDelay,omitempty"`
 
+	// EnableMediasoupPacketIdHeaderExtension adds mediasoup custom 'urn:mediasoup:params:rtp-hdrext:packet-id'
+	// header extension to RTP packets received from the sender endpoint.
+	EnableMediasoupPacketIdHeaderExtension bool `json:"enableMediasoupPacketIdHeaderExtension,omitempty"`
+
 	// AppData is custom application data.
 	AppData H `json:"appData,omitempty"`
 }
