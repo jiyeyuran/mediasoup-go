@@ -301,7 +301,7 @@ var supportedRtpCapabilities = RtpCapabilities{
 			Uri:              "https://aomediacodec.github.io/av1-rtp-spec/#dependency-descriptor-rtp-header-extension",
 			PreferredId:      7,
 			PreferredEncrypt: false,
-			Direction:        MediaDirectionSendrecv,
+			Direction:        MediaDirectionRecvonly,
 		},
 		{
 			Kind:             MediaKindVideo,
