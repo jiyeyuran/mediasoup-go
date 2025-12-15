@@ -24,7 +24,6 @@ func parseRtpStreamStats(stats *FbsRtpStream.StatsT) *RtpStreamStats {
 func parseRtpStreamRecvStats(recvStats *FbsRtpStream.RecvStatsT) *RtpStreamStats {
 	stats := parseBaseStreamStats(recvStats.Base.Data.Value.(*FbsRtpStream.BaseStatsT))
 	stats.Type = "inbound-rtp"
-	stats.Jitter = recvStats.Jitter
 	stats.PacketCount = recvStats.PacketCount
 	stats.ByteCount = recvStats.ByteCount
 	stats.Bitrate = recvStats.Bitrate
@@ -51,6 +50,7 @@ func parseBaseStreamStats(stats *FbsRtpStream.BaseStatsT) *RtpStreamStats {
 		MimeType:             stats.MimeType,
 		PacketsLost:          stats.PacketsLost,
 		FractionLost:         stats.FractionLost,
+		Jitter:               stats.Jitter,
 		PacketsDiscarded:     stats.PacketsDiscarded,
 		PacketsRetransmitted: stats.PacketsRetransmitted,
 		PacketsRepaired:      stats.PacketsRepaired,
@@ -58,11 +58,11 @@ func parseBaseStreamStats(stats *FbsRtpStream.BaseStatsT) *RtpStreamStats {
 		NackPacketCount:      stats.NackPacketCount,
 		PliCount:             stats.PliCount,
 		FirCount:             stats.FirCount,
-		Score:                stats.Score,
 		Rid:                  stats.Rid,
 		RtxSsrc:              stats.RtxSsrc,
 		RoundTripTime:        stats.RoundTripTime,
 		RtxPacketsDiscarded:  stats.RtxPacketsDiscarded,
+		Score:                stats.Score,
 	}
 }
 
