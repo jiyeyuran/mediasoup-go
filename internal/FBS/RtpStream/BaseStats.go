@@ -13,7 +13,7 @@ type BaseStatsT struct {
 	Ssrc uint32 `json:"ssrc"`
 	Kind FBS__RtpParameters.MediaKind `json:"kind"`
 	MimeType string `json:"mime_type"`
-	PacketsLost uint64 `json:"packets_lost"`
+	PacketsLost int32 `json:"packets_lost"`
 	FractionLost byte `json:"fraction_lost"`
 	PacketsDiscarded uint64 `json:"packets_discarded"`
 	PacketsRetransmitted uint64 `json:"packets_retransmitted"`
@@ -174,16 +174,16 @@ func (rcv *BaseStats) MimeType() []byte {
 	return nil
 }
 
-func (rcv *BaseStats) PacketsLost() uint64 {
+func (rcv *BaseStats) PacketsLost() int32 {
 	o := flatbuffers.UOffsetT(rcv._tab.Offset(12))
 	if o != 0 {
-		return rcv._tab.GetUint64(o + rcv._tab.Pos)
+		return rcv._tab.GetInt32(o + rcv._tab.Pos)
 	}
 	return 0
 }
 
-func (rcv *BaseStats) MutatePacketsLost(n uint64) bool {
-	return rcv._tab.MutateUint64Slot(12, n)
+func (rcv *BaseStats) MutatePacketsLost(n int32) bool {
+	return rcv._tab.MutateInt32Slot(12, n)
 }
 
 func (rcv *BaseStats) FractionLost() byte {
@@ -354,8 +354,8 @@ func BaseStatsAddKind(builder *flatbuffers.Builder, kind FBS__RtpParameters.Medi
 func BaseStatsAddMimeType(builder *flatbuffers.Builder, mimeType flatbuffers.UOffsetT) {
 	builder.PrependUOffsetTSlot(3, flatbuffers.UOffsetT(mimeType), 0)
 }
-func BaseStatsAddPacketsLost(builder *flatbuffers.Builder, packetsLost uint64) {
-	builder.PrependUint64Slot(4, packetsLost, 0)
+func BaseStatsAddPacketsLost(builder *flatbuffers.Builder, packetsLost int32) {
+	builder.PrependInt32Slot(4, packetsLost, 0)
 }
 func BaseStatsAddFractionLost(builder *flatbuffers.Builder, fractionLost byte) {
 	builder.PrependByteSlot(5, fractionLost, 0)
