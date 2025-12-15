@@ -15,6 +15,7 @@ type BaseStatsT struct {
 	MimeType string `json:"mime_type"`
 	PacketsLost int32 `json:"packets_lost"`
 	FractionLost byte `json:"fraction_lost"`
+	Jitter uint32 `json:"jitter"`
 	PacketsDiscarded uint64 `json:"packets_discarded"`
 	PacketsRetransmitted uint64 `json:"packets_retransmitted"`
 	PacketsRepaired uint64 `json:"packets_repaired"`
@@ -22,11 +23,11 @@ type BaseStatsT struct {
 	NackPacketCount uint64 `json:"nack_packet_count"`
 	PliCount uint64 `json:"pli_count"`
 	FirCount uint64 `json:"fir_count"`
-	Score byte `json:"score"`
 	Rid string `json:"rid"`
 	RtxSsrc *uint32 `json:"rtx_ssrc"`
 	RtxPacketsDiscarded uint64 `json:"rtx_packets_discarded"`
 	RoundTripTime float32 `json:"round_trip_time"`
+	Score byte `json:"score"`
 }
 
 func (t *BaseStatsT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
@@ -48,6 +49,7 @@ func (t *BaseStatsT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	BaseStatsAddMimeType(builder, mimeTypeOffset)
 	BaseStatsAddPacketsLost(builder, t.PacketsLost)
 	BaseStatsAddFractionLost(builder, t.FractionLost)
+	BaseStatsAddJitter(builder, t.Jitter)
 	BaseStatsAddPacketsDiscarded(builder, t.PacketsDiscarded)
 	BaseStatsAddPacketsRetransmitted(builder, t.PacketsRetransmitted)
 	BaseStatsAddPacketsRepaired(builder, t.PacketsRepaired)
@@ -55,13 +57,13 @@ func (t *BaseStatsT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	BaseStatsAddNackPacketCount(builder, t.NackPacketCount)
 	BaseStatsAddPliCount(builder, t.PliCount)
 	BaseStatsAddFirCount(builder, t.FirCount)
-	BaseStatsAddScore(builder, t.Score)
 	BaseStatsAddRid(builder, ridOffset)
 	if t.RtxSsrc != nil {
 		BaseStatsAddRtxSsrc(builder, *t.RtxSsrc)
 	}
 	BaseStatsAddRtxPacketsDiscarded(builder, t.RtxPacketsDiscarded)
 	BaseStatsAddRoundTripTime(builder, t.RoundTripTime)
+	BaseStatsAddScore(builder, t.Score)
 	return BaseStatsEnd(builder)
 }
 
@@ -72,6 +74,7 @@ func (rcv *BaseStats) UnPackTo(t *BaseStatsT) {
 	t.MimeType = string(rcv.MimeType())
 	t.PacketsLost = rcv.PacketsLost()
 	t.FractionLost = rcv.FractionLost()
+	t.Jitter = rcv.Jitter()
 	t.PacketsDiscarded = rcv.PacketsDiscarded()
 	t.PacketsRetransmitted = rcv.PacketsRetransmitted()
 	t.PacketsRepaired = rcv.PacketsRepaired()
@@ -79,11 +82,11 @@ func (rcv *BaseStats) UnPackTo(t *BaseStatsT) {
 	t.NackPacketCount = rcv.NackPacketCount()
 	t.PliCount = rcv.PliCount()
 	t.FirCount = rcv.FirCount()
-	t.Score = rcv.Score()
 	t.Rid = string(rcv.Rid())
 	t.RtxSsrc = rcv.RtxSsrc()
 	t.RtxPacketsDiscarded = rcv.RtxPacketsDiscarded()
 	t.RoundTripTime = rcv.RoundTripTime()
+	t.Score = rcv.Score()
 }
 
 func (rcv *BaseStats) UnPack() *BaseStatsT {
@@ -198,19 +201,19 @@ func (rcv *BaseStats) MutateFractionLost(n byte) bool {
 	return rcv._tab.MutateByteSlot(14, n)
 }
 
-func (rcv *BaseStats) PacketsDiscarded() uint64 {
+func (rcv *BaseStats) Jitter() uint32 {
 	o := flatbuffers.UOffsetT(rcv._tab.Offset(16))
 	if o != 0 {
-		return rcv._tab.GetUint64(o + rcv._tab.Pos)
+		return rcv._tab.GetUint32(o + rcv._tab.Pos)
 	}
 	return 0
 }
 
-func (rcv *BaseStats) MutatePacketsDiscarded(n uint64) bool {
-	return rcv._tab.MutateUint64Slot(16, n)
+func (rcv *BaseStats) MutateJitter(n uint32) bool {
+	return rcv._tab.MutateUint32Slot(16, n)
 }
 
-func (rcv *BaseStats) PacketsRetransmitted() uint64 {
+func (rcv *BaseStats) PacketsDiscarded() uint64 {
 	o := flatbuffers.UOffsetT(rcv._tab.Offset(18))
 	if o != 0 {
 		return rcv._tab.GetUint64(o + rcv._tab.Pos)
@@ -218,11 +221,11 @@ func (rcv *BaseStats) PacketsRetransmitted() uint64 {
 	return 0
 }
 
-func (rcv *BaseStats) MutatePacketsRetransmitted(n uint64) bool {
+func (rcv *BaseStats) MutatePacketsDiscarded(n uint64) bool {
 	return rcv._tab.MutateUint64Slot(18, n)
 }
 
-func (rcv *BaseStats) PacketsRepaired() uint64 {
+func (rcv *BaseStats) PacketsRetransmitted() uint64 {
 	o := flatbuffers.UOffsetT(rcv._tab.Offset(20))
 	if o != 0 {
 		return rcv._tab.GetUint64(o + rcv._tab.Pos)
@@ -230,11 +233,11 @@ func (rcv *BaseStats) PacketsRepaired() uint64 {
 	return 0
 }
 
-func (rcv *BaseStats) MutatePacketsRepaired(n uint64) bool {
+func (rcv *BaseStats) MutatePacketsRetransmitted(n uint64) bool {
 	return rcv._tab.MutateUint64Slot(20, n)
 }
 
-func (rcv *BaseStats) NackCount() uint64 {
+func (rcv *BaseStats) PacketsRepaired() uint64 {
 	o := flatbuffers.UOffsetT(rcv._tab.Offset(22))
 	if o != 0 {
 		return rcv._tab.GetUint64(o + rcv._tab.Pos)
@@ -242,11 +245,11 @@ func (rcv *BaseStats) NackCount() uint64 {
 	return 0
 }
 
-func (rcv *BaseStats) MutateNackCount(n uint64) bool {
+func (rcv *BaseStats) MutatePacketsRepaired(n uint64) bool {
 	return rcv._tab.MutateUint64Slot(22, n)
 }
 
-func (rcv *BaseStats) NackPacketCount() uint64 {
+func (rcv *BaseStats) NackCount() uint64 {
 	o := flatbuffers.UOffsetT(rcv._tab.Offset(24))
 	if o != 0 {
 		return rcv._tab.GetUint64(o + rcv._tab.Pos)
@@ -254,11 +257,11 @@ func (rcv *BaseStats) NackPacketCount() uint64 {
 	return 0
 }
 
-func (rcv *BaseStats) MutateNackPacketCount(n uint64) bool {
+func (rcv *BaseStats) MutateNackCount(n uint64) bool {
 	return rcv._tab.MutateUint64Slot(24, n)
 }
 
-func (rcv *BaseStats) PliCount() uint64 {
+func (rcv *BaseStats) NackPacketCount() uint64 {
 	o := flatbuffers.UOffsetT(rcv._tab.Offset(26))
 	if o != 0 {
 		return rcv._tab.GetUint64(o + rcv._tab.Pos)
@@ -266,11 +269,11 @@ func (rcv *BaseStats) PliCount() uint64 {
 	return 0
 }
 
-func (rcv *BaseStats) MutatePliCount(n uint64) bool {
+func (rcv *BaseStats) MutateNackPacketCount(n uint64) bool {
 	return rcv._tab.MutateUint64Slot(26, n)
 }
 
-func (rcv *BaseStats) FirCount() uint64 {
+func (rcv *BaseStats) PliCount() uint64 {
 	o := flatbuffers.UOffsetT(rcv._tab.Offset(28))
 	if o != 0 {
 		return rcv._tab.GetUint64(o + rcv._tab.Pos)
@@ -278,20 +281,20 @@ func (rcv *BaseStats) FirCount() uint64 {
 	return 0
 }
 
-func (rcv *BaseStats) MutateFirCount(n uint64) bool {
+func (rcv *BaseStats) MutatePliCount(n uint64) bool {
 	return rcv._tab.MutateUint64Slot(28, n)
 }
 
-func (rcv *BaseStats) Score() byte {
+func (rcv *BaseStats) FirCount() uint64 {
 	o := flatbuffers.UOffsetT(rcv._tab.Offset(30))
 	if o != 0 {
-		return rcv._tab.GetByte(o + rcv._tab.Pos)
+		return rcv._tab.GetUint64(o + rcv._tab.Pos)
 	}
 	return 0
 }
 
-func (rcv *BaseStats) MutateScore(n byte) bool {
-	return rcv._tab.MutateByteSlot(30, n)
+func (rcv *BaseStats) MutateFirCount(n uint64) bool {
+	return rcv._tab.MutateUint64Slot(30, n)
 }
 
 func (rcv *BaseStats) Rid() []byte {
@@ -339,8 +342,20 @@ func (rcv *BaseStats) MutateRoundTripTime(n float32) bool {
 	return rcv._tab.MutateFloat32Slot(38, n)
 }
 
+func (rcv *BaseStats) Score() byte {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(40))
+	if o != 0 {
+		return rcv._tab.GetByte(o + rcv._tab.Pos)
+	}
+	return 0
+}
+
+func (rcv *BaseStats) MutateScore(n byte) bool {
+	return rcv._tab.MutateByteSlot(40, n)
+}
+
 func BaseStatsStart(builder *flatbuffers.Builder) {
-	builder.StartObject(18)
+	builder.StartObject(19)
 }
 func BaseStatsAddTimestamp(builder *flatbuffers.Builder, timestamp uint64) {
 	builder.PrependUint64Slot(0, timestamp, 0)
@@ -360,29 +375,29 @@ func BaseStatsAddPacketsLost(builder *flatbuffers.Builder, packetsLost int32) {
 func BaseStatsAddFractionLost(builder *flatbuffers.Builder, fractionLost byte) {
 	builder.PrependByteSlot(5, fractionLost, 0)
 }
+func BaseStatsAddJitter(builder *flatbuffers.Builder, jitter uint32) {
+	builder.PrependUint32Slot(6, jitter, 0)
+}
 func BaseStatsAddPacketsDiscarded(builder *flatbuffers.Builder, packetsDiscarded uint64) {
-	builder.PrependUint64Slot(6, packetsDiscarded, 0)
+	builder.PrependUint64Slot(7, packetsDiscarded, 0)
 }
 func BaseStatsAddPacketsRetransmitted(builder *flatbuffers.Builder, packetsRetransmitted uint64) {
-	builder.PrependUint64Slot(7, packetsRetransmitted, 0)
+	builder.PrependUint64Slot(8, packetsRetransmitted, 0)
 }
 func BaseStatsAddPacketsRepaired(builder *flatbuffers.Builder, packetsRepaired uint64) {
-	builder.PrependUint64Slot(8, packetsRepaired, 0)
+	builder.PrependUint64Slot(9, packetsRepaired, 0)
 }
 func BaseStatsAddNackCount(builder *flatbuffers.Builder, nackCount uint64) {
-	builder.PrependUint64Slot(9, nackCount, 0)
+	builder.PrependUint64Slot(10, nackCount, 0)
 }
 func BaseStatsAddNackPacketCount(builder *flatbuffers.Builder, nackPacketCount uint64) {
-	builder.PrependUint64Slot(10, nackPacketCount, 0)
+	builder.PrependUint64Slot(11, nackPacketCount, 0)
 }
 func BaseStatsAddPliCount(builder *flatbuffers.Builder, pliCount uint64) {
-	builder.PrependUint64Slot(11, pliCount, 0)
+	builder.PrependUint64Slot(12, pliCount, 0)
 }
 func BaseStatsAddFirCount(builder *flatbuffers.Builder, firCount uint64) {
-	builder.PrependUint64Slot(12, firCount, 0)
-}
-func BaseStatsAddScore(builder *flatbuffers.Builder, score byte) {
-	builder.PrependByteSlot(13, score, 0)
+	builder.PrependUint64Slot(13, firCount, 0)
 }
 func BaseStatsAddRid(builder *flatbuffers.Builder, rid flatbuffers.UOffsetT) {
 	builder.PrependUOffsetTSlot(14, flatbuffers.UOffsetT(rid), 0)
@@ -396,6 +411,9 @@ func BaseStatsAddRtxPacketsDiscarded(builder *flatbuffers.Builder, rtxPacketsDis
 }
 func BaseStatsAddRoundTripTime(builder *flatbuffers.Builder, roundTripTime float32) {
 	builder.PrependFloat32Slot(17, roundTripTime, 0.0)
+}
+func BaseStatsAddScore(builder *flatbuffers.Builder, score byte) {
+	builder.PrependByteSlot(18, score, 0)
 }
 func BaseStatsEnd(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	return builder.EndObject()
