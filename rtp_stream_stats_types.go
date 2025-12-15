@@ -6,7 +6,7 @@ type RtpStreamStats struct {
 	Ssrc                 uint32    `json:"ssrc"`
 	Kind                 MediaKind `json:"kind"`
 	MimeType             string    `json:"mimeType"`
-	PacketsLost          uint64    `json:"packetsLost"`
+	PacketsLost          int32     `json:"packetsLost"`
 	FractionLost         uint8     `json:"fractionLost"`
 	PacketsDiscarded     uint64    `json:"packetsDiscarded"`
 	PacketsRetransmitted uint64    `json:"packetsRetransmitted"`
