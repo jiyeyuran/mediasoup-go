@@ -8,7 +8,8 @@ The following table shows which mediasoup versions are supported by each mediaso
 
 | mediasoup-go version | Supported mediasoup version |
 | --- | --- |
-| v2.2.0(latest) | v3.17.0 |
+| v2.3.0(latest) | v3.19.14 |
+| v2.2.0 | v3.17.0 |
 | v2.0.0~v2.2.0 | v3.14.0~v3.17.0 |
 | not supported | v3.13.0~v3.14.0 |
 | v1.x.x | < v3.13.0 |
