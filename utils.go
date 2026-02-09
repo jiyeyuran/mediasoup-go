@@ -13,15 +13,6 @@ import (
 
 const (
 	charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-
-	routerPrefix       = "rt-"
-	transportPrefix    = "tr-"
-	producerPrefix     = "pr-"
-	consumerPrefix     = "co-"
-	dataProducerPrefix = "dp-"
-	dataConsumerPrefix = "dc-"
-	webRtcServerPrefix = "ws-"
-	rtpObserverPrefix  = "ro-"
 )
 
 func ref[T any](t T) *T {
@@ -82,7 +73,11 @@ func filter[Slice ~[]E, E any](s Slice, f func(E) bool) []E {
 }
 
 func uuid(prefix string) string {
-	return prefix + xid.New().String()
+	id := xid.New().String()
+	if len(prefix) > 0 {
+		id = prefix + id
+	}
+	return id
 }
 
 func randString(length int) string {

@@ -1,5 +1,16 @@
 package mediasoup
 
+const (
+	RouterIDPrefix       = "rt-"
+	TransportIDPrefix    = "tr-"
+	ProducerIDPrefix     = "pr-"
+	ConsumerIDPrefix     = "co-"
+	DataProducerIDPrefix = "dp-"
+	DataConsumerIDPrefix = "dc-"
+	WebRtcServerPrefix   = "ws-"
+	RtpObserverIDPrefix  = "ro-"
+)
+
 // UUID is an alias for the uuid package's UUID type.
 // It is used throughout the mediasoup package for unique identifiers.
 // Users can replace this with their own UUID implementation if needed.

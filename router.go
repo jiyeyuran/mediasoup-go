@@ -283,7 +283,7 @@ func (r *Router) CreateActiveSpeakerObserverContext(ctx context.Context, options
 		}
 	}
 
-	rtpObserverId := UUID(rtpObserverPrefix)
+	rtpObserverId := UUID(RtpObserverIDPrefix)
 
 	_, err := r.channel.Request(ctx, &FbsRequest.RequestT{
 		Method:    FbsRequest.MethodROUTER_CREATE_ACTIVESPEAKEROBSERVER,
@@ -342,7 +342,7 @@ func (r *Router) CreateAudioLevelObserverContext(ctx context.Context, options *A
 		}
 	}
 
-	rtpObserverId := UUID(rtpObserverPrefix)
+	rtpObserverId := UUID(RtpObserverIDPrefix)
 
 	_, err := r.channel.Request(ctx, &FbsRequest.RequestT{
 		Method:    FbsRequest.MethodROUTER_CREATE_AUDIOLEVELOBSERVER,
@@ -413,7 +413,7 @@ func (r *Router) CreateWebRtcTransportContext(ctx context.Context, options *WebR
 		o.SctpSendBufferSize = options.SctpSendBufferSize
 	}
 
-	transportId := UUID(transportPrefix)
+	transportId := UUID(TransportIDPrefix)
 	baseTranportOptions := &FbsTransport.OptionsT{
 		InitialAvailableOutgoingBitrate: ref(o.InitialAvailableOutgoingBitrate),
 		EnableSctp:                      o.EnableSctp,
@@ -572,7 +572,7 @@ func (r *Router) CreatePlainTransportContext(ctx context.Context, options *Plain
 		o.SctpSendBufferSize = options.SctpSendBufferSize
 	}
 
-	transportId := UUID(transportPrefix)
+	transportId := UUID(TransportIDPrefix)
 	baseTranportOptions := &FbsTransport.OptionsT{
 		EnableSctp: o.EnableSctp,
 		NumSctpStreams: &FbsSctpParameters.NumSctpStreamsT{
@@ -669,7 +669,7 @@ func (r *Router) CreatePipeTransportContext(ctx context.Context, options *PipeTr
 		o.SctpSendBufferSize = options.SctpSendBufferSize
 	}
 
-	transportId := UUID(transportPrefix)
+	transportId := UUID(TransportIDPrefix)
 	baseTranportOptions := &FbsTransport.OptionsT{
 		EnableSctp: o.EnableSctp,
 		NumSctpStreams: &FbsSctpParameters.NumSctpStreamsT{
@@ -749,7 +749,7 @@ func (r *Router) CreateDirectTransportContext(ctx context.Context, options *Dire
 		}
 	}
 
-	transportId := UUID(transportPrefix)
+	transportId := UUID(TransportIDPrefix)
 	baseTranportOptions := &FbsTransport.OptionsT{
 		Direct:         true,
 		MaxMessageSize: &o.MaxMessageSize,
@@ -943,7 +943,7 @@ func (r *Router) PipeToRouterContext(ctx context.Context, options *PipeToRouterO
 		}
 		producerID := producer.Id()
 		if !*o.KeepId {
-			producerID = uuid(producerPrefix)
+			producerID = uuid(ProducerIDPrefix)
 		}
 		pipeProducer, err := remotePipeTransport.ProduceContext(ctx, &ProducerOptions{
 			Id:            producerID,
@@ -1002,7 +1002,7 @@ func (r *Router) PipeToRouterContext(ctx context.Context, options *PipeToRouterO
 	}
 	dataProducerID := dataProducer.Id()
 	if !*o.KeepId {
-		dataProducerID = uuid(dataProducerPrefix)
+		dataProducerID = uuid(DataProducerIDPrefix)
 	}
 	pipeDataProducer, err := remotePipeTransport.ProduceDataContext(ctx, &DataProducerOptions{
 		Id:                   dataProducerID,
