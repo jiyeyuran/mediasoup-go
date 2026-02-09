@@ -419,7 +419,7 @@ func (w *Worker) CreateWebRtcServer(options *WebRtcServerOptions) (*WebRtcServer
 func (w *Worker) CreateWebRtcServerContext(ctx context.Context, options *WebRtcServerOptions) (*WebRtcServer, error) {
 	w.logger.DebugContext(ctx, "CreateWebRtcServer()")
 
-	id := UUID(webRtcServerPrefix)
+	id := UUID(WebRtcServerPrefix)
 
 	req := &FbsWorker.CreateWebRtcServerRequestT{
 		WebRtcServerId: id,
@@ -489,7 +489,7 @@ func (w *Worker) CreateRouterContext(ctx context.Context, options *RouterOptions
 		return nil, err
 	}
 
-	routerId := UUID(routerPrefix)
+	routerId := UUID(RouterIDPrefix)
 	req := &FbsWorker.CreateRouterRequestT{
 		RouterId: routerId,
 	}
