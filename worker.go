@@ -25,8 +25,8 @@ import (
 	"github.com/jiyeyuran/mediasoup-go/v2/internal/channel"
 )
 
-// MEDIASOUP_WORKER_VERSION is the max supported version of the mediasoup C++ subprocess.
-const MEDIASOUP_WORKER_VERSION = "3.18.0"
+// MEDIASOUP_WORKER_VERSION is the maximum supported version of the mediasoup C++ subprocess.
+const MEDIASOUP_WORKER_VERSION = "3.19.17"
 
 // Worker represents a mediasoup C++ subprocess that runs in a single CPU core and handles Router
 // instances.

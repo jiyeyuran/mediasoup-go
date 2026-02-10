@@ -7,35 +7,40 @@ A Go library for [mediasoup](https://github.com/versatica/mediasoup) that enable
 The following table shows which mediasoup versions are supported by each mediasoup-go release:
 
 | mediasoup-go version | Supported mediasoup version |
-| --- | --- |
-| v2.3.0(latest) | v3.19.14 |
-| v2.2.0 | v3.17.0 |
-| v2.0.0~v2.2.0 | v3.14.0~v3.17.0 |
-| not supported | v3.13.0~v3.14.0 |
-| v1.x.x | < v3.13.0 |
+| -------------------- | --------------------------- |
+| v2.3.x               | v3.19.14~v3.19.17           |
+| v2.2.0               | v3.17.0                     |
+| v2.0.0~v2.2.0        | v3.14.0~v3.17.0             |
+| not supported        | v3.13.0~v3.14.0             |
+| v1.x.x               | < v3.13.0                   |
 
 Note: Make sure to download the prebuilt mediasoup worker that matches the version you are using. Be aware that future mediasoup releases may change the FlatBuffers (fbs) protocol, which can break compatibility with mediasoup-go — always use a worker version that matches the mediasoup-go release you are running or rebuild the worker accordingly.
 
 ## Features
+
 - Full mediasoup v3 API support in Go
 - Consistent API design with the original Node.js version
 - Uses `Cmd.ExtraFiles` for worker communication (not compatible with Windows)
 - Supports multi-core processing via `PipeTransport`
 
 ## Prerequisites
+
 - Download the prebuilt mediasoup worker from [mediasoup releases](https://github.com/versatica/mediasoup/releases)
 - Linux or macOS (Windows not supported)
 
 ## Installation
+
 ```go
 import "github.com/jiyeyuran/mediasoup-go/v2"
 ```
 
 ## Documentation
+
 - [Go API Documentation](https://pkg.go.dev/github.com/jiyeyuran/mediasoup-go/v2)
 - [Official mediasoup Documentation](https://mediasoup.org/documentation/v3/mediasoup/api/)
 
 ## Example Usage
+
 See [mediasoup-go-demo](https://github.com/jiyeyuran/mediasoup-go-demo) for a complete example application.
 
 <details>
@@ -72,8 +77,9 @@ func main() {
     // ...
 }
 ```
+
 </details>
 
 ## License
-[ISC](/LICENSE)
 
+[ISC](/LICENSE)
