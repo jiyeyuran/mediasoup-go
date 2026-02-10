@@ -1,6 +1,12 @@
 # Changelog
 
+### 2.3.1
+
+- feat: export ID prefix for all IDs
+- fix: id prefix of Producer
+
 ### 2.3.0
+
 - Add `jitter` in `Consumer` 'outbound-rtp' stats
 - Fix RTCP packets lost in stats
 - RtpParameters: add msid optional field
@@ -9,9 +15,11 @@
 - router.PipeToRouter() can now connect two Routers in the same Worker if KeepId is set to false
 
 ### 2.2.0
+
 - ListenInfo: Add ExposeInternalIp field
 
 ### 2.1.0
+
 - Remove H265 codec and deprecated frame-marking RTP extension
 - Remove H264-SVC codec
 - `Router`: Add `UpdateMediaCodecs()` method to dynamically change Router's RTP capabilities
