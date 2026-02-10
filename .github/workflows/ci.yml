@@ -33,7 +33,7 @@ jobs:
       - name: Download mediasoup-worker
         run: |
           mkdir -p .mediasoup
-          curl -L -o .mediasoup/worker.tgz https://github.com/versatica/mediasoup/releases/download/3.19.14/mediasoup-worker-3.19.14-linux-x64-kernel6.tgz
+          curl -L -o .mediasoup/worker.tgz https://github.com/versatica/mediasoup/releases/download/3.19.17/mediasoup-worker-3.19.17-linux-x64-kernel6.tgz
           tar -xzf .mediasoup/worker.tgz -C .mediasoup
 
       - name: Run Tests
