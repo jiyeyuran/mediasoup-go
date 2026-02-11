@@ -530,15 +530,15 @@ func (w *Worker) CreateRouterContext(ctx context.Context, options *RouterOptions
 }
 
 func (w *Worker) OnNewWebRtcServer(listener func(context.Context, *WebRtcServer)) {
-	w.mu.RLock()
-	defer w.mu.RUnlock()
+	w.mu.Lock()
+	defer w.mu.Unlock()
 
 	w.newWebRtcServerListeners = append(w.newWebRtcServerListeners, listener)
 }
 
 func (w *Worker) OnNewRouter(listener func(context.Context, *Router)) {
-	w.mu.RLock()
-	defer w.mu.RUnlock()
+	w.mu.Lock()
+	defer w.mu.Unlock()
 
 	w.newRouterListeners = append(w.newRouterListeners, listener)
 }

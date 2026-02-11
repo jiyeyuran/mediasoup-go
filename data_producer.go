@@ -29,12 +29,13 @@ type dataProducerData struct {
 type DataProducer struct {
 	baseListener
 
-	channel         *channel.Channel
-	data            *dataProducerData
-	closed          bool
-	pauseListeners  []func(context.Context)
-	resumeListeners []func(context.Context)
-	logger          *slog.Logger
+	channel                 *channel.Channel
+	data                    *dataProducerData
+	closed                  bool
+	pauseListeners          []func(context.Context)
+	resumeListeners         []func(context.Context)
+	transportCloseListeners []func(context.Context)
+	logger                  *slog.Logger
 }
 
 func newDataProducer(channel *channel.Channel, logger *slog.Logger, data *dataProducerData) *DataProducer {
@@ -271,6 +272,14 @@ func (p *DataProducer) OnResume(f func(context.Context)) {
 	p.resumeListeners = append(p.resumeListeners, f)
 }
 
+// OnTransportClosed add listener on "transportclosed" event.
+func (p *DataProducer) OnTransportClosed(listener func(context.Context)) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	p.transportCloseListeners = append(p.transportCloseListeners, listener)
+}
+
 // Send send binary data.
 func (p *DataProducer) Send(data []byte, options ...DataProducerSendOption) (err error) {
 	return p.SendContext(context.Background(), data, options...)
@@ -337,8 +346,13 @@ func (p *DataProducer) transportClosed(ctx context.Context) {
 		return
 	}
 	p.closed = true
+	listeners := p.transportCloseListeners
 	p.mu.Unlock()
 	p.logger.DebugContext(ctx, "transportClosed()")
+
+	for _, listener := range listeners {
+		listener(ctx)
+	}
 
 	p.notifyClosed(ctx)
 }

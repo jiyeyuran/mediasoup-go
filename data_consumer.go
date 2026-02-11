@@ -42,6 +42,7 @@ type DataConsumer struct {
 	closed                      bool
 	pauseListeners              []func(context.Context)
 	resumeListeners             []func(context.Context)
+	transportCloseListeners     []func(context.Context)
 	dataProducerCloseListeners  []func(context.Context)
 	dataProducerPauseListeners  []func(context.Context)
 	dataProducerResumeListeners []func(context.Context)
@@ -502,6 +503,13 @@ func (c *DataConsumer) OnResume(listener func(ctx context.Context)) {
 	c.resumeListeners = append(c.resumeListeners, listener)
 }
 
+// OnTransportClosed add listener on "transportclosed" event.
+func (c *DataConsumer) OnTransportClosed(listener func(ctx context.Context)) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.transportCloseListeners = append(c.transportCloseListeners, listener)
+}
+
 // OnProducerClose add listener on "dataproducerclose" event.
 func (c *DataConsumer) OnDataProducerClose(listener func(ctx context.Context)) {
 	c.mu.Lock()
@@ -658,8 +666,13 @@ func (c *DataConsumer) transportClosed(ctx context.Context) {
 		return
 	}
 	c.closed = true
+	listeners := c.transportCloseListeners
 	c.mu.Unlock()
 	c.logger.DebugContext(ctx, "transportClosed()")
+
+	for _, listener := range listeners {
+		listener(ctx)
+	}
 
 	c.cleanupAfterClosed(ctx)
 }

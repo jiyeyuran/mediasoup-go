@@ -90,6 +90,7 @@ type Transport struct {
 	dtlsStateChangeListeners        []func(DtlsState)
 	rtcpListeners                   []func([]byte)
 	traceListeners                  []func(*TransportTraceEventData)
+	routerCloseListeners            []func(context.Context)
 }
 
 func newTransport(channel *channel.Channel, logger *slog.Logger, data *internalTransportData) *Transport {
@@ -1199,6 +1200,14 @@ func (t *Transport) OnTrace(listener func(trace *TransportTraceEventData)) {
 	t.traceListeners = append(t.traceListeners, listener)
 }
 
+// OnRouterClosed add listener on "routerclosed" event.
+func (t *Transport) OnRouterClosed(listener func(ctx context.Context)) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	t.routerCloseListeners = append(t.routerCloseListeners, listener)
+}
+
 func (t *Transport) handleWorkerNotifications() {
 	t.sub = t.channel.Subscribe(t.Id(), func(ctx context.Context, notification *FbsNotification.NotificationT) {
 		switch event, body := notification.Event, notification.Body; event {
@@ -1382,8 +1391,13 @@ func (t *Transport) routerClosed(ctx context.Context) {
 		return
 	}
 	t.closed = true
+	listeners := t.routerCloseListeners
 	t.mu.Unlock()
 	t.logger.DebugContext(ctx, "routerClosed()")
+
+	for _, listener := range listeners {
+		listener(ctx)
+	}
 
 	t.cleanupAfterClosed(ctx)
 }

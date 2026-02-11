@@ -46,6 +46,7 @@ type Consumer struct {
 	producerCloseListeners  []func(ctx context.Context)
 	producerPauseListeners  []func(ctx context.Context)
 	producerResumeListeners []func(ctx context.Context)
+	transportCloseListeners []func(ctx context.Context)
 	scoreListeners          []func(score ConsumerScore)
 	layersChangeListeners   []func(layers *ConsumerLayers)
 	traceListeners          []func(trace ConsumerTraceEventData)
@@ -495,6 +496,13 @@ func (p *Consumer) OnProducerResume(listener func(ctx context.Context)) {
 	p.producerResumeListeners = append(p.producerResumeListeners, listener)
 }
 
+// OnTransportClosed add listener on "transportclosed" event.
+func (c *Consumer) OnTransportClosed(listener func(ctx context.Context)) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.transportCloseListeners = append(c.transportCloseListeners, listener)
+}
+
 // OnScore add listener on "score" event.
 func (p *Consumer) OnScore(listener func(score ConsumerScore)) {
 	p.mu.Lock()
@@ -672,8 +680,13 @@ func (c *Consumer) transportClosed(ctx context.Context) {
 		return
 	}
 	c.closed = true
+	listeners := c.transportCloseListeners
 	c.mu.Unlock()
 	c.logger.DebugContext(ctx, "transportClosed()")
+
+	for _, listener := range listeners {
+		listener(ctx)
+	}
 
 	c.cleanupAfterClosed(ctx)
 }

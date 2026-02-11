@@ -53,6 +53,7 @@ type Router struct {
 
 	newRtpObserverListeners []func(context.Context, *RtpObserver)
 	newTransportListeners   []func(context.Context, *Transport)
+	workerCloseListeners    []func(context.Context)
 
 	routerPipeMu            sync.Mutex
 	mapRouterPipeTransports map[*Router][2]*Transport
@@ -1065,6 +1066,13 @@ func (r *Router) OnNewTransport(listener func(context.Context, *Transport)) {
 	r.newTransportListeners = append(r.newTransportListeners, listener)
 }
 
+// OnWorkerClosed add listener on "workerclosed" event.
+func (r *Router) OnWorkerClosed(listener func(ctx context.Context)) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.workerCloseListeners = append(r.workerCloseListeners, listener)
+}
+
 func (r *Router) workerClosed(ctx context.Context) {
 	r.mu.Lock()
 	if r.closed {
@@ -1072,8 +1080,13 @@ func (r *Router) workerClosed(ctx context.Context) {
 		return
 	}
 	r.closed = true
+	listeners := r.workerCloseListeners
 	r.mu.Unlock()
 	r.logger.DebugContext(ctx, "workerClosed()")
+
+	for _, listener := range listeners {
+		listener(ctx)
+	}
 
 	r.cleanupAfterClosed(ctx)
 }

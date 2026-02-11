@@ -37,6 +37,7 @@ type Producer struct {
 	closed                          bool
 	pauseListeners                  []func(context.Context)
 	resumeListeners                 []func(context.Context)
+	transportCloseListeners         []func(context.Context)
 	scoreListeners                  []func([]ProducerScore)
 	videoOrientationChangeListeners []func(ProducerVideoOrientation)
 	traceListeners                  []func(ProducerTraceEventData)
@@ -328,12 +329,20 @@ func (p *Producer) OnPause(listener func(ctx context.Context)) {
 	p.pauseListeners = append(p.pauseListeners, listener)
 }
 
-// OnPause add listener on "resume" event.
+// OnResume add listener on "resume" event.
 func (p *Producer) OnResume(listener func(ctx context.Context)) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
 	p.resumeListeners = append(p.resumeListeners, listener)
+}
+
+// OnTransportClosed add listener on "transportclosed" event.
+func (p *Producer) OnTransportClosed(listener func(ctx context.Context)) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	p.transportCloseListeners = append(p.transportCloseListeners, listener)
 }
 
 // OnScore add listener on "score" event
@@ -427,8 +436,13 @@ func (p *Producer) transportClosed(ctx context.Context) {
 		return
 	}
 	p.closed = true
+	listeners := p.transportCloseListeners
 	p.mu.Unlock()
 	p.logger.DebugContext(ctx, "transportClosed()")
+
+	for _, listener := range listeners {
+		listener(ctx)
+	}
 
 	p.cleanupAfterClosed(ctx)
 }
