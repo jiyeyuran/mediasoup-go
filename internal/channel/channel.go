@@ -393,6 +393,12 @@ func (c *Channel) readLoop() {
 			break
 		}
 		size := int(binary.NativeEndian.Uint32(sizeBuf[:]))
+
+		if size > MaxMessageLen {
+			c.logger.Error("received message too large", "size", size)
+			break
+		}
+
 		readBuf := make([]byte, size)
 		if _, err := io.ReadFull(c.reader, readBuf); err != nil {
 			break
