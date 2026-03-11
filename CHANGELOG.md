@@ -1,5 +1,11 @@
 # Changelog
 
+### 2.3.2
+
+- refactor: change ID prefix separators from hyphen to underscore
+- fix(channel): add size check for received messages
+- feat: add cross-component event listeners for cleanup
+
 ### 2.3.1
 
 - feat: export ID prefix for all IDs
