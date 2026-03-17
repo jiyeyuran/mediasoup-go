@@ -1,5 +1,9 @@
 # Changelog
 
+### 2.3.3
+
+- fix: correct json field name from listenIps to listenInfos
+
 ### 2.3.2
 
 - refactor: change ID prefix separators from hyphen to underscore

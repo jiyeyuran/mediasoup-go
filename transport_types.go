@@ -7,7 +7,7 @@ type WebRtcTransportOptions struct {
 
 	// ListenInfos specifies listening IP address or addresses in order of preference (first one
 	// is the preferred one). Mandatory unless webRtcServer is given.
-	ListenInfos []TransportListenInfo `json:"listenIps,omitempty"`
+	ListenInfos []TransportListenInfo `json:"listenInfos,omitempty"`
 
 	// EnableUdp enables listening in UDP. Default true.
 	EnableUdp *bool `json:"enableUdp,omitempty"`
