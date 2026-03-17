@@ -396,7 +396,7 @@ func (r *Router) CreateWebRtcTransportContext(ctx context.Context, options *WebR
 		AppData:                         orElse(options.AppData != nil, options.AppData, H{}),
 	}
 	if len(o.ListenInfos) == 0 && o.WebRtcServer == nil {
-		return nil, errors.New("missing webRtcServerId and listenIps (one of them is mandatory)")
+		return nil, errors.New("missing webRtcServerId and listenInfos (one of them is mandatory)")
 	}
 	if options.EnableUdp != nil {
 		o.EnableUdp = options.EnableUdp
