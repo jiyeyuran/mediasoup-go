@@ -960,16 +960,20 @@ func TestPipeToRouter(t *testing.T) {
 
 		videoProducer.Resume()
 
-		time.Sleep(time.Millisecond)
+		// Allow for async notification propagation across pipe transports
+		assert.Eventually(t, func() bool {
+			return !videoConsumer.ProducerPaused()
+		}, time.Second, 10*time.Millisecond)
 
-		assert.False(t, videoConsumer.ProducerPaused())
 		assert.False(t, videoConsumer.Paused())
 
 		videoProducer.Pause()
 
-		time.Sleep(time.Millisecond)
+		// Allow for async notification propagation across pipe transports
+		assert.Eventually(t, func() bool {
+			return videoConsumer.ProducerPaused()
+		}, time.Second, 10*time.Millisecond)
 
-		assert.True(t, videoConsumer.ProducerPaused())
 		assert.False(t, videoConsumer.Paused())
 	})
 
@@ -985,8 +989,11 @@ func TestPipeToRouter(t *testing.T) {
 
 		videoProducer.Close()
 		assert.True(t, videoProducer.Closed())
-		time.Sleep(time.Millisecond)
-		assert.True(t, videoConsumer.Closed())
+
+		// Allow for async notification propagation across pipe transports
+		assert.Eventually(t, func() bool {
+			return videoConsumer.Closed()
+		}, time.Second, 10*time.Millisecond)
 	})
 
 	t.Run("data", func(t *testing.T) {
