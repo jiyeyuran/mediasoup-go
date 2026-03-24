@@ -39,10 +39,7 @@ func (t *StatsT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	if t == nil {
 		return 0
 	}
-	transportIdOffset := flatbuffers.UOffsetT(0)
-	if t.TransportId != "" {
-		transportIdOffset = builder.CreateString(t.TransportId)
-	}
+	transportIdOffset := builder.CreateString(t.TransportId)
 	StatsStart(builder)
 	StatsAddTransportId(builder, transportIdOffset)
 	StatsAddTimestamp(builder, t.Timestamp)

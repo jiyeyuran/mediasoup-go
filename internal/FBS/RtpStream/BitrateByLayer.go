@@ -15,10 +15,7 @@ func (t *BitrateByLayerT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffset
 	if t == nil {
 		return 0
 	}
-	layerOffset := flatbuffers.UOffsetT(0)
-	if t.Layer != "" {
-		layerOffset = builder.CreateString(t.Layer)
-	}
+	layerOffset := builder.CreateString(t.Layer)
 	BitrateByLayerStart(builder)
 	BitrateByLayerAddLayer(builder, layerOffset)
 	BitrateByLayerAddBitrate(builder, t.Bitrate)

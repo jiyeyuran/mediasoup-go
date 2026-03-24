@@ -24,10 +24,7 @@ func (t *DumpResponseT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT 
 	if t == nil {
 		return 0
 	}
-	idOffset := flatbuffers.UOffsetT(0)
-	if t.Id != "" {
-		idOffset = builder.CreateString(t.Id)
-	}
+	idOffset := builder.CreateString(t.Id)
 	rtpParametersOffset := t.RtpParameters.Pack(builder)
 	rtpMappingOffset := t.RtpMapping.Pack(builder)
 	rtpStreamsOffset := flatbuffers.UOffsetT(0)

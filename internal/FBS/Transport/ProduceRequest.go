@@ -22,10 +22,7 @@ func (t *ProduceRequestT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffset
 	if t == nil {
 		return 0
 	}
-	producerIdOffset := flatbuffers.UOffsetT(0)
-	if t.ProducerId != "" {
-		producerIdOffset = builder.CreateString(t.ProducerId)
-	}
+	producerIdOffset := builder.CreateString(t.ProducerId)
 	rtpParametersOffset := t.RtpParameters.Pack(builder)
 	rtpMappingOffset := t.RtpMapping.Pack(builder)
 	ProduceRequestStart(builder)

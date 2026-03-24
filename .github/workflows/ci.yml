@@ -8,8 +8,11 @@ on:
 
 jobs:
   test:
-    name: Run Tests with mediasoup-worker
+    name: Run Tests with mediasoup-worker ${{ matrix.worker_version }}
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        worker_version: ["3.19.18", "3.19.19"]
 
     steps:
       - name: Checkout code
@@ -33,10 +36,24 @@ jobs:
       - name: Download mediasoup-worker
         run: |
           mkdir -p .mediasoup
-          curl -L -o .mediasoup/worker.tgz https://github.com/versatica/mediasoup/releases/download/3.19.17/mediasoup-worker-3.19.17-linux-x64-kernel6.tgz
+          curl -L -o .mediasoup/worker.tgz https://github.com/versatica/mediasoup/releases/download/${{ matrix.worker_version }}/mediasoup-worker-${{ matrix.worker_version }}-linux-x64-kernel6.tgz
           tar -xzf .mediasoup/worker.tgz -C .mediasoup
 
       - name: Run Tests
         env:
           MEDIASOUP_WORKER_BIN: ${{ github.workspace }}/.mediasoup/mediasoup-worker
         run: go test -v ./...
+
+  all-tests-passed:
+    name: All Tests Passed
+    needs: test
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Check Status
+        if: contains(needs.test.result, 'failure') || contains(needs.test.result, 'cancelled')
+        run: |
+          echo "One or more tests failed!"
+          exit 1
+      - name: Success
+        run: echo "All tests passed successfully!"

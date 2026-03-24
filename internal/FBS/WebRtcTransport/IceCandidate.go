@@ -22,14 +22,8 @@ func (t *IceCandidateT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT 
 	if t == nil {
 		return 0
 	}
-	foundationOffset := flatbuffers.UOffsetT(0)
-	if t.Foundation != "" {
-		foundationOffset = builder.CreateString(t.Foundation)
-	}
-	addressOffset := flatbuffers.UOffsetT(0)
-	if t.Address != "" {
-		addressOffset = builder.CreateString(t.Address)
-	}
+	foundationOffset := builder.CreateString(t.Foundation)
+	addressOffset := builder.CreateString(t.Address)
 	IceCandidateStart(builder)
 	IceCandidateAddFoundation(builder, foundationOffset)
 	IceCandidateAddPriority(builder, t.Priority)

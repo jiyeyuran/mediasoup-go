@@ -15,14 +15,8 @@ func (t *IceUserNameFragmentT) Pack(builder *flatbuffers.Builder) flatbuffers.UO
 	if t == nil {
 		return 0
 	}
-	localIceUsernameFragmentOffset := flatbuffers.UOffsetT(0)
-	if t.LocalIceUsernameFragment != "" {
-		localIceUsernameFragmentOffset = builder.CreateString(t.LocalIceUsernameFragment)
-	}
-	webRtcTransportIdOffset := flatbuffers.UOffsetT(0)
-	if t.WebRtcTransportId != "" {
-		webRtcTransportIdOffset = builder.CreateString(t.WebRtcTransportId)
-	}
+	localIceUsernameFragmentOffset := builder.CreateString(t.LocalIceUsernameFragment)
+	webRtcTransportIdOffset := builder.CreateString(t.WebRtcTransportId)
 	IceUserNameFragmentStart(builder)
 	IceUserNameFragmentAddLocalIceUsernameFragment(builder, localIceUsernameFragmentOffset)
 	IceUserNameFragmentAddWebRtcTransportId(builder, webRtcTransportIdOffset)

@@ -34,10 +34,7 @@ func (t *BaseStatsT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	if t == nil {
 		return 0
 	}
-	mimeTypeOffset := flatbuffers.UOffsetT(0)
-	if t.MimeType != "" {
-		mimeTypeOffset = builder.CreateString(t.MimeType)
-	}
+	mimeTypeOffset := builder.CreateString(t.MimeType)
 	ridOffset := flatbuffers.UOffsetT(0)
 	if t.Rid != "" {
 		ridOffset = builder.CreateString(t.Rid)

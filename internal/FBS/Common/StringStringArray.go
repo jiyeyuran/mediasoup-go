@@ -15,10 +15,7 @@ func (t *StringStringArrayT) Pack(builder *flatbuffers.Builder) flatbuffers.UOff
 	if t == nil {
 		return 0
 	}
-	keyOffset := flatbuffers.UOffsetT(0)
-	if t.Key != "" {
-		keyOffset = builder.CreateString(t.Key)
-	}
+	keyOffset := builder.CreateString(t.Key)
 	valuesOffset := flatbuffers.UOffsetT(0)
 	if t.Values != nil {
 		valuesLength := len(t.Values)

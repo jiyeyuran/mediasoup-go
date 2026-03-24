@@ -21,19 +21,10 @@ func (t *DumpResponseT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT 
 	if t == nil {
 		return 0
 	}
-	idOffset := flatbuffers.UOffsetT(0)
-	if t.Id != "" {
-		idOffset = builder.CreateString(t.Id)
-	}
+	idOffset := builder.CreateString(t.Id)
 	sctpStreamParametersOffset := t.SctpStreamParameters.Pack(builder)
-	labelOffset := flatbuffers.UOffsetT(0)
-	if t.Label != "" {
-		labelOffset = builder.CreateString(t.Label)
-	}
-	protocolOffset := flatbuffers.UOffsetT(0)
-	if t.Protocol != "" {
-		protocolOffset = builder.CreateString(t.Protocol)
-	}
+	labelOffset := builder.CreateString(t.Label)
+	protocolOffset := builder.CreateString(t.Protocol)
 	DumpResponseStart(builder)
 	DumpResponseAddId(builder, idOffset)
 	DumpResponseAddType(builder, t.Type)

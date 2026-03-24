@@ -17,10 +17,7 @@ func (t *CreateWebRtcTransportRequestT) Pack(builder *flatbuffers.Builder) flatb
 	if t == nil {
 		return 0
 	}
-	transportIdOffset := flatbuffers.UOffsetT(0)
-	if t.TransportId != "" {
-		transportIdOffset = builder.CreateString(t.TransportId)
-	}
+	transportIdOffset := builder.CreateString(t.TransportId)
 	optionsOffset := t.Options.Pack(builder)
 	CreateWebRtcTransportRequestStart(builder)
 	CreateWebRtcTransportRequestAddTransportId(builder, transportIdOffset)
