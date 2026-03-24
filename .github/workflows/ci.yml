@@ -8,8 +8,11 @@ on:
 
 jobs:
   test:
-    name: Run Tests with mediasoup-worker
+    name: Run Tests with mediasoup-worker ${{ matrix.worker_version }}
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        worker_version: ['3.19.18', '3.19.19']
 
     steps:
       - name: Checkout code
@@ -33,7 +36,7 @@ jobs:
       - name: Download mediasoup-worker
         run: |
           mkdir -p .mediasoup
-          curl -L -o .mediasoup/worker.tgz https://github.com/versatica/mediasoup/releases/download/3.19.17/mediasoup-worker-3.19.17-linux-x64-kernel6.tgz
+          curl -L -o .mediasoup/worker.tgz https://github.com/versatica/mediasoup/releases/download/${{ matrix.worker_version }}/mediasoup-worker-${{ matrix.worker_version }}-linux-x64-kernel6.tgz
           tar -xzf .mediasoup/worker.tgz -C .mediasoup
 
       - name: Run Tests

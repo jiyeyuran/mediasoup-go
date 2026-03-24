@@ -25,7 +25,7 @@ import (
 )
 
 // MEDIASOUP_WORKER_VERSION is the maximum supported version of the mediasoup C++ subprocess.
-const MEDIASOUP_WORKER_VERSION = "3.19.17"
+const MEDIASOUP_WORKER_VERSION = "3.19.19"
 
 // Worker represents a mediasoup C++ subprocess that runs in a single CPU core and handles Router
 // instances.
