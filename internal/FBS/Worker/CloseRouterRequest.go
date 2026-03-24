@@ -14,10 +14,7 @@ func (t *CloseRouterRequestT) Pack(builder *flatbuffers.Builder) flatbuffers.UOf
 	if t == nil {
 		return 0
 	}
-	routerIdOffset := flatbuffers.UOffsetT(0)
-	if t.RouterId != "" {
-		routerIdOffset = builder.CreateString(t.RouterId)
-	}
+	routerIdOffset := builder.CreateString(t.RouterId)
 	CloseRouterRequestStart(builder)
 	CloseRouterRequestAddRouterId(builder, routerIdOffset)
 	return CloseRouterRequestEnd(builder)

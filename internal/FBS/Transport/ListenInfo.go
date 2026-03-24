@@ -22,10 +22,7 @@ func (t *ListenInfoT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	if t == nil {
 		return 0
 	}
-	ipOffset := flatbuffers.UOffsetT(0)
-	if t.Ip != "" {
-		ipOffset = builder.CreateString(t.Ip)
-	}
+	ipOffset := builder.CreateString(t.Ip)
 	announcedAddressOffset := flatbuffers.UOffsetT(0)
 	if t.AnnouncedAddress != "" {
 		announcedAddressOffset = builder.CreateString(t.AnnouncedAddress)

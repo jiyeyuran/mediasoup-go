@@ -7,40 +7,42 @@ import "strconv"
 type Event byte
 
 const (
-	EventTRANSPORT_SEND_RTCP                       Event = 0
-	EventPRODUCER_SEND                             Event = 1
-	EventDATAPRODUCER_SEND                         Event = 2
-	EventWORKER_RUNNING                            Event = 3
-	EventTRANSPORT_SCTP_STATE_CHANGE               Event = 4
-	EventTRANSPORT_TRACE                           Event = 5
-	EventWEBRTCTRANSPORT_ICE_SELECTED_TUPLE_CHANGE Event = 6
-	EventWEBRTCTRANSPORT_ICE_STATE_CHANGE          Event = 7
-	EventWEBRTCTRANSPORT_DTLS_STATE_CHANGE         Event = 8
-	EventPLAINTRANSPORT_TUPLE                      Event = 9
-	EventPLAINTRANSPORT_RTCP_TUPLE                 Event = 10
-	EventDIRECTTRANSPORT_RTCP                      Event = 11
-	EventPRODUCER_SCORE                            Event = 12
-	EventPRODUCER_TRACE                            Event = 13
-	EventPRODUCER_VIDEO_ORIENTATION_CHANGE         Event = 14
-	EventCONSUMER_PRODUCER_PAUSE                   Event = 15
-	EventCONSUMER_PRODUCER_RESUME                  Event = 16
-	EventCONSUMER_PRODUCER_CLOSE                   Event = 17
-	EventCONSUMER_LAYERS_CHANGE                    Event = 18
-	EventCONSUMER_RTP                              Event = 19
-	EventCONSUMER_SCORE                            Event = 20
-	EventCONSUMER_TRACE                            Event = 21
-	EventDATACONSUMER_BUFFERED_AMOUNT_LOW          Event = 22
-	EventDATACONSUMER_SCTP_SENDBUFFER_FULL         Event = 23
-	EventDATACONSUMER_DATAPRODUCER_PAUSE           Event = 24
-	EventDATACONSUMER_DATAPRODUCER_RESUME          Event = 25
-	EventDATACONSUMER_DATAPRODUCER_CLOSE           Event = 26
-	EventDATACONSUMER_MESSAGE                      Event = 27
-	EventACTIVESPEAKEROBSERVER_DOMINANT_SPEAKER    Event = 28
-	EventAUDIOLEVELOBSERVER_SILENCE                Event = 29
-	EventAUDIOLEVELOBSERVER_VOLUMES                Event = 30
+	EventWORKER_CLOSE                              Event = 0
+	EventTRANSPORT_SEND_RTCP                       Event = 1
+	EventPRODUCER_SEND                             Event = 2
+	EventDATAPRODUCER_SEND                         Event = 3
+	EventWORKER_RUNNING                            Event = 4
+	EventTRANSPORT_SCTP_STATE_CHANGE               Event = 5
+	EventTRANSPORT_TRACE                           Event = 6
+	EventWEBRTCTRANSPORT_ICE_SELECTED_TUPLE_CHANGE Event = 7
+	EventWEBRTCTRANSPORT_ICE_STATE_CHANGE          Event = 8
+	EventWEBRTCTRANSPORT_DTLS_STATE_CHANGE         Event = 9
+	EventPLAINTRANSPORT_TUPLE                      Event = 10
+	EventPLAINTRANSPORT_RTCP_TUPLE                 Event = 11
+	EventDIRECTTRANSPORT_RTCP                      Event = 12
+	EventPRODUCER_SCORE                            Event = 13
+	EventPRODUCER_TRACE                            Event = 14
+	EventPRODUCER_VIDEO_ORIENTATION_CHANGE         Event = 15
+	EventCONSUMER_PRODUCER_PAUSE                   Event = 16
+	EventCONSUMER_PRODUCER_RESUME                  Event = 17
+	EventCONSUMER_PRODUCER_CLOSE                   Event = 18
+	EventCONSUMER_LAYERS_CHANGE                    Event = 19
+	EventCONSUMER_RTP                              Event = 20
+	EventCONSUMER_SCORE                            Event = 21
+	EventCONSUMER_TRACE                            Event = 22
+	EventDATACONSUMER_BUFFERED_AMOUNT_LOW          Event = 23
+	EventDATACONSUMER_SCTP_SENDBUFFER_FULL         Event = 24
+	EventDATACONSUMER_DATAPRODUCER_PAUSE           Event = 25
+	EventDATACONSUMER_DATAPRODUCER_RESUME          Event = 26
+	EventDATACONSUMER_DATAPRODUCER_CLOSE           Event = 27
+	EventDATACONSUMER_MESSAGE                      Event = 28
+	EventACTIVESPEAKEROBSERVER_DOMINANT_SPEAKER    Event = 29
+	EventAUDIOLEVELOBSERVER_SILENCE                Event = 30
+	EventAUDIOLEVELOBSERVER_VOLUMES                Event = 31
 )
 
 var EnumNamesEvent = map[Event]string{
+	EventWORKER_CLOSE:                              "WORKER_CLOSE",
 	EventTRANSPORT_SEND_RTCP:                       "TRANSPORT_SEND_RTCP",
 	EventPRODUCER_SEND:                             "PRODUCER_SEND",
 	EventDATAPRODUCER_SEND:                         "DATAPRODUCER_SEND",
@@ -75,6 +77,7 @@ var EnumNamesEvent = map[Event]string{
 }
 
 var EnumValuesEvent = map[string]Event{
+	"WORKER_CLOSE":                              EventWORKER_CLOSE,
 	"TRANSPORT_SEND_RTCP":                       EventTRANSPORT_SEND_RTCP,
 	"PRODUCER_SEND":                             EventPRODUCER_SEND,
 	"DATAPRODUCER_SEND":                         EventDATAPRODUCER_SEND,

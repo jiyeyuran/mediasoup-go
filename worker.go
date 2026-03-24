@@ -17,7 +17,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/Masterminds/semver/v3"
 	FbsNotification "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/Notification"
 	FbsRequest "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/Request"
 	FbsTransport "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/Transport"
@@ -37,7 +36,6 @@ type Worker struct {
 	logger                   *slog.Logger
 	routers                  sync.Map
 	webRtcServers            sync.Map
-	version                  *semver.Version
 	appData                  H
 	newWebRtcServerListeners []func(context.Context, *WebRtcServer)
 	newRouterListeners       []func(context.Context, *Router)
@@ -53,15 +51,6 @@ func NewWorker(workerBinaryPath string, options ...Option) (*Worker, error) {
 	}
 	for _, opt := range options {
 		opt(opts)
-	}
-
-	if len(opts.WorkerVersion) == 0 {
-		opts.WorkerVersion = MEDIASOUP_WORKER_VERSION
-	}
-
-	version, err := semver.NewVersion(opts.WorkerVersion)
-	if err != nil {
-		return nil, fmt.Errorf("invalid worker version: %s, error: %w", opts.WorkerVersion, err)
 	}
 
 	logger := opts.Logger
@@ -219,7 +208,6 @@ func NewWorker(workerBinaryPath string, options ...Option) (*Worker, error) {
 		cmd:     cmd,
 		channel: channel,
 		logger:  logger,
-		version: version,
 		appData: opts.AppData,
 	}
 
@@ -310,13 +298,10 @@ func (w *Worker) CloseContext(ctx context.Context) {
 			}
 		}()
 
-		if versionSatisfies(w.version, ">= 3.16.0") {
-			go w.channel.Request(ctx, &FbsRequest.RequestT{
-				Method: FbsRequest.MethodWORKER_CLOSE,
-			})
-		} else {
-			w.cmd.Process.Signal(os.Interrupt)
-		}
+		// Send notification to worker process.
+		w.channel.Notify(ctx, &FbsNotification.NotificationT{
+			Event: FbsNotification.EventWORKER_CLOSE,
+		})
 	}
 
 	w.closed = true

@@ -16,10 +16,7 @@ func (t *NotificationT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT 
 	if t == nil {
 		return 0
 	}
-	handlerIdOffset := flatbuffers.UOffsetT(0)
-	if t.HandlerId != "" {
-		handlerIdOffset = builder.CreateString(t.HandlerId)
-	}
+	handlerIdOffset := builder.CreateString(t.HandlerId)
 	bodyOffset := t.Body.Pack(builder)
 
 	NotificationStart(builder)

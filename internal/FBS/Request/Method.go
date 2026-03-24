@@ -7,79 +7,77 @@ import "strconv"
 type Method byte
 
 const (
-	MethodWORKER_CLOSE                                   Method = 0
-	MethodWORKER_DUMP                                    Method = 1
-	MethodWORKER_GET_RESOURCE_USAGE                      Method = 2
-	MethodWORKER_UPDATE_SETTINGS                         Method = 3
-	MethodWORKER_CREATE_WEBRTCSERVER                     Method = 4
-	MethodWORKER_CREATE_ROUTER                           Method = 5
-	MethodWORKER_WEBRTCSERVER_CLOSE                      Method = 6
-	MethodWORKER_CLOSE_ROUTER                            Method = 7
-	MethodWEBRTCSERVER_DUMP                              Method = 8
-	MethodROUTER_DUMP                                    Method = 9
-	MethodROUTER_CREATE_WEBRTCTRANSPORT                  Method = 10
-	MethodROUTER_CREATE_WEBRTCTRANSPORT_WITH_SERVER      Method = 11
-	MethodROUTER_CREATE_PLAINTRANSPORT                   Method = 12
-	MethodROUTER_CREATE_PIPETRANSPORT                    Method = 13
-	MethodROUTER_CREATE_DIRECTTRANSPORT                  Method = 14
-	MethodROUTER_CLOSE_TRANSPORT                         Method = 15
-	MethodROUTER_CREATE_ACTIVESPEAKEROBSERVER            Method = 16
-	MethodROUTER_CREATE_AUDIOLEVELOBSERVER               Method = 17
-	MethodROUTER_CLOSE_RTPOBSERVER                       Method = 18
-	MethodTRANSPORT_DUMP                                 Method = 19
-	MethodTRANSPORT_GET_STATS                            Method = 20
-	MethodTRANSPORT_CONNECT                              Method = 21
-	MethodTRANSPORT_SET_MAX_INCOMING_BITRATE             Method = 22
-	MethodTRANSPORT_SET_MAX_OUTGOING_BITRATE             Method = 23
-	MethodTRANSPORT_SET_MIN_OUTGOING_BITRATE             Method = 24
-	MethodTRANSPORT_RESTART_ICE                          Method = 25
-	MethodTRANSPORT_PRODUCE                              Method = 26
-	MethodTRANSPORT_PRODUCE_DATA                         Method = 27
-	MethodTRANSPORT_CONSUME                              Method = 28
-	MethodTRANSPORT_CONSUME_DATA                         Method = 29
-	MethodTRANSPORT_ENABLE_TRACE_EVENT                   Method = 30
-	MethodTRANSPORT_CLOSE_PRODUCER                       Method = 31
-	MethodTRANSPORT_CLOSE_CONSUMER                       Method = 32
-	MethodTRANSPORT_CLOSE_DATAPRODUCER                   Method = 33
-	MethodTRANSPORT_CLOSE_DATACONSUMER                   Method = 34
-	MethodPLAINTRANSPORT_CONNECT                         Method = 35
-	MethodPIPETRANSPORT_CONNECT                          Method = 36
-	MethodWEBRTCTRANSPORT_CONNECT                        Method = 37
-	MethodPRODUCER_DUMP                                  Method = 38
-	MethodPRODUCER_GET_STATS                             Method = 39
-	MethodPRODUCER_PAUSE                                 Method = 40
-	MethodPRODUCER_RESUME                                Method = 41
-	MethodPRODUCER_ENABLE_TRACE_EVENT                    Method = 42
-	MethodCONSUMER_DUMP                                  Method = 43
-	MethodCONSUMER_GET_STATS                             Method = 44
-	MethodCONSUMER_PAUSE                                 Method = 45
-	MethodCONSUMER_RESUME                                Method = 46
-	MethodCONSUMER_SET_PREFERRED_LAYERS                  Method = 47
-	MethodCONSUMER_SET_PRIORITY                          Method = 48
-	MethodCONSUMER_REQUEST_KEY_FRAME                     Method = 49
-	MethodCONSUMER_ENABLE_TRACE_EVENT                    Method = 50
-	MethodDATAPRODUCER_DUMP                              Method = 51
-	MethodDATAPRODUCER_GET_STATS                         Method = 52
-	MethodDATAPRODUCER_PAUSE                             Method = 53
-	MethodDATAPRODUCER_RESUME                            Method = 54
-	MethodDATACONSUMER_DUMP                              Method = 55
-	MethodDATACONSUMER_GET_STATS                         Method = 56
-	MethodDATACONSUMER_PAUSE                             Method = 57
-	MethodDATACONSUMER_RESUME                            Method = 58
-	MethodDATACONSUMER_GET_BUFFERED_AMOUNT               Method = 59
-	MethodDATACONSUMER_SET_BUFFERED_AMOUNT_LOW_THRESHOLD Method = 60
-	MethodDATACONSUMER_SEND                              Method = 61
-	MethodDATACONSUMER_SET_SUBCHANNELS                   Method = 62
-	MethodDATACONSUMER_ADD_SUBCHANNEL                    Method = 63
-	MethodDATACONSUMER_REMOVE_SUBCHANNEL                 Method = 64
-	MethodRTPOBSERVER_PAUSE                              Method = 65
-	MethodRTPOBSERVER_RESUME                             Method = 66
-	MethodRTPOBSERVER_ADD_PRODUCER                       Method = 67
-	MethodRTPOBSERVER_REMOVE_PRODUCER                    Method = 68
+	MethodWORKER_DUMP                                    Method = 0
+	MethodWORKER_GET_RESOURCE_USAGE                      Method = 1
+	MethodWORKER_UPDATE_SETTINGS                         Method = 2
+	MethodWORKER_CREATE_WEBRTCSERVER                     Method = 3
+	MethodWORKER_CREATE_ROUTER                           Method = 4
+	MethodWORKER_WEBRTCSERVER_CLOSE                      Method = 5
+	MethodWORKER_CLOSE_ROUTER                            Method = 6
+	MethodWEBRTCSERVER_DUMP                              Method = 7
+	MethodROUTER_DUMP                                    Method = 8
+	MethodROUTER_CREATE_WEBRTCTRANSPORT                  Method = 9
+	MethodROUTER_CREATE_WEBRTCTRANSPORT_WITH_SERVER      Method = 10
+	MethodROUTER_CREATE_PLAINTRANSPORT                   Method = 11
+	MethodROUTER_CREATE_PIPETRANSPORT                    Method = 12
+	MethodROUTER_CREATE_DIRECTTRANSPORT                  Method = 13
+	MethodROUTER_CLOSE_TRANSPORT                         Method = 14
+	MethodROUTER_CREATE_ACTIVESPEAKEROBSERVER            Method = 15
+	MethodROUTER_CREATE_AUDIOLEVELOBSERVER               Method = 16
+	MethodROUTER_CLOSE_RTPOBSERVER                       Method = 17
+	MethodTRANSPORT_DUMP                                 Method = 18
+	MethodTRANSPORT_GET_STATS                            Method = 19
+	MethodTRANSPORT_CONNECT                              Method = 20
+	MethodTRANSPORT_SET_MAX_INCOMING_BITRATE             Method = 21
+	MethodTRANSPORT_SET_MAX_OUTGOING_BITRATE             Method = 22
+	MethodTRANSPORT_SET_MIN_OUTGOING_BITRATE             Method = 23
+	MethodTRANSPORT_RESTART_ICE                          Method = 24
+	MethodTRANSPORT_PRODUCE                              Method = 25
+	MethodTRANSPORT_PRODUCE_DATA                         Method = 26
+	MethodTRANSPORT_CONSUME                              Method = 27
+	MethodTRANSPORT_CONSUME_DATA                         Method = 28
+	MethodTRANSPORT_ENABLE_TRACE_EVENT                   Method = 29
+	MethodTRANSPORT_CLOSE_PRODUCER                       Method = 30
+	MethodTRANSPORT_CLOSE_CONSUMER                       Method = 31
+	MethodTRANSPORT_CLOSE_DATAPRODUCER                   Method = 32
+	MethodTRANSPORT_CLOSE_DATACONSUMER                   Method = 33
+	MethodPLAINTRANSPORT_CONNECT                         Method = 34
+	MethodPIPETRANSPORT_CONNECT                          Method = 35
+	MethodWEBRTCTRANSPORT_CONNECT                        Method = 36
+	MethodPRODUCER_DUMP                                  Method = 37
+	MethodPRODUCER_GET_STATS                             Method = 38
+	MethodPRODUCER_PAUSE                                 Method = 39
+	MethodPRODUCER_RESUME                                Method = 40
+	MethodPRODUCER_ENABLE_TRACE_EVENT                    Method = 41
+	MethodCONSUMER_DUMP                                  Method = 42
+	MethodCONSUMER_GET_STATS                             Method = 43
+	MethodCONSUMER_PAUSE                                 Method = 44
+	MethodCONSUMER_RESUME                                Method = 45
+	MethodCONSUMER_SET_PREFERRED_LAYERS                  Method = 46
+	MethodCONSUMER_SET_PRIORITY                          Method = 47
+	MethodCONSUMER_REQUEST_KEY_FRAME                     Method = 48
+	MethodCONSUMER_ENABLE_TRACE_EVENT                    Method = 49
+	MethodDATAPRODUCER_DUMP                              Method = 50
+	MethodDATAPRODUCER_GET_STATS                         Method = 51
+	MethodDATAPRODUCER_PAUSE                             Method = 52
+	MethodDATAPRODUCER_RESUME                            Method = 53
+	MethodDATACONSUMER_DUMP                              Method = 54
+	MethodDATACONSUMER_GET_STATS                         Method = 55
+	MethodDATACONSUMER_PAUSE                             Method = 56
+	MethodDATACONSUMER_RESUME                            Method = 57
+	MethodDATACONSUMER_GET_BUFFERED_AMOUNT               Method = 58
+	MethodDATACONSUMER_SET_BUFFERED_AMOUNT_LOW_THRESHOLD Method = 59
+	MethodDATACONSUMER_SEND                              Method = 60
+	MethodDATACONSUMER_SET_SUBCHANNELS                   Method = 61
+	MethodDATACONSUMER_ADD_SUBCHANNEL                    Method = 62
+	MethodDATACONSUMER_REMOVE_SUBCHANNEL                 Method = 63
+	MethodRTPOBSERVER_PAUSE                              Method = 64
+	MethodRTPOBSERVER_RESUME                             Method = 65
+	MethodRTPOBSERVER_ADD_PRODUCER                       Method = 66
+	MethodRTPOBSERVER_REMOVE_PRODUCER                    Method = 67
 )
 
 var EnumNamesMethod = map[Method]string{
-	MethodWORKER_CLOSE:                                   "WORKER_CLOSE",
 	MethodWORKER_DUMP:                                    "WORKER_DUMP",
 	MethodWORKER_GET_RESOURCE_USAGE:                      "WORKER_GET_RESOURCE_USAGE",
 	MethodWORKER_UPDATE_SETTINGS:                         "WORKER_UPDATE_SETTINGS",
@@ -151,7 +149,6 @@ var EnumNamesMethod = map[Method]string{
 }
 
 var EnumValuesMethod = map[string]Method{
-	"WORKER_CLOSE":                                   MethodWORKER_CLOSE,
 	"WORKER_DUMP":                                    MethodWORKER_DUMP,
 	"WORKER_GET_RESOURCE_USAGE":                      MethodWORKER_GET_RESOURCE_USAGE,
 	"WORKER_UPDATE_SETTINGS":                         MethodWORKER_UPDATE_SETTINGS,

@@ -15,10 +15,7 @@ func (t *SrtpParametersT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffset
 	if t == nil {
 		return 0
 	}
-	keyBase64Offset := flatbuffers.UOffsetT(0)
-	if t.KeyBase64 != "" {
-		keyBase64Offset = builder.CreateString(t.KeyBase64)
-	}
+	keyBase64Offset := builder.CreateString(t.KeyBase64)
 	SrtpParametersStart(builder)
 	SrtpParametersAddCryptoSuite(builder, t.CryptoSuite)
 	SrtpParametersAddKeyBase64(builder, keyBase64Offset)

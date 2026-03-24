@@ -15,10 +15,7 @@ func (t *StringUint8T) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	if t == nil {
 		return 0
 	}
-	keyOffset := flatbuffers.UOffsetT(0)
-	if t.Key != "" {
-		keyOffset = builder.CreateString(t.Key)
-	}
+	keyOffset := builder.CreateString(t.Key)
 	StringUint8Start(builder)
 	StringUint8AddKey(builder, keyOffset)
 	StringUint8AddValue(builder, t.Value)

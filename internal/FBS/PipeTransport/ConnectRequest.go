@@ -18,10 +18,7 @@ func (t *ConnectRequestT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffset
 	if t == nil {
 		return 0
 	}
-	ipOffset := flatbuffers.UOffsetT(0)
-	if t.Ip != "" {
-		ipOffset = builder.CreateString(t.Ip)
-	}
+	ipOffset := builder.CreateString(t.Ip)
 	srtpParametersOffset := t.SrtpParameters.Pack(builder)
 	ConnectRequestStart(builder)
 	ConnectRequestAddIp(builder, ipOffset)

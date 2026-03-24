@@ -16,14 +16,8 @@ func (t *RestartIceResponseT) Pack(builder *flatbuffers.Builder) flatbuffers.UOf
 	if t == nil {
 		return 0
 	}
-	usernameFragmentOffset := flatbuffers.UOffsetT(0)
-	if t.UsernameFragment != "" {
-		usernameFragmentOffset = builder.CreateString(t.UsernameFragment)
-	}
-	passwordOffset := flatbuffers.UOffsetT(0)
-	if t.Password != "" {
-		passwordOffset = builder.CreateString(t.Password)
-	}
+	usernameFragmentOffset := builder.CreateString(t.UsernameFragment)
+	passwordOffset := builder.CreateString(t.Password)
 	RestartIceResponseStart(builder)
 	RestartIceResponseAddUsernameFragment(builder, usernameFragmentOffset)
 	RestartIceResponseAddPassword(builder, passwordOffset)

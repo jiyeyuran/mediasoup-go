@@ -15,10 +15,7 @@ func (t *IpPortT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	if t == nil {
 		return 0
 	}
-	ipOffset := flatbuffers.UOffsetT(0)
-	if t.Ip != "" {
-		ipOffset = builder.CreateString(t.Ip)
-	}
+	ipOffset := builder.CreateString(t.Ip)
 	IpPortStart(builder)
 	IpPortAddIp(builder, ipOffset)
 	IpPortAddPort(builder, t.Port)
