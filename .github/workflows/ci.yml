@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        worker_version: ['3.19.18', '3.19.19']
+        worker_version: ["3.19.18", "3.19.19"]
 
     steps:
       - name: Checkout code
@@ -43,3 +43,17 @@ jobs:
         env:
           MEDIASOUP_WORKER_BIN: ${{ github.workspace }}/.mediasoup/mediasoup-worker
         run: go test -v ./...
+
+  all-tests-passed:
+    name: All Tests Passed
+    needs: test
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Check Status
+        if: contains(needs.test.result, 'failure') || contains(needs.test.result, 'cancelled')
+        run: |
+          echo "One or more tests failed!"
+          exit 1
+      - name: Success
+        run: echo "All tests passed successfully!"
