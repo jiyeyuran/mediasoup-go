@@ -5,7 +5,6 @@ go 1.21.0
 toolchain go1.24.0
 
 require (
-	github.com/Masterminds/semver/v3 v3.4.0
 	github.com/google/flatbuffers v25.2.10+incompatible
 	github.com/pion/logging v0.2.3
 	github.com/pion/sctp v1.8.39
