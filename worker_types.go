@@ -56,6 +56,10 @@ type WorkerSettings struct {
 	// DisableLiburing disables io_uring even if supported by host.
 	DisableLiburing bool `json:"disableLiburing,omitempty"`
 
+	// UseBuiltInSctpStack sets whether to use the mediasoup built-in SCTP stack
+	// instead usrsctp.
+	UseBuiltInSctpStack bool `json:"useBuiltInSctpStack,omitempty"`
+
 	// AppData holds custom application data.
 	AppData H `json:"appData,omitempty"`
 

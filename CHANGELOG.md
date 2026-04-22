@@ -1,6 +1,11 @@
 # Changelog
 
+### 2.4.1
+
+- Worker: Add `UseBuiltInSctpStack` setting (defaults to `false`) to enable mediasoup built-in SCTP stack
+
 ### 2.4.0
+
 - Convert WORKER_CLOSE into a notification
 
 ### 2.3.3
