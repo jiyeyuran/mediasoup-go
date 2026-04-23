@@ -862,7 +862,10 @@ func matchCodecs[
 	a := toCodecView(aCodec)
 	b := toCodecView(bCodec)
 
-	if a.MimeType != b.MimeType {
+	aMimeType := strings.ToLower(a.MimeType)
+	bMimeType := strings.ToLower(b.MimeType)
+
+	if aMimeType != bMimeType {
 		return false
 	}
 
@@ -870,7 +873,7 @@ func matchCodecs[
 		return false
 	}
 
-	if strings.HasPrefix(a.MimeType, "audio/") &&
+	if strings.HasPrefix(aMimeType, "audio/") &&
 		a.Channels > 0 &&
 		b.Channels > 0 &&
 		a.Channels != b.Channels {
@@ -879,7 +882,7 @@ func matchCodecs[
 
 	aParameters, bParameters := a.Parameters, b.Parameters
 
-	switch a.MimeType {
+	switch aMimeType {
 	case "audio/multiopus":
 		aNumStreams := aParameters.NumStreams
 		bNumstreams := bParameters.NumStreams
