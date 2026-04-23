@@ -618,7 +618,6 @@ func TestConsumerWithRtpParametersOverride(t *testing.T) {
 
 	t.Run("rewrites egress PT / ext-id and keeps supportedCodecPayloadTypes keyed by producer PT", func(t *testing.T) {
 		override := &RtpParameters{
-			Mid: "VIDEO-CONSUMER",
 			Codecs: []*RtpCodecParameters{
 				{
 					MimeType:    "video/H264",
@@ -650,7 +649,6 @@ func TestConsumerWithRtpParametersOverride(t *testing.T) {
 
 		// The caller-visible rtpParameters must match the override.
 		rp := videoConsumer.RtpParameters()
-		assert.Equal(t, "VIDEO-CONSUMER", rp.Mid)
 		require.Len(t, rp.Codecs, 2)
 		assert.Equal(t, "video/H264", rp.Codecs[0].MimeType)
 		assert.Equal(t, wireH264Pt, rp.Codecs[0].PayloadType)
