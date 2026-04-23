@@ -775,6 +775,57 @@ func TestGetConsumerRtpParametersOverride(t *testing.T) {
 		assert.Error(t, err)
 	})
 
+	t.Run("mid is preserved from caller-provided rtpParameters", func(t *testing.T) {
+		consumable := makeConsumable()
+		override := &RtpParameters{
+			Mid: "video0",
+			Codecs: []*RtpCodecParameters{
+				{
+					MimeType:    "video/H264",
+					PayloadType: 97,
+					ClockRate:   90000,
+					Parameters: RtpCodecSpecificParameters{
+						PacketizationMode: 1,
+						ProfileLevelId:    "4d0032",
+					},
+				},
+			},
+			HeaderExtensions: []*RtpHeaderExtensionParameters{
+				{Uri: "urn:ietf:params:rtp-hdrext:sdes:mid", Id: 3},
+			},
+		}
+
+		rtpParameters, err := getConsumerRtpParameters(consumable, override, false, false)
+		assert.NoError(t, err)
+		// Caller's mid flows through to the final Consumer rtpParameters.
+		// Transport.ConsumeContext() only falls back to options.Mid / auto
+		// when rtpParameters.Mid is empty.
+		assert.Equal(t, "video0", rtpParameters.Mid)
+	})
+
+	t.Run("mid left empty when caller did not provide one", func(t *testing.T) {
+		consumable := makeConsumable()
+		override := &RtpParameters{
+			Codecs: []*RtpCodecParameters{
+				{
+					MimeType:    "video/H264",
+					PayloadType: 97,
+					ClockRate:   90000,
+					Parameters: RtpCodecSpecificParameters{
+						PacketizationMode: 1,
+						ProfileLevelId:    "4d0032",
+					},
+				},
+			},
+		}
+
+		rtpParameters, err := getConsumerRtpParameters(consumable, override, false, false)
+		assert.NoError(t, err)
+		// Transport.ConsumeContext() is what assigns the MID in this case;
+		// getConsumerRtpParameters must not fabricate one here.
+		assert.Empty(t, rtpParameters.Mid)
+	})
+
 	t.Run("enableRtx=false strips RTX from the caller-provided codec list", func(t *testing.T) {
 		consumable := makeConsumable()
 		override := &RtpParameters{

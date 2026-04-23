@@ -621,6 +621,7 @@ func getConsumerRtpParameters[T *RtpParameters | *RtpCapabilities](
 			return nil, fmt.Errorf("invalid consumer.rtpParameters: %w", err)
 		}
 		consumerParams = &RtpParameters{
+			Mid:  v.Mid,
 			Rtcp: rtcp,
 			Msid: msid,
 		}
