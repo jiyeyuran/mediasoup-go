@@ -775,16 +775,14 @@ func (t *Transport) ConsumeContext(ctx context.Context, options *ConsumerOptions
 	if producer == nil {
 		return nil, fmt.Errorf(`Producer with id "%s" not found`, options.ProducerId)
 	}
+	if (options.Pipe || t.Type() == TransportPipe) && options.RtpParameters != nil {
+		return nil, errors.New("RtpParameters override is not supported on pipe transports")
+	}
+
 	var (
 		rtpParameters      *RtpParameters
 		consumerRtpMapping *ConsumerRtpMapping
 	)
-
-	if (options.Pipe || t.Type() == TransportPipe) && options.RtpParameters != nil {
-		return nil, errors.New(
-			"ConsumerOptions.RtpParameters override is not supported on pipe transports",
-		)
-	}
 
 	if t.Type() == TransportPipe {
 		rtpParameters = getPipeConsumerRtpParameters(producer.ConsumableRtpParameters(), t.data.Rtx)
