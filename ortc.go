@@ -559,6 +559,14 @@ func getConsumerRtpParameters[T *RtpParameters | *RtpCapabilities](
 		// consumerParams.headerExtensions. Different semantics are needed
 		// for the RtpCapabilities and RtpParameters cases.
 		matchConsumerExt func(ext *RtpHeaderExtensionParameters) bool
+		// rtcpFeedbackFor decides, for a given (local, matched) codec pair
+		// discovered in the codec-match loop below, which side carries the
+		// caller-advertised rtcpFeedback list. It must be the remote
+		// endpoint's declared feedback set so that the answer stays a
+		// subset of the offer (RFC 4585 §4.2.2):
+		//   - RtpCapabilities path: `matched` is the caps codec (caller side).
+		//   - RtpParameters  path: `local`   is the override codec (caller side).
+		rtcpFeedbackFor func(local, matched *RtpCodecParameters) []*RtcpFeedback
 	)
 
 	switch v := any(remoteRtpCapabilities).(type) {
@@ -596,6 +604,9 @@ func getConsumerRtpParameters[T *RtpParameters | *RtpCapabilities](
 				}
 			}
 			return false
+		}
+		rtcpFeedbackFor = func(_, matched *RtpCodecParameters) []*RtcpFeedback {
+			return matched.RtcpFeedback
 		}
 
 	case *RtpParameters:
@@ -637,6 +648,15 @@ func getConsumerRtpParameters[T *RtpParameters | *RtpCapabilities](
 		matchConsumerExt = func(ext *RtpHeaderExtensionParameters) bool {
 			return matchHeaderExtensionUri(consumableHeaderExtensions, ext.Uri)
 		}
+		// Preserve caller-declared rtcpFeedback (typically taken verbatim
+		// from the remote SDP answer). This keeps the final `rtcpFeedback`
+		// list a subset of what the remote endpoint offered and avoids
+		// leaking the Router's consumable rtcpFeedback (e.g. `nack` on
+		// opus coming from an upstream FFmpeg Producer) into a WHEP answer
+		// whose offer never advertised it.
+		rtcpFeedbackFor = func(local, _ *RtpCodecParameters) []*RtcpFeedback {
+			return local.RtcpFeedback
+		}
 	}
 
 	for _, codec := range remoteCodecs {
@@ -651,7 +671,7 @@ func getConsumerRtpParameters[T *RtpParameters | *RtpCapabilities](
 			continue
 		}
 
-		codec.RtcpFeedback = filterRtcpFeedback(matchedCodec.RtcpFeedback, func(fb *RtcpFeedback) bool {
+		codec.RtcpFeedback = filterRtcpFeedback(rtcpFeedbackFor(codec, matchedCodec), func(fb *RtcpFeedback) bool {
 			return (enableRtx || fb.Type != "nack" || fb.Parameter != "")
 		})
 

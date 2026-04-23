@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestGenerateRouterRtpCapabilities(t *testing.T) {
@@ -773,6 +774,64 @@ func TestGetConsumerRtpParametersOverride(t *testing.T) {
 
 		_, err := getConsumerRtpParameters(consumable, override, false, false)
 		assert.Error(t, err)
+	})
+
+	t.Run("preserves caller-declared rtcpFeedback (rfc4585 subset-of-offer)", func(t *testing.T) {
+		// Regression test: if the Producer-side consumable rtcpFeedback is
+		// richer than the caller's override, the final Consumer rtpParameters
+		// must still carry the caller's list (not the consumable's). This is
+		// the WHEP case: the offer dictates which feedback types are legal in
+		// the answer; leaking extras (e.g. `nack` on opus) would violate
+		// RFC 4585 §4.2.2.
+		consumable := &RtpParameters{
+			Codecs: []*RtpCodecParameters{
+				{
+					MimeType:    "audio/opus",
+					PayloadType: 100,
+					ClockRate:   48000,
+					Channels:    2,
+					// Producer-side feedback is `nack` (not what we want the
+					// WHEP answer to advertise).
+					RtcpFeedback: []*RtcpFeedback{{Type: "nack"}},
+				},
+			},
+			HeaderExtensions: []*RtpHeaderExtensionParameters{
+				{Uri: "urn:ietf:params:rtp-hdrext:sdes:mid", Id: 1},
+				{
+					Uri: "http://www.ietf.org/id/draft-holmer-rmcat-transport-wide-cc-extensions-01",
+					Id:  4,
+				},
+			},
+			Encodings: []*RtpEncodingParameters{{Ssrc: 20000001}},
+			Rtcp:      &RtcpParameters{Cname: "cname1234"},
+		}
+		override := &RtpParameters{
+			Codecs: []*RtpCodecParameters{
+				{
+					MimeType:    "audio/opus",
+					PayloadType: 111,
+					ClockRate:   48000,
+					Channels:    2,
+					// Caller offered transport-cc only (this is what the
+					// browser actually advertised in the WHEP offer).
+					RtcpFeedback: []*RtcpFeedback{{Type: "transport-cc"}},
+				},
+			},
+			HeaderExtensions: []*RtpHeaderExtensionParameters{
+				{Uri: "urn:ietf:params:rtp-hdrext:sdes:mid", Id: 9},
+				{
+					Uri: "http://www.ietf.org/id/draft-holmer-rmcat-transport-wide-cc-extensions-01",
+					Id:  4,
+				},
+			},
+		}
+
+		rtpParameters, err := getConsumerRtpParameters(consumable, override, false, false)
+		assert.NoError(t, err)
+		require.Len(t, rtpParameters.Codecs, 1)
+		// Must be exactly what the caller declared: no `nack` leaked from
+		// consumable, no feedback types never offered.
+		assert.Equal(t, []*RtcpFeedback{{Type: "transport-cc"}}, rtpParameters.Codecs[0].RtcpFeedback)
 	})
 
 	t.Run("mid is preserved from caller-provided rtpParameters", func(t *testing.T) {
