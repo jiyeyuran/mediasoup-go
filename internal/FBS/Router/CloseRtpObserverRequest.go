@@ -14,7 +14,10 @@ func (t *CloseRtpObserverRequestT) Pack(builder *flatbuffers.Builder) flatbuffer
 	if t == nil {
 		return 0
 	}
-	rtpObserverIdOffset := builder.CreateString(t.RtpObserverId)
+	rtpObserverIdOffset := flatbuffers.UOffsetT(0)
+	if t.RtpObserverId != "" {
+		rtpObserverIdOffset = builder.CreateString(t.RtpObserverId)
+	}
 	CloseRtpObserverRequestStart(builder)
 	CloseRtpObserverRequestAddRtpObserverId(builder, rtpObserverIdOffset)
 	return CloseRtpObserverRequestEnd(builder)

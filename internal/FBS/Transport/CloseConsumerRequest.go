@@ -14,7 +14,10 @@ func (t *CloseConsumerRequestT) Pack(builder *flatbuffers.Builder) flatbuffers.U
 	if t == nil {
 		return 0
 	}
-	consumerIdOffset := builder.CreateString(t.ConsumerId)
+	consumerIdOffset := flatbuffers.UOffsetT(0)
+	if t.ConsumerId != "" {
+		consumerIdOffset = builder.CreateString(t.ConsumerId)
+	}
 	CloseConsumerRequestStart(builder)
 	CloseConsumerRequestAddConsumerId(builder, consumerIdOffset)
 	return CloseConsumerRequestEnd(builder)

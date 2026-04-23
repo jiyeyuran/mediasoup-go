@@ -14,7 +14,10 @@ func (t *CloseWebRtcServerRequestT) Pack(builder *flatbuffers.Builder) flatbuffe
 	if t == nil {
 		return 0
 	}
-	webRtcServerIdOffset := builder.CreateString(t.WebRtcServerId)
+	webRtcServerIdOffset := flatbuffers.UOffsetT(0)
+	if t.WebRtcServerId != "" {
+		webRtcServerIdOffset = builder.CreateString(t.WebRtcServerId)
+	}
 	CloseWebRtcServerRequestStart(builder)
 	CloseWebRtcServerRequestAddWebRtcServerId(builder, webRtcServerIdOffset)
 	return CloseWebRtcServerRequestEnd(builder)

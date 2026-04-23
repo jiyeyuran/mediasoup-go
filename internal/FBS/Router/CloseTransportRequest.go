@@ -14,7 +14,10 @@ func (t *CloseTransportRequestT) Pack(builder *flatbuffers.Builder) flatbuffers.
 	if t == nil {
 		return 0
 	}
-	transportIdOffset := builder.CreateString(t.TransportId)
+	transportIdOffset := flatbuffers.UOffsetT(0)
+	if t.TransportId != "" {
+		transportIdOffset = builder.CreateString(t.TransportId)
+	}
 	CloseTransportRequestStart(builder)
 	CloseTransportRequestAddTransportId(builder, transportIdOffset)
 	return CloseTransportRequestEnd(builder)

@@ -127,3 +127,22 @@ table RtpMapping {
     codecs: [CodecMapping] (required);
     encodings: [EncodingMapping] (required);
 }
+
+table ConsumerCodecMapping {
+    producer_payload_type: uint8;
+    consumer_payload_type: uint8;
+}
+
+table ConsumerHeaderExtensionMapping {
+    producer_ext_id: uint8;
+    consumer_ext_id: uint8;
+}
+
+// Per-Consumer egress mapping. When present in ConsumeRequest, the worker
+// rewrites RTP header payload types and header-extension ids on the send
+// path of this Consumer. See Consumer::SendRtpPacket. Absent means the
+// legacy behaviour (no rewrite).
+table ConsumerRtpMapping {
+    codecs: [ConsumerCodecMapping] (required);
+    header_extensions: [ConsumerHeaderExtensionMapping] (required);
+}

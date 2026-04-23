@@ -19,12 +19,18 @@ func (t *ParamsT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	if t == nil {
 		return 0
 	}
-	mimeTypeOffset := builder.CreateString(t.MimeType)
+	mimeTypeOffset := flatbuffers.UOffsetT(0)
+	if t.MimeType != "" {
+		mimeTypeOffset = builder.CreateString(t.MimeType)
+	}
 	rridOffset := flatbuffers.UOffsetT(0)
 	if t.Rrid != "" {
 		rridOffset = builder.CreateString(t.Rrid)
 	}
-	cnameOffset := builder.CreateString(t.Cname)
+	cnameOffset := flatbuffers.UOffsetT(0)
+	if t.Cname != "" {
+		cnameOffset = builder.CreateString(t.Cname)
+	}
 	ParamsStart(builder)
 	ParamsAddSsrc(builder, t.Ssrc)
 	ParamsAddPayloadType(builder, t.PayloadType)

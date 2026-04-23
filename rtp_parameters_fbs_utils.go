@@ -307,3 +307,28 @@ func parseRtcpParameters(rtcp *FbsRtpParameters.RtcpParametersT) *RtcpParameters
 		ReducedSize: &rtcp.ReducedSize,
 	}
 }
+
+// convertConsumerRtpMapping converts a ConsumerRtpMapping to the FlatBuffer
+// representation expected by the worker. Returns nil if the mapping is nil or
+// empty.
+func convertConsumerRtpMapping(mapping *ConsumerRtpMapping) *FbsRtpParameters.ConsumerRtpMappingT {
+	if mapping == nil {
+		return nil
+	}
+	return &FbsRtpParameters.ConsumerRtpMappingT{
+		Codecs: collect(mapping.Codecs,
+			func(item ConsumerCodecMapping) *FbsRtpParameters.ConsumerCodecMappingT {
+				return &FbsRtpParameters.ConsumerCodecMappingT{
+					ProducerPayloadType: item.ProducerPayloadType,
+					ConsumerPayloadType: item.ConsumerPayloadType,
+				}
+			}),
+		HeaderExtensions: collect(mapping.HeaderExtensions,
+			func(item ConsumerHeaderExtensionMapping) *FbsRtpParameters.ConsumerHeaderExtensionMappingT {
+				return &FbsRtpParameters.ConsumerHeaderExtensionMappingT{
+					ProducerExtId: item.ProducerExtId,
+					ConsumerExtId: item.ConsumerExtId,
+				}
+			}),
+	}
+}

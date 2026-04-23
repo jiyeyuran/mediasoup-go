@@ -17,7 +17,10 @@ func (t *CreateDirectTransportRequestT) Pack(builder *flatbuffers.Builder) flatb
 	if t == nil {
 		return 0
 	}
-	transportIdOffset := builder.CreateString(t.TransportId)
+	transportIdOffset := flatbuffers.UOffsetT(0)
+	if t.TransportId != "" {
+		transportIdOffset = builder.CreateString(t.TransportId)
+	}
 	optionsOffset := t.Options.Pack(builder)
 	CreateDirectTransportRequestStart(builder)
 	CreateDirectTransportRequestAddTransportId(builder, transportIdOffset)

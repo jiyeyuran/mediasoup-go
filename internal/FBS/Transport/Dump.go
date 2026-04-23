@@ -32,7 +32,10 @@ func (t *DumpT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	if t == nil {
 		return 0
 	}
-	idOffset := builder.CreateString(t.Id)
+	idOffset := flatbuffers.UOffsetT(0)
+	if t.Id != "" {
+		idOffset = builder.CreateString(t.Id)
+	}
 	producerIdsOffset := flatbuffers.UOffsetT(0)
 	if t.ProducerIds != nil {
 		producerIdsLength := len(t.ProducerIds)

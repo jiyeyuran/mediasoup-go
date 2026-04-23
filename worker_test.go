@@ -7,6 +7,8 @@ import (
 	"net"
 	"os"
 	"runtime"
+	"strconv"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -22,6 +24,47 @@ func init() {
 	if len(WorkerBinPath) == 0 {
 		WorkerBinPath = "../mediasoup/worker/out/Release/mediasoup-worker"
 	}
+}
+
+func skipIfWorkerVersionAtMost(t *testing.T, threshold string) {
+	t.Helper()
+	v := os.Getenv("MEDIASOUP_WORKER_VERSION")
+	if v == "" {
+		return
+	}
+	if compareSemver(v, threshold) <= 0 {
+		t.Skipf(
+			"skipped: mediasoup-worker %s does not support this feature (requires > %s)",
+			v, threshold,
+		)
+	}
+}
+
+// compareSemver compares two dotted "major.minor.patch" version strings and
+// returns -1 / 0 / +1 using the standard <, =, > semantics. Non-numeric or
+// missing components are treated as 0.
+func compareSemver(a, b string) int {
+	pa, pb := strings.Split(a, "."), strings.Split(b, ".")
+	n := len(pa)
+	if len(pb) > n {
+		n = len(pb)
+	}
+	for i := 0; i < n; i++ {
+		var va, vb int
+		if i < len(pa) {
+			va, _ = strconv.Atoi(pa[i])
+		}
+		if i < len(pb) {
+			vb, _ = strconv.Atoi(pb[i])
+		}
+		if va < vb {
+			return -1
+		}
+		if va > vb {
+			return 1
+		}
+	}
+	return 0
 }
 
 func newTestWorker(options ...Option) *Worker {

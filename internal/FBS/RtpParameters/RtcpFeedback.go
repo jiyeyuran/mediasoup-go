@@ -15,7 +15,10 @@ func (t *RtcpFeedbackT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT 
 	if t == nil {
 		return 0
 	}
-	type_Offset := builder.CreateString(t.Type)
+	type_Offset := flatbuffers.UOffsetT(0)
+	if t.Type != "" {
+		type_Offset = builder.CreateString(t.Type)
+	}
 	parameterOffset := flatbuffers.UOffsetT(0)
 	if t.Parameter != "" {
 		parameterOffset = builder.CreateString(t.Parameter)
