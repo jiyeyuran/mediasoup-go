@@ -42,6 +42,7 @@ jobs:
       - name: Run Tests
         env:
           MEDIASOUP_WORKER_BIN: ${{ github.workspace }}/.mediasoup/mediasoup-worker
+          MEDIASOUP_WORKER_VERSION: ${{ matrix.worker_version }}
         run: go test -v ./...
 
   all-tests-passed:

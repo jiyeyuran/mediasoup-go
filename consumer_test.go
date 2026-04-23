@@ -584,6 +584,10 @@ func TestConsumerCloseByOthers(t *testing.T) {
 }
 
 func TestConsumerWithRtpParametersOverride(t *testing.T) {
+	// Per-Consumer egress PT / header-extension-id remap relies on worker-side
+	// support that landed after mediasoup-worker 3.19.21.
+	skipIfWorkerVersionAtMost(t, "3.19.21")
+
 	router := createRouter(nil)
 	transport1 := createWebRtcTransport(router)
 	transport2 := createWebRtcTransport(router)
