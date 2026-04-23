@@ -15,7 +15,10 @@ func (t *TupleHashT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	if t == nil {
 		return 0
 	}
-	webRtcTransportIdOffset := builder.CreateString(t.WebRtcTransportId)
+	webRtcTransportIdOffset := flatbuffers.UOffsetT(0)
+	if t.WebRtcTransportId != "" {
+		webRtcTransportIdOffset = builder.CreateString(t.WebRtcTransportId)
+	}
 	TupleHashStart(builder)
 	TupleHashAddTupleHash(builder, t.TupleHash)
 	TupleHashAddWebRtcTransportId(builder, webRtcTransportIdOffset)

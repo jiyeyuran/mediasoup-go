@@ -26,11 +26,23 @@ func (t *DumpResponseT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT 
 	if t == nil {
 		return 0
 	}
-	idOffset := builder.CreateString(t.Id)
-	dataProducerIdOffset := builder.CreateString(t.DataProducerId)
+	idOffset := flatbuffers.UOffsetT(0)
+	if t.Id != "" {
+		idOffset = builder.CreateString(t.Id)
+	}
+	dataProducerIdOffset := flatbuffers.UOffsetT(0)
+	if t.DataProducerId != "" {
+		dataProducerIdOffset = builder.CreateString(t.DataProducerId)
+	}
 	sctpStreamParametersOffset := t.SctpStreamParameters.Pack(builder)
-	labelOffset := builder.CreateString(t.Label)
-	protocolOffset := builder.CreateString(t.Protocol)
+	labelOffset := flatbuffers.UOffsetT(0)
+	if t.Label != "" {
+		labelOffset = builder.CreateString(t.Label)
+	}
+	protocolOffset := flatbuffers.UOffsetT(0)
+	if t.Protocol != "" {
+		protocolOffset = builder.CreateString(t.Protocol)
+	}
 	subchannelsOffset := flatbuffers.UOffsetT(0)
 	if t.Subchannels != nil {
 		subchannelsLength := len(t.Subchannels)

@@ -14,7 +14,10 @@ func (t *LogT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	if t == nil {
 		return 0
 	}
-	dataOffset := builder.CreateString(t.Data)
+	dataOffset := flatbuffers.UOffsetT(0)
+	if t.Data != "" {
+		dataOffset = builder.CreateString(t.Data)
+	}
 	LogStart(builder)
 	LogAddData(builder, dataOffset)
 	return LogEnd(builder)

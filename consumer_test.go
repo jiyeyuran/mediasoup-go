@@ -582,3 +582,145 @@ func TestConsumerCloseByOthers(t *testing.T) {
 		assert.True(t, audioConsumer.Closed())
 	})
 }
+
+func TestConsumerWithRtpParametersOverride(t *testing.T) {
+	router := createRouter(nil)
+	transport1 := createWebRtcTransport(router)
+	transport2 := createWebRtcTransport(router)
+	videoProducer := createVideoProducer(transport1)
+
+	consumable := videoProducer.ConsumableRtpParameters()
+
+	var consumableH264, consumableRtx *RtpCodecParameters
+	for _, c := range consumable.Codecs {
+		switch c.MimeType {
+		case "video/H264":
+			consumableH264 = c
+		case "video/rtx":
+			consumableRtx = c
+		}
+	}
+	require.NotNil(t, consumableH264)
+	require.NotNil(t, consumableRtx)
+
+	var consumableMid *RtpHeaderExtensionParameters
+	for _, e := range consumable.HeaderExtensions {
+		if e.Uri == "urn:ietf:params:rtp-hdrext:sdes:mid" {
+			consumableMid = e
+			break
+		}
+	}
+	require.NotNil(t, consumableMid)
+
+	wireH264Pt := uint8(96)
+	wireRtxPt := uint8(97)
+	wireMidId := uint8((consumableMid.Id % 14) + 1)
+
+	t.Run("rewrites egress PT / ext-id and keeps supportedCodecPayloadTypes keyed by producer PT", func(t *testing.T) {
+		override := &RtpParameters{
+			Mid: "VIDEO-CONSUMER",
+			Codecs: []*RtpCodecParameters{
+				{
+					MimeType:    "video/H264",
+					PayloadType: wireH264Pt,
+					ClockRate:   90000,
+					Parameters:  consumableH264.Parameters,
+					RtcpFeedback: []*RtcpFeedback{
+						{Type: "nack", Parameter: "pli"},
+					},
+				},
+				{
+					MimeType:    "video/rtx",
+					PayloadType: wireRtxPt,
+					ClockRate:   90000,
+					Parameters:  RtpCodecSpecificParameters{Apt: wireH264Pt},
+				},
+			},
+			HeaderExtensions: []*RtpHeaderExtensionParameters{
+				{Uri: "urn:ietf:params:rtp-hdrext:sdes:mid", Id: wireMidId},
+			},
+		}
+
+		videoConsumer, err := transport2.Consume(&ConsumerOptions{
+			ProducerId:      videoProducer.Id(),
+			RtpCapabilities: consumerDeviceCapabilities,
+			RtpParameters:   override,
+		})
+		require.NoError(t, err)
+
+		// The caller-visible rtpParameters must match the override.
+		rp := videoConsumer.RtpParameters()
+		assert.Equal(t, "VIDEO-CONSUMER", rp.Mid)
+		require.Len(t, rp.Codecs, 2)
+		assert.Equal(t, "video/H264", rp.Codecs[0].MimeType)
+		assert.Equal(t, wireH264Pt, rp.Codecs[0].PayloadType)
+		assert.Equal(t, "video/rtx", rp.Codecs[1].MimeType)
+		assert.Equal(t, wireRtxPt, rp.Codecs[1].PayloadType)
+		require.Len(t, rp.HeaderExtensions, 1)
+		assert.Equal(t, wireMidId, rp.HeaderExtensions[0].Id)
+
+		// Dump must round-trip the wire PTs and ids.
+		dump, err := videoConsumer.Dump()
+		require.NoError(t, err)
+		assert.Equal(t, wireH264Pt, dump.RtpParameters.Codecs[0].PayloadType)
+		assert.Equal(t, wireRtxPt, dump.RtpParameters.Codecs[1].PayloadType)
+		require.NotEmpty(t, dump.RtpParameters.HeaderExtensions)
+		assert.Equal(t, wireMidId, dump.RtpParameters.HeaderExtensions[0].Id)
+
+		// supportedCodecPayloadTypes must be keyed by the producer-consumable
+		// PT (not the wire PT), otherwise incoming packets would be dropped.
+		assert.Contains(t, dump.SupportedCodecPayloadTypes, int(consumableH264.PayloadType))
+		assert.Contains(t, dump.SupportedCodecPayloadTypes, int(consumableRtx.PayloadType))
+		assert.NotContains(t, dump.SupportedCodecPayloadTypes, int(wireH264Pt))
+
+		require.NoError(t, videoConsumer.Close())
+	})
+
+	t.Run("rejects on pipe transport", func(t *testing.T) {
+		override := &RtpParameters{
+			Codecs: []*RtpCodecParameters{
+				{
+					MimeType:    "video/H264",
+					PayloadType: 96,
+					ClockRate:   90000,
+					Parameters: RtpCodecSpecificParameters{
+						PacketizationMode: 1,
+						ProfileLevelId:    "4d0032",
+					},
+				},
+			},
+		}
+
+		_, err := transport2.Consume(&ConsumerOptions{
+			ProducerId:      videoProducer.Id(),
+			RtpCapabilities: consumerDeviceCapabilities,
+			Pipe:            true,
+			RtpParameters:   override,
+		})
+		assert.Error(t, err)
+	})
+
+	t.Run("rejects with invalid override", func(t *testing.T) {
+		override := &RtpParameters{
+			Codecs: []*RtpCodecParameters{
+				{
+					// Wrong profile-level-id: no H264 match.
+					MimeType:    "video/H264",
+					PayloadType: 96,
+					ClockRate:   90000,
+					Parameters: RtpCodecSpecificParameters{
+						PacketizationMode: 1,
+						ProfileLevelId:    "640032",
+					},
+				},
+			},
+		}
+
+		_, err := transport2.Consume(&ConsumerOptions{
+			ProducerId:      videoProducer.Id(),
+			RtpCapabilities: consumerDeviceCapabilities,
+			RtpParameters:   override,
+		})
+		assert.Error(t, err)
+	})
+}

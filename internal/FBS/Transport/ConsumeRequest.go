@@ -19,14 +19,21 @@ type ConsumeRequestT struct {
 	Paused bool `json:"paused"`
 	PreferredLayers *FBS__Consumer.ConsumerLayersT `json:"preferred_layers"`
 	IgnoreDtx bool `json:"ignore_dtx"`
+	ConsumerRtpMapping *FBS__RtpParameters.ConsumerRtpMappingT `json:"consumer_rtp_mapping"`
 }
 
 func (t *ConsumeRequestT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	if t == nil {
 		return 0
 	}
-	consumerIdOffset := builder.CreateString(t.ConsumerId)
-	producerIdOffset := builder.CreateString(t.ProducerId)
+	consumerIdOffset := flatbuffers.UOffsetT(0)
+	if t.ConsumerId != "" {
+		consumerIdOffset = builder.CreateString(t.ConsumerId)
+	}
+	producerIdOffset := flatbuffers.UOffsetT(0)
+	if t.ProducerId != "" {
+		producerIdOffset = builder.CreateString(t.ProducerId)
+	}
 	rtpParametersOffset := t.RtpParameters.Pack(builder)
 	consumableRtpEncodingsOffset := flatbuffers.UOffsetT(0)
 	if t.ConsumableRtpEncodings != nil {
@@ -42,6 +49,7 @@ func (t *ConsumeRequestT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffset
 		consumableRtpEncodingsOffset = builder.EndVector(consumableRtpEncodingsLength)
 	}
 	preferredLayersOffset := t.PreferredLayers.Pack(builder)
+	consumerRtpMappingOffset := t.ConsumerRtpMapping.Pack(builder)
 	ConsumeRequestStart(builder)
 	ConsumeRequestAddConsumerId(builder, consumerIdOffset)
 	ConsumeRequestAddProducerId(builder, producerIdOffset)
@@ -52,6 +60,7 @@ func (t *ConsumeRequestT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffset
 	ConsumeRequestAddPaused(builder, t.Paused)
 	ConsumeRequestAddPreferredLayers(builder, preferredLayersOffset)
 	ConsumeRequestAddIgnoreDtx(builder, t.IgnoreDtx)
+	ConsumeRequestAddConsumerRtpMapping(builder, consumerRtpMappingOffset)
 	return ConsumeRequestEnd(builder)
 }
 
@@ -71,6 +80,7 @@ func (rcv *ConsumeRequest) UnPackTo(t *ConsumeRequestT) {
 	t.Paused = rcv.Paused()
 	t.PreferredLayers = rcv.PreferredLayers(nil).UnPack()
 	t.IgnoreDtx = rcv.IgnoreDtx()
+	t.ConsumerRtpMapping = rcv.ConsumerRtpMapping(nil).UnPack()
 }
 
 func (rcv *ConsumeRequest) UnPack() *ConsumeRequestT {
@@ -227,8 +237,21 @@ func (rcv *ConsumeRequest) MutateIgnoreDtx(n bool) bool {
 	return rcv._tab.MutateBoolSlot(20, n)
 }
 
+func (rcv *ConsumeRequest) ConsumerRtpMapping(obj *FBS__RtpParameters.ConsumerRtpMapping) *FBS__RtpParameters.ConsumerRtpMapping {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(22))
+	if o != 0 {
+		x := rcv._tab.Indirect(o + rcv._tab.Pos)
+		if obj == nil {
+			obj = new(FBS__RtpParameters.ConsumerRtpMapping)
+		}
+		obj.Init(rcv._tab.Bytes, x)
+		return obj
+	}
+	return nil
+}
+
 func ConsumeRequestStart(builder *flatbuffers.Builder) {
-	builder.StartObject(9)
+	builder.StartObject(10)
 }
 func ConsumeRequestAddConsumerId(builder *flatbuffers.Builder, consumerId flatbuffers.UOffsetT) {
 	builder.PrependUOffsetTSlot(0, flatbuffers.UOffsetT(consumerId), 0)
@@ -259,6 +282,9 @@ func ConsumeRequestAddPreferredLayers(builder *flatbuffers.Builder, preferredLay
 }
 func ConsumeRequestAddIgnoreDtx(builder *flatbuffers.Builder, ignoreDtx bool) {
 	builder.PrependBoolSlot(8, ignoreDtx, false)
+}
+func ConsumeRequestAddConsumerRtpMapping(builder *flatbuffers.Builder, consumerRtpMapping flatbuffers.UOffsetT) {
+	builder.PrependUOffsetTSlot(9, flatbuffers.UOffsetT(consumerRtpMapping), 0)
 }
 func ConsumeRequestEnd(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	return builder.EndObject()

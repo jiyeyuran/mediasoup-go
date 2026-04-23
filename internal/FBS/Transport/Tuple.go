@@ -18,7 +18,10 @@ func (t *TupleT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	if t == nil {
 		return 0
 	}
-	localAddressOffset := builder.CreateString(t.LocalAddress)
+	localAddressOffset := flatbuffers.UOffsetT(0)
+	if t.LocalAddress != "" {
+		localAddressOffset = builder.CreateString(t.LocalAddress)
+	}
 	remoteIpOffset := flatbuffers.UOffsetT(0)
 	if t.RemoteIp != "" {
 		remoteIpOffset = builder.CreateString(t.RemoteIp)

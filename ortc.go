@@ -543,41 +543,121 @@ func CanConsume(consumableRtpParameters *RtpParameters, caps *RtpCapabilities) (
 // It reduces encodings to just one and takes into account given RTP capabilities
 // to reduce codecs, codecs" RTCP feedback and header extensions, and also enables
 // or disabled RTX.
-func getConsumerRtpParameters(
+func getConsumerRtpParameters[T *RtpParameters | *RtpCapabilities](
 	consumableRtpParameters *RtpParameters,
-	remoteRtpCapabilities *RtpCapabilities,
+	remoteRtpCapabilities T,
 	pipe, enableRtx bool,
 ) (*RtpParameters, error) {
-	for _, capCodec := range remoteRtpCapabilities.Codecs {
-		if err := validateRtpCodecCapability(capCodec); err != nil {
-			return nil, err
+	var (
+		consumerParams             *RtpParameters
+		consumableCodecs           []*RtpCodecParameters
+		consumableHeaderExtensions []*RtpHeaderExtensionParameters
+		remoteCodecs               []*RtpCodecParameters
+		remoteHeaderExtensions     []*RtpHeaderExtensionParameters
+		// matchConsumerExt decides whether a given `ext` (taken from
+		// `remoteHeaderExtensions`) should be kept in the final
+		// consumerParams.headerExtensions. Different semantics are needed
+		// for the RtpCapabilities and RtpParameters cases.
+		matchConsumerExt func(ext *RtpHeaderExtensionParameters) bool
+	)
+
+	switch v := any(remoteRtpCapabilities).(type) {
+	case *RtpCapabilities:
+		consumerParams = &RtpParameters{
+			Rtcp: consumableRtpParameters.Rtcp,
+			Msid: consumableRtpParameters.Msid,
+		}
+		for _, codec := range v.Codecs {
+			consumableCodecs = append(consumableCodecs, &RtpCodecParameters{
+				MimeType:     codec.MimeType,
+				PayloadType:  codec.PreferredPayloadType,
+				ClockRate:    codec.ClockRate,
+				Channels:     codec.Channels,
+				Parameters:   codec.Parameters,
+				RtcpFeedback: codec.RtcpFeedback,
+			})
+		}
+		for _, headerExtension := range v.HeaderExtensions {
+			consumableHeaderExtensions = append(consumableHeaderExtensions, &RtpHeaderExtensionParameters{
+				Uri:     headerExtension.Uri,
+				Id:      headerExtension.PreferredId,
+				Encrypt: headerExtension.PreferredEncrypt,
+			})
+		}
+		remoteCodecs = consumableRtpParameters.Codecs
+		remoteHeaderExtensions = consumableRtpParameters.HeaderExtensions
+		// Keep the producer-side extension only when the remote capability
+		// advertises the same URI AND PreferredId. This matches the legacy
+		// Node.js/Go behaviour.
+		matchConsumerExt = func(ext *RtpHeaderExtensionParameters) bool {
+			for _, capExt := range v.HeaderExtensions {
+				if capExt.PreferredId == ext.Id && capExt.Uri == ext.Uri {
+					return true
+				}
+			}
+			return false
+		}
+
+	case *RtpParameters:
+		// Caller-provided rtpParameters.rtcp / msid are allowed to be absent
+		// (the caller typically does not know/care about the Router's CNAME).
+		// Fall back to the producer's consumable values for any fields the
+		// caller did not set so that the resulting Consumer still has a
+		// coherent Rtcp + Msid.
+		rtcp := v.Rtcp
+		if rtcp == nil {
+			rtcp = consumableRtpParameters.Rtcp
+		}
+		msid := v.Msid
+		if msid == "" {
+			msid = consumableRtpParameters.Msid
+		}
+		// validateRtpParameters dereferences params.Rtcp; make sure it is
+		// non-nil before validation to avoid a panic when the caller did not
+		// specify an rtcp block.
+		toValidate := *v
+		toValidate.Rtcp = rtcp
+		if err := validateRtpParameters(&toValidate); err != nil {
+			return nil, fmt.Errorf("invalid consumer.rtpParameters: %w", err)
+		}
+		consumerParams = &RtpParameters{
+			Rtcp: rtcp,
+			Msid: msid,
+		}
+		consumableCodecs = consumableRtpParameters.Codecs
+		consumableHeaderExtensions = consumableRtpParameters.HeaderExtensions
+		remoteCodecs = v.Codecs
+		remoteHeaderExtensions = v.HeaderExtensions
+		// The caller explicitly declares wire-level ext ids that may differ
+		// from the Router's canonical ones, so we only check URI presence in
+		// the producer-side consumable set. The worker is expected to rewrite
+		// the producer ext-id to the caller-declared one using the
+		// ConsumerRtpMapping table.
+		matchConsumerExt = func(ext *RtpHeaderExtensionParameters) bool {
+			return matchHeaderExtensionUri(consumableHeaderExtensions, ext.Uri)
 		}
 	}
 
-	consumerParams := &RtpParameters{
-		Rtcp: consumableRtpParameters.Rtcp,
-		Msid: consumableRtpParameters.Msid,
-	}
-	rtxSupported := false
-
-	for _, codec := range consumableRtpParameters.Codecs {
+	for _, codec := range remoteCodecs {
 		codec = ref(*codec)
 		if !enableRtx && codec.isRtxCodec() {
 			continue
 		}
 
-		matchedCapCodec, matched := findMatchedCodec(remoteRtpCapabilities.Codecs, codec, matchOptions{strict: true})
+		matchedCodec, matched := findMatchedCodec(consumableCodecs, codec, matchOptions{strict: true})
 
 		if !matched {
 			continue
 		}
 
-		codec.RtcpFeedback = filterRtcpFeedback(matchedCapCodec.RtcpFeedback, func(fb *RtcpFeedback) bool {
+		codec.RtcpFeedback = filterRtcpFeedback(matchedCodec.RtcpFeedback, func(fb *RtcpFeedback) bool {
 			return (enableRtx || fb.Type != "nack" || fb.Parameter != "")
 		})
 
 		consumerParams.Codecs = append(consumerParams.Codecs, codec)
 	}
+
+	rtxSupported := false
 
 	// Must sanitize the list of matched codecs by removing useless RTX codecs.
 	for i := len(consumerParams.Codecs) - 1; i >= 0; i-- {
@@ -602,12 +682,9 @@ func getConsumerRtpParameters(
 		return nil, errors.New("no compatible media codecs")
 	}
 
-	for _, ext := range consumableRtpParameters.HeaderExtensions {
-		for _, capExt := range remoteRtpCapabilities.HeaderExtensions {
-			if capExt.PreferredId == ext.Id && capExt.Uri == ext.Uri {
-				consumerParams.HeaderExtensions = append(consumerParams.HeaderExtensions, ext)
-				break
-			}
+	for _, ext := range remoteHeaderExtensions {
+		if matchConsumerExt(ext) {
+			consumerParams.HeaderExtensions = append(consumerParams.HeaderExtensions, ext)
 		}
 	}
 
@@ -766,59 +843,43 @@ func getPipeConsumerRtpParameters(consumableRtpParameters *RtpParameters, enable
 	return consumerParams
 }
 
-func findMatchedCodec(
-	bCodecs []*RtpCodecCapability,
-	aCodec any,
-	options matchOptions,
-) (codec *RtpCodecCapability, matched bool) {
-	var rtpCodecParameters *RtpCodecParameters
-
-	switch aCodec := aCodec.(type) {
-	case *RtpCodecCapability:
-		rtpCodecParameters = &RtpCodecParameters{
-			MimeType:   aCodec.MimeType,
-			ClockRate:  aCodec.ClockRate,
-			Channels:   aCodec.Channels,
-			Parameters: aCodec.Parameters,
-		}
-	case *RtpCodecParameters:
-		rtpCodecParameters = aCodec
-	}
-
+func findMatchedCodec[
+	A *RtpCodecParameters | *RtpCodecCapability,
+	B *RtpCodecParameters | *RtpCodecCapability,
+](bCodecs []B, aCodec A, options matchOptions) (codec B, matched bool) {
 	for _, bCodec := range bCodecs {
-		if matchCodecs(rtpCodecParameters, bCodec, options) {
+		if matchCodecs(aCodec, bCodec, options) {
 			return bCodec, true
 		}
 	}
 	return nil, false
 }
 
-func matchCodecs(
-	aCodec *RtpCodecParameters,
-	bCodec *RtpCodecCapability,
-	options matchOptions,
-) (matched bool) {
-	aMimeType := strings.ToLower(aCodec.MimeType)
-	bMimeType := strings.ToLower(bCodec.MimeType)
+func matchCodecs[
+	A *RtpCodecParameters | *RtpCodecCapability,
+	B *RtpCodecParameters | *RtpCodecCapability,
+](aCodec A, bCodec B, options matchOptions) (matched bool) {
+	a := toCodecView(aCodec)
+	b := toCodecView(bCodec)
 
-	if aMimeType != bMimeType {
+	if a.MimeType != b.MimeType {
 		return false
 	}
 
-	if aCodec.ClockRate != bCodec.ClockRate {
+	if a.ClockRate != b.ClockRate {
 		return false
 	}
 
-	if strings.HasPrefix(aMimeType, "audio/") &&
-		aCodec.Channels > 0 &&
-		bCodec.Channels > 0 &&
-		aCodec.Channels != bCodec.Channels {
+	if strings.HasPrefix(a.MimeType, "audio/") &&
+		a.Channels > 0 &&
+		b.Channels > 0 &&
+		a.Channels != b.Channels {
 		return false
 	}
 
-	aParameters, bParameters := aCodec.Parameters, bCodec.Parameters
+	aParameters, bParameters := a.Parameters, b.Parameters
 
-	switch aMimeType {
+	switch a.MimeType {
 	case "audio/multiopus":
 		aNumStreams := aParameters.NumStreams
 		bNumstreams := bParameters.NumStreams
@@ -860,7 +921,6 @@ func matchCodecs(
 
 			if options.modify {
 				aParameters.ProfileLevelId = selectedProfileLevelId
-				aCodec.Parameters = aParameters
 			}
 		}
 
@@ -871,6 +931,121 @@ func matchCodecs(
 	}
 
 	return true
+}
+
+type codecView struct {
+	MimeType   string
+	ClockRate  uint32
+	Channels   uint8
+	Parameters *RtpCodecSpecificParameters
+}
+
+func toCodecView[T *RtpCodecParameters | *RtpCodecCapability](c T) *codecView {
+	switch v := any(c).(type) {
+	case *RtpCodecParameters:
+		return &codecView{
+			MimeType:   v.MimeType,
+			ClockRate:  v.ClockRate,
+			Channels:   v.Channels,
+			Parameters: &v.Parameters,
+		}
+	case *RtpCodecCapability:
+		return &codecView{
+			MimeType:   v.MimeType,
+			ClockRate:  v.ClockRate,
+			Channels:   v.Channels,
+			Parameters: &v.Parameters,
+		}
+	default:
+		return nil
+	}
+}
+
+// ConsumerCodecMapping records a single producer-side -> consumer-side
+// (wire-level) payload-type pair used by the worker to rewrite outgoing RTP
+// packet headers for a per-Consumer egress remap.
+type ConsumerCodecMapping struct {
+	ProducerPayloadType uint8
+	ConsumerPayloadType uint8
+}
+
+// ConsumerHeaderExtensionMapping records a single producer-side -> consumer-side
+// (wire-level) RTP header-extension id pair.
+type ConsumerHeaderExtensionMapping struct {
+	ProducerExtId uint8
+	ConsumerExtId uint8
+}
+
+// ConsumerRtpMapping is the per-Consumer egress mapping between the Router's
+// canonical (consumable) RTP space and the wire-level RTP space declared by
+// the caller via ConsumerOptions.RtpParameters. The worker uses this mapping
+// to rewrite outgoing RTP packet payload types and header-extension ids in
+// place.
+type ConsumerRtpMapping struct {
+	Codecs           []ConsumerCodecMapping
+	HeaderExtensions []ConsumerHeaderExtensionMapping
+}
+
+func getConsumerRtpMapping(producerParams, consumerParams *RtpParameters) *ConsumerRtpMapping {
+	mapping := &ConsumerRtpMapping{
+		Codecs:           make([]ConsumerCodecMapping, 0, len(consumerParams.Codecs)),
+		HeaderExtensions: make([]ConsumerHeaderExtensionMapping, 0, len(consumerParams.HeaderExtensions)),
+	}
+
+	consumerCodecPts := make(map[uint8]struct{}, len(consumerParams.Codecs))
+
+	for _, codec := range consumerParams.Codecs {
+		consumerCodecPts[codec.PayloadType] = struct{}{}
+	}
+
+	usedProducerCodecPts := make(map[uint8]struct{}, len(consumerParams.Codecs))
+
+	for _, consumerCodec := range consumerParams.Codecs {
+		for _, producerCodec := range producerParams.Codecs {
+			if _, used := usedProducerCodecPts[producerCodec.PayloadType]; used {
+				continue
+			}
+
+			if producerCodec.isRtxCodec() != consumerCodec.isRtxCodec() {
+				continue
+			}
+
+			if !matchCodecs(producerCodec, consumerCodec, matchOptions{strict: true}) {
+				continue
+			}
+
+			if producerCodec.isRtxCodec() {
+				apt := consumerCodec.Parameters.Apt
+				if _, ok := consumerCodecPts[apt]; !ok {
+					continue
+				}
+			}
+
+			usedProducerCodecPts[producerCodec.PayloadType] = struct{}{}
+			mapping.Codecs = append(mapping.Codecs, ConsumerCodecMapping{
+				ProducerPayloadType: producerCodec.PayloadType,
+				ConsumerPayloadType: consumerCodec.PayloadType,
+			})
+			break
+		}
+	}
+
+	producerExtByURI := make(map[string]uint8, len(producerParams.HeaderExtensions))
+
+	for _, ext := range producerParams.HeaderExtensions {
+		producerExtByURI[ext.Uri] = ext.Id
+	}
+
+	for _, consumerExt := range consumerParams.HeaderExtensions {
+		if producerId, ok := producerExtByURI[consumerExt.Uri]; ok {
+			mapping.HeaderExtensions = append(mapping.HeaderExtensions, ConsumerHeaderExtensionMapping{
+				ProducerExtId: producerId,
+				ConsumerExtId: consumerExt.Id,
+			})
+		}
+	}
+
+	return mapping
 }
 
 func matchHeaderExtensionUri(exts []*RtpHeaderExtensionParameters, uri string) bool {

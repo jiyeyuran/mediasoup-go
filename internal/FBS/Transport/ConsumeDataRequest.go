@@ -24,8 +24,14 @@ func (t *ConsumeDataRequestT) Pack(builder *flatbuffers.Builder) flatbuffers.UOf
 	if t == nil {
 		return 0
 	}
-	dataConsumerIdOffset := builder.CreateString(t.DataConsumerId)
-	dataProducerIdOffset := builder.CreateString(t.DataProducerId)
+	dataConsumerIdOffset := flatbuffers.UOffsetT(0)
+	if t.DataConsumerId != "" {
+		dataConsumerIdOffset = builder.CreateString(t.DataConsumerId)
+	}
+	dataProducerIdOffset := flatbuffers.UOffsetT(0)
+	if t.DataProducerId != "" {
+		dataProducerIdOffset = builder.CreateString(t.DataProducerId)
+	}
 	sctpStreamParametersOffset := t.SctpStreamParameters.Pack(builder)
 	labelOffset := flatbuffers.UOffsetT(0)
 	if t.Label != "" {

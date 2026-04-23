@@ -14,7 +14,10 @@ func (t *DominantSpeakerNotificationT) Pack(builder *flatbuffers.Builder) flatbu
 	if t == nil {
 		return 0
 	}
-	producerIdOffset := builder.CreateString(t.ProducerId)
+	producerIdOffset := flatbuffers.UOffsetT(0)
+	if t.ProducerId != "" {
+		producerIdOffset = builder.CreateString(t.ProducerId)
+	}
 	DominantSpeakerNotificationStart(builder)
 	DominantSpeakerNotificationAddProducerId(builder, producerIdOffset)
 	return DominantSpeakerNotificationEnd(builder)

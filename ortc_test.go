@@ -496,3 +496,313 @@ func TestGetProducerRtpParametersMappingWithIncompatibleParams(t *testing.T) {
 	_, err := getProducerRtpParametersMapping(rtpParameters, routerRtpCapabilities)
 	assert.Error(t, err)
 }
+
+// TestGetConsumerRtpParametersOverride exercises the "override" variant of
+// getConsumerRtpParameters (where the caller passes *RtpParameters instead of
+// *RtpCapabilities) together with getConsumerRtpMapping. The shape mirrors the
+// per-Consumer egress remap use case.
+func TestGetConsumerRtpParametersOverride(t *testing.T) {
+	makeConsumable := func() *RtpParameters {
+		return &RtpParameters{
+			Codecs: []*RtpCodecParameters{
+				{
+					MimeType:    "video/H264",
+					PayloadType: 101,
+					ClockRate:   90000,
+					Parameters: RtpCodecSpecificParameters{
+						PacketizationMode: 1,
+						ProfileLevelId:    "4d0032",
+					},
+					RtcpFeedback: []*RtcpFeedback{
+						{Type: "nack"},
+						{Type: "nack", Parameter: "pli"},
+					},
+				},
+				{
+					MimeType:    "video/rtx",
+					PayloadType: 102,
+					ClockRate:   90000,
+					Parameters:  RtpCodecSpecificParameters{Apt: 101},
+				},
+			},
+			HeaderExtensions: []*RtpHeaderExtensionParameters{
+				{Uri: "urn:ietf:params:rtp-hdrext:sdes:mid", Id: 1},
+				{
+					Uri: "http://www.ietf.org/id/draft-holmer-rmcat-transport-wide-cc-extensions-01",
+					Id:  5,
+				},
+			},
+			Encodings: []*RtpEncodingParameters{
+				{
+					Ssrc:            10000001,
+					MaxBitrate:      500000,
+					ScalabilityMode: "L1T3",
+				},
+			},
+			Rtcp: &RtcpParameters{Cname: "cname1234"},
+		}
+	}
+
+	t.Run("succeeds with happy path and produces a mapping", func(t *testing.T) {
+		consumable := makeConsumable()
+		override := &RtpParameters{
+			Codecs: []*RtpCodecParameters{
+				{
+					MimeType:    "video/H264",
+					PayloadType: 97,
+					ClockRate:   90000,
+					Parameters: RtpCodecSpecificParameters{
+						PacketizationMode: 1,
+						ProfileLevelId:    "4d0032",
+					},
+				},
+				{
+					MimeType:    "video/rtx",
+					PayloadType: 98,
+					ClockRate:   90000,
+					Parameters:  RtpCodecSpecificParameters{Apt: 97},
+				},
+			},
+			HeaderExtensions: []*RtpHeaderExtensionParameters{
+				{Uri: "urn:ietf:params:rtp-hdrext:sdes:mid", Id: 3},
+				{
+					Uri: "http://www.ietf.org/id/draft-holmer-rmcat-transport-wide-cc-extensions-01",
+					Id:  7,
+				},
+			},
+		}
+
+		rtpParameters, err := getConsumerRtpParameters(consumable, override, false, true)
+		assert.NoError(t, err)
+		assert.Len(t, rtpParameters.Codecs, 2)
+		assert.EqualValues(t, 97, rtpParameters.Codecs[0].PayloadType)
+		assert.EqualValues(t, 98, rtpParameters.Codecs[1].PayloadType)
+
+		// rtcp should fall back to consumable when not provided by caller.
+		if assert.NotNil(t, rtpParameters.Rtcp) {
+			assert.Equal(t, "cname1234", rtpParameters.Rtcp.Cname)
+		}
+
+		mapping := getConsumerRtpMapping(consumable, rtpParameters)
+		assert.ElementsMatch(t, []ConsumerCodecMapping{
+			{ProducerPayloadType: 101, ConsumerPayloadType: 97},
+			{ProducerPayloadType: 102, ConsumerPayloadType: 98},
+		}, mapping.Codecs)
+
+		assert.ElementsMatch(t, []ConsumerHeaderExtensionMapping{
+			{ProducerExtId: 1, ConsumerExtId: 3},
+			{ProducerExtId: 5, ConsumerExtId: 7},
+		}, mapping.HeaderExtensions)
+	})
+
+	t.Run("auto-generates SSRCs regardless of caller-provided encodings", func(t *testing.T) {
+		consumable := makeConsumable()
+		override := &RtpParameters{
+			Codecs: []*RtpCodecParameters{
+				{
+					MimeType:    "video/H264",
+					PayloadType: 97,
+					ClockRate:   90000,
+					Parameters: RtpCodecSpecificParameters{
+						PacketizationMode: 1,
+						ProfileLevelId:    "4d0032",
+					},
+				},
+				{
+					MimeType:    "video/rtx",
+					PayloadType: 98,
+					ClockRate:   90000,
+					Parameters:  RtpCodecSpecificParameters{Apt: 97},
+				},
+			},
+			HeaderExtensions: []*RtpHeaderExtensionParameters{
+				{Uri: "urn:ietf:params:rtp-hdrext:sdes:mid", Id: 3},
+			},
+		}
+
+		rtpParameters, err := getConsumerRtpParameters(consumable, override, false, true)
+		assert.NoError(t, err)
+		assert.Len(t, rtpParameters.Encodings, 1)
+		assert.NotZero(t, rtpParameters.Encodings[0].Ssrc)
+		if assert.NotNil(t, rtpParameters.Encodings[0].Rtx) {
+			assert.NotZero(t, rtpParameters.Encodings[0].Rtx.Ssrc)
+		}
+	})
+
+	t.Run("rtcp.cname from caller is preserved when provided", func(t *testing.T) {
+		consumable := makeConsumable()
+		override := &RtpParameters{
+			Codecs: []*RtpCodecParameters{
+				{
+					MimeType:    "video/H264",
+					PayloadType: 97,
+					ClockRate:   90000,
+					Parameters: RtpCodecSpecificParameters{
+						PacketizationMode: 1,
+						ProfileLevelId:    "4d0032",
+					},
+				},
+			},
+			Rtcp: &RtcpParameters{Cname: "custom-cname"},
+		}
+
+		rtpParameters, err := getConsumerRtpParameters(consumable, override, false, false)
+		assert.NoError(t, err)
+		if assert.NotNil(t, rtpParameters.Rtcp) {
+			assert.Equal(t, "custom-cname", rtpParameters.Rtcp.Cname)
+		}
+	})
+
+	t.Run("errors when no codec has a consumable counterpart", func(t *testing.T) {
+		consumable := makeConsumable()
+		override := &RtpParameters{
+			Codecs: []*RtpCodecParameters{
+				{
+					MimeType:    "video/VP8",
+					PayloadType: 97,
+					ClockRate:   90000,
+				},
+			},
+		}
+
+		_, err := getConsumerRtpParameters(consumable, override, false, true)
+		assert.Error(t, err)
+	})
+
+	t.Run("drops RTX codec when its apt points to no consumer-side codec", func(t *testing.T) {
+		consumable := makeConsumable()
+		override := &RtpParameters{
+			Codecs: []*RtpCodecParameters{
+				{
+					MimeType:    "video/H264",
+					PayloadType: 97,
+					ClockRate:   90000,
+					Parameters: RtpCodecSpecificParameters{
+						PacketizationMode: 1,
+						ProfileLevelId:    "4d0032",
+					},
+				},
+				{
+					MimeType:    "video/rtx",
+					PayloadType: 98,
+					ClockRate:   90000,
+					Parameters:  RtpCodecSpecificParameters{Apt: 123},
+				},
+			},
+		}
+
+		rtpParameters, err := getConsumerRtpParameters(consumable, override, false, true)
+		assert.NoError(t, err)
+		// RTX was sanitised out because its apt does not match any media codec.
+		assert.Len(t, rtpParameters.Codecs, 1)
+		assert.EqualValues(t, 97, rtpParameters.Codecs[0].PayloadType)
+	})
+
+	t.Run("drops unknown header extension URIs from the final rtpParameters", func(t *testing.T) {
+		consumable := makeConsumable()
+		override := &RtpParameters{
+			Codecs: []*RtpCodecParameters{
+				{
+					MimeType:    "video/H264",
+					PayloadType: 97,
+					ClockRate:   90000,
+					Parameters: RtpCodecSpecificParameters{
+						PacketizationMode: 1,
+						ProfileLevelId:    "4d0032",
+					},
+				},
+			},
+			HeaderExtensions: []*RtpHeaderExtensionParameters{
+				{Uri: "urn:ietf:params:rtp-hdrext:sdes:mid", Id: 3},
+				{Uri: "urn:3gpp:video-orientation", Id: 2},
+			},
+		}
+
+		rtpParameters, err := getConsumerRtpParameters(consumable, override, false, false)
+		assert.NoError(t, err)
+		assert.Len(t, rtpParameters.HeaderExtensions, 1)
+		assert.Equal(t, "urn:ietf:params:rtp-hdrext:sdes:mid", rtpParameters.HeaderExtensions[0].Uri)
+	})
+
+	t.Run("keeps all matching header extensions (no early break)", func(t *testing.T) {
+		consumable := makeConsumable()
+		override := &RtpParameters{
+			Codecs: []*RtpCodecParameters{
+				{
+					MimeType:    "video/H264",
+					PayloadType: 97,
+					ClockRate:   90000,
+					Parameters: RtpCodecSpecificParameters{
+						PacketizationMode: 1,
+						ProfileLevelId:    "4d0032",
+					},
+				},
+			},
+			HeaderExtensions: []*RtpHeaderExtensionParameters{
+				{Uri: "urn:ietf:params:rtp-hdrext:sdes:mid", Id: 3},
+				{
+					Uri: "http://www.ietf.org/id/draft-holmer-rmcat-transport-wide-cc-extensions-01",
+					Id:  7,
+				},
+			},
+		}
+
+		rtpParameters, err := getConsumerRtpParameters(consumable, override, false, false)
+		assert.NoError(t, err)
+		assert.Len(t, rtpParameters.HeaderExtensions, 2)
+	})
+
+	t.Run("rejects header extension with zero id (validateRtpParameters)", func(t *testing.T) {
+		consumable := makeConsumable()
+		override := &RtpParameters{
+			Codecs: []*RtpCodecParameters{
+				{
+					MimeType:    "video/H264",
+					PayloadType: 97,
+					ClockRate:   90000,
+					Parameters: RtpCodecSpecificParameters{
+						PacketizationMode: 1,
+						ProfileLevelId:    "4d0032",
+					},
+				},
+			},
+			HeaderExtensions: []*RtpHeaderExtensionParameters{
+				{Uri: "urn:ietf:params:rtp-hdrext:sdes:mid", Id: 0},
+			},
+		}
+
+		_, err := getConsumerRtpParameters(consumable, override, false, false)
+		assert.Error(t, err)
+	})
+
+	t.Run("enableRtx=false strips RTX from the caller-provided codec list", func(t *testing.T) {
+		consumable := makeConsumable()
+		override := &RtpParameters{
+			Codecs: []*RtpCodecParameters{
+				{
+					MimeType:    "video/H264",
+					PayloadType: 97,
+					ClockRate:   90000,
+					Parameters: RtpCodecSpecificParameters{
+						PacketizationMode: 1,
+						ProfileLevelId:    "4d0032",
+					},
+				},
+				{
+					MimeType:    "video/rtx",
+					PayloadType: 98,
+					ClockRate:   90000,
+					Parameters:  RtpCodecSpecificParameters{Apt: 97},
+				},
+			},
+		}
+
+		rtpParameters, err := getConsumerRtpParameters(consumable, override, false, false)
+		assert.NoError(t, err)
+		assert.Len(t, rtpParameters.Codecs, 1)
+		assert.EqualValues(t, 97, rtpParameters.Codecs[0].PayloadType)
+		if assert.Len(t, rtpParameters.Encodings, 1) {
+			assert.Nil(t, rtpParameters.Encodings[0].Rtx)
+		}
+	})
+}

@@ -775,19 +775,37 @@ func (t *Transport) ConsumeContext(ctx context.Context, options *ConsumerOptions
 	if producer == nil {
 		return nil, fmt.Errorf(`Producer with id "%s" not found`, options.ProducerId)
 	}
-	var rtpParameters *RtpParameters
+	var (
+		rtpParameters      *RtpParameters
+		consumerRtpMapping *ConsumerRtpMapping
+	)
 
 	if t.Type() == TransportPipe {
+		if options.RtpParameters != nil {
+			return nil, errors.New(
+				"ConsumerOptions.RtpParameters override is not supported on pipe transports",
+			)
+		}
 		rtpParameters = getPipeConsumerRtpParameters(producer.ConsumableRtpParameters(), t.data.Rtx)
 	} else {
 		var (
 			enableRtx = unref(options.EnableRtx, true)
 			err       error
 		)
-		rtpParameters, err = getConsumerRtpParameters(
-			producer.ConsumableRtpParameters(), options.RtpCapabilities, options.Pipe, enableRtx)
-		if err != nil {
-			return nil, err
+
+		if options.RtpParameters != nil {
+			rtpParameters, err = getConsumerRtpParameters(
+				producer.ConsumableRtpParameters(), options.RtpParameters, options.Pipe, enableRtx)
+			if err != nil {
+				return nil, err
+			}
+			consumerRtpMapping = getConsumerRtpMapping(producer.ConsumableRtpParameters(), rtpParameters)
+		} else {
+			rtpParameters, err = getConsumerRtpParameters(
+				producer.ConsumableRtpParameters(), options.RtpCapabilities, options.Pipe, enableRtx)
+			if err != nil {
+				return nil, err
+			}
 		}
 		if !options.Pipe {
 			if len(options.Mid) > 0 {
@@ -820,7 +838,8 @@ func (t *Transport) ConsumeContext(ctx context.Context, options *ConsumerOptions
 						TemporalLayer: options.PreferredLayers.TemporalLayer,
 					}
 				}),
-				IgnoreDtx: options.IgnoreDtx,
+				IgnoreDtx:          options.IgnoreDtx,
+				ConsumerRtpMapping: convertConsumerRtpMapping(consumerRtpMapping),
 			},
 		},
 	})

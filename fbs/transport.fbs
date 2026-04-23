@@ -65,6 +65,10 @@ table ConsumeRequest {
     paused: bool = false;
     preferred_layers: FBS.Consumer.ConsumerLayers;
     ignore_dtx: bool = false;
+    // When absent, worker runs the legacy path (no per-Consumer egress
+    // rewrite). When present, the worker rewrites each outgoing RTP packet's
+    // payload type and header-extension ids in place on the send path.
+    consumer_rtp_mapping: FBS.RtpParameters.ConsumerRtpMapping;
 }
 
 table ConsumeResponse {
