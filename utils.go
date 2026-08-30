@@ -99,7 +99,7 @@ func clone[T any](src T) T {
 	original := reflect.ValueOf(src)
 
 	// If src is a nil pointer, return a zero value.
-	if !original.IsValid() || (original.Kind() == reflect.Ptr && original.IsNil()) {
+	if !original.IsValid() || (original.Kind() == reflect.Pointer && original.IsNil()) {
 		var zero T
 		return zero
 	}
@@ -119,7 +119,7 @@ func clone[T any](src T) T {
 func copyRecursive(original, cpy reflect.Value) {
 	// handle according to original's Kind
 	switch original.Kind() {
-	case reflect.Ptr:
+	case reflect.Pointer:
 		// Get the actual value being pointed to.
 		originalValue := original.Elem()
 

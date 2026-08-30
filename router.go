@@ -390,7 +390,7 @@ func (r *Router) CreateWebRtcTransportContext(ctx context.Context, options *WebR
 		IceConsentTimeout:               ref[uint8](30),
 		InitialAvailableOutgoingBitrate: 600000,
 		EnableSctp:                      options.EnableSctp,
-		SctpOptions:                     options.SctpOptions.withDefaults(),
+		SctpOptions:                     options.withDefaults(),
 		AppData:                         orElse(options.AppData != nil, options.AppData, H{}),
 	}
 	if len(o.ListenInfos) == 0 && o.WebRtcServer == nil {
@@ -525,7 +525,7 @@ func (r *Router) CreatePlainTransportContext(ctx context.Context, options *Plain
 		RtcpMux:         ref(true),
 		Comedia:         options.Comedia,
 		EnableSctp:      options.EnableSctp,
-		SctpOptions:     options.SctpOptions.withDefaults(),
+		SctpOptions:     options.withDefaults(),
 		EnableSrtp:      options.EnableSrtp,
 		SrtpCryptoSuite: AES_CM_128_HMAC_SHA1_80,
 		AppData:         orElse(options.AppData != nil, options.AppData, H{}),
@@ -597,7 +597,7 @@ func (r *Router) CreatePipeTransportContext(ctx context.Context, options *PipeTr
 	o := &PipeTransportOptions{
 		ListenInfo:  options.ListenInfo,
 		EnableSctp:  options.EnableSctp,
-		SctpOptions: options.SctpOptions.withDefaults(),
+		SctpOptions: options.withDefaults(),
 		EnableSrtp:  options.EnableSrtp,
 		EnableRtx:   options.EnableRtx,
 		AppData:     orElse(options.AppData != nil, options.AppData, H{}),
@@ -721,7 +721,7 @@ func (r *Router) PipeToRouterContext(ctx context.Context, options *PipeToRouterO
 		Router:         options.Router,
 		KeepId:         ref(true),
 		EnableSctp:     ref(true),
-		SctpOptions:    options.SctpOptions.withDefaults(),
+		SctpOptions:    options.withDefaults(),
 		EnableRtx:      options.EnableRtx,
 		EnableSrtp:     options.EnableSrtp,
 	}

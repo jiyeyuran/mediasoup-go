@@ -405,7 +405,10 @@ func (c *DataConsumer) send(ctx context.Context, data []byte, ppid SctpPayloadTy
 	if err != nil {
 		return 0, err
 	}
-	resp := msg.(*FbsDataConsumer.SendResponseT)
+	resp, _ := msg.(*FbsDataConsumer.SendResponseT)
+	if resp == nil {
+		return 0, nil
+	}
 	return resp.BufferedAmount, nil
 }
 
