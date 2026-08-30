@@ -8,6 +8,7 @@ The following table shows which mediasoup versions are supported by each mediaso
 
 | mediasoup-go version | Supported mediasoup version |
 | -------------------- | --------------------------- |
+| v2.6.x               | v3.26.0                     |
 | v2.5.x               | v3.26.0                     |
 | v2.4.x               | v3.19.18~v3.19.22           |
 | v2.3.x               | v3.19.14~v3.19.17           |
@@ -22,8 +23,10 @@ Note: Make sure to download the prebuilt mediasoup worker that matches the versi
 
 - Full mediasoup v3 API support in Go
 - Consistent API design with the original Node.js version
+- Typed event listeners instead of string event names, each removable again
+- Multi-core via `WorkerPool`, with `PipeTransport` to bridge routers across workers
+- Worker channel request latency and pending-request count exposed for metrics
 - Uses `Cmd.ExtraFiles` for worker communication (not compatible with Windows)
-- Supports multi-core processing via `PipeTransport`
 
 ## Prerequisites
 
@@ -38,7 +41,9 @@ import "github.com/jiyeyuran/mediasoup-go/v2"
 
 ## Documentation
 
-- [Go API Documentation](https://pkg.go.dev/github.com/jiyeyuran/mediasoup-go/v2)
+- [Go API Documentation](https://pkg.go.dev/github.com/jiyeyuran/mediasoup-go/v2) — the package
+  overview covers the worker binary requirement, the object graph, close cascades and the event
+  model, and the examples there cover the usual SFU shape, worker death, multi-core and metrics
 - [Official mediasoup Documentation](https://mediasoup.org/documentation/v3/mediasoup/api/)
 
 ## Example Usage

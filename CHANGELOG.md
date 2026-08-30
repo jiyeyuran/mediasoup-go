@@ -1,9 +1,11 @@
 # Changelog
 
-### Unreleased
+### 2.6.0
 
-Close the remaining API gaps against the mediasoup Node.js binding and fix the
-  correctness issues found while auditing that gap.
+Close the remaining API gaps against the mediasoup Node.js binding, add the
+  lifecycle, observability and multi-core pieces that had no equivalent here, and
+  fix the eight defects found while auditing all of it. No worker protocol change,
+  so mediasoup-worker **v3.26.0** is still what this requires.
 
 - **Breaking change:** every `OnXxx()` method now returns a `removeListener func()`
   that unregisters the listener again. Existing code that ignores the return value
@@ -11,45 +13,45 @@ Close the remaining API gaps against the mediasoup Node.js binding and fix the
   Without this there was no way to unsubscribe, so registering per-call listeners
   on a long-lived `Router` or `Worker` leaked the listener and everything its
   closure captured
-- `Worker`: add `Died()`, `SubprocessClosed()`, `OnDied()` and `OnSubprocessClose()`.
-  Previously a crashed worker could only be noticed by polling `Err()`, and a
-  worker killed by `Close()` was indistinguishable from one that died on its own
 - add `WorkerPool`, which runs a group of workers and hands out one per router,
-  round-robin, skipping any that died. A worker is pinned to one CPU core, so
-  using more than one core previously meant hand-rolling this
+  round-robin, skipping any that died or were closed. A worker is pinned to one CPU
+  core, so using more than one core previously meant hand-rolling this
 - add `WorkerSettings.OnChannelRequest` and `Worker.ChannelPendingRequests()`, so
   the cost of talking to the worker subprocess can be exported as metrics. Request
   latency, request errors and the pending request count were previously invisible
-- fix(channel): `Close()` walked the pending-request map without holding the lock
-  while in-flight requests deleted their own entries. Concurrent map iteration and
-  write panics rather than merely racing, so a worker going away with requests in
-  flight could take the process down
-- fix(workerPool): `Next()` could hand out a worker that had just died, because a
-  dying worker reports its death before it finishes closing and `Next()` only
-  consulted `Closed()`
-- docs: add package documentation covering the worker binary requirement, the
-  object graph, close cascades, the event model and context semantics, plus
-  runnable godoc examples
-- fix(webrtcserver): `Close()` never emitted the close event, so `OnClose`
-  listeners never ran and the worker kept a reference to every closed server
-- fix(webrtcserver): `Closed()` stayed false after the worker went down
-- fix(worker): `Err()` read `w.err` while the process-wait goroutine wrote it,
-  and it no longer reports an error when `Close()` had to force kill the process
-- fix(transport): the `PLAINTRANSPORT_RTCP_TUPLE` handler notified `OnTuple`
-  listeners instead of `OnRtcpTuple` ones, so `OnRtcpTuple` never fired and
-  `OnTuple` fired with an RTCP tuple
+- `Worker`: add `Died()`, `SubprocessClosed()`, `OnDied()` and `OnSubprocessClose()`.
+  Previously a crashed worker could only be noticed by polling `Err()`, and a
+  worker killed by `Close()` was indistinguishable from one that died on its own
 - `Transport`: add `SetMaxOutgoingBitrate()` and `SetMinOutgoingBitrate()` (return `ErrNotImplemented`
   on a direct transport, matching Node.js)
 - `Router`: add the missing `AppData()` getter
 - `DataConsumer`: add the missing `Subchannels()` getter, returning a copy of the current subscription
+- fix(channel): `Close()` walked the pending-request map without holding the lock,
+  while requests that give up delete their own entries under it. Concurrent map
+  iteration and write panics rather than merely racing, so a worker going away with
+  requests in flight could take the process down
 - fix(dataConsumer): `SendText("")` used the empty *binary* payload type (57) instead of the empty
   *string* one (56), so the remote peer decoded an empty string as a binary message.
   `DataProducer.SendText()` was already correct
+- fix(transport): the `PLAINTRANSPORT_RTCP_TUPLE` handler notified `OnTuple`
+  listeners instead of `OnRtcpTuple` ones, so `OnRtcpTuple` never fired and
+  `OnTuple` fired with an RTCP tuple
+- fix(webrtcserver): `Close()` never emitted the close event, so `OnClose`
+  listeners never ran and the worker kept a reference to every closed server
+- fix(webrtcserver): `Closed()` stayed false after the worker went down
 - fix(transport): `OnNewProducer` / `OnNewConsumer` / `OnNewDataProducer` / `OnNewDataConsumer` held a
   read lock while appending to the listener slice, which is a data race when listeners are registered
   concurrently
+- fix(worker): `Err()` read `w.err` while the process-wait goroutine wrote it,
+  and it no longer reports an error when `Close()` had to force kill the process
 - fix(router): `cleanupAfterClosed()` deleted from `transports` while draining `rtpObservers`, leaving
   the observer entries behind
+- docs: add package documentation covering the worker binary requirement, the
+  object graph, close cascades, the event model and context semantics, plus
+  runnable godoc examples
+- test: wait for worker notifications instead of sleeping. Notifications are
+  dispatched on a goroutine of their own, so the sleeps were a source of random CI
+  failures
 
 ### 2.5.0
 
