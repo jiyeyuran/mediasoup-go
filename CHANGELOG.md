@@ -11,6 +11,11 @@ Close the remaining API gaps against the mediasoup Node.js binding and fix the
   Without this there was no way to unsubscribe, so registering per-call listeners
   on a long-lived `Router` or `Worker` leaked the listener and everything its
   closure captured
+- `Worker`: add `Died()`, `SubprocessClosed()`, `OnDied()` and `OnSubprocessClose()`.
+  Previously a crashed worker could only be noticed by polling `Err()`, and a
+  worker killed by `Close()` was indistinguishable from one that died on its own
+- fix(worker): `Err()` read `w.err` while the process-wait goroutine wrote it,
+  and it no longer reports an error when `Close()` had to force kill the process
 - fix(transport): the `PLAINTRANSPORT_RTCP_TUPLE` handler notified `OnTuple`
   listeners instead of `OnRtcpTuple` ones, so `OnRtcpTuple` never fired and
   `OnTuple` fired with an RTCP tuple

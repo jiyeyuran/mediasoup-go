@@ -8,6 +8,7 @@ import (
 	"os"
 	"runtime"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -162,17 +163,87 @@ func TestWorkerCreateRouter(t *testing.T) {
 }
 
 func TestWorkerClose(t *testing.T) {
-	worker := newTestWorker()
-	worker.Close()
-	assert.True(t, worker.Closed())
-	assert.NoError(t, worker.Err())
+	t.Run("close normally", func(t *testing.T) {
+		worker := newTestWorker()
 
-	worker = newTestWorker()
-	process, _ := os.FindProcess(worker.Pid())
-	process.Kill()
-	time.Sleep(100 * time.Millisecond)
-	assert.True(t, worker.Closed())
-	assert.Error(t, worker.Err())
+		var diedCalls atomic.Int32
+		worker.OnDied(func(context.Context, error) { diedCalls.Add(1) })
+
+		subprocessClosed := make(chan struct{})
+		worker.OnSubprocessClose(func(ctx context.Context) { close(subprocessClosed) })
+
+		worker.Close()
+		assert.True(t, worker.Closed())
+
+		select {
+		case <-subprocessClosed:
+		case <-time.After(2 * time.Second):
+			t.Fatal("timeout waiting for the subprocessclose event")
+		}
+
+		assert.True(t, worker.SubprocessClosed())
+		// Being shut down on request is not dying.
+		assert.False(t, worker.Died())
+		assert.NoError(t, worker.Err())
+		assert.Zero(t, diedCalls.Load())
+	})
+
+	t.Run("process killed", func(t *testing.T) {
+		worker := newTestWorker()
+
+		assert.False(t, worker.Died())
+		assert.False(t, worker.SubprocessClosed())
+		assert.NoError(t, worker.Err())
+
+		died := make(chan error, 1)
+		worker.OnDied(func(ctx context.Context, err error) { died <- err })
+
+		closed := make(chan struct{})
+		worker.OnClose(func(ctx context.Context) { close(closed) })
+
+		process, err := os.FindProcess(worker.Pid())
+		require.NoError(t, err)
+		require.NoError(t, process.Kill())
+
+		select {
+		case err := <-died:
+			assert.Error(t, err)
+		case <-time.After(2 * time.Second):
+			t.Fatal("timeout waiting for the died event")
+		}
+
+		select {
+		case <-closed:
+		case <-time.After(2 * time.Second):
+			t.Fatal("timeout waiting for the close event")
+		}
+
+		assert.True(t, worker.Died())
+		assert.True(t, worker.SubprocessClosed())
+		assert.Error(t, worker.Err())
+		assert.True(t, worker.Closed())
+	})
+
+	t.Run("router is closed when the process dies", func(t *testing.T) {
+		worker := newTestWorker()
+		router, err := worker.CreateRouter(&RouterOptions{})
+		require.NoError(t, err)
+
+		workerClosed := make(chan struct{})
+		router.OnWorkerClosed(func(ctx context.Context) { close(workerClosed) })
+
+		process, err := os.FindProcess(worker.Pid())
+		require.NoError(t, err)
+		require.NoError(t, process.Kill())
+
+		select {
+		case <-workerClosed:
+		case <-time.After(2 * time.Second):
+			t.Fatal("timeout waiting for the router workerclosed event")
+		}
+
+		assert.True(t, router.Closed())
+	})
 }
 
 func TestWorkerNoGoroutineLeaks(t *testing.T) {

@@ -39,7 +39,10 @@ type Worker struct {
 	appData                  H
 	newWebRtcServerListeners listenerList[func(context.Context, *WebRtcServer)]
 	newRouterListeners       listenerList[func(context.Context, *Router)]
+	diedListeners            listenerList[func(context.Context, error)]
+	subprocessCloseListeners listenerList[func(context.Context)]
 	closed                   bool
+	died                     bool
 	err                      error
 	// waitDone is closed by wait() once cmd.Wait() has returned. It is the
 	// race-free way to check for process exit: cmd.ProcessState must not be
@@ -245,11 +248,34 @@ func (w *Worker) wait(cmd *exec.Cmd, spawnDone *uint32, doneCh chan error) {
 		return
 	}
 
-	if err != nil {
+	ctx := context.Background()
+
+	w.mu.Lock()
+	// The process going away before Close() was called means it died on us.
+	// Being killed after Close() is our own doing, so it doesn't count.
+	died := !w.closed
+	if died {
+		if err == nil {
+			err = errors.New("worker process quited unexpectedly")
+		}
+		w.died, w.err = true, err
+	}
+	diedListeners := w.diedListeners.list()
+	subprocessCloseListeners := w.subprocessCloseListeners.list()
+	w.mu.Unlock()
+
+	if died {
 		w.logger.Error(err.Error())
-		w.err = err
+
+		for _, listener := range diedListeners {
+			listener(ctx, err)
+		}
 	} else {
 		w.logger.Info("worker process quited")
+	}
+
+	for _, listener := range subprocessCloseListeners {
+		listener(ctx)
 	}
 
 	w.processQuited()
@@ -266,8 +292,33 @@ func (w *Worker) AppData() H {
 	return w.appData
 }
 
+// Err returns the error the worker process died with, or nil if it did not die.
 func (w *Worker) Err() error {
+	w.mu.RLock()
+	defer w.mu.RUnlock()
+
 	return w.err
+}
+
+// Died reports whether the worker process exited on its own instead of being
+// shut down by Close. Err returns the corresponding error.
+func (w *Worker) Died() bool {
+	w.mu.RLock()
+	defer w.mu.RUnlock()
+
+	return w.died
+}
+
+// SubprocessClosed reports whether the worker process has fully exited. Close
+// returns as soon as the shutdown has been requested, so the process may still
+// be running for a short while afterwards.
+func (w *Worker) SubprocessClosed() bool {
+	select {
+	case <-w.waitDone:
+		return true
+	default:
+		return false
+	}
 }
 
 func (w *Worker) Close() {
@@ -514,6 +565,21 @@ func (w *Worker) OnNewWebRtcServer(listener func(context.Context, *WebRtcServer)
 // function to remove the listener again.
 func (w *Worker) OnNewRouter(listener func(context.Context, *Router)) (removeListener func()) {
 	return addListener(&w.mu, &w.newRouterListeners, listener)
+}
+
+// OnDied adds a listener on the "died" event, emitted when the worker process
+// exits without Close having been called. The listener runs before the routers
+// and WebRTC servers of this worker are torn down. Call the returned function to
+// remove the listener again.
+func (w *Worker) OnDied(listener func(ctx context.Context, err error)) (removeListener func()) {
+	return addListener(&w.mu, &w.diedListeners, listener)
+}
+
+// OnSubprocessClose adds a listener on the "subprocessclose" event, emitted once
+// the worker process has exited, whether it was closed or died. Call the returned
+// function to remove the listener again.
+func (w *Worker) OnSubprocessClose(listener func(ctx context.Context)) (removeListener func()) {
+	return addListener(&w.mu, &w.subprocessCloseListeners, listener)
 }
 
 func (w *Worker) processQuited() {
