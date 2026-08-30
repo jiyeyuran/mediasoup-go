@@ -61,12 +61,15 @@ func (p *WorkerPool) Next() *Worker {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	// One full cycle: if every worker is closed there is nothing to hand out.
+	// One full cycle: if no worker is usable there is nothing to hand out.
 	for range p.workers {
 		worker := p.workers[p.next]
 		p.next = (p.next + 1) % len(p.workers)
 
-		if !worker.Closed() {
+		// Died has to be consulted too. A worker that dies reports it before it
+		// finishes closing, so between those two points Closed is still false while
+		// the subprocess is already gone.
+		if !worker.Closed() && !worker.Died() {
 			return worker
 		}
 	}

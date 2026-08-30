@@ -319,7 +319,17 @@ func (c *Channel) Close(ctx context.Context) {
 	for _, sub := range allsubs {
 		sub.Unsubscribe()
 	}
-	for _, ch := range c.responsesCh {
+
+	// Take the map away before walking it: a request that is still in flight
+	// deletes its own entry when it gives up, and iterating while that happens is
+	// a concurrent map read and write, which panics rather than merely racing.
+	c.mu.Lock()
+	responsesCh := c.responsesCh
+	c.responsesCh = make(map[uint32]chan *FbsResponse.ResponseT)
+	c.mu.Unlock()
+
+	// Closing wakes whoever is waiting on the response that will never come.
+	for _, ch := range responsesCh {
 		close(ch)
 	}
 }

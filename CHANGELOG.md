@@ -20,6 +20,13 @@ Close the remaining API gaps against the mediasoup Node.js binding and fix the
 - add `WorkerSettings.OnChannelRequest` and `Worker.ChannelPendingRequests()`, so
   the cost of talking to the worker subprocess can be exported as metrics. Request
   latency, request errors and the pending request count were previously invisible
+- fix(channel): `Close()` walked the pending-request map without holding the lock
+  while in-flight requests deleted their own entries. Concurrent map iteration and
+  write panics rather than merely racing, so a worker going away with requests in
+  flight could take the process down
+- fix(workerPool): `Next()` could hand out a worker that had just died, because a
+  dying worker reports its death before it finishes closing and `Next()` only
+  consulted `Closed()`
 - docs: add package documentation covering the worker binary requirement, the
   object graph, close cascades, the event model and context semantics, plus
   runnable godoc examples

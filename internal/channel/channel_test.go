@@ -108,6 +108,50 @@ func TestPendingRequestsAndObserver(t *testing.T) {
 	}
 }
 
+// Close used to walk responsesCh unlocked while requests giving up deleted their
+// own entries, which is a concurrent map read and write: a panic, not just a race.
+// This is what a worker dying with requests in flight looks like.
+func TestCloseWithRequestsInFlight(t *testing.T) {
+	r, w, _ := os.Pipe()
+	// Nothing answers, so the requests are still in flight when Close runs.
+	channel := NewChannel(w, r, slog.Default(), slog.Default())
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	const requests = 64
+	var wg sync.WaitGroup
+	for i := 0; i < requests; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+
+			//nolint:errcheck // The request is expected to be abandoned.
+			channel.Request(ctx, &FbsRequest.RequestT{Method: FbsRequest.MethodWORKER_DUMP})
+		}()
+	}
+
+	deadline := time.After(5 * time.Second)
+	for channel.PendingRequests() < requests {
+		select {
+		case <-deadline:
+			t.Fatalf("PendingRequests() = %d, want %d", channel.PendingRequests(), requests)
+		case <-time.After(time.Millisecond):
+		}
+	}
+
+	// Racing the two against each other: Close walks the map while cancel makes
+	// every request delete its entry.
+	go cancel()
+	channel.Close(context.Background())
+
+	wg.Wait()
+
+	if got := channel.PendingRequests(); got != 0 {
+		t.Errorf("PendingRequests() after close = %d, want 0", got)
+	}
+}
+
 func TestSaveContext(t *testing.T) {
 	r, w, _ := os.Pipe()
 	channel := NewChannel(w, r, slog.Default(), slog.Default())

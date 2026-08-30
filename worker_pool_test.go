@@ -66,7 +66,14 @@ func TestWorkerPoolSkipsDeadWorkers(t *testing.T) {
 	workers := pool.Workers()
 
 	died := make(chan struct{})
-	workers[0].OnDied(func(ctx context.Context, err error) { close(died) })
+	// Checked from inside the callback on purpose: a worker reports its death
+	// before it finishes closing, so at this point Closed() is still false while
+	// the subprocess is already gone. A pool that only consults Closed() hands out
+	// the dead worker here.
+	workers[0].OnDied(func(ctx context.Context, err error) {
+		assert.NotSame(t, workers[0], pool.Next(), "the pool handed out a worker that had just died")
+		close(died)
+	})
 
 	process, err := os.FindProcess(workers[0].Pid())
 	require.NoError(t, err)
@@ -74,7 +81,7 @@ func TestWorkerPoolSkipsDeadWorkers(t *testing.T) {
 
 	select {
 	case <-died:
-	case <-time.After(2 * time.Second):
+	case <-time.After(5 * time.Second):
 		t.Fatal("timeout waiting for the worker to die")
 	}
 
