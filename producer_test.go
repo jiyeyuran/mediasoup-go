@@ -3,7 +3,6 @@ package mediasoup
 import (
 	"context"
 	"testing"
-	"time"
 
 	FbsCommon "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/Common"
 	FbsNotification "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/Notification"
@@ -328,11 +327,13 @@ func TestProducerHandlers(t *testing.T) {
 		},
 	})
 
-	mymock.On("OnProducerEventTrace", ProducerTraceEventData{
+	// The notifications go through one queue in order, so the last one arriving
+	// means the earlier ones did too.
+	waitLastTrace := waitFor(mymock.On("OnProducerEventTrace", ProducerTraceEventData{
 		Type:      ProducerTraceEventRtp,
 		Direction: "out",
 		Timestamp: 123456789,
-	})
+	}), 1)
 
 	channel.ProcessNotificationForTesting(&FbsNotification.NotificationT{
 		HandlerId: videoProducer.Id(),
@@ -348,7 +349,7 @@ func TestProducerHandlers(t *testing.T) {
 		},
 	})
 
-	time.Sleep(time.Millisecond)
+	waitLastTrace(t, "the producer notifications")
 }
 
 func TestProducerClose(t *testing.T) {

@@ -424,12 +424,16 @@ func TestWorkerNoGoroutineLeaks(t *testing.T) {
 	}
 	wg.Wait()
 
-	// wait all notifications are consumed
-	time.Sleep(time.Millisecond * 10)
-
-	for _, consumer := range consumers {
-		assert.True(t, consumer.ProducerPaused())
-	}
+	// Each pause reaches its consumers as a worker notification, so there is no
+	// bound on how long it takes.
+	require.Eventually(t, func() bool {
+		for _, consumer := range consumers {
+			if !consumer.ProducerPaused() {
+				return false
+			}
+		}
+		return true
+	}, notificationTimeout, 5*time.Millisecond, "not every consumer saw its producer pause")
 
 	messagesReceived := map[string][]string{}
 	for _, dataConsumer := range dataConsumers {
@@ -456,8 +460,30 @@ func TestWorkerNoGoroutineLeaks(t *testing.T) {
 
 	wg.Wait()
 
-	// wait all notifications are consumed
-	time.Sleep(time.Millisecond * 10)
+	// Only the direct transports deliver: the others carry data over SCTP, and
+	// these transports were never connected to a remote peer, so nothing sent on
+	// them arrives. Each delivering dataProducer reaches its n dataConsumers.
+	deliveringTransports := 0
+	for _, transport := range transports {
+		if transport.Type() == TransportDirect {
+			deliveringTransports++
+		}
+	}
+
+	require.Eventually(t, func() bool {
+		mu.Lock()
+		defer mu.Unlock()
+
+		if len(messagesReceived) != deliveringTransports {
+			return false
+		}
+		for _, messages := range messagesReceived {
+			if len(messages) != n {
+				return false
+			}
+		}
+		return true
+	}, notificationTimeout, 5*time.Millisecond, "not every data message came back")
 
 	worker.Close()
 
@@ -487,8 +513,10 @@ func TestWorkerNoGoroutineLeaks(t *testing.T) {
 		assert.True(t, dataConsumer.Closed())
 	}
 
-	// wait all goroutines are finished
-	time.Sleep(time.Millisecond * 500)
-
-	assert.LessOrEqual(t, runtime.NumGoroutine(), numOfGoroutines)
+	// The goroutines serving each object wind down once the worker is gone. This
+	// has to be polled from this goroutine: assert.Eventually would run the check
+	// on a goroutine of its own and count it.
+	waitUntil(t, func() bool {
+		return runtime.NumGoroutine() <= numOfGoroutines
+	}, 10*time.Second, "the per-object goroutines to finish")
 }

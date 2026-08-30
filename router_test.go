@@ -634,8 +634,6 @@ func TestPipeToRouter(t *testing.T) {
 		})
 		assert.NoError(t, err)
 
-		time.Sleep(time.Millisecond)
-
 		pipeConsumer, pipeProducer := result.PipeConsumer, result.PipeProducer
 
 		dump, _ := router1.Dump()
@@ -1091,10 +1089,10 @@ func TestPipeToRouter(t *testing.T) {
 
 		dataProducer.Close()
 
-		time.Sleep(time.Millisecond * 10)
-
 		assert.True(t, dataProducer.Closed())
-		assert.True(t, dataConsumer.Closed())
+		// The close travels to the piped router and back as a worker notification.
+		assert.Eventually(t, dataConsumer.Closed, notificationTimeout, time.Millisecond,
+			"the close did not reach the pipe dataConsumer")
 	})
 
 	t.Run("PipeToRouter called twice generates a single PipeTransport pair", func(t *testing.T) {
@@ -1161,13 +1159,11 @@ func TestPipeToRouter(t *testing.T) {
 		})
 		assert.NoError(t, group.Wait())
 
-		assert.Len(t, routerA.mapRouterPipeTransports, 1)
-		assert.Len(t, routerB.mapRouterPipeTransports, 1)
+		assert.Equal(t, 1, pipedRouterCount(routerA))
+		assert.Equal(t, 1, pipedRouterCount(routerB))
 
-		pipeTransports := routerA.mapRouterPipeTransports[routerB]
-		pipeTransportA := pipeTransports[0]
-		pipeTransports = routerB.mapRouterPipeTransports[routerA]
-		pipeTransportB := pipeTransports[0]
+		pipeTransportA := pipeTransportTo(routerA, routerB)[0]
+		pipeTransportB := pipeTransportTo(routerB, routerA)[0]
 
 		dataA := pipeTransportA.Data().PipeTransportData
 		dataB := pipeTransportB.Data().PipeTransportData
@@ -1177,9 +1173,26 @@ func TestPipeToRouter(t *testing.T) {
 
 		routerA.Close()
 
-		time.Sleep(time.Millisecond)
-
-		assert.Empty(t, routerA.mapRouterPipeTransports)
-		assert.Empty(t, routerB.mapRouterPipeTransports)
+		// Closing routerA tears down its pipe transport, and routerB only learns
+		// about it when the close event reaches it.
+		assert.Eventually(t, func() bool {
+			return pipedRouterCount(routerA) == 0 && pipedRouterCount(routerB) == 0
+		}, notificationTimeout, time.Millisecond, "the pipe transport pair was not forgotten")
 	})
+}
+
+// mapRouterPipeTransports is guarded by routerPipeMu, and pipe transports are torn
+// down from another goroutine, so tests must not read the map bare.
+func pipedRouterCount(r *Router) int {
+	r.routerPipeMu.Lock()
+	defer r.routerPipeMu.Unlock()
+
+	return len(r.mapRouterPipeTransports)
+}
+
+func pipeTransportTo(from, to *Router) [2]*Transport {
+	from.routerPipeMu.Lock()
+	defer from.routerPipeMu.Unlock()
+
+	return from.mapRouterPipeTransports[to]
 }

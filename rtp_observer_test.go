@@ -3,7 +3,6 @@ package mediasoup
 import (
 	"context"
 	"testing"
-	"time"
 
 	FbsActiveSpeakerObserver "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/ActiveSpeakerObserver"
 	FbsAudioLevelObserver "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/AudioLevelObserver"
@@ -101,7 +100,9 @@ func TestRtpObserverNotification(t *testing.T) {
 
 	mymock.On("OnDominantSpeaker", speaker)
 	mymock.On("OnSilence")
-	mymock.On("OnVolume", volumes)
+	// The notifications go through one queue in order, so the last one arriving
+	// means the earlier ones did too.
+	waitLastVolume := waitFor(mymock.On("OnVolume", volumes), 1)
 
 	o, _ := router.CreateActiveSpeakerObserver(nil)
 	o.OnDominantSpeaker(mymock.OnDominantSpeaker)
@@ -134,5 +135,6 @@ func TestRtpObserverNotification(t *testing.T) {
 			},
 		},
 	})
-	time.Sleep(time.Millisecond)
+
+	waitLastVolume(t, "the rtp observer notifications")
 }

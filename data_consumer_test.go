@@ -155,8 +155,8 @@ func TestDataConsumerClose(t *testing.T) {
 
 		ctx := context.TODO()
 
-		mymock.On("OnClose", ctx).Once()
-		mymock.On("OnDataProducerClose", ctx).Once()
+		waitClose := waitFor(mymock.On("OnClose", ctx).Once(), 1)
+		waitDataProducerClose := waitFor(mymock.On("OnDataProducerClose", ctx).Once(), 1)
 
 		router := createRouter(nil)
 		transport := createDirectTransport(router)
@@ -169,7 +169,10 @@ func TestDataConsumerClose(t *testing.T) {
 		dataConsumer.OnClose(mymock.OnClose)
 		dataConsumer.OnDataProducerClose(mymock.OnDataProducerClose)
 		dataProducer.CloseContext(ctx)
-		time.Sleep(time.Millisecond)
+
+		waitDataProducerClose(t, "the dataProducer close event")
+		waitClose(t, "the dataConsumer close event")
+
 		assert.True(t, dataConsumer.Closed())
 	})
 
@@ -177,7 +180,7 @@ func TestDataConsumerClose(t *testing.T) {
 		mymock := new(MockedHandler)
 		defer mymock.AssertExpectations(t)
 
-		mymock.On("OnClose", mock.IsType(context.Background())).Once()
+		waitClose := waitFor(mymock.On("OnClose", mock.IsType(context.Background())).Once(), 1)
 
 		router := createRouter(nil)
 		transport := createDirectTransport(router)
@@ -189,8 +192,10 @@ func TestDataConsumerClose(t *testing.T) {
 		})
 		dataConsumer.OnClose(mymock.OnClose)
 		transport.Close()
+
+		waitClose(t, "the dataConsumer close event")
+
 		assert.True(t, dataConsumer.Closed())
-		time.Sleep(time.Millisecond)
 	})
 
 	t.Run("router closed", func(t *testing.T) {

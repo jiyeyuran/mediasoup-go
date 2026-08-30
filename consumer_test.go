@@ -4,7 +4,6 @@ import (
 	"context"
 	"slices"
 	"testing"
-	"time"
 
 	FbsConsumer "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/Consumer"
 	FbsNotification "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/Notification"
@@ -397,8 +396,8 @@ func TestConsumerEmitsProducerPauseAndProducerResume(t *testing.T) {
 	mymock := new(MockedHandler)
 	defer mymock.AssertExpectations(t)
 
-	mymock.On("OnProducerPause", mock.IsType(context.Background())).Once()
-	mymock.On("OnProducerResume", mock.IsType(context.Background())).Once()
+	waitPause := waitFor(mymock.On("OnProducerPause", mock.IsType(context.Background())).Once(), 1)
+	waitResume := waitFor(mymock.On("OnProducerResume", mock.IsType(context.Background())).Once(), 1)
 
 	transport := createPlainTransport(nil)
 	audioProducer := createAudioProducer(transport)
@@ -407,15 +406,13 @@ func TestConsumerEmitsProducerPauseAndProducerResume(t *testing.T) {
 	audioConsumer.OnProducerResume(mymock.OnProducerResume)
 
 	audioProducer.Pause()
-
-	time.Sleep(time.Millisecond)
+	waitPause(t, "the producer pause event")
 
 	assert.False(t, audioConsumer.Paused())
 	assert.True(t, audioConsumer.ProducerPaused())
 
 	audioProducer.Resume()
-
-	time.Sleep(time.Millisecond)
+	waitResume(t, "the producer resume event")
 
 	assert.False(t, audioConsumer.Paused())
 	assert.False(t, audioConsumer.ProducerPaused())
@@ -439,10 +436,12 @@ func TestConsumerEmitsScore(t *testing.T) {
 		ProducerScore: 9,
 		Score:         9,
 	})
-	mymock.On("OnConsumeScore", ConsumerScore{
+	// All three notifications go through one queue in order, so the last one
+	// arriving means the first two did too.
+	waitLastScore := waitFor(mymock.On("OnConsumeScore", ConsumerScore{
 		ProducerScore: 8,
 		Score:         8,
-	})
+	}), 1)
 
 	channel.ProcessNotificationForTesting(&FbsNotification.NotificationT{
 		HandlerId: audioConsumer.Id(),
@@ -484,7 +483,7 @@ func TestConsumerEmitsScore(t *testing.T) {
 		},
 	})
 
-	time.Sleep(time.Millisecond)
+	waitLastScore(t, "the consumer score events")
 }
 
 func TestConsumerClose(t *testing.T) {
@@ -529,8 +528,8 @@ func TestConsumerCloseByOthers(t *testing.T) {
 
 		ctx := context.TODO()
 
-		mymock.On("OnProducerClose", ctx).Twice()
-		mymock.On("OnClose", ctx).Twice()
+		waitProducerClose := waitFor(mymock.On("OnProducerClose", ctx).Twice(), 2)
+		waitClose := waitFor(mymock.On("OnClose", ctx).Twice(), 2)
 
 		router := createRouter(nil)
 		transport := createWebRtcTransport(router)
@@ -545,7 +544,8 @@ func TestConsumerCloseByOthers(t *testing.T) {
 
 		audioProducer.CloseContext(ctx)
 
-		time.Sleep(time.Millisecond)
+		waitProducerClose(t, "both producer close events")
+		waitClose(t, "both consumer close events")
 
 		assert.True(t, audioConsumer1.Closed())
 		assert.True(t, audioConsumer2.Closed())
@@ -555,7 +555,7 @@ func TestConsumerCloseByOthers(t *testing.T) {
 		mymock := new(MockedHandler)
 		defer mymock.AssertExpectations(t)
 
-		mymock.On("OnClose", mock.IsType(context.Background())).Once()
+		waitClose := waitFor(mymock.On("OnClose", mock.IsType(context.Background())).Once(), 1)
 
 		router := createRouter(nil)
 		transport := createWebRtcTransport(router)
@@ -563,8 +563,10 @@ func TestConsumerCloseByOthers(t *testing.T) {
 		audioConsumer := createConsumer(transport, audioProducer.Id())
 		audioConsumer.OnClose(mymock.OnClose)
 		transport.Close()
+
+		waitClose(t, "the consumer close event")
+
 		assert.True(t, audioConsumer.Closed())
-		time.Sleep(time.Millisecond)
 	})
 
 	t.Run("router closed", func(t *testing.T) {

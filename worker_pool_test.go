@@ -137,7 +137,9 @@ func TestWorkerPoolStartFailure(t *testing.T) {
 	require.Error(t, err)
 	assert.Nil(t, pool)
 
-	assert.Eventually(t, func() bool {
+	// Polled from this goroutine: assert.Eventually would run the check on a
+	// goroutine of its own and count it.
+	waitUntil(t, func() bool {
 		return runtime.NumGoroutine() <= before
-	}, 2*time.Second, 50*time.Millisecond, "a failed start must not leak goroutines")
+	}, 5*time.Second, "the failed start to leave no goroutines behind")
 }

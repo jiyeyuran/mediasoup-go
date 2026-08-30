@@ -133,8 +133,14 @@ func TestSctpMessage(t *testing.T) {
 		sendData = append(sendData, data...)
 	}
 
-	// wait all messages are received
-	time.Sleep(time.Millisecond * 10)
+	// The messages travel over real SCTP and come back through the worker, so how
+	// long they take is not something the test can assume.
+	require.Eventually(t, func() bool {
+		mu.Lock()
+		defer mu.Unlock()
+
+		return recvBinaryMessages+recvStringMessages == numMessages
+	}, notificationTimeout, time.Millisecond, "not all messages arrived")
 
 	mu.Lock()
 	assert.Equal(t, numMessages/2, recvBinaryMessages)
