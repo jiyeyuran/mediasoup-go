@@ -1,5 +1,23 @@
 # Changelog
 
+### Unreleased
+
+Close the remaining API gaps against the mediasoup Node.js binding and fix three
+  correctness issues found while auditing that gap.
+
+- `Transport`: add `SetMaxOutgoingBitrate()` and `SetMinOutgoingBitrate()` (return `ErrNotImplemented`
+  on a direct transport, matching Node.js)
+- `Router`: add the missing `AppData()` getter
+- `DataConsumer`: add the missing `Subchannels()` getter, returning a copy of the current subscription
+- fix(dataConsumer): `SendText("")` used the empty *binary* payload type (57) instead of the empty
+  *string* one (56), so the remote peer decoded an empty string as a binary message.
+  `DataProducer.SendText()` was already correct
+- fix(transport): `OnNewProducer` / `OnNewConsumer` / `OnNewDataProducer` / `OnNewDataConsumer` held a
+  read lock while appending to the listener slice, which is a data race when listeners are registered
+  concurrently
+- fix(router): `cleanupAfterClosed()` deleted from `transports` while draining `rtpObservers`, leaving
+  the observer entries behind
+
 ### 2.5.0
 
 Sync with mediasoup v3.20.0~v3.26.0 changelog. Requires mediasoup-worker **v3.26.0**

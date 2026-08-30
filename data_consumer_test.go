@@ -213,6 +213,35 @@ func TestDataConsumerClose(t *testing.T) {
 	})
 }
 
+func TestDataConsumerSubchannels(t *testing.T) {
+	transport := createDirectTransport(nil)
+	dataProducer := createDataProducer(transport)
+
+	dataConsumer, err := transport.ConsumeData(&DataConsumerOptions{
+		DataProducerId: dataProducer.Id(),
+		Subchannels:    []uint16{111, 222},
+	})
+	assert.NoError(t, err)
+	assert.ElementsMatch(t, []uint16{111, 222}, dataConsumer.Subchannels())
+
+	assert.NoError(t, dataConsumer.AddSubChannel(333))
+	assert.ElementsMatch(t, []uint16{111, 222, 333}, dataConsumer.Subchannels())
+
+	assert.NoError(t, dataConsumer.RemoveSubChannel(111))
+	assert.ElementsMatch(t, []uint16{222, 333}, dataConsumer.Subchannels())
+
+	assert.NoError(t, dataConsumer.SetSubchannels([]uint16{444}))
+	assert.Equal(t, []uint16{444}, dataConsumer.Subchannels())
+
+	dump, err := dataConsumer.Dump()
+	assert.NoError(t, err)
+	assert.ElementsMatch(t, dump.Subchannels, dataConsumer.Subchannels())
+
+	// The returned slice must be a copy: mutating it must not corrupt internal state.
+	dataConsumer.Subchannels()[0] = 999
+	assert.Equal(t, []uint16{444}, dataConsumer.Subchannels())
+}
+
 func TestDataProducerSendWithIgnoredSubchannel(t *testing.T) {
 	transport := createDirectTransport(nil)
 	dataProducer, err := transport.ProduceData(&DataProducerOptions{Label: "foo", Protocol: "bar"})

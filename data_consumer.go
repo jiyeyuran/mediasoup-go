@@ -3,6 +3,7 @@ package mediasoup
 import (
 	"context"
 	"log/slog"
+	"slices"
 	"unsafe"
 
 	FbsDataConsumer "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/DataConsumer"
@@ -106,6 +107,14 @@ func (c *DataConsumer) DataProducerPaused() bool {
 	defer c.mu.RUnlock()
 
 	return c.data.DataProducerPaused
+}
+
+// Subchannels returns the current subchannels this DataConsumer is subscribed to.
+func (c *DataConsumer) Subchannels() []uint16 {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
+	return slices.Clone(c.data.Subchannels)
 }
 
 // AppData returns app custom data.
@@ -384,7 +393,7 @@ func (c *DataConsumer) SendTextContext(ctx context.Context, message string) (buf
 	data := unsafe.Slice(unsafe.StringData(message), len(message))
 
 	if len(data) == 0 {
-		data, ppid = emptyString[:], SctpPayloadWebRTCBinaryEmpty
+		data, ppid = emptyString[:], SctpPayloadWebRTCStringEmpty
 	}
 
 	return c.send(ctx, data, ppid)

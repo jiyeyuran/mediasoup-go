@@ -164,6 +164,25 @@ func TestSctpMessage(t *testing.T) {
 	assert.NoError(t, err)
 	assert.LessOrEqual(t, bufferedAmount, uint32(len("hello")))
 
+	// An empty string must travel as WebRTCStringEmpty, not WebRTCBinaryEmpty,
+	// otherwise the remote peer decodes it as a binary message.
+	_, err = sctpDataConsumer.SendText("")
+	assert.NoError(t, err)
+
+	recvStream, err := association.AcceptStream()
+	require.NoError(t, err)
+	require.NoError(t, recvStream.SetReadDeadline(time.Now().Add(time.Second)))
+
+	buf := make([]byte, 128)
+	n, ppid, err := recvStream.ReadSCTP(buf)
+	require.NoError(t, err)
+	assert.Equal(t, sctp.PayloadTypeWebRTCString, ppid)
+	assert.Equal(t, "hello", string(buf[:n]))
+
+	_, ppid, err = recvStream.ReadSCTP(buf)
+	require.NoError(t, err)
+	assert.Equal(t, sctp.PayloadTypeWebRTCStringEmpty, ppid)
+
 	dataConumserStats, err := dataConsumer.GetStats()
 	assert.NoError(t, err)
 	assert.Equal(t, &DataConsumerStat{

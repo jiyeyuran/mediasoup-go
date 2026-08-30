@@ -590,6 +590,54 @@ func (t *Transport) SetMaxIncomingBitrateContext(ctx context.Context, bitrate ui
 	return err
 }
 
+// SetMaxOutgoingBitrate set maximum outgoing bitrate for sending media.
+func (t *Transport) SetMaxOutgoingBitrate(bitrate uint32) error {
+	return t.SetMaxOutgoingBitrateContext(context.Background(), bitrate)
+}
+
+func (t *Transport) SetMaxOutgoingBitrateContext(ctx context.Context, bitrate uint32) error {
+	if t.Type() == TransportDirect {
+		return ErrNotImplemented
+	}
+	t.logger.DebugContext(ctx, "SetMaxOutgoingBitrate()")
+
+	_, err := t.channel.Request(ctx, &FbsRequest.RequestT{
+		Method:    FbsRequest.MethodTRANSPORT_SET_MAX_OUTGOING_BITRATE,
+		HandlerId: t.Id(),
+		Body: &FbsRequest.BodyT{
+			Type: FbsRequest.BodyTransport_SetMaxOutgoingBitrateRequest,
+			Value: &FbsTransport.SetMaxOutgoingBitrateRequestT{
+				MaxOutgoingBitrate: bitrate,
+			},
+		},
+	})
+	return err
+}
+
+// SetMinOutgoingBitrate set minimum outgoing bitrate for sending media.
+func (t *Transport) SetMinOutgoingBitrate(bitrate uint32) error {
+	return t.SetMinOutgoingBitrateContext(context.Background(), bitrate)
+}
+
+func (t *Transport) SetMinOutgoingBitrateContext(ctx context.Context, bitrate uint32) error {
+	if t.Type() == TransportDirect {
+		return ErrNotImplemented
+	}
+	t.logger.DebugContext(ctx, "SetMinOutgoingBitrate()")
+
+	_, err := t.channel.Request(ctx, &FbsRequest.RequestT{
+		Method:    FbsRequest.MethodTRANSPORT_SET_MIN_OUTGOING_BITRATE,
+		HandlerId: t.Id(),
+		Body: &FbsRequest.BodyT{
+			Type: FbsRequest.BodyTransport_SetMinOutgoingBitrateRequest,
+			Value: &FbsTransport.SetMinOutgoingBitrateRequestT{
+				MinOutgoingBitrate: bitrate,
+			},
+		},
+	})
+	return err
+}
+
 // SendRtcp send RTCP packet.
 func (t *Transport) SendRtcp(data []byte) error {
 	return t.SendRtcpContext(context.Background(), data)
@@ -1130,26 +1178,26 @@ func (t *Transport) ConsumeDataContext(ctx context.Context, options *DataConsume
 }
 
 func (t *Transport) OnNewConsumer(listener func(context.Context, *Consumer)) {
-	t.mu.RLock()
-	defer t.mu.RUnlock()
+	t.mu.Lock()
+	defer t.mu.Unlock()
 	t.newConsumerListeners = append(t.newConsumerListeners, listener)
 }
 
 func (t *Transport) OnNewProducer(listener func(context.Context, *Producer)) {
-	t.mu.RLock()
-	defer t.mu.RUnlock()
+	t.mu.Lock()
+	defer t.mu.Unlock()
 	t.newProducerListeners = append(t.newProducerListeners, listener)
 }
 
 func (t *Transport) OnNewDataProducer(listener func(context.Context, *DataProducer)) {
-	t.mu.RLock()
-	defer t.mu.RUnlock()
+	t.mu.Lock()
+	defer t.mu.Unlock()
 	t.newDataProducerListeners = append(t.newDataProducerListeners, listener)
 }
 
 func (t *Transport) OnNewDataConsumer(listener func(context.Context, *DataConsumer)) {
-	t.mu.RLock()
-	defer t.mu.RUnlock()
+	t.mu.Lock()
+	defer t.mu.Unlock()
 	t.newDataConsumerListeners = append(t.newDataConsumerListeners, listener)
 }
 

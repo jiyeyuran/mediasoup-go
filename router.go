@@ -76,6 +76,11 @@ func (r *Router) RtpCapabilities() *RtpCapabilities {
 	return r.data.RtpCapabilities
 }
 
+// AppData returns app custom data.
+func (r *Router) AppData() H {
+	return r.data.AppData
+}
+
 func (r *Router) GetTransportById(id string) *Transport {
 	transport, ok := r.transports.Load(id)
 	if !ok {
@@ -1021,7 +1026,7 @@ func (r *Router) cleanupAfterClosed(ctx context.Context) {
 	})
 	r.rtpObservers.Range(func(key, value any) bool {
 		children = append(children, value.(*RtpObserver))
-		r.transports.Delete(key)
+		r.rtpObservers.Delete(key)
 		return true
 	})
 

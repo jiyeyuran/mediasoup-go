@@ -189,6 +189,19 @@ func TestTransportTestSetMaxIncomingBitrate(t *testing.T) {
 	assert.Error(t, err)
 }
 
+func TestTransportSetOutgoingBitrate(t *testing.T) {
+	transport := createWebRtcTransport(nil)
+	assert.NoError(t, transport.SetMinOutgoingBitrate(100000))
+	assert.NoError(t, transport.SetMaxOutgoingBitrate(200000))
+
+	// Worker rejects a max lower than the already set min.
+	assert.Error(t, transport.SetMaxOutgoingBitrate(50000))
+
+	transport = createDirectTransport(nil)
+	assert.ErrorIs(t, transport.SetMaxOutgoingBitrate(200000), ErrNotImplemented)
+	assert.ErrorIs(t, transport.SetMinOutgoingBitrate(100000), ErrNotImplemented)
+}
+
 func TestTransportSendRtcp(t *testing.T) {
 	transport := createDirectTransport(nil)
 	err := transport.SendRtcp([]byte("test"))

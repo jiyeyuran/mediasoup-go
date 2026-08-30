@@ -90,6 +90,20 @@ func TestRouterClose(t *testing.T) {
 	})
 }
 
+func TestRouterAppData(t *testing.T) {
+	worker := newTestWorker()
+	defer worker.Close()
+
+	router, err := worker.CreateRouter(&RouterOptions{AppData: H{"foo": 123}})
+	require.NoError(t, err)
+	assert.Equal(t, H{"foo": 123}, router.AppData())
+
+	router, err = worker.CreateRouter(&RouterOptions{})
+	require.NoError(t, err)
+	assert.NotNil(t, router.AppData())
+	assert.Empty(t, router.AppData())
+}
+
 func TestRouterDump(t *testing.T) {
 	worker := newTestWorker()
 	router, _ := worker.CreateRouter(&RouterOptions{})
