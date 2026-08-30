@@ -14,6 +14,12 @@ Close the remaining API gaps against the mediasoup Node.js binding and fix the
 - `Worker`: add `Died()`, `SubprocessClosed()`, `OnDied()` and `OnSubprocessClose()`.
   Previously a crashed worker could only be noticed by polling `Err()`, and a
   worker killed by `Close()` was indistinguishable from one that died on its own
+- docs: add package documentation covering the worker binary requirement, the
+  object graph, close cascades, the event model and context semantics, plus
+  runnable godoc examples
+- fix(webrtcserver): `Close()` never emitted the close event, so `OnClose`
+  listeners never ran and the worker kept a reference to every closed server
+- fix(webrtcserver): `Closed()` stayed false after the worker went down
 - fix(worker): `Err()` read `w.err` while the process-wait goroutine wrote it,
   and it no longer reports an error when `Close()` had to force kill the process
 - fix(transport): the `PLAINTRANSPORT_RTCP_TUPLE` handler notified `OnTuple`

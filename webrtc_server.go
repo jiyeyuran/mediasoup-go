@@ -98,11 +98,21 @@ func (s *WebRtcServer) CloseContext(ctx context.Context) error {
 		transport.listenServerClosed(ctx)
 	}
 
-	return err
+	s.notifyClosed(ctx)
+
+	return nil
 }
 
 // workerClosed is called when worker was closed.
 func (s *WebRtcServer) workerClosed(ctx context.Context) {
+	s.mu.Lock()
+	if s.closed {
+		s.mu.Unlock()
+		return
+	}
+	s.closed = true
+	s.mu.Unlock()
+
 	s.logger.DebugContext(ctx, "workerClosed()")
 	// NOTE: No need to close WebRtcTransports since they are closed by their
 	// respective Router parents.
