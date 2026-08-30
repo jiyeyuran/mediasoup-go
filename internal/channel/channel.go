@@ -42,6 +42,29 @@ type listNode struct {
 	next  *listNode
 }
 
+// RequestStats describes one completed request to the worker subprocess.
+type RequestStats struct {
+	Method    FbsRequest.Method
+	HandlerID string
+	Duration  time.Duration
+	// Pending is how many other requests were still awaiting a response when
+	// this one completed.
+	Pending int
+	Err     error
+}
+
+// Option configures a Channel.
+type Option func(*Channel)
+
+// WithRequestObserver reports every completed request to observer. The observer
+// runs on the goroutine that issued the request, after its response has been
+// decoded.
+func WithRequestObserver(observer func(RequestStats)) Option {
+	return func(c *Channel) {
+		c.requestObserver = observer
+	}
+}
+
 type Channel struct {
 	mu           sync.RWMutex
 	subsMu       sync.RWMutex
@@ -57,15 +80,16 @@ type Channel struct {
 	ssid         int64
 	subs         map[string][]*Subscription
 	responsesCh  map[uint32]chan *FbsResponse.ResponseT
-	logger       *slog.Logger
-	workerLogger *slog.Logger
-	timeout      time.Duration
-	closed       bool
-	contextList  *listNode
+	logger          *slog.Logger
+	workerLogger    *slog.Logger
+	timeout         time.Duration
+	closed          bool
+	contextList     *listNode
+	requestObserver func(RequestStats)
 }
 
-func NewChannel(w io.WriteCloser, r io.ReadCloser, logger, workerLogger *slog.Logger) *Channel {
-	return &Channel{
+func NewChannel(w io.WriteCloser, r io.ReadCloser, logger, workerLogger *slog.Logger, options ...Option) *Channel {
+	c := &Channel{
 		w:          w,
 		r:          r,
 		reader:     bufio.NewReader(r),
@@ -82,6 +106,19 @@ func NewChannel(w io.WriteCloser, r io.ReadCloser, logger, workerLogger *slog.Lo
 		workerLogger: workerLogger,
 		contextList:  &listNode{},
 	}
+	for _, option := range options {
+		option(c)
+	}
+	return c
+}
+
+// PendingRequests returns how many requests are awaiting a response from the
+// worker subprocess.
+func (c *Channel) PendingRequests() int {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
+	return len(c.responsesCh)
 }
 
 func (c *Channel) Start() {
@@ -131,7 +168,7 @@ func (c *Channel) Notify(ctx context.Context, notification *FbsNotification.Noti
 	return err
 }
 
-func (c *Channel) Request(ctx context.Context, req *FbsRequest.RequestT) (any, error) {
+func (c *Channel) Request(ctx context.Context, req *FbsRequest.RequestT) (result any, err error) {
 	c.mu.Lock()
 
 	if c.closed {
@@ -153,6 +190,23 @@ func (c *Channel) Request(ctx context.Context, req *FbsRequest.RequestT) (any, e
 		req.Body = &FbsRequest.BodyT{
 			Type: FbsRequest.BodyNONE,
 		}
+	}
+
+	// Registered before the response channel cleanup below so that it runs after
+	// it, letting Pending count only the other requests still in flight.
+	if observer := c.requestObserver; observer != nil {
+		start := time.Now()
+		method, handlerID := req.Method, req.HandlerId
+
+		defer func() {
+			observer(RequestStats{
+				Method:    method,
+				HandlerID: handlerID,
+				Duration:  time.Since(start),
+				Pending:   c.PendingRequests(),
+				Err:       err,
+			})
+		}()
 	}
 
 	c.logger.DebugContext(ctx, "Request()", "requestId", req.Id, "method", req.Method, "handlerId", req.HandlerId)

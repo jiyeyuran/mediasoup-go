@@ -14,6 +14,9 @@ Close the remaining API gaps against the mediasoup Node.js binding and fix the
 - `Worker`: add `Died()`, `SubprocessClosed()`, `OnDied()` and `OnSubprocessClose()`.
   Previously a crashed worker could only be noticed by polling `Err()`, and a
   worker killed by `Close()` was indistinguishable from one that died on its own
+- add `WorkerSettings.OnChannelRequest` and `Worker.ChannelPendingRequests()`, so
+  the cost of talking to the worker subprocess can be exported as metrics. Request
+  latency, request errors and the pending request count were previously invisible
 - docs: add package documentation covering the worker binary requirement, the
   object graph, close cascades, the event model and context semantics, plus
   runnable godoc examples

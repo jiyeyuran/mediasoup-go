@@ -7,6 +7,7 @@ import (
 	"net"
 	"os"
 	"runtime"
+	"slices"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -244,6 +245,80 @@ func TestWorkerClose(t *testing.T) {
 
 		assert.True(t, router.Closed())
 	})
+}
+
+func TestWorkerChannelRequestObserver(t *testing.T) {
+	var (
+		mu    sync.Mutex
+		calls []ChannelRequestStats
+	)
+	observed := func() []ChannelRequestStats {
+		mu.Lock()
+		defer mu.Unlock()
+
+		return slices.Clone(calls)
+	}
+
+	worker := newTestWorker(func(s *WorkerSettings) {
+		s.OnChannelRequest = func(stats ChannelRequestStats) {
+			mu.Lock()
+			defer mu.Unlock()
+
+			calls = append(calls, stats)
+		}
+	})
+	defer worker.Close()
+
+	assert.Zero(t, worker.ChannelPendingRequests())
+
+	router, err := worker.CreateRouter(&RouterOptions{})
+	require.NoError(t, err)
+
+	createRouter := findRequestStats(observed(), "WORKER_CREATE_ROUTER")
+	require.NotNil(t, createRouter, "the create router request was not reported")
+	assert.NoError(t, createRouter.Err)
+	assert.Positive(t, createRouter.Duration)
+	assert.Equal(t, "worker", createRouter.HandlerID)
+	// Nothing else was in flight, and the request itself is already accounted for.
+	assert.Zero(t, createRouter.Pending)
+
+	transport, err := router.CreateDirectTransport(&DirectTransportOptions{})
+	require.NoError(t, err)
+
+	dump, err := transport.Dump()
+	require.NoError(t, err)
+
+	transportDump := findRequestStats(observed(), "TRANSPORT_DUMP")
+	require.NotNil(t, transportDump, "the transport dump request was not reported")
+	assert.Equal(t, dump.Id, transportDump.HandlerID, "requests are addressed to the object")
+
+	// A request the worker rejects must be reported with its error rather than
+	// dropped.
+	require.Error(t, transport.SetMaxIncomingBitrate(100))
+
+	rejected := findRequestStats(observed(), "TRANSPORT_SET_MAX_INCOMING_BITRATE")
+	assert.Nil(t, rejected, "a direct transport rejects this before it reaches the worker")
+
+	plainTransport, err := router.CreatePlainTransport(&PlainTransportOptions{
+		ListenInfo: TransportListenInfo{Protocol: TransportProtocolUDP, Ip: "127.0.0.1"},
+	})
+	require.NoError(t, err)
+	require.NoError(t, plainTransport.SetMinOutgoingBitrate(600000))
+	require.Error(t, plainTransport.SetMaxOutgoingBitrate(100), "max below min must be rejected")
+
+	rejected = findRequestStats(observed(), "TRANSPORT_SET_MAX_OUTGOING_BITRATE")
+	require.NotNil(t, rejected, "the rejected request was not reported")
+	assert.Error(t, rejected.Err)
+	assert.Positive(t, rejected.Duration)
+}
+
+func findRequestStats(calls []ChannelRequestStats, method string) *ChannelRequestStats {
+	for _, stats := range calls {
+		if stats.Method == method {
+			return &stats
+		}
+	}
+	return nil
 }
 
 func TestWorkerNoGoroutineLeaks(t *testing.T) {

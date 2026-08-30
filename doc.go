@@ -79,6 +79,19 @@ as the object it is attached to. It matters for listeners attached to a
 long-lived Worker or Router from a short-lived request, which would otherwise
 accumulate for the lifetime of the process.
 
+# Observability
+
+Everything this package does costs a round trip to the subprocess, and that cost
+is otherwise invisible. WorkerSettings.OnChannelRequest reports each completed
+request with its method, duration and error, which is enough for a latency
+histogram and an error counter. Worker.ChannelPendingRequests is the matching
+gauge: it climbing means the worker is falling behind, which turns into
+ErrChannelRequestTimeout a few seconds later.
+
+The loggers in WorkerSettings take a *slog.Logger, and every request is logged
+with the context it was issued under, so a Context variant carrying trace
+identifiers ties worker activity back to the request that caused it.
+
 # Contexts
 
 Every method that talks to the worker has a Context variant carrying a deadline

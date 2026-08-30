@@ -168,7 +168,20 @@ func NewWorker(workerBinaryPath string, options ...Option) (*Worker, error) {
 	pid := cmd.Process.Pid
 	logger = logger.With("pid", pid)
 	workerLogger = workerLogger.With("pid", pid)
-	channel := channel.NewChannel(producerWriter, consumerReader, logger, workerLogger)
+	var channelOptions []channel.Option
+	if observer := opts.OnChannelRequest; observer != nil {
+		channelOptions = append(channelOptions, channel.WithRequestObserver(func(stats channel.RequestStats) {
+			observer(ChannelRequestStats{
+				Method:    stats.Method.String(),
+				HandlerID: stats.HandlerID,
+				Duration:  stats.Duration,
+				Pending:   stats.Pending,
+				Err:       stats.Err,
+			})
+		}))
+	}
+
+	channel := channel.NewChannel(producerWriter, consumerReader, logger, workerLogger, channelOptions...)
 
 	// spawnDone indices the worker process is started
 	spawnDone := uint32(0)
@@ -307,6 +320,14 @@ func (w *Worker) Died() bool {
 	defer w.mu.RUnlock()
 
 	return w.died
+}
+
+// ChannelPendingRequests returns how many requests are currently awaiting a
+// response from the worker subprocess. Export it as a gauge: a value that keeps
+// climbing means the worker is falling behind or is wedged, which shows up as
+// request timeouts a few seconds later.
+func (w *Worker) ChannelPendingRequests() int {
+	return w.channel.PendingRequests()
 }
 
 // SubprocessClosed reports whether the worker process has fully exited. Close

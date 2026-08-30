@@ -220,6 +220,41 @@ func ExampleTransport_ProduceContext() {
 	log.Println("producing", producer.Id())
 }
 
+// Talking to the worker subprocess is the one cost this package adds, and it is
+// otherwise invisible. A histogram over request duration and a gauge over the
+// pending count cover it.
+func ExampleWorker_ChannelPendingRequests() {
+	worker, err := mediasoup.NewWorker(
+		"/path/to/mediasoup-worker",
+		func(s *mediasoup.WorkerSettings) {
+			s.OnChannelRequest = func(stats mediasoup.ChannelRequestStats) {
+				// Runs on the goroutine that issued the request, so keep it cheap.
+				observeRequestDuration(stats.Method, stats.Duration)
+
+				if stats.Err != nil {
+					countRequestError(stats.Method, stats.Err)
+				}
+			}
+		},
+	)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer worker.Close()
+
+	// Requests piling up is the earliest sign of a worker falling behind. It only
+	// surfaces as ErrChannelRequestTimeout seconds later.
+	go func() {
+		for range time.Tick(10 * time.Second) {
+			setPendingRequests(worker.ChannelPendingRequests())
+		}
+	}()
+}
+
+func observeRequestDuration(method string, d time.Duration) {}
+func countRequestError(method string, err error)            {}
+func setPendingRequests(n int)                              {}
+
 func clientDtlsParameters() *mediasoup.DtlsParameters { return nil }
 func clientRtpParameters() *mediasoup.RtpParameters   { return nil }
 func transportOfSomeOtherPeer() *mediasoup.Transport  { return nil }

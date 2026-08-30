@@ -2,6 +2,7 @@ package mediasoup
 
 import (
 	"log/slog"
+	"time"
 )
 
 type WorkerLogLevel string
@@ -71,6 +72,39 @@ type WorkerSettings struct {
 
 	// WorkerLogger sets the logger for worker process, default to Logger.
 	WorkerLogger *slog.Logger
+
+	// OnChannelRequest, if set, is called after every request to the worker
+	// subprocess completes, which is the only place the cost of talking to the
+	// worker is visible. Export the duration as a histogram keyed by method and
+	// the errors as a counter.
+	//
+	// It runs on the goroutine that issued the request and delays that request's
+	// caller, so it must not block.
+	OnChannelRequest func(ChannelRequestStats)
+}
+
+// ChannelRequestStats describes one completed request to the worker subprocess.
+type ChannelRequestStats struct {
+	// Method is the request method, such as "TRANSPORT_PRODUCE".
+	Method string
+
+	// HandlerID identifies the object the request was addressed to, or "worker"
+	// for worker level requests.
+	HandlerID string
+
+	// Duration is how long the request took, covering serialization, the round
+	// trip through the pipes, and decoding the response.
+	Duration time.Duration
+
+	// Pending is how many other requests were still awaiting a response when this
+	// one completed. A number that keeps climbing means the worker is not keeping
+	// up.
+	Pending int
+
+	// Err is why the request failed, or nil. A request that timed out reports
+	// ErrChannelRequestTimeout, which normally means the worker is wedged or gone
+	// rather than merely slow.
+	Err error
 }
 
 type WorkerUpdatableSettings struct {
