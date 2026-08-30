@@ -16,4 +16,7 @@ var (
 	ErrChannelClosed            = channel.ErrChannelClosed
 	ErrChannelRequestTimeout    = channel.ErrChannelRequestTimeout
 	ErrBodyTooLarge             = channel.ErrBodyTooLarge
+
+	// ErrNotFound reports that the referenced entity doesn't exist.
+	ErrNotFound = channel.ErrNotFound
 )

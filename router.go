@@ -3,6 +3,7 @@ package mediasoup
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"strings"
 	"sync"
@@ -15,7 +16,6 @@ import (
 	FbsPlainTransport "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/PlainTransport"
 	FbsRequest "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/Request"
 	FbsRouter "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/Router"
-	FbsSctpParameters "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/SctpParameters"
 	FbsSrtpParameters "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/SrtpParameters"
 	FbsTransport "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/Transport"
 	FbsWebRtcTransport "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/WebRtcTransport"
@@ -390,9 +390,7 @@ func (r *Router) CreateWebRtcTransportContext(ctx context.Context, options *WebR
 		IceConsentTimeout:               ref[uint8](30),
 		InitialAvailableOutgoingBitrate: 600000,
 		EnableSctp:                      options.EnableSctp,
-		NumSctpStreams:                  &NumSctpStreams{OS: 1024, MIS: 1024},
-		MaxSctpMessageSize:              262144,
-		SctpSendBufferSize:              262144,
+		SctpOptions:                     options.SctpOptions.withDefaults(),
 		AppData:                         orElse(options.AppData != nil, options.AppData, H{}),
 	}
 	if len(o.ListenInfos) == 0 && o.WebRtcServer == nil {
@@ -404,28 +402,10 @@ func (r *Router) CreateWebRtcTransportContext(ctx context.Context, options *WebR
 	if options.InitialAvailableOutgoingBitrate > 0 {
 		o.InitialAvailableOutgoingBitrate = options.InitialAvailableOutgoingBitrate
 	}
-	if options.NumSctpStreams != nil && options.NumSctpStreams.OS > 0 && options.NumSctpStreams.MIS > 0 {
-		o.NumSctpStreams = options.NumSctpStreams
-	}
-	if options.MaxSctpMessageSize > 0 {
-		o.MaxSctpMessageSize = options.MaxSctpMessageSize
-	}
-	if options.SctpSendBufferSize > 0 {
-		o.SctpSendBufferSize = options.SctpSendBufferSize
-	}
 
 	transportId := UUID(TransportIDPrefix)
-	baseTranportOptions := &FbsTransport.OptionsT{
-		InitialAvailableOutgoingBitrate: ref(o.InitialAvailableOutgoingBitrate),
-		EnableSctp:                      o.EnableSctp,
-		NumSctpStreams: &FbsSctpParameters.NumSctpStreamsT{
-			Os:  o.NumSctpStreams.OS,
-			Mis: o.NumSctpStreams.MIS,
-		},
-		MaxSctpMessageSize: o.MaxSctpMessageSize,
-		SctpSendBufferSize: o.SctpSendBufferSize,
-		IsDataChannel:      true,
-	}
+	baseTranportOptions := convertSctpOptions(o.EnableSctp, o.SctpOptions, true)
+	baseTranportOptions.InitialAvailableOutgoingBitrate = ref(o.InitialAvailableOutgoingBitrate)
 
 	var (
 		method FbsRequest.Method
@@ -513,20 +493,12 @@ func (r *Router) CreateWebRtcTransportContext(ctx context.Context, options *WebR
 					Role:         DtlsRole(strings.ToLower(result.DtlsParameters.Role.String())),
 					Fingerprints: collect(result.DtlsParameters.Fingerprints, parseDtlsFingerprint),
 				},
-				DtlsState: DtlsState(strings.ToLower(result.DtlsState.String())),
-				SctpParameters: ifElse(result.Base.SctpParameters != nil, func() *SctpParameters {
-					return &SctpParameters{
-						Port:               result.Base.SctpParameters.Port,
-						OS:                 result.Base.SctpParameters.Os,
-						MIS:                result.Base.SctpParameters.Mis,
-						MaxMessageSize:     result.Base.SctpParameters.MaxMessageSize,
-						SctpBufferedAmount: result.Base.SctpParameters.SctpBufferedAmount,
-						IsDataChannel:      result.Base.SctpParameters.IsDataChannel,
-					}
-				}),
+				DtlsState:      DtlsState(strings.ToLower(result.DtlsState.String())),
+				SctpParameters: parseSctpParameters(result.Base.SctpParameters),
 				SctpState: ifElse(result.Base.SctpState != nil, func() SctpState {
 					return SctpState(strings.ToLower(result.Base.SctpState.String()))
 				}),
+				SctpNegotiatedCapabilities: parseSctpNegotiatedCapabilities(result.Base.SctpNegotiatedCapabilities),
 			},
 		},
 	}
@@ -548,42 +520,22 @@ func (r *Router) CreatePlainTransportContext(ctx context.Context, options *Plain
 	r.logger.DebugContext(ctx, "CreatePlainTransport()")
 
 	o := &PlainTransportOptions{
-		ListenInfo:         options.ListenInfo,
-		RtcpListenInfo:     options.RtcpListenInfo,
-		RtcpMux:            ref(true),
-		Comedia:            options.Comedia,
-		EnableSctp:         options.EnableSctp,
-		NumSctpStreams:     &NumSctpStreams{OS: 1024, MIS: 1024},
-		MaxSctpMessageSize: 262144,
-		SctpSendBufferSize: 262144,
-		EnableSrtp:         options.EnableSrtp,
-		SrtpCryptoSuite:    AES_CM_128_HMAC_SHA1_80,
-		AppData:            orElse(options.AppData != nil, options.AppData, H{}),
+		ListenInfo:      options.ListenInfo,
+		RtcpListenInfo:  options.RtcpListenInfo,
+		RtcpMux:         ref(true),
+		Comedia:         options.Comedia,
+		EnableSctp:      options.EnableSctp,
+		SctpOptions:     options.SctpOptions.withDefaults(),
+		EnableSrtp:      options.EnableSrtp,
+		SrtpCryptoSuite: AES_CM_128_HMAC_SHA1_80,
+		AppData:         orElse(options.AppData != nil, options.AppData, H{}),
 	}
 	if options.RtcpMux != nil {
 		o.RtcpMux = options.RtcpMux
 	}
-	if options.NumSctpStreams != nil {
-		o.NumSctpStreams = options.NumSctpStreams
-	}
-	if options.MaxSctpMessageSize > 0 {
-		o.MaxSctpMessageSize = options.MaxSctpMessageSize
-	}
-	if options.SctpSendBufferSize > 0 {
-		o.SctpSendBufferSize = options.SctpSendBufferSize
-	}
 
 	transportId := UUID(TransportIDPrefix)
-	baseTranportOptions := &FbsTransport.OptionsT{
-		EnableSctp: o.EnableSctp,
-		NumSctpStreams: &FbsSctpParameters.NumSctpStreamsT{
-			Os:  o.NumSctpStreams.OS,
-			Mis: o.NumSctpStreams.MIS,
-		},
-		MaxSctpMessageSize: o.MaxSctpMessageSize,
-		SctpSendBufferSize: o.SctpSendBufferSize,
-		IsDataChannel:      false,
-	}
+	baseTranportOptions := convertSctpOptions(o.EnableSctp, o.SctpOptions, false)
 
 	msg, err := r.channel.Request(ctx, &FbsRequest.RequestT{
 		Method:    FbsRequest.MethodROUTER_CREATE_PLAINTRANSPORT,
@@ -618,22 +570,14 @@ func (r *Router) CreatePlainTransportContext(ctx context.Context, options *Plain
 		TransportType: TransportPlain,
 		TransportData: &TransportData{
 			PlainTransportData: &PlainTransportData{
-				Tuple:     *parseTransportTuple(result.Tuple),
-				RtcpTuple: parseTransportTuple(result.Tuple),
-				SctpParameters: ifElse(result.Base.SctpParameters != nil, func() *SctpParameters {
-					return &SctpParameters{
-						Port:               result.Base.SctpParameters.Port,
-						OS:                 result.Base.SctpParameters.Os,
-						MIS:                result.Base.SctpParameters.Mis,
-						MaxMessageSize:     result.Base.SctpParameters.MaxMessageSize,
-						SctpBufferedAmount: result.Base.SctpParameters.SctpBufferedAmount,
-						IsDataChannel:      result.Base.SctpParameters.IsDataChannel,
-					}
-				}),
+				Tuple:          *parseTransportTuple(result.Tuple),
+				RtcpTuple:      parseTransportTuple(result.Tuple),
+				SctpParameters: parseSctpParameters(result.Base.SctpParameters),
 				SctpState: ifElse(result.Base.SctpState != nil, func() SctpState {
 					return SctpState(strings.ToLower(result.Base.SctpState.String()))
 				}),
-				SrtpParameters: parseSrtpParameters(result.SrtpParameters),
+				SctpNegotiatedCapabilities: parseSctpNegotiatedCapabilities(result.Base.SctpNegotiatedCapabilities),
+				SrtpParameters:             parseSrtpParameters(result.SrtpParameters),
 			},
 		},
 		RtcpMux: result.RtcpMux,
@@ -651,36 +595,16 @@ func (r *Router) CreatePipeTransportContext(ctx context.Context, options *PipeTr
 	r.logger.DebugContext(ctx, "CreatePipeTransport()")
 
 	o := &PipeTransportOptions{
-		ListenInfo:         options.ListenInfo,
-		EnableSctp:         options.EnableSctp,
-		NumSctpStreams:     &NumSctpStreams{OS: 1024, MIS: 1024},
-		MaxSctpMessageSize: 268435456,
-		SctpSendBufferSize: 268435456,
-		EnableSrtp:         options.EnableSrtp,
-		EnableRtx:          options.EnableRtx,
-		AppData:            orElse(options.AppData != nil, options.AppData, H{}),
-	}
-	if options.NumSctpStreams != nil {
-		o.NumSctpStreams = options.NumSctpStreams
-	}
-	if options.MaxSctpMessageSize > 0 {
-		o.MaxSctpMessageSize = options.MaxSctpMessageSize
-	}
-	if options.SctpSendBufferSize > 0 {
-		o.SctpSendBufferSize = options.SctpSendBufferSize
+		ListenInfo:  options.ListenInfo,
+		EnableSctp:  options.EnableSctp,
+		SctpOptions: options.SctpOptions.withDefaults(),
+		EnableSrtp:  options.EnableSrtp,
+		EnableRtx:   options.EnableRtx,
+		AppData:     orElse(options.AppData != nil, options.AppData, H{}),
 	}
 
 	transportId := UUID(TransportIDPrefix)
-	baseTranportOptions := &FbsTransport.OptionsT{
-		EnableSctp: o.EnableSctp,
-		NumSctpStreams: &FbsSctpParameters.NumSctpStreamsT{
-			Os:  o.NumSctpStreams.OS,
-			Mis: o.NumSctpStreams.MIS,
-		},
-		MaxSctpMessageSize: o.MaxSctpMessageSize,
-		SctpSendBufferSize: o.SctpSendBufferSize,
-		IsDataChannel:      false,
-	}
+	baseTranportOptions := convertSctpOptions(o.EnableSctp, o.SctpOptions, false)
 
 	msg, err := r.channel.Request(ctx, &FbsRequest.RequestT{
 		Method:    FbsRequest.MethodROUTER_CREATE_PIPETRANSPORT,
@@ -707,21 +631,13 @@ func (r *Router) CreatePipeTransportContext(ctx context.Context, options *PipeTr
 		TransportType: TransportPipe,
 		TransportData: &TransportData{
 			PipeTransportData: &PipeTransportData{
-				Tuple: *parseTransportTuple(result.Tuple),
-				SctpParameters: ifElse(result.Base.SctpParameters != nil, func() *SctpParameters {
-					return &SctpParameters{
-						Port:               result.Base.SctpParameters.Port,
-						OS:                 result.Base.SctpParameters.Os,
-						MIS:                result.Base.SctpParameters.Mis,
-						MaxMessageSize:     result.Base.SctpParameters.MaxMessageSize,
-						SctpBufferedAmount: result.Base.SctpParameters.SctpBufferedAmount,
-						IsDataChannel:      result.Base.SctpParameters.IsDataChannel,
-					}
-				}),
+				Tuple:          *parseTransportTuple(result.Tuple),
+				SctpParameters: parseSctpParameters(result.Base.SctpParameters),
 				SctpState: ifElse(result.Base.SctpState != nil, func() SctpState {
 					return SctpState(strings.ToLower(result.Base.SctpState.String()))
 				}),
-				SrtpParameters: parseSrtpParameters(result.SrtpParameters),
+				SctpNegotiatedCapabilities: parseSctpNegotiatedCapabilities(result.Base.SctpNegotiatedCapabilities),
+				SrtpParameters:             parseSrtpParameters(result.SrtpParameters),
 			},
 		},
 		Rtx:     result.Rtx,
@@ -738,12 +654,16 @@ func (r *Router) CreateDirectTransportContext(ctx context.Context, options *Dire
 	r.logger.DebugContext(ctx, "CreateDirectTransport()")
 
 	o := &DirectTransportOptions{
-		MaxMessageSize: 262144,
-		AppData:        H{},
+		MaxSendMessageSize:    262144,
+		MaxReceiveMessageSize: 262144,
+		AppData:               H{},
 	}
 	if options != nil {
-		if options.MaxMessageSize > 0 {
-			o.MaxMessageSize = options.MaxMessageSize
+		if options.MaxSendMessageSize > 0 {
+			o.MaxSendMessageSize = options.MaxSendMessageSize
+		}
+		if options.MaxReceiveMessageSize > 0 {
+			o.MaxReceiveMessageSize = options.MaxReceiveMessageSize
 		}
 		if options.AppData != nil {
 			o.AppData = options.AppData
@@ -752,8 +672,9 @@ func (r *Router) CreateDirectTransportContext(ctx context.Context, options *Dire
 
 	transportId := UUID(TransportIDPrefix)
 	baseTranportOptions := &FbsTransport.OptionsT{
-		Direct:         true,
-		MaxMessageSize: &o.MaxMessageSize,
+		Direct:                true,
+		MaxSendMessageSize:    o.MaxSendMessageSize,
+		MaxReceiveMessageSize: o.MaxReceiveMessageSize,
 	}
 
 	_, err := r.channel.Request(ctx, &FbsRequest.RequestT{
@@ -800,7 +721,7 @@ func (r *Router) PipeToRouterContext(ctx context.Context, options *PipeToRouterO
 		Router:         options.Router,
 		KeepId:         ref(true),
 		EnableSctp:     ref(true),
-		NumSctpStreams: &NumSctpStreams{OS: 1024, MIS: 1024},
+		SctpOptions:    options.SctpOptions.withDefaults(),
 		EnableRtx:      options.EnableRtx,
 		EnableSrtp:     options.EnableSrtp,
 	}
@@ -809,9 +730,6 @@ func (r *Router) PipeToRouterContext(ctx context.Context, options *PipeToRouterO
 	}
 	if options.EnableSctp != nil {
 		o.EnableSctp = options.EnableSctp
-	}
-	if options.NumSctpStreams != nil {
-		o.NumSctpStreams = options.NumSctpStreams
 	}
 	if options.KeepId != nil {
 		o.KeepId = options.KeepId
@@ -835,12 +753,12 @@ func (r *Router) PipeToRouterContext(ctx context.Context, options *PipeToRouterO
 
 	if len(o.ProducerId) > 0 {
 		if producer = r.GetProducerById(o.ProducerId); producer == nil {
-			return nil, errors.New("Producer not found")
+			return nil, fmt.Errorf("%w: Producer not found", ErrNotFound)
 		}
 	}
 	if len(o.DataProducerId) > 0 {
 		if dataProducer = r.GetDataProducerById(o.DataProducerId); dataProducer == nil {
-			return nil, errors.New("DataProducer not found")
+			return nil, fmt.Errorf("%w: DataProducer not found", ErrNotFound)
 		}
 	}
 
@@ -872,20 +790,22 @@ func (r *Router) PipeToRouterContext(ctx context.Context, options *PipeToRouterO
 			}()
 
 			options := &PipeTransportOptions{
-				ListenInfo:     o.ListenInfo,
-				EnableSctp:     *o.EnableSctp,
-				NumSctpStreams: o.NumSctpStreams,
-				EnableRtx:      o.EnableRtx,
-				EnableSrtp:     o.EnableSrtp,
+				ListenInfo:  o.ListenInfo,
+				EnableSctp:  *o.EnableSctp,
+				SctpOptions: o.SctpOptions,
+				EnableRtx:   o.EnableRtx,
+				EnableSrtp:  o.EnableSrtp,
 			}
 			errgroup := new(errgroup.Group)
 
 			errgroup.Go(func() error {
-				localPipeTransport, err = r.CreatePipeTransportContext(ctx, options)
+				transport, err := r.CreatePipeTransportContext(ctx, options)
+				localPipeTransport = transport
 				return err
 			})
 			errgroup.Go(func() error {
-				remotePipeTransport, err = o.Router.CreatePipeTransportContext(ctx, options)
+				transport, err := o.Router.CreatePipeTransportContext(ctx, options)
+				remotePipeTransport = transport
 				return err
 			})
 			if err = errgroup.Wait(); err != nil {

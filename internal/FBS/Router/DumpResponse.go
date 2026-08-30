@@ -23,7 +23,10 @@ func (t *DumpResponseT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT 
 	if t == nil {
 		return 0
 	}
-	idOffset := builder.CreateString(t.Id)
+	idOffset := flatbuffers.UOffsetT(0)
+	if t.Id != "" {
+		idOffset = builder.CreateString(t.Id)
+	}
 	transportIdsOffset := flatbuffers.UOffsetT(0)
 	if t.TransportIds != nil {
 		transportIdsLength := len(t.TransportIds)

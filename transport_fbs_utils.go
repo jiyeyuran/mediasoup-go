@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	FbsRtpParameters "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/RtpParameters"
+	FbsSctpAssociation "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/SctpAssociation"
 	FbsSctpParameters "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/SctpParameters"
 	FbsSrtpParameters "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/SrtpParameters"
 	FbsTransport "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/Transport"
@@ -29,13 +30,42 @@ func parseSctpParameters(sctpParameters *FbsSctpParameters.SctpParametersT) *Sct
 		return nil
 	}
 	return &SctpParameters{
-		Port:               sctpParameters.Port,
-		OS:                 sctpParameters.Os,
-		MIS:                sctpParameters.Mis,
-		MaxMessageSize:     sctpParameters.MaxMessageSize,
-		SendBufferSize:     sctpParameters.SendBufferSize,
-		SctpBufferedAmount: sctpParameters.SctpBufferedAmount,
-		IsDataChannel:      sctpParameters.IsDataChannel,
+		Port:                        sctpParameters.Port,
+		MaxSendMessageSize:          sctpParameters.MaxSendMessageSize,
+		MaxReceiveMessageSize:       sctpParameters.MaxReceiveMessageSize,
+		SendBufferSize:              sctpParameters.SendBufferSize,
+		PerStreamSendQueueLimit:     sctpParameters.PerStreamSendQueueLimit,
+		MaxReceiverWindowBufferSize: sctpParameters.MaxReceiverWindowBufferSize,
+		IsDataChannel:               sctpParameters.IsDataChannel,
+	}
+}
+
+// parseSctpNegotiatedCapabilities returns nil until the SCTP association has been negotiated,
+// since the worker reports zeroed capabilities while the association is not connected.
+func parseSctpNegotiatedCapabilities(capabilities *FbsSctpAssociation.SctpNegotiatedCapabilitiesT) *SctpNegotiatedCapabilities {
+	if capabilities == nil ||
+		(capabilities.NegotiatedMaxOutboundStreams == 0 && capabilities.NegotiatedMaxInboundStreams == 0) {
+		return nil
+	}
+	return &SctpNegotiatedCapabilities{
+		NegotiatedMaxOutboundStreams: capabilities.NegotiatedMaxOutboundStreams,
+		NegotiatedMaxInboundStreams:  capabilities.NegotiatedMaxInboundStreams,
+	}
+}
+
+// convertSctpOptions builds the SCTP related part of the base transport options.
+func convertSctpOptions(enableSctp bool, options SctpOptions, isDataChannel bool) *FbsTransport.OptionsT {
+	o := options.withDefaults()
+
+	return &FbsTransport.OptionsT{
+		EnableSctp:                                  enableSctp,
+		MaxSendMessageSize:                          o.MaxSendMessageSize,
+		MaxReceiveMessageSize:                       o.MaxReceiveMessageSize,
+		SctpSendBufferSize:                          o.SctpSendBufferSize,
+		SctpPerStreamSendQueueLimit:                 o.SctpPerStreamSendQueueLimit,
+		SctpMaxReceiverWindowBufferSize:             o.SctpMaxReceiverWindowBufferSize,
+		SctpDefaultStreamBufferedAmountLowThreshold: o.SctpDefaultStreamBufferedAmountLowThreshold,
+		IsDataChannel:                               isDataChannel,
 	}
 }
 

@@ -15,7 +15,10 @@ func (t *Uint32StringT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT 
 	if t == nil {
 		return 0
 	}
-	valueOffset := builder.CreateString(t.Value)
+	valueOffset := flatbuffers.UOffsetT(0)
+	if t.Value != "" {
+		valueOffset = builder.CreateString(t.Value)
+	}
 	Uint32StringStart(builder)
 	Uint32StringAddKey(builder, t.Key)
 	Uint32StringAddValue(builder, valueOffset)

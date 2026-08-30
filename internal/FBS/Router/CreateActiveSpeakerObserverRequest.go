@@ -17,7 +17,10 @@ func (t *CreateActiveSpeakerObserverRequestT) Pack(builder *flatbuffers.Builder)
 	if t == nil {
 		return 0
 	}
-	rtpObserverIdOffset := builder.CreateString(t.RtpObserverId)
+	rtpObserverIdOffset := flatbuffers.UOffsetT(0)
+	if t.RtpObserverId != "" {
+		rtpObserverIdOffset = builder.CreateString(t.RtpObserverId)
+	}
 	optionsOffset := t.Options.Pack(builder)
 	CreateActiveSpeakerObserverRequestStart(builder)
 	CreateActiveSpeakerObserverRequestAddRtpObserverId(builder, rtpObserverIdOffset)

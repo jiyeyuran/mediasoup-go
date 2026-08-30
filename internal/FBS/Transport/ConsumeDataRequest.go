@@ -5,14 +5,14 @@ package Transport
 import (
 	flatbuffers "github.com/google/flatbuffers/go"
 
-	FBS__DataProducer "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/DataProducer"
+	FBS__DataConsumer "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/DataConsumer"
 	FBS__SctpParameters "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/SctpParameters"
 )
 
 type ConsumeDataRequestT struct {
 	DataConsumerId string `json:"data_consumer_id"`
 	DataProducerId string `json:"data_producer_id"`
-	Type FBS__DataProducer.Type `json:"type"`
+	Type FBS__DataConsumer.Type `json:"type"`
 	SctpStreamParameters *FBS__SctpParameters.SctpStreamParametersT `json:"sctp_stream_parameters"`
 	Label string `json:"label"`
 	Protocol string `json:"protocol"`
@@ -24,8 +24,14 @@ func (t *ConsumeDataRequestT) Pack(builder *flatbuffers.Builder) flatbuffers.UOf
 	if t == nil {
 		return 0
 	}
-	dataConsumerIdOffset := builder.CreateString(t.DataConsumerId)
-	dataProducerIdOffset := builder.CreateString(t.DataProducerId)
+	dataConsumerIdOffset := flatbuffers.UOffsetT(0)
+	if t.DataConsumerId != "" {
+		dataConsumerIdOffset = builder.CreateString(t.DataConsumerId)
+	}
+	dataProducerIdOffset := flatbuffers.UOffsetT(0)
+	if t.DataProducerId != "" {
+		dataProducerIdOffset = builder.CreateString(t.DataProducerId)
+	}
 	sctpStreamParametersOffset := t.SctpStreamParameters.Pack(builder)
 	labelOffset := flatbuffers.UOffsetT(0)
 	if t.Label != "" {
@@ -131,15 +137,15 @@ func (rcv *ConsumeDataRequest) DataProducerId() []byte {
 	return nil
 }
 
-func (rcv *ConsumeDataRequest) Type() FBS__DataProducer.Type {
+func (rcv *ConsumeDataRequest) Type() FBS__DataConsumer.Type {
 	o := flatbuffers.UOffsetT(rcv._tab.Offset(8))
 	if o != 0 {
-		return FBS__DataProducer.Type(rcv._tab.GetByte(o + rcv._tab.Pos))
+		return FBS__DataConsumer.Type(rcv._tab.GetByte(o + rcv._tab.Pos))
 	}
 	return 0
 }
 
-func (rcv *ConsumeDataRequest) MutateType(n FBS__DataProducer.Type) bool {
+func (rcv *ConsumeDataRequest) MutateType(n FBS__DataConsumer.Type) bool {
 	return rcv._tab.MutateByteSlot(8, byte(n))
 }
 
@@ -219,7 +225,7 @@ func ConsumeDataRequestAddDataConsumerId(builder *flatbuffers.Builder, dataConsu
 func ConsumeDataRequestAddDataProducerId(builder *flatbuffers.Builder, dataProducerId flatbuffers.UOffsetT) {
 	builder.PrependUOffsetTSlot(1, flatbuffers.UOffsetT(dataProducerId), 0)
 }
-func ConsumeDataRequestAddType(builder *flatbuffers.Builder, type_ FBS__DataProducer.Type) {
+func ConsumeDataRequestAddType(builder *flatbuffers.Builder, type_ FBS__DataConsumer.Type) {
 	builder.PrependByteSlot(2, byte(type_), 0)
 }
 func ConsumeDataRequestAddSctpStreamParameters(builder *flatbuffers.Builder, sctpStreamParameters flatbuffers.UOffsetT) {

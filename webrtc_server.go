@@ -143,11 +143,6 @@ func (s *WebRtcServer) DumpContext(ctx context.Context) (*WebRtcServerDump, erro
 					WebRtcTransportId:        v.WebRtcTransportId,
 				}
 			}),
-		TupleHashes: collect(resp.TupleHashes, func(v *FbsWebRtcServer.TupleHashT) TupleHash {
-			return TupleHash{TupleHash: v.TupleHash,
-				WebRtcTransportId: v.WebRtcTransportId,
-			}
-		}),
 	}, nil
 }
 

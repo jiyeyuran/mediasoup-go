@@ -19,7 +19,6 @@ type WebRtcServerDump struct {
 	TcpServers                []IpPort              `json:"tcpServers,omitempty"`
 	WebRtcTransportIds        []string              `json:"webRtcTransportIds,omitempty"`
 	LocalIceUsernameFragments []IceUserNameFragment `json:"localIceUsernameFragments,omitempty"`
-	TupleHashes               []TupleHash           `json:"tupleHashes,omitempty"`
 }
 
 type IpPort struct {
@@ -30,9 +29,4 @@ type IpPort struct {
 type IceUserNameFragment struct {
 	LocalIceUsernameFragment string `json:"localIceUsernameFragment,omitempty"`
 	WebRtcTransportId        string `json:"webRtcTransportId,omitempty"`
-}
-
-type TupleHash struct {
-	TupleHash         uint64 `json:"tupleHash,omitempty"`
-	WebRtcTransportId string `json:"webRtcTransportId,omitempty"`
 }

@@ -66,6 +66,7 @@ type DataConsumerDump struct {
 	SctpStreamParameters       *SctpStreamParameters `json:"sctpStreamParameters,omitempty"`
 	Label                      string                `json:"label,omitempty"`
 	Protocol                   string                `json:"protocol,omitempty"`
+	BufferedAmount             uint32                `json:"bufferedAmount,omitempty"`
 	BufferedAmountLowThreshold uint32                `json:"bufferedAmountLowThreshold,omitempty"`
 }
 

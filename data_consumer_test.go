@@ -3,6 +3,7 @@ package mediasoup
 import (
 	"context"
 	"slices"
+	"sync"
 	"testing"
 	"time"
 
@@ -210,4 +211,50 @@ func TestDataConsumerClose(t *testing.T) {
 		router.Close()
 		assert.True(t, dataConsumer.Closed())
 	})
+}
+
+func TestDataProducerSendWithIgnoredSubchannel(t *testing.T) {
+	transport := createDirectTransport(nil)
+	dataProducer, err := transport.ProduceData(&DataProducerOptions{Label: "foo", Protocol: "bar"})
+	assert.NoError(t, err)
+
+	dataConsumer1, err := transport.ConsumeData(&DataConsumerOptions{
+		DataProducerId: dataProducer.Id(),
+		Subchannels:    []uint16{111},
+	})
+	assert.NoError(t, err)
+	dataConsumer2, err := transport.ConsumeData(&DataConsumerOptions{
+		DataProducerId: dataProducer.Id(),
+		Subchannels:    []uint16{222},
+	})
+	assert.NoError(t, err)
+
+	var mu sync.Mutex
+	var messages1, messages2 []string
+
+	collectMessages := func(messages *[]string) func([]byte, SctpPayloadType) {
+		return func(payload []byte, _ SctpPayloadType) {
+			mu.Lock()
+			defer mu.Unlock()
+			*messages = append(*messages, string(payload))
+		}
+	}
+	dataConsumer1.OnMessage(collectMessages(&messages1))
+	dataConsumer2.OnMessage(collectMessages(&messages2))
+
+	// dataConsumer1 is subscribed to the ignored subchannel, so it must not get this message.
+	assert.NoError(t, dataProducer.SendText("hello", DataProducerSendWithIgnoredSubchannel(111)))
+	// Sent without subchannels, so both DataConsumers must get it.
+	assert.NoError(t, dataProducer.SendText("bye"))
+
+	assert.Eventually(t, func() bool {
+		mu.Lock()
+		defer mu.Unlock()
+		return len(messages1) > 0 && len(messages2) > 1
+	}, time.Second, time.Millisecond)
+
+	mu.Lock()
+	defer mu.Unlock()
+	assert.Equal(t, []string{"bye"}, messages1)
+	assert.Equal(t, []string{"hello", "bye"}, messages2)
 }

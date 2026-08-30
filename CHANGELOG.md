@@ -1,5 +1,33 @@
 # Changelog
 
+### 2.5.0
+
+Sync with mediasoup v3.20.0~v3.26.0. Requires a mediasoup-worker v3.20.0 or newer.
+
+- **Breaking change:** `WorkerSettings`: remove `UseBuiltInSctpStack` and `DisableLiburing`, the worker
+  always uses the built-in SCTP stack and `io_uring` support was dropped
+- **Breaking change:** `WorkerDump`: remove `Liburing`
+- **Breaking change:** remove `SctpCapabilities` and `NumSctpStreams`, no longer needed
+- **Breaking change:** `SctpParameters` changes from `{ Port, OS, MIS, MaxMessageSize }` to
+  `{ Port, MaxSendMessageSize, MaxReceiveMessageSize, SendBufferSize, PerStreamSendQueueLimit,
+  MaxReceiverWindowBufferSize, IsDataChannel }`
+- **Breaking change:** `WebRtcTransportOptions`, `PlainTransportOptions` and `PipeTransportOptions`:
+  remove `NumSctpStreams`, `MaxSctpMessageSize` and `SctpSendBufferSize` in favour of the embedded
+  `SctpOptions`
+- **Breaking change:** `DirectTransportOptions`: remove `MaxMessageSize`, add `MaxSendMessageSize` and
+  `MaxReceiveMessageSize`
+- **Breaking change:** `DataConsumer.Send()` and `DataConsumer.SendText()` return the current buffered
+  amount
+- **Breaking change:** `WebRtcServerDump`: remove `TupleHashes`
+- `Transport`: add `SctpNegotiatedCapabilities()` getter and `OnSctpNegotiatedCapabilities()` listener
+- `DataProducer.Send()`: add `DataProducerSendWithIgnoredSubchannel()` option
+- `SctpOptions`: add `SctpPerStreamSendQueueLimit`, `SctpMaxReceiverWindowBufferSize` and
+  `SctpDefaultStreamBufferedAmountLowThreshold`
+- Add `ErrNotFound`, returned when the entity referenced by a request doesn't exist in the worker
+- fix(ortc): don't reuse the given `RtpCapabilities` storage when filtering RTCP feedback, which
+  corrupted them when consuming from several goroutines
+- fix(router): data race on the error of the two pipe transports created by `PipeToRouter()`
+
 ### 2.4.1
 
 - Worker: Add `UseBuiltInSctpStack` setting (defaults to `false`) to enable mediasoup built-in SCTP stack

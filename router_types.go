@@ -31,8 +31,8 @@ type PipeToRouterOptions struct {
 	// EnableSctp creates a SCTP association. Default true
 	EnableSctp *bool `json:"enableSctp,omitempty"`
 
-	// NumSctpStreams configures SCTP streams
-	NumSctpStreams *NumSctpStreams `json:"numSctpStreams,omitempty"`
+	// SctpOptions configures the SCTP association of the pipe transports.
+	SctpOptions
 
 	// EnableRtx enables RTX and NACK for RTP retransmission
 	EnableRtx bool `json:"enableRtx,omitempty"`

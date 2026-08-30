@@ -13,3 +13,6 @@
 
 vendor/
 .vscode/
+
+# Prebuilt mediasoup-worker binaries downloaded for tests
+.mediasoup/

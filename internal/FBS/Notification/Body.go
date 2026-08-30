@@ -24,32 +24,34 @@ const (
 	BodyNONE                                               Body = 0
 	BodyTransport_SendRtcpNotification                     Body = 1
 	BodyTransport_SctpStateChangeNotification              Body = 2
-	BodyProducer_SendNotification                          Body = 3
-	BodyDataProducer_SendNotification                      Body = 4
-	BodyTransport_TraceNotification                        Body = 5
-	BodyWebRtcTransport_IceSelectedTupleChangeNotification Body = 6
-	BodyWebRtcTransport_IceStateChangeNotification         Body = 7
-	BodyWebRtcTransport_DtlsStateChangeNotification        Body = 8
-	BodyPlainTransport_TupleNotification                   Body = 9
-	BodyPlainTransport_RtcpTupleNotification               Body = 10
-	BodyDirectTransport_RtcpNotification                   Body = 11
-	BodyProducer_ScoreNotification                         Body = 12
-	BodyProducer_TraceNotification                         Body = 13
-	BodyProducer_VideoOrientationChangeNotification        Body = 14
-	BodyConsumer_LayersChangeNotification                  Body = 15
-	BodyConsumer_RtpNotification                           Body = 16
-	BodyConsumer_ScoreNotification                         Body = 17
-	BodyConsumer_TraceNotification                         Body = 18
-	BodyDataConsumer_MessageNotification                   Body = 19
-	BodyDataConsumer_BufferedAmountLowNotification         Body = 20
-	BodyActiveSpeakerObserver_DominantSpeakerNotification  Body = 21
-	BodyAudioLevelObserver_VolumesNotification             Body = 22
+	BodyTransport_SctpNegotiatedCapabilitiesNotification   Body = 3
+	BodyProducer_SendNotification                          Body = 4
+	BodyDataProducer_SendNotification                      Body = 5
+	BodyTransport_TraceNotification                        Body = 6
+	BodyWebRtcTransport_IceSelectedTupleChangeNotification Body = 7
+	BodyWebRtcTransport_IceStateChangeNotification         Body = 8
+	BodyWebRtcTransport_DtlsStateChangeNotification        Body = 9
+	BodyPlainTransport_TupleNotification                   Body = 10
+	BodyPlainTransport_RtcpTupleNotification               Body = 11
+	BodyDirectTransport_RtcpNotification                   Body = 12
+	BodyProducer_ScoreNotification                         Body = 13
+	BodyProducer_TraceNotification                         Body = 14
+	BodyProducer_VideoOrientationChangeNotification        Body = 15
+	BodyConsumer_LayersChangeNotification                  Body = 16
+	BodyConsumer_RtpNotification                           Body = 17
+	BodyConsumer_ScoreNotification                         Body = 18
+	BodyConsumer_TraceNotification                         Body = 19
+	BodyDataConsumer_MessageNotification                   Body = 20
+	BodyDataConsumer_BufferedAmountLowNotification         Body = 21
+	BodyActiveSpeakerObserver_DominantSpeakerNotification  Body = 22
+	BodyAudioLevelObserver_VolumesNotification             Body = 23
 )
 
 var EnumNamesBody = map[Body]string{
 	BodyNONE:                                               "NONE",
 	BodyTransport_SendRtcpNotification:                     "Transport_SendRtcpNotification",
 	BodyTransport_SctpStateChangeNotification:              "Transport_SctpStateChangeNotification",
+	BodyTransport_SctpNegotiatedCapabilitiesNotification:   "Transport_SctpNegotiatedCapabilitiesNotification",
 	BodyProducer_SendNotification:                          "Producer_SendNotification",
 	BodyDataProducer_SendNotification:                      "DataProducer_SendNotification",
 	BodyTransport_TraceNotification:                        "Transport_TraceNotification",
@@ -76,6 +78,7 @@ var EnumValuesBody = map[string]Body{
 	"NONE":                                               BodyNONE,
 	"Transport_SendRtcpNotification":                     BodyTransport_SendRtcpNotification,
 	"Transport_SctpStateChangeNotification":              BodyTransport_SctpStateChangeNotification,
+	"Transport_SctpNegotiatedCapabilitiesNotification":   BodyTransport_SctpNegotiatedCapabilitiesNotification,
 	"Producer_SendNotification":                          BodyProducer_SendNotification,
 	"DataProducer_SendNotification":                      BodyDataProducer_SendNotification,
 	"Transport_TraceNotification":                        BodyTransport_TraceNotification,
@@ -119,6 +122,8 @@ func (t *BodyT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 		return t.Value.(*FBS__Transport.SendRtcpNotificationT).Pack(builder)
 	case BodyTransport_SctpStateChangeNotification:
 		return t.Value.(*FBS__Transport.SctpStateChangeNotificationT).Pack(builder)
+	case BodyTransport_SctpNegotiatedCapabilitiesNotification:
+		return t.Value.(*FBS__Transport.SctpNegotiatedCapabilitiesNotificationT).Pack(builder)
 	case BodyProducer_SendNotification:
 		return t.Value.(*FBS__Producer.SendNotificationT).Pack(builder)
 	case BodyDataProducer_SendNotification:
@@ -173,6 +178,10 @@ func (rcv Body) UnPack(table flatbuffers.Table) *BodyT {
 		var x FBS__Transport.SctpStateChangeNotification
 		x.Init(table.Bytes, table.Pos)
 		return &BodyT{Type: BodyTransport_SctpStateChangeNotification, Value: x.UnPack()}
+	case BodyTransport_SctpNegotiatedCapabilitiesNotification:
+		var x FBS__Transport.SctpNegotiatedCapabilitiesNotification
+		x.Init(table.Bytes, table.Pos)
+		return &BodyT{Type: BodyTransport_SctpNegotiatedCapabilitiesNotification, Value: x.UnPack()}
 	case BodyProducer_SendNotification:
 		var x FBS__Producer.SendNotification
 		x.Init(table.Bytes, table.Pos)

@@ -9,6 +9,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 )
 
 func createWebRtcTransport(router *Router, options ...func(o *WebRtcTransportOptions)) *Transport {
@@ -846,4 +847,62 @@ func TestTransportConsumeData(t *testing.T) {
 		c := router.GetDataConsumerById(dataConsumer.Id())
 		assert.Equal(t, dataConsumer, c)
 	}
+}
+
+func TestTransportSctpParameters(t *testing.T) {
+	router := createRouter(newTestWorker())
+
+	plainTransport := createPlainTransport(router, func(o *PlainTransportOptions) {
+		o.EnableSctp = true
+	})
+	sctpParameters := plainTransport.Data().PlainTransportData.SctpParameters
+	require.NotNil(t, sctpParameters)
+	assert.EqualValues(t, 262144, sctpParameters.MaxSendMessageSize)
+	assert.EqualValues(t, 262144, sctpParameters.MaxReceiveMessageSize)
+	assert.EqualValues(t, 2000000, sctpParameters.SendBufferSize)
+	assert.EqualValues(t, 2000000, sctpParameters.PerStreamSendQueueLimit)
+	assert.EqualValues(t, 5242880, sctpParameters.MaxReceiverWindowBufferSize)
+	assert.False(t, sctpParameters.IsDataChannel)
+	assert.Nil(t, plainTransport.SctpNegotiatedCapabilities())
+
+	dump, err := plainTransport.Dump()
+	assert.NoError(t, err)
+	assert.EqualValues(t, 262144, dump.MaxSendMessageSize)
+	assert.EqualValues(t, 262144, dump.MaxReceiveMessageSize)
+	assert.Equal(t, sctpParameters, dump.SctpParameters)
+	assert.Nil(t, dump.SctpNegotiatedCapabilities)
+
+	webRtcTransport := createWebRtcTransport(router, func(o *WebRtcTransportOptions) {
+		o.EnableSctp = true
+		o.SctpOptions = SctpOptions{
+			MaxSendMessageSize:              1024,
+			MaxReceiveMessageSize:           2048,
+			SctpSendBufferSize:              65536,
+			SctpPerStreamSendQueueLimit:     32768,
+			SctpMaxReceiverWindowBufferSize: 131072,
+		}
+	})
+	sctpParameters = webRtcTransport.Data().WebRtcTransportData.SctpParameters
+	require.NotNil(t, sctpParameters)
+	assert.EqualValues(t, 1024, sctpParameters.MaxSendMessageSize)
+	assert.EqualValues(t, 2048, sctpParameters.MaxReceiveMessageSize)
+	assert.EqualValues(t, 65536, sctpParameters.SendBufferSize)
+	assert.EqualValues(t, 32768, sctpParameters.PerStreamSendQueueLimit)
+	assert.EqualValues(t, 131072, sctpParameters.MaxReceiverWindowBufferSize)
+	assert.True(t, sctpParameters.IsDataChannel)
+}
+
+func TestDirectTransportMessageSize(t *testing.T) {
+	router := createRouter(newTestWorker())
+	transport, err := router.CreateDirectTransport(&DirectTransportOptions{
+		MaxSendMessageSize:    1024,
+		MaxReceiveMessageSize: 2048,
+	})
+	assert.NoError(t, err)
+
+	dump, err := transport.Dump()
+	assert.NoError(t, err)
+	assert.True(t, dump.Direct)
+	assert.EqualValues(t, 1024, dump.MaxSendMessageSize)
+	assert.EqualValues(t, 2048, dump.MaxReceiveMessageSize)
 }

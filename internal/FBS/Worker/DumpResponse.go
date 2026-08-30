@@ -4,8 +4,6 @@ package Worker
 
 import (
 	flatbuffers "github.com/google/flatbuffers/go"
-
-	FBS__LibUring "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/LibUring"
 )
 
 type DumpResponseT struct {
@@ -13,7 +11,6 @@ type DumpResponseT struct {
 	WebRtcServerIds []string `json:"web_rtc_server_ids"`
 	RouterIds []string `json:"router_ids"`
 	ChannelMessageHandlers *ChannelMessageHandlersT `json:"channel_message_handlers"`
-	Liburing *FBS__LibUring.DumpT `json:"liburing"`
 }
 
 func (t *DumpResponseT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
@@ -47,13 +44,11 @@ func (t *DumpResponseT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT 
 		routerIdsOffset = builder.EndVector(routerIdsLength)
 	}
 	channelMessageHandlersOffset := t.ChannelMessageHandlers.Pack(builder)
-	liburingOffset := t.Liburing.Pack(builder)
 	DumpResponseStart(builder)
 	DumpResponseAddPid(builder, t.Pid)
 	DumpResponseAddWebRtcServerIds(builder, webRtcServerIdsOffset)
 	DumpResponseAddRouterIds(builder, routerIdsOffset)
 	DumpResponseAddChannelMessageHandlers(builder, channelMessageHandlersOffset)
-	DumpResponseAddLiburing(builder, liburingOffset)
 	return DumpResponseEnd(builder)
 }
 
@@ -70,7 +65,6 @@ func (rcv *DumpResponse) UnPackTo(t *DumpResponseT) {
 		t.RouterIds[j] = string(rcv.RouterIds(j))
 	}
 	t.ChannelMessageHandlers = rcv.ChannelMessageHandlers(nil).UnPack()
-	t.Liburing = rcv.Liburing(nil).UnPack()
 }
 
 func (rcv *DumpResponse) UnPack() *DumpResponseT {
@@ -176,21 +170,8 @@ func (rcv *DumpResponse) ChannelMessageHandlers(obj *ChannelMessageHandlers) *Ch
 	return nil
 }
 
-func (rcv *DumpResponse) Liburing(obj *FBS__LibUring.Dump) *FBS__LibUring.Dump {
-	o := flatbuffers.UOffsetT(rcv._tab.Offset(12))
-	if o != 0 {
-		x := rcv._tab.Indirect(o + rcv._tab.Pos)
-		if obj == nil {
-			obj = new(FBS__LibUring.Dump)
-		}
-		obj.Init(rcv._tab.Bytes, x)
-		return obj
-	}
-	return nil
-}
-
 func DumpResponseStart(builder *flatbuffers.Builder) {
-	builder.StartObject(5)
+	builder.StartObject(4)
 }
 func DumpResponseAddPid(builder *flatbuffers.Builder, pid uint32) {
 	builder.PrependUint32Slot(0, pid, 0)
@@ -209,9 +190,6 @@ func DumpResponseStartRouterIdsVector(builder *flatbuffers.Builder, numElems int
 }
 func DumpResponseAddChannelMessageHandlers(builder *flatbuffers.Builder, channelMessageHandlers flatbuffers.UOffsetT) {
 	builder.PrependUOffsetTSlot(3, flatbuffers.UOffsetT(channelMessageHandlers), 0)
-}
-func DumpResponseAddLiburing(builder *flatbuffers.Builder, liburing flatbuffers.UOffsetT) {
-	builder.PrependUOffsetTSlot(4, flatbuffers.UOffsetT(liburing), 0)
 }
 func DumpResponseEnd(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	return builder.EndObject()

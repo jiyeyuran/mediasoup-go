@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/binary"
-	"errors"
 	"io"
 	"log/slog"
 	"strconv"
@@ -210,7 +209,7 @@ func (c *Channel) Request(ctx context.Context, req *FbsRequest.RequestT) (any, e
 			return m.Body.Value, nil
 		}
 		c.logger.ErrorContext(ctx, "request failed", "id", m.Id, "error", m.Error, "reason", m.Reason)
-		return nil, errors.New(m.Error + ": " + m.Reason)
+		return nil, newRequestError(m.Error, m.Reason)
 
 	case <-timer.C:
 		return nil, ErrChannelRequestTimeout

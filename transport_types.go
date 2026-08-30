@@ -30,17 +30,70 @@ type WebRtcTransportOptions struct {
 	// EnableSctp enables SCTP association creation. Default false.
 	EnableSctp bool `json:"enableSctp,omitempty"`
 
-	// NumSctpStreams configures SCTP streams.
-	NumSctpStreams *NumSctpStreams `json:"numSctpStreams,omitempty"`
-
-	// MaxSctpMessageSize is the maximum allowed size for SCTP messages sent by DataProducers. Default 262144.
-	MaxSctpMessageSize uint32 `json:"maxSctpMessageSize,omitempty"`
-
-	// SctpSendBufferSize is the maximum SCTP send buffer used by DataConsumers. Default 262144.
-	SctpSendBufferSize uint32 `json:"sctpSendBufferSize,omitempty"`
+	// SctpOptions configures the SCTP association. Ignored unless EnableSctp is set.
+	SctpOptions
 
 	// AppData is custom application data.
 	AppData H `json:"appData,omitempty"`
+}
+
+// SctpOptions defines the SCTP association settings shared by WebRtcTransport, PlainTransport
+// and PipeTransport.
+type SctpOptions struct {
+	// MaxSendMessageSize is the maximum allowed size in bytes for SCTP messages sent by
+	// DataConsumers. Default 262144.
+	MaxSendMessageSize uint32 `json:"maxSendMessageSize,omitempty"`
+
+	// MaxReceiveMessageSize is the maximum allowed size in bytes for SCTP messages received by
+	// DataProducers. Default 262144.
+	MaxReceiveMessageSize uint32 `json:"maxReceiveMessageSize,omitempty"`
+
+	// SctpSendBufferSize is the maximum SCTP send buffer in bytes used by DataConsumers.
+	// Default 2000000.
+	SctpSendBufferSize uint32 `json:"sctpSendBufferSize,omitempty"`
+
+	// SctpPerStreamSendQueueLimit is the per stream send queue size limit in bytes. Similar to
+	// SctpSendBufferSize, but limiting the size of individual streams. Default 2000000.
+	SctpPerStreamSendQueueLimit uint32 `json:"sctpPerStreamSendQueueLimit,omitempty"`
+
+	// SctpMaxReceiverWindowBufferSize is the maximum received window buffer size in bytes. This
+	// should be a bit larger than the largest sized message to be received. Default 5242880.
+	SctpMaxReceiverWindowBufferSize uint32 `json:"sctpMaxReceiverWindowBufferSize,omitempty"`
+
+	// SctpDefaultStreamBufferedAmountLowThreshold is the default buffered amount low threshold
+	// in bytes applied to every DataConsumer of the transport. Default 1024.
+	SctpDefaultStreamBufferedAmountLowThreshold uint32 `json:"sctpDefaultStreamBufferedAmountLowThreshold,omitempty"`
+}
+
+// withDefaults returns a copy of the options in which unset fields hold the mediasoup defaults.
+func (o SctpOptions) withDefaults() SctpOptions {
+	defaults := SctpOptions{
+		MaxSendMessageSize:                          262144,
+		MaxReceiveMessageSize:                       262144,
+		SctpSendBufferSize:                          2000000,
+		SctpPerStreamSendQueueLimit:                 2000000,
+		SctpMaxReceiverWindowBufferSize:             5242880,
+		SctpDefaultStreamBufferedAmountLowThreshold: 1024,
+	}
+	if o.MaxSendMessageSize > 0 {
+		defaults.MaxSendMessageSize = o.MaxSendMessageSize
+	}
+	if o.MaxReceiveMessageSize > 0 {
+		defaults.MaxReceiveMessageSize = o.MaxReceiveMessageSize
+	}
+	if o.SctpSendBufferSize > 0 {
+		defaults.SctpSendBufferSize = o.SctpSendBufferSize
+	}
+	if o.SctpPerStreamSendQueueLimit > 0 {
+		defaults.SctpPerStreamSendQueueLimit = o.SctpPerStreamSendQueueLimit
+	}
+	if o.SctpMaxReceiverWindowBufferSize > 0 {
+		defaults.SctpMaxReceiverWindowBufferSize = o.SctpMaxReceiverWindowBufferSize
+	}
+	if o.SctpDefaultStreamBufferedAmountLowThreshold > 0 {
+		defaults.SctpDefaultStreamBufferedAmountLowThreshold = o.SctpDefaultStreamBufferedAmountLowThreshold
+	}
+	return defaults
 }
 
 // PlainTransportOptions define options to create a PlainTransport
@@ -63,16 +116,8 @@ type PlainTransportOptions struct {
 	// EnableSctp define whether create a SCTP association. Default false.
 	EnableSctp bool `json:"enableSctp,omitempty"`
 
-	// NumSctpStreams define SCTP streams number.
-	NumSctpStreams *NumSctpStreams `json:"numSctpStreams,omitempty"`
-
-	// MaxSctpMessageSize define maximum allowed size for SCTP messages sent by DataProducers.
-	// Default 262144.
-	MaxSctpMessageSize uint32 `json:"maxSctpMessageSize,omitempty"`
-
-	// SctpSendBufferSize define maximum SCTP send buffer used by DataConsumers.
-	// Default 262144.
-	SctpSendBufferSize uint32 `json:"sctpSendBufferSize,omitempty"`
+	// SctpOptions configures the SCTP association. Ignored unless EnableSctp is set.
+	SctpOptions
 
 	// EnableSrtp enable SRTP. For this to work, connect() must be called
 	// with remote SRTP parameters. Default false.
@@ -103,16 +148,8 @@ type PipeTransportOptions struct {
 	// EnableSctp define whether create a SCTP association. Default false.
 	EnableSctp bool `json:"enableSctp,omitempty"`
 
-	// NumSctpStreams define SCTP streams number.
-	NumSctpStreams *NumSctpStreams `json:"numSctpStreams,omitempty"`
-
-	// MaxSctpMessageSize define maximum allowed size for SCTP messages sent by DataProducers.
-	// Default 268435456.
-	MaxSctpMessageSize uint32 `json:"maxSctpMessageSize,omitempty"`
-
-	// SctpSendBufferSize define maximum SCTP send buffer used by DataConsumers.
-	// Default 268435456.
-	SctpSendBufferSize uint32 `json:"sctpSendBufferSize,omitempty"`
+	// SctpOptions configures the SCTP association. Ignored unless EnableSctp is set.
+	SctpOptions
 
 	// EnableSrtp enable SRTP. For this to work, connect() must be called
 	// with remote SRTP parameters. Default false.
@@ -129,9 +166,13 @@ type PipeTransportOptions struct {
 
 // DirectTransportOptions define options to create a DirectTransport.
 type DirectTransportOptions struct {
-	// MaxMessageSize define maximum allowed size for direct messages sent from DataProducers.
+	// MaxSendMessageSize define maximum allowed size for direct messages sent to DataConsumers.
 	// Default 262144.
-	MaxMessageSize uint32 `json:"maxMessageSize,omitempty"`
+	MaxSendMessageSize uint32 `json:"maxSendMessageSize,omitempty"`
+
+	// MaxReceiveMessageSize define maximum allowed size for direct messages sent from
+	// DataProducers. Default 262144.
+	MaxReceiveMessageSize uint32 `json:"maxReceiveMessageSize,omitempty"`
 
 	// AppData is custom application data.
 	AppData H `json:"appData,omitempty"`
@@ -257,22 +298,24 @@ type TransportDump struct {
 }
 
 type BaseTransportDump struct {
-	Id                      string                     `json:"id"`
-	Type                    TransportType              `json:"type"`
-	Direct                  bool                       `json:"direct,omitempty"`
-	ProducerIds             []string                   `json:"producerIds"`
-	ConsumerIds             []string                   `json:"consumerIds"`
-	MapSsrcConsumerId       []KeyValue[uint32, string] `json:"mapSsrcConsumerId"`
-	MapRtxSsrcConsumerId    []KeyValue[uint32, string] `json:"mapRtxSsrcConsumerId"`
-	DataProducerIds         []string                   `json:"dataProducerIds"`
-	DataConsumerIds         []string                   `json:"dataConsumerIds"`
-	RecvRtpHeaderExtensions *RecvRtpHeaderExtensions   `json:"recvRtpHeaderExtensions"`
-	RtpListener             *RtpListenerDump           `json:"rtpListener"`
-	MaxMessageSize          uint32                     `json:"maxMessageSize,omitempty"`
-	SctpParameters          *SctpParameters            `json:"SctpParameters,omitempty"`
-	SctpState               SctpState                  `json:"sctpState,omitempty"`
-	SctpListener            *SctpListener              `json:"sctpListener,omitempty"`
-	TraceEventTypes         []TransportTraceEventType  `json:"traceEventTypes"`
+	Id                         string                      `json:"id"`
+	Type                       TransportType               `json:"type"`
+	Direct                     bool                        `json:"direct,omitempty"`
+	ProducerIds                []string                    `json:"producerIds"`
+	ConsumerIds                []string                    `json:"consumerIds"`
+	MapSsrcConsumerId          []KeyValue[uint32, string]  `json:"mapSsrcConsumerId"`
+	MapRtxSsrcConsumerId       []KeyValue[uint32, string]  `json:"mapRtxSsrcConsumerId"`
+	DataProducerIds            []string                    `json:"dataProducerIds"`
+	DataConsumerIds            []string                    `json:"dataConsumerIds"`
+	RecvRtpHeaderExtensions    *RecvRtpHeaderExtensions    `json:"recvRtpHeaderExtensions"`
+	RtpListener                *RtpListenerDump            `json:"rtpListener"`
+	MaxSendMessageSize         uint32                      `json:"maxSendMessageSize,omitempty"`
+	MaxReceiveMessageSize      uint32                      `json:"maxReceiveMessageSize,omitempty"`
+	SctpParameters             *SctpParameters             `json:"SctpParameters,omitempty"`
+	SctpState                  SctpState                   `json:"sctpState,omitempty"`
+	SctpNegotiatedCapabilities *SctpNegotiatedCapabilities `json:"sctpNegotiatedCapabilities,omitempty"`
+	SctpListener               *SctpListener               `json:"sctpListener,omitempty"`
+	TraceEventTypes            []TransportTraceEventType   `json:"traceEventTypes"`
 }
 
 type PlainTransportDump struct {
@@ -471,16 +514,17 @@ func (t *TransportData) clone() *TransportData {
 
 type WebRtcTransportData struct {
 	// IceRole alway be "controlled"
-	IceRole          string
-	IceParameters    IceParameters
-	IceCandidates    []IceCandidate
-	IceState         IceState
-	IceSelectedTuple *TransportTuple
-	DtlsParameters   DtlsParameters
-	DtlsState        DtlsState
-	DtlsRemoteCert   string
-	SctpParameters   *SctpParameters
-	SctpState        SctpState
+	IceRole                    string
+	IceParameters              IceParameters
+	IceCandidates              []IceCandidate
+	IceState                   IceState
+	IceSelectedTuple           *TransportTuple
+	DtlsParameters             DtlsParameters
+	DtlsState                  DtlsState
+	DtlsRemoteCert             string
+	SctpParameters             *SctpParameters
+	SctpState                  SctpState
+	SctpNegotiatedCapabilities *SctpNegotiatedCapabilities
 }
 
 func (d *WebRtcTransportData) clone() *WebRtcTransportData {
@@ -507,15 +551,18 @@ func (d *WebRtcTransportData) clone() *WebRtcTransportData {
 		DtlsRemoteCert: d.DtlsRemoteCert,
 		SctpParameters: ifElse(d.SctpParameters != nil, func() *SctpParameters { return ref(*d.SctpParameters) }),
 		SctpState:      d.SctpState,
+		SctpNegotiatedCapabilities: ifElse(d.SctpNegotiatedCapabilities != nil,
+			func() *SctpNegotiatedCapabilities { return ref(*d.SctpNegotiatedCapabilities) }),
 	}
 }
 
 type PlainTransportData struct {
-	Tuple          TransportTuple
-	RtcpTuple      *TransportTuple
-	SctpParameters *SctpParameters
-	SctpState      SctpState
-	SrtpParameters *SrtpParameters
+	Tuple                      TransportTuple
+	RtcpTuple                  *TransportTuple
+	SctpParameters             *SctpParameters
+	SctpState                  SctpState
+	SrtpParameters             *SrtpParameters
+	SctpNegotiatedCapabilities *SctpNegotiatedCapabilities
 }
 
 func (d *PlainTransportData) clone() *PlainTransportData {
@@ -528,14 +575,17 @@ func (d *PlainTransportData) clone() *PlainTransportData {
 		SctpParameters: ifElse(d.SctpParameters != nil, func() *SctpParameters { return ref(*d.SctpParameters) }),
 		SctpState:      d.SctpState,
 		SrtpParameters: ifElse(d.SrtpParameters != nil, func() *SrtpParameters { return ref(*d.SrtpParameters) }),
+		SctpNegotiatedCapabilities: ifElse(d.SctpNegotiatedCapabilities != nil,
+			func() *SctpNegotiatedCapabilities { return ref(*d.SctpNegotiatedCapabilities) }),
 	}
 }
 
 type PipeTransportData struct {
-	Tuple          TransportTuple
-	SctpParameters *SctpParameters
-	SctpState      SctpState
-	SrtpParameters *SrtpParameters
+	Tuple                      TransportTuple
+	SctpParameters             *SctpParameters
+	SctpState                  SctpState
+	SrtpParameters             *SrtpParameters
+	SctpNegotiatedCapabilities *SctpNegotiatedCapabilities
 }
 
 func (d *PipeTransportData) clone() *PipeTransportData {
@@ -547,5 +597,7 @@ func (d *PipeTransportData) clone() *PipeTransportData {
 		SctpParameters: ifElse(d.SctpParameters != nil, func() *SctpParameters { return ref(*d.SctpParameters) }),
 		SctpState:      d.SctpState,
 		SrtpParameters: ifElse(d.SrtpParameters != nil, func() *SrtpParameters { return ref(*d.SrtpParameters) }),
+		SctpNegotiatedCapabilities: ifElse(d.SctpNegotiatedCapabilities != nil,
+			func() *SctpNegotiatedCapabilities { return ref(*d.SctpNegotiatedCapabilities) }),
 	}
 }

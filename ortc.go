@@ -883,8 +883,14 @@ func matchHeaderExtensionUri(exts []*RtpHeaderExtensionParameters, uri string) b
 	return false
 }
 
+// filterRtcpFeedback returns the entries matching cond. It never writes into arr, which may be
+// shared with the RtpCapabilities given by the caller.
 func filterRtcpFeedback(arr []*RtcpFeedback, cond func(*RtcpFeedback) bool) []*RtcpFeedback {
-	newArr := arr[:0]
+	if arr == nil {
+		return nil
+	}
+
+	newArr := make([]*RtcpFeedback, 0, len(arr))
 
 	for _, x := range arr {
 		if cond(x) {

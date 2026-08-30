@@ -21,9 +21,11 @@ type DumpT struct {
 	DataConsumerIds []string `json:"data_consumer_ids"`
 	RecvRtpHeaderExtensions *RecvRtpHeaderExtensionsT `json:"recv_rtp_header_extensions"`
 	RtpListener *RtpListenerT `json:"rtp_listener"`
-	MaxMessageSize uint32 `json:"max_message_size"`
+	MaxSendMessageSize uint32 `json:"max_send_message_size"`
+	MaxReceiveMessageSize uint32 `json:"max_receive_message_size"`
 	SctpParameters *FBS__SctpParameters.SctpParametersT `json:"sctp_parameters"`
 	SctpState *FBS__SctpAssociation.SctpState `json:"sctp_state"`
+	SctpNegotiatedCapabilities *FBS__SctpAssociation.SctpNegotiatedCapabilitiesT `json:"sctp_negotiated_capabilities"`
 	SctpListener *SctpListenerT `json:"sctp_listener"`
 	TraceEventTypes []TraceEventType `json:"trace_event_types"`
 }
@@ -32,7 +34,10 @@ func (t *DumpT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	if t == nil {
 		return 0
 	}
-	idOffset := builder.CreateString(t.Id)
+	idOffset := flatbuffers.UOffsetT(0)
+	if t.Id != "" {
+		idOffset = builder.CreateString(t.Id)
+	}
 	producerIdsOffset := flatbuffers.UOffsetT(0)
 	if t.ProducerIds != nil {
 		producerIdsLength := len(t.ProducerIds)
@@ -114,6 +119,7 @@ func (t *DumpT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	recvRtpHeaderExtensionsOffset := t.RecvRtpHeaderExtensions.Pack(builder)
 	rtpListenerOffset := t.RtpListener.Pack(builder)
 	sctpParametersOffset := t.SctpParameters.Pack(builder)
+	sctpNegotiatedCapabilitiesOffset := t.SctpNegotiatedCapabilities.Pack(builder)
 	sctpListenerOffset := t.SctpListener.Pack(builder)
 	traceEventTypesOffset := flatbuffers.UOffsetT(0)
 	if t.TraceEventTypes != nil {
@@ -135,11 +141,13 @@ func (t *DumpT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	DumpAddDataConsumerIds(builder, dataConsumerIdsOffset)
 	DumpAddRecvRtpHeaderExtensions(builder, recvRtpHeaderExtensionsOffset)
 	DumpAddRtpListener(builder, rtpListenerOffset)
-	DumpAddMaxMessageSize(builder, t.MaxMessageSize)
+	DumpAddMaxSendMessageSize(builder, t.MaxSendMessageSize)
+	DumpAddMaxReceiveMessageSize(builder, t.MaxReceiveMessageSize)
 	DumpAddSctpParameters(builder, sctpParametersOffset)
 	if t.SctpState != nil {
 		DumpAddSctpState(builder, *t.SctpState)
 	}
+	DumpAddSctpNegotiatedCapabilities(builder, sctpNegotiatedCapabilitiesOffset)
 	DumpAddSctpListener(builder, sctpListenerOffset)
 	DumpAddTraceEventTypes(builder, traceEventTypesOffset)
 	return DumpEnd(builder)
@@ -184,9 +192,11 @@ func (rcv *Dump) UnPackTo(t *DumpT) {
 	}
 	t.RecvRtpHeaderExtensions = rcv.RecvRtpHeaderExtensions(nil).UnPack()
 	t.RtpListener = rcv.RtpListener(nil).UnPack()
-	t.MaxMessageSize = rcv.MaxMessageSize()
+	t.MaxSendMessageSize = rcv.MaxSendMessageSize()
+	t.MaxReceiveMessageSize = rcv.MaxReceiveMessageSize()
 	t.SctpParameters = rcv.SctpParameters(nil).UnPack()
 	t.SctpState = rcv.SctpState()
+	t.SctpNegotiatedCapabilities = rcv.SctpNegotiatedCapabilities(nil).UnPack()
 	t.SctpListener = rcv.SctpListener(nil).UnPack()
 	traceEventTypesLength := rcv.TraceEventTypesLength()
 	t.TraceEventTypes = make([]TraceEventType, traceEventTypesLength)
@@ -393,7 +403,7 @@ func (rcv *Dump) RtpListener(obj *RtpListener) *RtpListener {
 	return nil
 }
 
-func (rcv *Dump) MaxMessageSize() uint32 {
+func (rcv *Dump) MaxSendMessageSize() uint32 {
 	o := flatbuffers.UOffsetT(rcv._tab.Offset(24))
 	if o != 0 {
 		return rcv._tab.GetUint32(o + rcv._tab.Pos)
@@ -401,12 +411,24 @@ func (rcv *Dump) MaxMessageSize() uint32 {
 	return 0
 }
 
-func (rcv *Dump) MutateMaxMessageSize(n uint32) bool {
+func (rcv *Dump) MutateMaxSendMessageSize(n uint32) bool {
 	return rcv._tab.MutateUint32Slot(24, n)
 }
 
-func (rcv *Dump) SctpParameters(obj *FBS__SctpParameters.SctpParameters) *FBS__SctpParameters.SctpParameters {
+func (rcv *Dump) MaxReceiveMessageSize() uint32 {
 	o := flatbuffers.UOffsetT(rcv._tab.Offset(26))
+	if o != 0 {
+		return rcv._tab.GetUint32(o + rcv._tab.Pos)
+	}
+	return 0
+}
+
+func (rcv *Dump) MutateMaxReceiveMessageSize(n uint32) bool {
+	return rcv._tab.MutateUint32Slot(26, n)
+}
+
+func (rcv *Dump) SctpParameters(obj *FBS__SctpParameters.SctpParameters) *FBS__SctpParameters.SctpParameters {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(28))
 	if o != 0 {
 		x := rcv._tab.Indirect(o + rcv._tab.Pos)
 		if obj == nil {
@@ -419,7 +441,7 @@ func (rcv *Dump) SctpParameters(obj *FBS__SctpParameters.SctpParameters) *FBS__S
 }
 
 func (rcv *Dump) SctpState() *FBS__SctpAssociation.SctpState {
-	o := flatbuffers.UOffsetT(rcv._tab.Offset(28))
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(30))
 	if o != 0 {
 		v := FBS__SctpAssociation.SctpState(rcv._tab.GetByte(o + rcv._tab.Pos))
 		return &v
@@ -428,11 +450,24 @@ func (rcv *Dump) SctpState() *FBS__SctpAssociation.SctpState {
 }
 
 func (rcv *Dump) MutateSctpState(n FBS__SctpAssociation.SctpState) bool {
-	return rcv._tab.MutateByteSlot(28, byte(n))
+	return rcv._tab.MutateByteSlot(30, byte(n))
+}
+
+func (rcv *Dump) SctpNegotiatedCapabilities(obj *FBS__SctpAssociation.SctpNegotiatedCapabilities) *FBS__SctpAssociation.SctpNegotiatedCapabilities {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(32))
+	if o != 0 {
+		x := rcv._tab.Indirect(o + rcv._tab.Pos)
+		if obj == nil {
+			obj = new(FBS__SctpAssociation.SctpNegotiatedCapabilities)
+		}
+		obj.Init(rcv._tab.Bytes, x)
+		return obj
+	}
+	return nil
 }
 
 func (rcv *Dump) SctpListener(obj *SctpListener) *SctpListener {
-	o := flatbuffers.UOffsetT(rcv._tab.Offset(30))
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(34))
 	if o != 0 {
 		x := rcv._tab.Indirect(o + rcv._tab.Pos)
 		if obj == nil {
@@ -445,7 +480,7 @@ func (rcv *Dump) SctpListener(obj *SctpListener) *SctpListener {
 }
 
 func (rcv *Dump) TraceEventTypes(j int) TraceEventType {
-	o := flatbuffers.UOffsetT(rcv._tab.Offset(32))
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(36))
 	if o != 0 {
 		a := rcv._tab.Vector(o)
 		return TraceEventType(rcv._tab.GetByte(a + flatbuffers.UOffsetT(j*1)))
@@ -454,7 +489,7 @@ func (rcv *Dump) TraceEventTypes(j int) TraceEventType {
 }
 
 func (rcv *Dump) TraceEventTypesLength() int {
-	o := flatbuffers.UOffsetT(rcv._tab.Offset(32))
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(36))
 	if o != 0 {
 		return rcv._tab.VectorLen(o)
 	}
@@ -462,7 +497,7 @@ func (rcv *Dump) TraceEventTypesLength() int {
 }
 
 func (rcv *Dump) TraceEventTypesBytes() []byte {
-	o := flatbuffers.UOffsetT(rcv._tab.Offset(32))
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(36))
 	if o != 0 {
 		return rcv._tab.ByteVector(o + rcv._tab.Pos)
 	}
@@ -470,7 +505,7 @@ func (rcv *Dump) TraceEventTypesBytes() []byte {
 }
 
 func (rcv *Dump) MutateTraceEventTypes(j int, n TraceEventType) bool {
-	o := flatbuffers.UOffsetT(rcv._tab.Offset(32))
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(36))
 	if o != 0 {
 		a := rcv._tab.Vector(o)
 		return rcv._tab.MutateByte(a+flatbuffers.UOffsetT(j*1), byte(n))
@@ -479,7 +514,7 @@ func (rcv *Dump) MutateTraceEventTypes(j int, n TraceEventType) bool {
 }
 
 func DumpStart(builder *flatbuffers.Builder) {
-	builder.StartObject(15)
+	builder.StartObject(17)
 }
 func DumpAddId(builder *flatbuffers.Builder, id flatbuffers.UOffsetT) {
 	builder.PrependUOffsetTSlot(0, flatbuffers.UOffsetT(id), 0)
@@ -529,21 +564,27 @@ func DumpAddRecvRtpHeaderExtensions(builder *flatbuffers.Builder, recvRtpHeaderE
 func DumpAddRtpListener(builder *flatbuffers.Builder, rtpListener flatbuffers.UOffsetT) {
 	builder.PrependUOffsetTSlot(9, flatbuffers.UOffsetT(rtpListener), 0)
 }
-func DumpAddMaxMessageSize(builder *flatbuffers.Builder, maxMessageSize uint32) {
-	builder.PrependUint32Slot(10, maxMessageSize, 0)
+func DumpAddMaxSendMessageSize(builder *flatbuffers.Builder, maxSendMessageSize uint32) {
+	builder.PrependUint32Slot(10, maxSendMessageSize, 0)
+}
+func DumpAddMaxReceiveMessageSize(builder *flatbuffers.Builder, maxReceiveMessageSize uint32) {
+	builder.PrependUint32Slot(11, maxReceiveMessageSize, 0)
 }
 func DumpAddSctpParameters(builder *flatbuffers.Builder, sctpParameters flatbuffers.UOffsetT) {
-	builder.PrependUOffsetTSlot(11, flatbuffers.UOffsetT(sctpParameters), 0)
+	builder.PrependUOffsetTSlot(12, flatbuffers.UOffsetT(sctpParameters), 0)
 }
 func DumpAddSctpState(builder *flatbuffers.Builder, sctpState FBS__SctpAssociation.SctpState) {
 	builder.PrependByte(byte(sctpState))
-	builder.Slot(12)
+	builder.Slot(13)
+}
+func DumpAddSctpNegotiatedCapabilities(builder *flatbuffers.Builder, sctpNegotiatedCapabilities flatbuffers.UOffsetT) {
+	builder.PrependUOffsetTSlot(14, flatbuffers.UOffsetT(sctpNegotiatedCapabilities), 0)
 }
 func DumpAddSctpListener(builder *flatbuffers.Builder, sctpListener flatbuffers.UOffsetT) {
-	builder.PrependUOffsetTSlot(13, flatbuffers.UOffsetT(sctpListener), 0)
+	builder.PrependUOffsetTSlot(15, flatbuffers.UOffsetT(sctpListener), 0)
 }
 func DumpAddTraceEventTypes(builder *flatbuffers.Builder, traceEventTypes flatbuffers.UOffsetT) {
-	builder.PrependUOffsetTSlot(14, flatbuffers.UOffsetT(traceEventTypes), 0)
+	builder.PrependUOffsetTSlot(16, flatbuffers.UOffsetT(traceEventTypes), 0)
 }
 func DumpStartTraceEventTypesVector(builder *flatbuffers.Builder, numElems int) flatbuffers.UOffsetT {
 	return builder.StartVector(1, numElems, 1)

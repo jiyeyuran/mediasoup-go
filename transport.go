@@ -12,6 +12,7 @@ import (
 
 	FbsCommon "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/Common"
 	FbsConsumer "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/Consumer"
+	FbsDataConsumer "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/DataConsumer"
 	FbsDataProducer "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/DataProducer"
 	FbsDirectTransport "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/DirectTransport"
 	FbsNotification "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/Notification"
@@ -77,20 +78,24 @@ type Transport struct {
 	streamIds sync.Map
 	nextMid   uint32
 
+	sctpStreamMu     sync.Mutex
+	nextSctpStreamId uint16
+
 	// event handlers
-	newConsumerListeners            []func(context.Context, *Consumer)
-	newProducerListeners            []func(context.Context, *Producer)
-	newDataConsumerListeners        []func(context.Context, *DataConsumer)
-	newDataProducerListeners        []func(context.Context, *DataProducer)
-	tupleListeners                  []func(TransportTuple)
-	rtcpTupleListeners              []func(TransportTuple)
-	sctpStateChangeListeners        []func(SctpState)
-	iceStateChangeListeners         []func(IceState)
-	iceSelectedTupleChangeListeners []func(TransportTuple)
-	dtlsStateChangeListeners        []func(DtlsState)
-	rtcpListeners                   []func([]byte)
-	traceListeners                  []func(*TransportTraceEventData)
-	routerCloseListeners            []func(context.Context)
+	newConsumerListeners                []func(context.Context, *Consumer)
+	newProducerListeners                []func(context.Context, *Producer)
+	newDataConsumerListeners            []func(context.Context, *DataConsumer)
+	newDataProducerListeners            []func(context.Context, *DataProducer)
+	tupleListeners                      []func(TransportTuple)
+	rtcpTupleListeners                  []func(TransportTuple)
+	sctpStateChangeListeners            []func(SctpState)
+	sctpNegotiatedCapabilitiesListeners []func(SctpNegotiatedCapabilities)
+	iceStateChangeListeners             []func(IceState)
+	iceSelectedTupleChangeListeners     []func(TransportTuple)
+	dtlsStateChangeListeners            []func(DtlsState)
+	rtcpListeners                       []func([]byte)
+	traceListeners                      []func(*TransportTraceEventData)
+	routerCloseListeners                []func(context.Context)
 }
 
 func newTransport(channel *channel.Channel, logger *slog.Logger, data *internalTransportData) *Transport {
@@ -233,11 +238,13 @@ func (t *Transport) DumpContext(ctx context.Context) (*TransportDump, error) {
 						}
 					}),
 			},
-			MaxMessageSize: dump.MaxMessageSize,
-			SctpParameters: parseSctpParameters(dump.SctpParameters),
+			MaxSendMessageSize:    dump.MaxSendMessageSize,
+			MaxReceiveMessageSize: dump.MaxReceiveMessageSize,
+			SctpParameters:        parseSctpParameters(dump.SctpParameters),
 			SctpState: ifElse(dump.SctpState != nil, func() SctpState {
 				return SctpState(strings.ToLower(dump.SctpState.String()))
 			}),
+			SctpNegotiatedCapabilities: parseSctpNegotiatedCapabilities(dump.SctpNegotiatedCapabilities),
 			SctpListener: ifElse(dump.SctpListener != nil, func() *SctpListener {
 				return &SctpListener{
 					StreamIdTable: collect(dump.SctpListener.StreamIdTable,
@@ -490,7 +497,9 @@ func (t *Transport) ConnectContext(ctx context.Context, connectOpts *TransportCo
 		result := resp.(*FbsPlainTransport.ConnectResponseT)
 		// Update data.
 		data := t.data.PlainTransportData
-		data.Tuple = *parseTransportTuple(result.Tuple)
+		if tuple := parseTransportTuple(result.Tuple); tuple != nil {
+			data.Tuple = *tuple
+		}
 		data.RtcpTuple = parseTransportTuple(result.RtcpTuple)
 		data.SrtpParameters = parseSrtpParameters(result.SrtpParameters)
 
@@ -773,7 +782,7 @@ func (t *Transport) ConsumeContext(ctx context.Context, options *ConsumerOptions
 
 	producer := t.data.GetProducerId(options.ProducerId)
 	if producer == nil {
-		return nil, fmt.Errorf(`Producer with id "%s" not found`, options.ProducerId)
+		return nil, fmt.Errorf("%w: Producer with id %q not found", ErrNotFound, options.ProducerId)
 	}
 	var rtpParameters *RtpParameters
 
@@ -998,7 +1007,7 @@ func (t *Transport) ConsumeDataContext(ctx context.Context, options *DataConsume
 
 	dataProducer := t.data.GetDataProducerId(options.DataProducerId)
 	if dataProducer == nil {
-		return nil, fmt.Errorf(`DataProducer with id "%s" not found`, options.DataProducerId)
+		return nil, fmt.Errorf("%w: DataProducer with id %q not found", ErrNotFound, options.DataProducerId)
 	}
 	var (
 		typ                  = DataConsumerDirect
@@ -1041,7 +1050,7 @@ func (t *Transport) ConsumeDataContext(ctx context.Context, options *DataConsume
 			Value: &FbsTransport.ConsumeDataRequestT{
 				DataConsumerId: dataConsumerId,
 				DataProducerId: dataProducer.Id(),
-				Type:           FbsDataProducer.EnumValuesType[strings.ToUpper(string(typ))],
+				Type:           FbsDataConsumer.EnumValuesType[strings.ToUpper(string(typ))],
 				SctpStreamParameters: ifElse(sctpStreamParameters != nil, func() *FbsSctpParameters.SctpStreamParametersT {
 					return &FbsSctpParameters.SctpStreamParametersT{
 						StreamId:          sctpStreamParameters.StreamId,
@@ -1160,6 +1169,15 @@ func (t *Transport) OnSctpStateChange(listener func(SctpState)) {
 	t.sctpStateChangeListeners = append(t.sctpStateChangeListeners, listener)
 }
 
+// OnSctpNegotiatedCapabilities add listener on "sctpnegotiatedcapabilities" event, emitted once
+// the SCTP association has negotiated its capabilities with the remote endpoint.
+func (t *Transport) OnSctpNegotiatedCapabilities(listener func(SctpNegotiatedCapabilities)) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	t.sctpNegotiatedCapabilitiesListeners = append(t.sctpNegotiatedCapabilitiesListeners, listener)
+}
+
 // OnIceStateChange add listener on "icestatechange" event
 func (t *Transport) OnIceStateChange(listener func(IceState)) {
 	t.mu.Lock()
@@ -1255,6 +1273,21 @@ func (t *Transport) handleWorkerNotifications() {
 
 			for _, listener := range listeners {
 				listener(state)
+			}
+
+		case FbsNotification.EventTRANSPORT_SCTP_NEGOTIATED_CAPABILITIES:
+			notification := body.Value.(*FbsTransport.SctpNegotiatedCapabilitiesNotificationT)
+			capabilities := parseSctpNegotiatedCapabilities(notification.NegotiatedCapabilities)
+
+			t.mu.Lock()
+			t.setSctpNegotiatedCapabilities(capabilities)
+			listeners := t.sctpNegotiatedCapabilitiesListeners
+			t.mu.Unlock()
+
+			if capabilities != nil {
+				for _, listener := range listeners {
+					listener(*capabilities)
+				}
 			}
 
 		case FbsNotification.EventWEBRTCTRANSPORT_ICE_STATE_CHANGE:
@@ -1358,14 +1391,29 @@ func (t *Transport) nextMidString() string {
 	}
 }
 
+// maxSctpStreams is the maximum number of streams in a SCTP association.
+const maxSctpStreams = 65535
+
 func (t *Transport) getNextSctpStreamId() (uint16, error) {
-	sctpParameters := t.getSctpParameters()
-	if sctpParameters == nil || sctpParameters.MIS == 0 {
-		return 0, errors.New("missing sctpParameters.MIS")
+	if t.getSctpParameters() == nil {
+		return 0, errors.New("missing sctpParameters")
 	}
-	for i := uint16(0); i < sctpParameters.MIS; i++ {
-		if _, ok := t.streamIds.LoadOrStore(i, struct{}{}); !ok {
-			return i, nil
+
+	t.sctpStreamMu.Lock()
+	defer t.sctpStreamMu.Unlock()
+
+	// The SCTP association may be connected after having created many DataConsumers, so some of
+	// them could have exceeded the negotiated number of outgoing streams.
+	if capabilities := t.SctpNegotiatedCapabilities(); capabilities != nil &&
+		uint32(t.nextSctpStreamId)+1 > uint32(capabilities.NegotiatedMaxOutboundStreams) {
+		t.nextSctpStreamId = 0
+	}
+
+	for i := uint32(0); i < maxSctpStreams; i++ {
+		streamId := uint16((uint32(t.nextSctpStreamId) + i) % maxSctpStreams)
+		if _, ok := t.streamIds.LoadOrStore(streamId, struct{}{}); !ok {
+			t.nextSctpStreamId = streamId + 1
+			return streamId, nil
 		}
 	}
 	return 0, errors.New("no sctpStreamId available")
@@ -1382,6 +1430,42 @@ func (t *Transport) getSctpParameters() *SctpParameters {
 		return t.data.PipeTransportData.SctpParameters
 	}
 	return nil
+}
+
+// SctpNegotiatedCapabilities returns the SCTP capabilities negotiated with the remote endpoint,
+// or nil if the SCTP association is not connected yet.
+func (t *Transport) SctpNegotiatedCapabilities() *SctpNegotiatedCapabilities {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+
+	if capabilities := t.getSctpNegotiatedCapabilities(); capabilities != nil {
+		return ref(*capabilities)
+	}
+	return nil
+}
+
+func (t *Transport) getSctpNegotiatedCapabilities() *SctpNegotiatedCapabilities {
+	if t.data.WebRtcTransportData != nil {
+		return t.data.WebRtcTransportData.SctpNegotiatedCapabilities
+	}
+	if t.data.PlainTransportData != nil {
+		return t.data.PlainTransportData.SctpNegotiatedCapabilities
+	}
+	if t.data.PipeTransportData != nil {
+		return t.data.PipeTransportData.SctpNegotiatedCapabilities
+	}
+	return nil
+}
+
+func (t *Transport) setSctpNegotiatedCapabilities(capabilities *SctpNegotiatedCapabilities) {
+	switch {
+	case t.data.WebRtcTransportData != nil:
+		t.data.WebRtcTransportData.SctpNegotiatedCapabilities = capabilities
+	case t.data.PlainTransportData != nil:
+		t.data.PlainTransportData.SctpNegotiatedCapabilities = capabilities
+	case t.data.PipeTransportData != nil:
+		t.data.PipeTransportData.SctpNegotiatedCapabilities = capabilities
+	}
 }
 
 func (t *Transport) routerClosed(ctx context.Context) {

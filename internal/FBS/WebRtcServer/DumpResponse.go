@@ -12,14 +12,16 @@ type DumpResponseT struct {
 	TcpServers []*IpPortT `json:"tcp_servers"`
 	WebRtcTransportIds []string `json:"web_rtc_transport_ids"`
 	LocalIceUsernameFragments []*IceUserNameFragmentT `json:"local_ice_username_fragments"`
-	TupleHashes []*TupleHashT `json:"tuple_hashes"`
 }
 
 func (t *DumpResponseT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	if t == nil {
 		return 0
 	}
-	idOffset := builder.CreateString(t.Id)
+	idOffset := flatbuffers.UOffsetT(0)
+	if t.Id != "" {
+		idOffset = builder.CreateString(t.Id)
+	}
 	udpSocketsOffset := flatbuffers.UOffsetT(0)
 	if t.UdpSockets != nil {
 		udpSocketsLength := len(t.UdpSockets)
@@ -72,26 +74,12 @@ func (t *DumpResponseT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT 
 		}
 		localIceUsernameFragmentsOffset = builder.EndVector(localIceUsernameFragmentsLength)
 	}
-	tupleHashesOffset := flatbuffers.UOffsetT(0)
-	if t.TupleHashes != nil {
-		tupleHashesLength := len(t.TupleHashes)
-		tupleHashesOffsets := make([]flatbuffers.UOffsetT, tupleHashesLength)
-		for j := 0; j < tupleHashesLength; j++ {
-			tupleHashesOffsets[j] = t.TupleHashes[j].Pack(builder)
-		}
-		DumpResponseStartTupleHashesVector(builder, tupleHashesLength)
-		for j := tupleHashesLength - 1; j >= 0; j-- {
-			builder.PrependUOffsetT(tupleHashesOffsets[j])
-		}
-		tupleHashesOffset = builder.EndVector(tupleHashesLength)
-	}
 	DumpResponseStart(builder)
 	DumpResponseAddId(builder, idOffset)
 	DumpResponseAddUdpSockets(builder, udpSocketsOffset)
 	DumpResponseAddTcpServers(builder, tcpServersOffset)
 	DumpResponseAddWebRtcTransportIds(builder, webRtcTransportIdsOffset)
 	DumpResponseAddLocalIceUsernameFragments(builder, localIceUsernameFragmentsOffset)
-	DumpResponseAddTupleHashes(builder, tupleHashesOffset)
 	return DumpResponseEnd(builder)
 }
 
@@ -122,13 +110,6 @@ func (rcv *DumpResponse) UnPackTo(t *DumpResponseT) {
 		x := IceUserNameFragment{}
 		rcv.LocalIceUsernameFragments(&x, j)
 		t.LocalIceUsernameFragments[j] = x.UnPack()
-	}
-	tupleHashesLength := rcv.TupleHashesLength()
-	t.TupleHashes = make([]*TupleHashT, tupleHashesLength)
-	for j := 0; j < tupleHashesLength; j++ {
-		x := TupleHash{}
-		rcv.TupleHashes(&x, j)
-		t.TupleHashes[j] = x.UnPack()
 	}
 }
 
@@ -261,28 +242,8 @@ func (rcv *DumpResponse) LocalIceUsernameFragmentsLength() int {
 	return 0
 }
 
-func (rcv *DumpResponse) TupleHashes(obj *TupleHash, j int) bool {
-	o := flatbuffers.UOffsetT(rcv._tab.Offset(14))
-	if o != 0 {
-		x := rcv._tab.Vector(o)
-		x += flatbuffers.UOffsetT(j) * 4
-		x = rcv._tab.Indirect(x)
-		obj.Init(rcv._tab.Bytes, x)
-		return true
-	}
-	return false
-}
-
-func (rcv *DumpResponse) TupleHashesLength() int {
-	o := flatbuffers.UOffsetT(rcv._tab.Offset(14))
-	if o != 0 {
-		return rcv._tab.VectorLen(o)
-	}
-	return 0
-}
-
 func DumpResponseStart(builder *flatbuffers.Builder) {
-	builder.StartObject(6)
+	builder.StartObject(5)
 }
 func DumpResponseAddId(builder *flatbuffers.Builder, id flatbuffers.UOffsetT) {
 	builder.PrependUOffsetTSlot(0, flatbuffers.UOffsetT(id), 0)
@@ -309,12 +270,6 @@ func DumpResponseAddLocalIceUsernameFragments(builder *flatbuffers.Builder, loca
 	builder.PrependUOffsetTSlot(4, flatbuffers.UOffsetT(localIceUsernameFragments), 0)
 }
 func DumpResponseStartLocalIceUsernameFragmentsVector(builder *flatbuffers.Builder, numElems int) flatbuffers.UOffsetT {
-	return builder.StartVector(4, numElems, 4)
-}
-func DumpResponseAddTupleHashes(builder *flatbuffers.Builder, tupleHashes flatbuffers.UOffsetT) {
-	builder.PrependUOffsetTSlot(5, flatbuffers.UOffsetT(tupleHashes), 0)
-}
-func DumpResponseStartTupleHashesVector(builder *flatbuffers.Builder, numElems int) flatbuffers.UOffsetT {
 	return builder.StartVector(4, numElems, 4)
 }
 func DumpResponseEnd(builder *flatbuffers.Builder) flatbuffers.UOffsetT {

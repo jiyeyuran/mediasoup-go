@@ -19,7 +19,10 @@ func (t *RtpCodecParametersT) Pack(builder *flatbuffers.Builder) flatbuffers.UOf
 	if t == nil {
 		return 0
 	}
-	mimeTypeOffset := builder.CreateString(t.MimeType)
+	mimeTypeOffset := flatbuffers.UOffsetT(0)
+	if t.MimeType != "" {
+		mimeTypeOffset = builder.CreateString(t.MimeType)
+	}
 	parametersOffset := flatbuffers.UOffsetT(0)
 	if t.Parameters != nil {
 		parametersLength := len(t.Parameters)

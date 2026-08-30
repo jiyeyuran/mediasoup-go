@@ -13,32 +13,33 @@ const (
 	EventDATAPRODUCER_SEND                         Event = 3
 	EventWORKER_RUNNING                            Event = 4
 	EventTRANSPORT_SCTP_STATE_CHANGE               Event = 5
-	EventTRANSPORT_TRACE                           Event = 6
-	EventWEBRTCTRANSPORT_ICE_SELECTED_TUPLE_CHANGE Event = 7
-	EventWEBRTCTRANSPORT_ICE_STATE_CHANGE          Event = 8
-	EventWEBRTCTRANSPORT_DTLS_STATE_CHANGE         Event = 9
-	EventPLAINTRANSPORT_TUPLE                      Event = 10
-	EventPLAINTRANSPORT_RTCP_TUPLE                 Event = 11
-	EventDIRECTTRANSPORT_RTCP                      Event = 12
-	EventPRODUCER_SCORE                            Event = 13
-	EventPRODUCER_TRACE                            Event = 14
-	EventPRODUCER_VIDEO_ORIENTATION_CHANGE         Event = 15
-	EventCONSUMER_PRODUCER_PAUSE                   Event = 16
-	EventCONSUMER_PRODUCER_RESUME                  Event = 17
-	EventCONSUMER_PRODUCER_CLOSE                   Event = 18
-	EventCONSUMER_LAYERS_CHANGE                    Event = 19
-	EventCONSUMER_RTP                              Event = 20
-	EventCONSUMER_SCORE                            Event = 21
-	EventCONSUMER_TRACE                            Event = 22
-	EventDATACONSUMER_BUFFERED_AMOUNT_LOW          Event = 23
-	EventDATACONSUMER_SCTP_SENDBUFFER_FULL         Event = 24
-	EventDATACONSUMER_DATAPRODUCER_PAUSE           Event = 25
-	EventDATACONSUMER_DATAPRODUCER_RESUME          Event = 26
-	EventDATACONSUMER_DATAPRODUCER_CLOSE           Event = 27
-	EventDATACONSUMER_MESSAGE                      Event = 28
-	EventACTIVESPEAKEROBSERVER_DOMINANT_SPEAKER    Event = 29
-	EventAUDIOLEVELOBSERVER_SILENCE                Event = 30
-	EventAUDIOLEVELOBSERVER_VOLUMES                Event = 31
+	EventTRANSPORT_SCTP_NEGOTIATED_CAPABILITIES    Event = 6
+	EventTRANSPORT_TRACE                           Event = 7
+	EventWEBRTCTRANSPORT_ICE_SELECTED_TUPLE_CHANGE Event = 8
+	EventWEBRTCTRANSPORT_ICE_STATE_CHANGE          Event = 9
+	EventWEBRTCTRANSPORT_DTLS_STATE_CHANGE         Event = 10
+	EventPLAINTRANSPORT_TUPLE                      Event = 11
+	EventPLAINTRANSPORT_RTCP_TUPLE                 Event = 12
+	EventDIRECTTRANSPORT_RTCP                      Event = 13
+	EventPRODUCER_SCORE                            Event = 14
+	EventPRODUCER_TRACE                            Event = 15
+	EventPRODUCER_VIDEO_ORIENTATION_CHANGE         Event = 16
+	EventCONSUMER_PRODUCER_PAUSE                   Event = 17
+	EventCONSUMER_PRODUCER_RESUME                  Event = 18
+	EventCONSUMER_PRODUCER_CLOSE                   Event = 19
+	EventCONSUMER_LAYERS_CHANGE                    Event = 20
+	EventCONSUMER_RTP                              Event = 21
+	EventCONSUMER_SCORE                            Event = 22
+	EventCONSUMER_TRACE                            Event = 23
+	EventDATACONSUMER_BUFFERED_AMOUNT_LOW          Event = 24
+	EventDATACONSUMER_SCTP_SENDBUFFER_FULL         Event = 25
+	EventDATACONSUMER_DATAPRODUCER_PAUSE           Event = 26
+	EventDATACONSUMER_DATAPRODUCER_RESUME          Event = 27
+	EventDATACONSUMER_DATAPRODUCER_CLOSE           Event = 28
+	EventDATACONSUMER_MESSAGE                      Event = 29
+	EventACTIVESPEAKEROBSERVER_DOMINANT_SPEAKER    Event = 30
+	EventAUDIOLEVELOBSERVER_SILENCE                Event = 31
+	EventAUDIOLEVELOBSERVER_VOLUMES                Event = 32
 )
 
 var EnumNamesEvent = map[Event]string{
@@ -48,6 +49,7 @@ var EnumNamesEvent = map[Event]string{
 	EventDATAPRODUCER_SEND:                         "DATAPRODUCER_SEND",
 	EventWORKER_RUNNING:                            "WORKER_RUNNING",
 	EventTRANSPORT_SCTP_STATE_CHANGE:               "TRANSPORT_SCTP_STATE_CHANGE",
+	EventTRANSPORT_SCTP_NEGOTIATED_CAPABILITIES:    "TRANSPORT_SCTP_NEGOTIATED_CAPABILITIES",
 	EventTRANSPORT_TRACE:                           "TRANSPORT_TRACE",
 	EventWEBRTCTRANSPORT_ICE_SELECTED_TUPLE_CHANGE: "WEBRTCTRANSPORT_ICE_SELECTED_TUPLE_CHANGE",
 	EventWEBRTCTRANSPORT_ICE_STATE_CHANGE:          "WEBRTCTRANSPORT_ICE_STATE_CHANGE",
@@ -83,6 +85,7 @@ var EnumValuesEvent = map[string]Event{
 	"DATAPRODUCER_SEND":                         EventDATAPRODUCER_SEND,
 	"WORKER_RUNNING":                            EventWORKER_RUNNING,
 	"TRANSPORT_SCTP_STATE_CHANGE":               EventTRANSPORT_SCTP_STATE_CHANGE,
+	"TRANSPORT_SCTP_NEGOTIATED_CAPABILITIES":    EventTRANSPORT_SCTP_NEGOTIATED_CAPABILITIES,
 	"TRANSPORT_TRACE":                           EventTRANSPORT_TRACE,
 	"WEBRTCTRANSPORT_ICE_SELECTED_TUPLE_CHANGE": EventWEBRTCTRANSPORT_ICE_SELECTED_TUPLE_CHANGE,
 	"WEBRTCTRANSPORT_ICE_STATE_CHANGE":          EventWEBRTCTRANSPORT_ICE_STATE_CHANGE,

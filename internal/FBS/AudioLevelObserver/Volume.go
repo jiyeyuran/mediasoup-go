@@ -15,7 +15,10 @@ func (t *VolumeT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	if t == nil {
 		return 0
 	}
-	producerIdOffset := builder.CreateString(t.ProducerId)
+	producerIdOffset := flatbuffers.UOffsetT(0)
+	if t.ProducerId != "" {
+		producerIdOffset = builder.CreateString(t.ProducerId)
+	}
 	VolumeStart(builder)
 	VolumeAddProducerId(builder, producerIdOffset)
 	VolumeAddVolume(builder, t.Volume)

@@ -14,7 +14,10 @@ func (t *AddProducerRequestT) Pack(builder *flatbuffers.Builder) flatbuffers.UOf
 	if t == nil {
 		return 0
 	}
-	producerIdOffset := builder.CreateString(t.ProducerId)
+	producerIdOffset := flatbuffers.UOffsetT(0)
+	if t.ProducerId != "" {
+		producerIdOffset = builder.CreateString(t.ProducerId)
+	}
 	AddProducerRequestStart(builder)
 	AddProducerRequestAddProducerId(builder, producerIdOffset)
 	return AddProducerRequestEnd(builder)

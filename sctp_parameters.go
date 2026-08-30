@@ -1,52 +1,40 @@
 package mediasoup
 
-type SctpCapabilities struct {
-	NumStreams NumSctpStreams `json:"numStreams,omitempty"`
-}
-
-// NumSctpStreams defines the SCTP streams configuration.
-//
-// Both OS and MIS are part of the SCTP INIT+ACK handshake. OS refers to the
-// initial int of outgoing SCTP streams that the server side transport creates
-// (to be used by DataConsumers), while MIS refers to the maximum int of
-// incoming SCTP streams that the server side transport can receive (to be used
-// by DataProducers). So, if the server side transport will just be used to
-// create data producers (but no data consumers), OS can be low (~1).
-// mediasoup-client provides specific per browser/version OS and MIS values via
-// the device.sctpCapabilities getter. However those values must be reversed
-// when provided to the mediasoup server transport.
-type NumSctpStreams struct {
-	// OS defines initially requested int of outgoing SCTP streams.
-	OS uint16 `json:"OS,omitempty"`
-
-	// MIS defines maximum int of incoming SCTP streams.
-	MIS uint16 `json:"MIS,omitempty"`
-}
-
-// SctpParameters represents the SCTP parameters for a WebRTC data channel.
+// SctpParameters represents the SCTP parameters of a transport.
 type SctpParameters struct {
-	// Port represents the SCTP port number. Must always be 5000 as per WebRTC specification.
+	// Port is the SCTP source port of the transport.
 	Port uint16 `json:"port,omitempty"`
 
-	// OS (Outgoing Streams) defines the initially requested number of outgoing SCTP streams.
-	OS uint16 `json:"OS,omitempty"`
+	// MaxSendMessageSize is the maximum size in bytes for SCTP messages sent by DataConsumers.
+	MaxSendMessageSize uint32 `json:"maxSendMessageSize,omitempty"`
 
-	// MIS (Maximum Incoming Streams) defines the maximum number of incoming SCTP streams.
-	MIS uint16 `json:"MIS,omitempty"`
+	// MaxReceiveMessageSize is the maximum size in bytes for SCTP messages received by
+	// DataProducers.
+	MaxReceiveMessageSize uint32 `json:"maxReceiveMessageSize,omitempty"`
 
-	// MaxMessageSize defines the maximum allowed size in bytes for SCTP messages.
-	MaxMessageSize uint32 `json:"maxMessageSize,omitempty"`
-
-	// Internal fields used for monitoring and debugging purposes:
-
-	// SctpBufferedAmount indicates the number of bytes currently buffered in the SCTP stack.
-	SctpBufferedAmount uint32 `json:"sctpBufferedAmount,omitempty"`
-
-	// SendBufferSize represents the size of the SCTP send buffer in bytes.
+	// SendBufferSize is the maximum SCTP send buffer in bytes used by DataConsumers.
 	SendBufferSize uint32 `json:"sendBufferSize,omitempty"`
 
+	// PerStreamSendQueueLimit is the per stream send queue size limit. Similar to
+	// SendBufferSize, but limiting the size of individual streams.
+	PerStreamSendQueueLimit uint32 `json:"perStreamSendQueueLimit,omitempty"`
+
+	// MaxReceiverWindowBufferSize is the maximum received window buffer size in bytes.
+	MaxReceiverWindowBufferSize uint32 `json:"maxReceiverWindowBufferSize,omitempty"`
+
 	// IsDataChannel indicates whether this SCTP association is used for WebRTC DataChannels.
+	// Only true in WebRTC transports.
 	IsDataChannel bool `json:"isDataChannel,omitempty"`
+}
+
+// SctpNegotiatedCapabilities holds the SCTP capabilities negotiated with the remote endpoint
+// once the SCTP association is established.
+type SctpNegotiatedCapabilities struct {
+	// NegotiatedMaxOutboundStreams is the number of outgoing SCTP streams usable by DataConsumers.
+	NegotiatedMaxOutboundStreams uint16 `json:"negotiatedMaxOutboundStreams"`
+
+	// NegotiatedMaxInboundStreams is the number of incoming SCTP streams usable by DataProducers.
+	NegotiatedMaxInboundStreams uint16 `json:"negotiatedMaxInboundStreams"`
 }
 
 // SctpStreamParameters describe the reliability of a certain SCTP stream.

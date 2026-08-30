@@ -5,17 +5,17 @@ package DataConsumer
 import (
 	flatbuffers "github.com/google/flatbuffers/go"
 
-	FBS__DataProducer "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/DataProducer"
 	FBS__SctpParameters "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/SctpParameters"
 )
 
 type DumpResponseT struct {
 	Id string `json:"id"`
 	DataProducerId string `json:"data_producer_id"`
-	Type FBS__DataProducer.Type `json:"type"`
+	Type Type `json:"type"`
 	SctpStreamParameters *FBS__SctpParameters.SctpStreamParametersT `json:"sctp_stream_parameters"`
 	Label string `json:"label"`
 	Protocol string `json:"protocol"`
+	BufferedAmount uint32 `json:"buffered_amount"`
 	BufferedAmountLowThreshold uint32 `json:"buffered_amount_low_threshold"`
 	Paused bool `json:"paused"`
 	DataProducerPaused bool `json:"data_producer_paused"`
@@ -26,11 +26,23 @@ func (t *DumpResponseT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT 
 	if t == nil {
 		return 0
 	}
-	idOffset := builder.CreateString(t.Id)
-	dataProducerIdOffset := builder.CreateString(t.DataProducerId)
+	idOffset := flatbuffers.UOffsetT(0)
+	if t.Id != "" {
+		idOffset = builder.CreateString(t.Id)
+	}
+	dataProducerIdOffset := flatbuffers.UOffsetT(0)
+	if t.DataProducerId != "" {
+		dataProducerIdOffset = builder.CreateString(t.DataProducerId)
+	}
 	sctpStreamParametersOffset := t.SctpStreamParameters.Pack(builder)
-	labelOffset := builder.CreateString(t.Label)
-	protocolOffset := builder.CreateString(t.Protocol)
+	labelOffset := flatbuffers.UOffsetT(0)
+	if t.Label != "" {
+		labelOffset = builder.CreateString(t.Label)
+	}
+	protocolOffset := flatbuffers.UOffsetT(0)
+	if t.Protocol != "" {
+		protocolOffset = builder.CreateString(t.Protocol)
+	}
 	subchannelsOffset := flatbuffers.UOffsetT(0)
 	if t.Subchannels != nil {
 		subchannelsLength := len(t.Subchannels)
@@ -47,6 +59,7 @@ func (t *DumpResponseT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT 
 	DumpResponseAddSctpStreamParameters(builder, sctpStreamParametersOffset)
 	DumpResponseAddLabel(builder, labelOffset)
 	DumpResponseAddProtocol(builder, protocolOffset)
+	DumpResponseAddBufferedAmount(builder, t.BufferedAmount)
 	DumpResponseAddBufferedAmountLowThreshold(builder, t.BufferedAmountLowThreshold)
 	DumpResponseAddPaused(builder, t.Paused)
 	DumpResponseAddDataProducerPaused(builder, t.DataProducerPaused)
@@ -61,6 +74,7 @@ func (rcv *DumpResponse) UnPackTo(t *DumpResponseT) {
 	t.SctpStreamParameters = rcv.SctpStreamParameters(nil).UnPack()
 	t.Label = string(rcv.Label())
 	t.Protocol = string(rcv.Protocol())
+	t.BufferedAmount = rcv.BufferedAmount()
 	t.BufferedAmountLowThreshold = rcv.BufferedAmountLowThreshold()
 	t.Paused = rcv.Paused()
 	t.DataProducerPaused = rcv.DataProducerPaused()
@@ -131,15 +145,15 @@ func (rcv *DumpResponse) DataProducerId() []byte {
 	return nil
 }
 
-func (rcv *DumpResponse) Type() FBS__DataProducer.Type {
+func (rcv *DumpResponse) Type() Type {
 	o := flatbuffers.UOffsetT(rcv._tab.Offset(8))
 	if o != 0 {
-		return FBS__DataProducer.Type(rcv._tab.GetByte(o + rcv._tab.Pos))
+		return Type(rcv._tab.GetByte(o + rcv._tab.Pos))
 	}
 	return 0
 }
 
-func (rcv *DumpResponse) MutateType(n FBS__DataProducer.Type) bool {
+func (rcv *DumpResponse) MutateType(n Type) bool {
 	return rcv._tab.MutateByteSlot(8, byte(n))
 }
 
@@ -172,7 +186,7 @@ func (rcv *DumpResponse) Protocol() []byte {
 	return nil
 }
 
-func (rcv *DumpResponse) BufferedAmountLowThreshold() uint32 {
+func (rcv *DumpResponse) BufferedAmount() uint32 {
 	o := flatbuffers.UOffsetT(rcv._tab.Offset(16))
 	if o != 0 {
 		return rcv._tab.GetUint32(o + rcv._tab.Pos)
@@ -180,23 +194,23 @@ func (rcv *DumpResponse) BufferedAmountLowThreshold() uint32 {
 	return 0
 }
 
-func (rcv *DumpResponse) MutateBufferedAmountLowThreshold(n uint32) bool {
+func (rcv *DumpResponse) MutateBufferedAmount(n uint32) bool {
 	return rcv._tab.MutateUint32Slot(16, n)
 }
 
-func (rcv *DumpResponse) Paused() bool {
+func (rcv *DumpResponse) BufferedAmountLowThreshold() uint32 {
 	o := flatbuffers.UOffsetT(rcv._tab.Offset(18))
 	if o != 0 {
-		return rcv._tab.GetBool(o + rcv._tab.Pos)
+		return rcv._tab.GetUint32(o + rcv._tab.Pos)
 	}
-	return false
+	return 0
 }
 
-func (rcv *DumpResponse) MutatePaused(n bool) bool {
-	return rcv._tab.MutateBoolSlot(18, n)
+func (rcv *DumpResponse) MutateBufferedAmountLowThreshold(n uint32) bool {
+	return rcv._tab.MutateUint32Slot(18, n)
 }
 
-func (rcv *DumpResponse) DataProducerPaused() bool {
+func (rcv *DumpResponse) Paused() bool {
 	o := flatbuffers.UOffsetT(rcv._tab.Offset(20))
 	if o != 0 {
 		return rcv._tab.GetBool(o + rcv._tab.Pos)
@@ -204,12 +218,24 @@ func (rcv *DumpResponse) DataProducerPaused() bool {
 	return false
 }
 
-func (rcv *DumpResponse) MutateDataProducerPaused(n bool) bool {
+func (rcv *DumpResponse) MutatePaused(n bool) bool {
 	return rcv._tab.MutateBoolSlot(20, n)
 }
 
-func (rcv *DumpResponse) Subchannels(j int) uint16 {
+func (rcv *DumpResponse) DataProducerPaused() bool {
 	o := flatbuffers.UOffsetT(rcv._tab.Offset(22))
+	if o != 0 {
+		return rcv._tab.GetBool(o + rcv._tab.Pos)
+	}
+	return false
+}
+
+func (rcv *DumpResponse) MutateDataProducerPaused(n bool) bool {
+	return rcv._tab.MutateBoolSlot(22, n)
+}
+
+func (rcv *DumpResponse) Subchannels(j int) uint16 {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(24))
 	if o != 0 {
 		a := rcv._tab.Vector(o)
 		return rcv._tab.GetUint16(a + flatbuffers.UOffsetT(j*2))
@@ -218,7 +244,7 @@ func (rcv *DumpResponse) Subchannels(j int) uint16 {
 }
 
 func (rcv *DumpResponse) SubchannelsLength() int {
-	o := flatbuffers.UOffsetT(rcv._tab.Offset(22))
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(24))
 	if o != 0 {
 		return rcv._tab.VectorLen(o)
 	}
@@ -226,7 +252,7 @@ func (rcv *DumpResponse) SubchannelsLength() int {
 }
 
 func (rcv *DumpResponse) MutateSubchannels(j int, n uint16) bool {
-	o := flatbuffers.UOffsetT(rcv._tab.Offset(22))
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(24))
 	if o != 0 {
 		a := rcv._tab.Vector(o)
 		return rcv._tab.MutateUint16(a+flatbuffers.UOffsetT(j*2), n)
@@ -235,7 +261,7 @@ func (rcv *DumpResponse) MutateSubchannels(j int, n uint16) bool {
 }
 
 func DumpResponseStart(builder *flatbuffers.Builder) {
-	builder.StartObject(10)
+	builder.StartObject(11)
 }
 func DumpResponseAddId(builder *flatbuffers.Builder, id flatbuffers.UOffsetT) {
 	builder.PrependUOffsetTSlot(0, flatbuffers.UOffsetT(id), 0)
@@ -243,7 +269,7 @@ func DumpResponseAddId(builder *flatbuffers.Builder, id flatbuffers.UOffsetT) {
 func DumpResponseAddDataProducerId(builder *flatbuffers.Builder, dataProducerId flatbuffers.UOffsetT) {
 	builder.PrependUOffsetTSlot(1, flatbuffers.UOffsetT(dataProducerId), 0)
 }
-func DumpResponseAddType(builder *flatbuffers.Builder, type_ FBS__DataProducer.Type) {
+func DumpResponseAddType(builder *flatbuffers.Builder, type_ Type) {
 	builder.PrependByteSlot(2, byte(type_), 0)
 }
 func DumpResponseAddSctpStreamParameters(builder *flatbuffers.Builder, sctpStreamParameters flatbuffers.UOffsetT) {
@@ -255,17 +281,20 @@ func DumpResponseAddLabel(builder *flatbuffers.Builder, label flatbuffers.UOffse
 func DumpResponseAddProtocol(builder *flatbuffers.Builder, protocol flatbuffers.UOffsetT) {
 	builder.PrependUOffsetTSlot(5, flatbuffers.UOffsetT(protocol), 0)
 }
+func DumpResponseAddBufferedAmount(builder *flatbuffers.Builder, bufferedAmount uint32) {
+	builder.PrependUint32Slot(6, bufferedAmount, 0)
+}
 func DumpResponseAddBufferedAmountLowThreshold(builder *flatbuffers.Builder, bufferedAmountLowThreshold uint32) {
-	builder.PrependUint32Slot(6, bufferedAmountLowThreshold, 0)
+	builder.PrependUint32Slot(7, bufferedAmountLowThreshold, 0)
 }
 func DumpResponseAddPaused(builder *flatbuffers.Builder, paused bool) {
-	builder.PrependBoolSlot(7, paused, false)
+	builder.PrependBoolSlot(8, paused, false)
 }
 func DumpResponseAddDataProducerPaused(builder *flatbuffers.Builder, dataProducerPaused bool) {
-	builder.PrependBoolSlot(8, dataProducerPaused, false)
+	builder.PrependBoolSlot(9, dataProducerPaused, false)
 }
 func DumpResponseAddSubchannels(builder *flatbuffers.Builder, subchannels flatbuffers.UOffsetT) {
-	builder.PrependUOffsetTSlot(9, flatbuffers.UOffsetT(subchannels), 0)
+	builder.PrependUOffsetTSlot(10, flatbuffers.UOffsetT(subchannels), 0)
 }
 func DumpResponseStartSubchannelsVector(builder *flatbuffers.Builder, numElems int) flatbuffers.UOffsetT {
 	return builder.StartVector(2, numElems, 2)

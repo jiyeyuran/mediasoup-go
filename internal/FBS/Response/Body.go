@@ -53,9 +53,10 @@ const (
 	BodyDataConsumer_GetBufferedAmountResponse Body = 27
 	BodyDataConsumer_DumpResponse              Body = 28
 	BodyDataConsumer_GetStatsResponse          Body = 29
-	BodyDataConsumer_SetSubchannelsResponse    Body = 30
-	BodyDataConsumer_AddSubchannelResponse     Body = 31
-	BodyDataConsumer_RemoveSubchannelResponse  Body = 32
+	BodyDataConsumer_SendResponse              Body = 30
+	BodyDataConsumer_SetSubchannelsResponse    Body = 31
+	BodyDataConsumer_AddSubchannelResponse     Body = 32
+	BodyDataConsumer_RemoveSubchannelResponse  Body = 33
 )
 
 var EnumNamesBody = map[Body]string{
@@ -89,6 +90,7 @@ var EnumNamesBody = map[Body]string{
 	BodyDataConsumer_GetBufferedAmountResponse: "DataConsumer_GetBufferedAmountResponse",
 	BodyDataConsumer_DumpResponse:              "DataConsumer_DumpResponse",
 	BodyDataConsumer_GetStatsResponse:          "DataConsumer_GetStatsResponse",
+	BodyDataConsumer_SendResponse:              "DataConsumer_SendResponse",
 	BodyDataConsumer_SetSubchannelsResponse:    "DataConsumer_SetSubchannelsResponse",
 	BodyDataConsumer_AddSubchannelResponse:     "DataConsumer_AddSubchannelResponse",
 	BodyDataConsumer_RemoveSubchannelResponse:  "DataConsumer_RemoveSubchannelResponse",
@@ -125,6 +127,7 @@ var EnumValuesBody = map[string]Body{
 	"DataConsumer_GetBufferedAmountResponse": BodyDataConsumer_GetBufferedAmountResponse,
 	"DataConsumer_DumpResponse":              BodyDataConsumer_DumpResponse,
 	"DataConsumer_GetStatsResponse":          BodyDataConsumer_GetStatsResponse,
+	"DataConsumer_SendResponse":              BodyDataConsumer_SendResponse,
 	"DataConsumer_SetSubchannelsResponse":    BodyDataConsumer_SetSubchannelsResponse,
 	"DataConsumer_AddSubchannelResponse":     BodyDataConsumer_AddSubchannelResponse,
 	"DataConsumer_RemoveSubchannelResponse":  BodyDataConsumer_RemoveSubchannelResponse,
@@ -205,6 +208,8 @@ func (t *BodyT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 		return t.Value.(*FBS__DataConsumer.DumpResponseT).Pack(builder)
 	case BodyDataConsumer_GetStatsResponse:
 		return t.Value.(*FBS__DataConsumer.GetStatsResponseT).Pack(builder)
+	case BodyDataConsumer_SendResponse:
+		return t.Value.(*FBS__DataConsumer.SendResponseT).Pack(builder)
 	case BodyDataConsumer_SetSubchannelsResponse:
 		return t.Value.(*FBS__DataConsumer.SetSubchannelsResponseT).Pack(builder)
 	case BodyDataConsumer_AddSubchannelResponse:
@@ -333,6 +338,10 @@ func (rcv Body) UnPack(table flatbuffers.Table) *BodyT {
 		var x FBS__DataConsumer.GetStatsResponse
 		x.Init(table.Bytes, table.Pos)
 		return &BodyT{Type: BodyDataConsumer_GetStatsResponse, Value: x.UnPack()}
+	case BodyDataConsumer_SendResponse:
+		var x FBS__DataConsumer.SendResponse
+		x.Init(table.Bytes, table.Pos)
+		return &BodyT{Type: BodyDataConsumer_SendResponse, Value: x.UnPack()}
 	case BodyDataConsumer_SetSubchannelsResponse:
 		var x FBS__DataConsumer.SetSubchannelsResponse
 		x.Init(table.Bytes, table.Pos)

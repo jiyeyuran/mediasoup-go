@@ -26,6 +26,14 @@ func TestSctpMessage(t *testing.T) {
 	})
 	require.NoError(t, err)
 
+	negotiatedCapabilities := make(chan SctpNegotiatedCapabilities, 1)
+	transport.OnSctpNegotiatedCapabilities(func(capabilities SctpNegotiatedCapabilities) {
+		select {
+		case negotiatedCapabilities <- capabilities:
+		default:
+		}
+	})
+
 	plainTransportData := transport.Data().PlainTransportData
 	remoteUdpIp := plainTransportData.Tuple.LocalAddress
 	remoteUdpPort := plainTransportData.Tuple.LocalPort
@@ -49,6 +57,16 @@ func TestSctpMessage(t *testing.T) {
 	}
 	association, err := sctp.Client(config)
 	require.NoError(t, err)
+
+	select {
+	case capabilities := <-negotiatedCapabilities:
+		assert.NotZero(t, capabilities.NegotiatedMaxOutboundStreams)
+		assert.NotZero(t, capabilities.NegotiatedMaxInboundStreams)
+		assert.Equal(t, &capabilities, transport.SctpNegotiatedCapabilities())
+
+	case <-time.After(time.Second):
+		t.Fatal("timeout waiting for the SCTP negotiated capabilities")
+	}
 
 	// Create an explicit SCTP outgoing stream with id 123 (id 0 is already used
 	// by the implicit SCTP outgoing stream built-in the SCTP socket).
@@ -127,6 +145,16 @@ func TestSctpMessage(t *testing.T) {
 		MessagesReceived: uint64(numMessages),
 		BytesReceived:    uint64(len(sendData)),
 	}, dataProducerStats[0])
+
+	// A SCTP DataConsumer reports its buffered amount when sending messages.
+	sctpDataConsumer, err := transport.ConsumeData(&DataConsumerOptions{
+		DataProducerId: dataProducer.Id(),
+	})
+	require.NoError(t, err)
+
+	bufferedAmount, err := sctpDataConsumer.SendText("hello")
+	assert.NoError(t, err)
+	assert.LessOrEqual(t, bufferedAmount, uint32(len("hello")))
 
 	dataConumserStats, err := dataConsumer.GetStats()
 	assert.NoError(t, err)

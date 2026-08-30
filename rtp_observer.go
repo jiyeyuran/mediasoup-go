@@ -159,7 +159,7 @@ func (r *RtpObserver) AddProducerContext(ctx context.Context, producerId string)
 
 	producer := r.data.GetProducerById(producerId)
 	if producer == nil {
-		return fmt.Errorf("producer with id %q not found", producerId)
+		return fmt.Errorf("%w: producer with id %q not found", ErrNotFound, producerId)
 	}
 
 	_, err := r.channel.Request(ctx, &FbsRequest.RequestT{
@@ -185,7 +185,7 @@ func (r *RtpObserver) RemoveProducerContext(ctx context.Context, producerId stri
 
 	producer := r.data.GetProducerById(producerId)
 	if producer == nil {
-		return fmt.Errorf("producer with id %q not found", producerId)
+		return fmt.Errorf("%w: producer with id %q not found", ErrNotFound, producerId)
 	}
 
 	_, err := r.channel.Request(ctx, &FbsRequest.RequestT{

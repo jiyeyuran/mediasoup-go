@@ -19,8 +19,14 @@ func (t *GetStatsResponseT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffs
 	if t == nil {
 		return 0
 	}
-	labelOffset := builder.CreateString(t.Label)
-	protocolOffset := builder.CreateString(t.Protocol)
+	labelOffset := flatbuffers.UOffsetT(0)
+	if t.Label != "" {
+		labelOffset = builder.CreateString(t.Label)
+	}
+	protocolOffset := flatbuffers.UOffsetT(0)
+	if t.Protocol != "" {
+		protocolOffset = builder.CreateString(t.Protocol)
+	}
 	GetStatsResponseStart(builder)
 	GetStatsResponseAddTimestamp(builder, t.Timestamp)
 	GetStatsResponseAddLabel(builder, labelOffset)

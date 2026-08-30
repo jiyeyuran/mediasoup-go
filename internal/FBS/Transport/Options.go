@@ -4,18 +4,18 @@ package Transport
 
 import (
 	flatbuffers "github.com/google/flatbuffers/go"
-
-	FBS__SctpParameters "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/SctpParameters"
 )
 
 type OptionsT struct {
 	Direct bool `json:"direct"`
-	MaxMessageSize *uint32 `json:"max_message_size"`
 	InitialAvailableOutgoingBitrate *uint32 `json:"initial_available_outgoing_bitrate"`
 	EnableSctp bool `json:"enable_sctp"`
-	NumSctpStreams *FBS__SctpParameters.NumSctpStreamsT `json:"num_sctp_streams"`
-	MaxSctpMessageSize uint32 `json:"max_sctp_message_size"`
+	MaxSendMessageSize uint32 `json:"max_send_message_size"`
+	MaxReceiveMessageSize uint32 `json:"max_receive_message_size"`
 	SctpSendBufferSize uint32 `json:"sctp_send_buffer_size"`
+	SctpPerStreamSendQueueLimit uint32 `json:"sctp_per_stream_send_queue_limit"`
+	SctpMaxReceiverWindowBufferSize uint32 `json:"sctp_max_receiver_window_buffer_size"`
+	SctpDefaultStreamBufferedAmountLowThreshold uint32 `json:"sctp_default_stream_buffered_amount_low_threshold"`
 	IsDataChannel bool `json:"is_data_channel"`
 }
 
@@ -23,31 +23,32 @@ func (t *OptionsT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	if t == nil {
 		return 0
 	}
-	numSctpStreamsOffset := t.NumSctpStreams.Pack(builder)
 	OptionsStart(builder)
 	OptionsAddDirect(builder, t.Direct)
-	if t.MaxMessageSize != nil {
-		OptionsAddMaxMessageSize(builder, *t.MaxMessageSize)
-	}
 	if t.InitialAvailableOutgoingBitrate != nil {
 		OptionsAddInitialAvailableOutgoingBitrate(builder, *t.InitialAvailableOutgoingBitrate)
 	}
 	OptionsAddEnableSctp(builder, t.EnableSctp)
-	OptionsAddNumSctpStreams(builder, numSctpStreamsOffset)
-	OptionsAddMaxSctpMessageSize(builder, t.MaxSctpMessageSize)
+	OptionsAddMaxSendMessageSize(builder, t.MaxSendMessageSize)
+	OptionsAddMaxReceiveMessageSize(builder, t.MaxReceiveMessageSize)
 	OptionsAddSctpSendBufferSize(builder, t.SctpSendBufferSize)
+	OptionsAddSctpPerStreamSendQueueLimit(builder, t.SctpPerStreamSendQueueLimit)
+	OptionsAddSctpMaxReceiverWindowBufferSize(builder, t.SctpMaxReceiverWindowBufferSize)
+	OptionsAddSctpDefaultStreamBufferedAmountLowThreshold(builder, t.SctpDefaultStreamBufferedAmountLowThreshold)
 	OptionsAddIsDataChannel(builder, t.IsDataChannel)
 	return OptionsEnd(builder)
 }
 
 func (rcv *Options) UnPackTo(t *OptionsT) {
 	t.Direct = rcv.Direct()
-	t.MaxMessageSize = rcv.MaxMessageSize()
 	t.InitialAvailableOutgoingBitrate = rcv.InitialAvailableOutgoingBitrate()
 	t.EnableSctp = rcv.EnableSctp()
-	t.NumSctpStreams = rcv.NumSctpStreams(nil).UnPack()
-	t.MaxSctpMessageSize = rcv.MaxSctpMessageSize()
+	t.MaxSendMessageSize = rcv.MaxSendMessageSize()
+	t.MaxReceiveMessageSize = rcv.MaxReceiveMessageSize()
 	t.SctpSendBufferSize = rcv.SctpSendBufferSize()
+	t.SctpPerStreamSendQueueLimit = rcv.SctpPerStreamSendQueueLimit()
+	t.SctpMaxReceiverWindowBufferSize = rcv.SctpMaxReceiverWindowBufferSize()
+	t.SctpDefaultStreamBufferedAmountLowThreshold = rcv.SctpDefaultStreamBufferedAmountLowThreshold()
 	t.IsDataChannel = rcv.IsDataChannel()
 }
 
@@ -107,8 +108,7 @@ func (rcv *Options) MutateDirect(n bool) bool {
 	return rcv._tab.MutateBoolSlot(4, n)
 }
 
-/// Only needed for DirectTransport. This value is handled by base Transport.
-func (rcv *Options) MaxMessageSize() *uint32 {
+func (rcv *Options) InitialAvailableOutgoingBitrate() *uint32 {
 	o := flatbuffers.UOffsetT(rcv._tab.Offset(6))
 	if o != 0 {
 		v := rcv._tab.GetUint32(o + rcv._tab.Pos)
@@ -117,26 +117,12 @@ func (rcv *Options) MaxMessageSize() *uint32 {
 	return nil
 }
 
-/// Only needed for DirectTransport. This value is handled by base Transport.
-func (rcv *Options) MutateMaxMessageSize(n uint32) bool {
+func (rcv *Options) MutateInitialAvailableOutgoingBitrate(n uint32) bool {
 	return rcv._tab.MutateUint32Slot(6, n)
 }
 
-func (rcv *Options) InitialAvailableOutgoingBitrate() *uint32 {
-	o := flatbuffers.UOffsetT(rcv._tab.Offset(8))
-	if o != 0 {
-		v := rcv._tab.GetUint32(o + rcv._tab.Pos)
-		return &v
-	}
-	return nil
-}
-
-func (rcv *Options) MutateInitialAvailableOutgoingBitrate(n uint32) bool {
-	return rcv._tab.MutateUint32Slot(8, n)
-}
-
 func (rcv *Options) EnableSctp() bool {
-	o := flatbuffers.UOffsetT(rcv._tab.Offset(10))
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(8))
 	if o != 0 {
 		return rcv._tab.GetBool(o + rcv._tab.Pos)
 	}
@@ -144,23 +130,34 @@ func (rcv *Options) EnableSctp() bool {
 }
 
 func (rcv *Options) MutateEnableSctp(n bool) bool {
-	return rcv._tab.MutateBoolSlot(10, n)
+	return rcv._tab.MutateBoolSlot(8, n)
 }
 
-func (rcv *Options) NumSctpStreams(obj *FBS__SctpParameters.NumSctpStreams) *FBS__SctpParameters.NumSctpStreams {
+func (rcv *Options) MaxSendMessageSize() uint32 {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(10))
+	if o != 0 {
+		return rcv._tab.GetUint32(o + rcv._tab.Pos)
+	}
+	return 0
+}
+
+func (rcv *Options) MutateMaxSendMessageSize(n uint32) bool {
+	return rcv._tab.MutateUint32Slot(10, n)
+}
+
+func (rcv *Options) MaxReceiveMessageSize() uint32 {
 	o := flatbuffers.UOffsetT(rcv._tab.Offset(12))
 	if o != 0 {
-		x := rcv._tab.Indirect(o + rcv._tab.Pos)
-		if obj == nil {
-			obj = new(FBS__SctpParameters.NumSctpStreams)
-		}
-		obj.Init(rcv._tab.Bytes, x)
-		return obj
+		return rcv._tab.GetUint32(o + rcv._tab.Pos)
 	}
-	return nil
+	return 0
 }
 
-func (rcv *Options) MaxSctpMessageSize() uint32 {
+func (rcv *Options) MutateMaxReceiveMessageSize(n uint32) bool {
+	return rcv._tab.MutateUint32Slot(12, n)
+}
+
+func (rcv *Options) SctpSendBufferSize() uint32 {
 	o := flatbuffers.UOffsetT(rcv._tab.Offset(14))
 	if o != 0 {
 		return rcv._tab.GetUint32(o + rcv._tab.Pos)
@@ -168,11 +165,11 @@ func (rcv *Options) MaxSctpMessageSize() uint32 {
 	return 0
 }
 
-func (rcv *Options) MutateMaxSctpMessageSize(n uint32) bool {
+func (rcv *Options) MutateSctpSendBufferSize(n uint32) bool {
 	return rcv._tab.MutateUint32Slot(14, n)
 }
 
-func (rcv *Options) SctpSendBufferSize() uint32 {
+func (rcv *Options) SctpPerStreamSendQueueLimit() uint32 {
 	o := flatbuffers.UOffsetT(rcv._tab.Offset(16))
 	if o != 0 {
 		return rcv._tab.GetUint32(o + rcv._tab.Pos)
@@ -180,12 +177,36 @@ func (rcv *Options) SctpSendBufferSize() uint32 {
 	return 0
 }
 
-func (rcv *Options) MutateSctpSendBufferSize(n uint32) bool {
+func (rcv *Options) MutateSctpPerStreamSendQueueLimit(n uint32) bool {
 	return rcv._tab.MutateUint32Slot(16, n)
 }
 
-func (rcv *Options) IsDataChannel() bool {
+func (rcv *Options) SctpMaxReceiverWindowBufferSize() uint32 {
 	o := flatbuffers.UOffsetT(rcv._tab.Offset(18))
+	if o != 0 {
+		return rcv._tab.GetUint32(o + rcv._tab.Pos)
+	}
+	return 0
+}
+
+func (rcv *Options) MutateSctpMaxReceiverWindowBufferSize(n uint32) bool {
+	return rcv._tab.MutateUint32Slot(18, n)
+}
+
+func (rcv *Options) SctpDefaultStreamBufferedAmountLowThreshold() uint32 {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(20))
+	if o != 0 {
+		return rcv._tab.GetUint32(o + rcv._tab.Pos)
+	}
+	return 0
+}
+
+func (rcv *Options) MutateSctpDefaultStreamBufferedAmountLowThreshold(n uint32) bool {
+	return rcv._tab.MutateUint32Slot(20, n)
+}
+
+func (rcv *Options) IsDataChannel() bool {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(22))
 	if o != 0 {
 		return rcv._tab.GetBool(o + rcv._tab.Pos)
 	}
@@ -193,37 +214,42 @@ func (rcv *Options) IsDataChannel() bool {
 }
 
 func (rcv *Options) MutateIsDataChannel(n bool) bool {
-	return rcv._tab.MutateBoolSlot(18, n)
+	return rcv._tab.MutateBoolSlot(22, n)
 }
 
 func OptionsStart(builder *flatbuffers.Builder) {
-	builder.StartObject(8)
+	builder.StartObject(10)
 }
 func OptionsAddDirect(builder *flatbuffers.Builder, direct bool) {
 	builder.PrependBoolSlot(0, direct, false)
 }
-func OptionsAddMaxMessageSize(builder *flatbuffers.Builder, maxMessageSize uint32) {
-	builder.PrependUint32(maxMessageSize)
-	builder.Slot(1)
-}
 func OptionsAddInitialAvailableOutgoingBitrate(builder *flatbuffers.Builder, initialAvailableOutgoingBitrate uint32) {
 	builder.PrependUint32(initialAvailableOutgoingBitrate)
-	builder.Slot(2)
+	builder.Slot(1)
 }
 func OptionsAddEnableSctp(builder *flatbuffers.Builder, enableSctp bool) {
-	builder.PrependBoolSlot(3, enableSctp, false)
+	builder.PrependBoolSlot(2, enableSctp, false)
 }
-func OptionsAddNumSctpStreams(builder *flatbuffers.Builder, numSctpStreams flatbuffers.UOffsetT) {
-	builder.PrependUOffsetTSlot(4, flatbuffers.UOffsetT(numSctpStreams), 0)
+func OptionsAddMaxSendMessageSize(builder *flatbuffers.Builder, maxSendMessageSize uint32) {
+	builder.PrependUint32Slot(3, maxSendMessageSize, 0)
 }
-func OptionsAddMaxSctpMessageSize(builder *flatbuffers.Builder, maxSctpMessageSize uint32) {
-	builder.PrependUint32Slot(5, maxSctpMessageSize, 0)
+func OptionsAddMaxReceiveMessageSize(builder *flatbuffers.Builder, maxReceiveMessageSize uint32) {
+	builder.PrependUint32Slot(4, maxReceiveMessageSize, 0)
 }
 func OptionsAddSctpSendBufferSize(builder *flatbuffers.Builder, sctpSendBufferSize uint32) {
-	builder.PrependUint32Slot(6, sctpSendBufferSize, 0)
+	builder.PrependUint32Slot(5, sctpSendBufferSize, 0)
+}
+func OptionsAddSctpPerStreamSendQueueLimit(builder *flatbuffers.Builder, sctpPerStreamSendQueueLimit uint32) {
+	builder.PrependUint32Slot(6, sctpPerStreamSendQueueLimit, 0)
+}
+func OptionsAddSctpMaxReceiverWindowBufferSize(builder *flatbuffers.Builder, sctpMaxReceiverWindowBufferSize uint32) {
+	builder.PrependUint32Slot(7, sctpMaxReceiverWindowBufferSize, 0)
+}
+func OptionsAddSctpDefaultStreamBufferedAmountLowThreshold(builder *flatbuffers.Builder, sctpDefaultStreamBufferedAmountLowThreshold uint32) {
+	builder.PrependUint32Slot(8, sctpDefaultStreamBufferedAmountLowThreshold, 0)
 }
 func OptionsAddIsDataChannel(builder *flatbuffers.Builder, isDataChannel bool) {
-	builder.PrependBoolSlot(7, isDataChannel, false)
+	builder.PrependBoolSlot(9, isDataChannel, false)
 }
 func OptionsEnd(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	return builder.EndObject()

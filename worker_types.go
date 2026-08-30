@@ -53,13 +53,6 @@ type WorkerSettings struct {
 	// Defaults to "WebRTC-Bwe-AlrLimitedBackoff/Enabled/".
 	LibwebrtcFieldTrials string `json:"libwebrtcFieldTrials,omitempty"`
 
-	// DisableLiburing disables io_uring even if supported by host.
-	DisableLiburing bool `json:"disableLiburing,omitempty"`
-
-	// UseBuiltInSctpStack sets whether to use the mediasoup built-in SCTP stack
-	// instead usrsctp.
-	UseBuiltInSctpStack bool `json:"useBuiltInSctpStack,omitempty"`
-
 	// AppData holds custom application data.
 	AppData H `json:"appData,omitempty"`
 
@@ -90,18 +83,11 @@ type WorkerDump struct {
 	WebRtcServerIds        []string                          `json:"webRtcServerIds,omitempty"`
 	RouterIds              []string                          `json:"routerIds,omitempty"`
 	ChannelMessageHandlers *WorkerDumpChannelMessageHandlers `json:"channelMessageHandlers,omitempty"`
-	Liburing               *WorkerDumpLiburing               `json:"liburing,omitempty"`
 }
 
 type WorkerDumpChannelMessageHandlers struct {
 	ChannelRequestHandlers      []string `json:"channelRequestHandlers,omitempty"`
 	ChannelNotificationHandlers []string `json:"channelNotificationHandlers,omitempty"`
-}
-
-type WorkerDumpLiburing struct {
-	SqeProcessCount   uint64 `json:"sqeProcessCount,omitempty"`
-	SqeMissCount      uint64 `json:"sqeMissCount,omitempty"`
-	UserDataMissCount uint64 `json:"userDataMissCount,omitempty"`
 }
 
 // WorkerResourceUsage represents the resource usage statistics of a worker.

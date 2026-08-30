@@ -334,6 +334,7 @@ func (p *DataProducer) send(ctx context.Context, data []byte, ppid SctpPayloadTy
 				Ppid:               uint32(opts.PPID),
 				Subchannels:        opts.Subchannels,
 				RequiredSubchannel: opts.RequiredSubchannel,
+				IgnoredSubchannel:  opts.IgnoredSubchannel,
 			},
 		},
 	})

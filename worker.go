@@ -25,7 +25,7 @@ import (
 )
 
 // MEDIASOUP_WORKER_VERSION is the maximum supported version of the mediasoup C++ subprocess.
-const MEDIASOUP_WORKER_VERSION = "3.19.21"
+const MEDIASOUP_WORKER_VERSION = "3.26.0"
 
 // Worker represents a mediasoup C++ subprocess that runs in a single CPU core and handles Router
 // instances.
@@ -132,14 +132,6 @@ func NewWorker(workerBinaryPath string, options ...Option) (*Worker, error) {
 
 	if len(opts.LibwebrtcFieldTrials) > 0 {
 		args = append(args, "--libwebrtcFieldTrials="+opts.LibwebrtcFieldTrials)
-	}
-
-	if opts.DisableLiburing {
-		args = append(args, "--disableLiburing=true")
-	}
-
-	if opts.UseBuiltInSctpStack {
-		args = append(args, "--useBuiltInSctpStack=true")
 	}
 
 	logger.Debug(fmt.Sprintf("starting worker process: %s %s", workerBinaryPath, strings.Join(args, " ")))
@@ -345,13 +337,6 @@ func (w *Worker) DumpContext(ctx context.Context) (dump *WorkerDump, err error) 
 		dump.ChannelMessageHandlers = &WorkerDumpChannelMessageHandlers{
 			ChannelRequestHandlers:      resp.ChannelMessageHandlers.ChannelRequestHandlers,
 			ChannelNotificationHandlers: resp.ChannelMessageHandlers.ChannelNotificationHandlers,
-		}
-	}
-	if resp.Liburing != nil {
-		dump.Liburing = &WorkerDumpLiburing{
-			SqeProcessCount:   resp.Liburing.SqeProcessCount,
-			SqeMissCount:      resp.Liburing.SqeMissCount,
-			UserDataMissCount: resp.Liburing.UserDataMissCount,
 		}
 	}
 	return dump, nil

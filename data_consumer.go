@@ -6,7 +6,6 @@ import (
 	"unsafe"
 
 	FbsDataConsumer "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/DataConsumer"
-	FbsDataProducer "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/DataProducer"
 	FbsNotification "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/Notification"
 	FbsRequest "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/Request"
 	FbsTransport "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/Transport"
@@ -177,7 +176,8 @@ func (c *DataConsumer) DumpContext(ctx context.Context) (*DataConsumerDump, erro
 		Subchannels:                resp.Subchannels,
 		Paused:                     resp.Paused,
 		DataProducerId:             resp.DataProducerId,
-		Type:                       orElse(resp.Type == FbsDataProducer.TypeDIRECT, DataConsumerDirect, DataConsumerSctp),
+		Type:                       orElse(resp.Type == FbsDataConsumer.TypeDIRECT, DataConsumerDirect, DataConsumerSctp),
+		BufferedAmount:             resp.BufferedAmount,
 		Label:                      resp.Label,
 		Protocol:                   resp.Protocol,
 		BufferedAmountLowThreshold: resp.BufferedAmountLowThreshold,
@@ -330,12 +330,12 @@ func (c *DataConsumer) GetBufferedAmountContext(ctx context.Context) (uint32, er
 	return resp.BufferedAmount, nil
 }
 
-// Send data.
-func (c *DataConsumer) Send(data []byte, options ...DataConsumerSendOption) (err error) {
+// Send data and returns the current buffered amount of the DataConsumer.
+func (c *DataConsumer) Send(data []byte, options ...DataConsumerSendOption) (bufferedAmount uint32, err error) {
 	return c.SendContext(context.Background(), data, options...)
 }
 
-func (c *DataConsumer) SendContext(ctx context.Context, data []byte, options ...DataConsumerSendOption) (err error) {
+func (c *DataConsumer) SendContext(ctx context.Context, data []byte, options ...DataConsumerSendOption) (bufferedAmount uint32, err error) {
 	c.logger.DebugContext(ctx, "Send()")
 
 	var payloadType SctpPayloadType
@@ -372,12 +372,12 @@ func (c *DataConsumer) SendContext(ctx context.Context, data []byte, options ...
 	return c.send(ctx, data, opts.PPID)
 }
 
-// SendText send text.
-func (c *DataConsumer) SendText(message string) error {
+// SendText send text and returns the current buffered amount of the DataConsumer.
+func (c *DataConsumer) SendText(message string) (bufferedAmount uint32, err error) {
 	return c.SendTextContext(context.Background(), message)
 }
 
-func (c *DataConsumer) SendTextContext(ctx context.Context, message string) error {
+func (c *DataConsumer) SendTextContext(ctx context.Context, message string) (bufferedAmount uint32, err error) {
 	c.logger.DebugContext(ctx, "SendText()")
 
 	ppid := SctpPayloadWebRTCString
@@ -390,8 +390,8 @@ func (c *DataConsumer) SendTextContext(ctx context.Context, message string) erro
 	return c.send(ctx, data, ppid)
 }
 
-func (c *DataConsumer) send(ctx context.Context, data []byte, ppid SctpPayloadType) error {
-	_, err := c.channel.Request(ctx, &FbsRequest.RequestT{
+func (c *DataConsumer) send(ctx context.Context, data []byte, ppid SctpPayloadType) (uint32, error) {
+	msg, err := c.channel.Request(ctx, &FbsRequest.RequestT{
 		Method:    FbsRequest.MethodDATACONSUMER_SEND,
 		HandlerId: c.Id(),
 		Body: &FbsRequest.BodyT{
@@ -402,7 +402,11 @@ func (c *DataConsumer) send(ctx context.Context, data []byte, ppid SctpPayloadTy
 			},
 		},
 	})
-	return err
+	if err != nil {
+		return 0, err
+	}
+	resp := msg.(*FbsDataConsumer.SendResponseT)
+	return resp.BufferedAmount, nil
 }
 
 func (c *DataConsumer) SetSubchannels(subchannels []uint16) error {

@@ -11,6 +11,7 @@ type SendNotificationT struct {
 	Data []byte `json:"data"`
 	Subchannels []uint16 `json:"subchannels"`
 	RequiredSubchannel *uint16 `json:"required_subchannel"`
+	IgnoredSubchannel *uint16 `json:"ignored_subchannel"`
 }
 
 func (t *SendNotificationT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
@@ -37,6 +38,9 @@ func (t *SendNotificationT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffs
 	if t.RequiredSubchannel != nil {
 		SendNotificationAddRequiredSubchannel(builder, *t.RequiredSubchannel)
 	}
+	if t.IgnoredSubchannel != nil {
+		SendNotificationAddIgnoredSubchannel(builder, *t.IgnoredSubchannel)
+	}
 	return SendNotificationEnd(builder)
 }
 
@@ -49,6 +53,7 @@ func (rcv *SendNotification) UnPackTo(t *SendNotificationT) {
 		t.Subchannels[j] = rcv.Subchannels(j)
 	}
 	t.RequiredSubchannel = rcv.RequiredSubchannel()
+	t.IgnoredSubchannel = rcv.IgnoredSubchannel()
 }
 
 func (rcv *SendNotification) UnPack() *SendNotificationT {
@@ -180,8 +185,21 @@ func (rcv *SendNotification) MutateRequiredSubchannel(n uint16) bool {
 	return rcv._tab.MutateUint16Slot(10, n)
 }
 
+func (rcv *SendNotification) IgnoredSubchannel() *uint16 {
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(12))
+	if o != 0 {
+		v := rcv._tab.GetUint16(o + rcv._tab.Pos)
+		return &v
+	}
+	return nil
+}
+
+func (rcv *SendNotification) MutateIgnoredSubchannel(n uint16) bool {
+	return rcv._tab.MutateUint16Slot(12, n)
+}
+
 func SendNotificationStart(builder *flatbuffers.Builder) {
-	builder.StartObject(4)
+	builder.StartObject(5)
 }
 func SendNotificationAddPpid(builder *flatbuffers.Builder, ppid uint32) {
 	builder.PrependUint32Slot(0, ppid, 0)
@@ -201,6 +219,10 @@ func SendNotificationStartSubchannelsVector(builder *flatbuffers.Builder, numEle
 func SendNotificationAddRequiredSubchannel(builder *flatbuffers.Builder, requiredSubchannel uint16) {
 	builder.PrependUint16(requiredSubchannel)
 	builder.Slot(3)
+}
+func SendNotificationAddIgnoredSubchannel(builder *flatbuffers.Builder, ignoredSubchannel uint16) {
+	builder.PrependUint16(ignoredSubchannel)
+	builder.Slot(4)
 }
 func SendNotificationEnd(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	return builder.EndObject()

@@ -25,8 +25,14 @@ func (t *ConsumeRequestT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffset
 	if t == nil {
 		return 0
 	}
-	consumerIdOffset := builder.CreateString(t.ConsumerId)
-	producerIdOffset := builder.CreateString(t.ProducerId)
+	consumerIdOffset := flatbuffers.UOffsetT(0)
+	if t.ConsumerId != "" {
+		consumerIdOffset = builder.CreateString(t.ConsumerId)
+	}
+	producerIdOffset := flatbuffers.UOffsetT(0)
+	if t.ProducerId != "" {
+		producerIdOffset = builder.CreateString(t.ProducerId)
+	}
 	rtpParametersOffset := t.RtpParameters.Pack(builder)
 	consumableRtpEncodingsOffset := flatbuffers.UOffsetT(0)
 	if t.ConsumableRtpEncodings != nil {
