@@ -19,4 +19,8 @@ var (
 
 	// ErrNotFound reports that the referenced entity doesn't exist.
 	ErrNotFound = channel.ErrNotFound
+
+	// ErrNoWorkerAvailable reports that a WorkerPool has no worker left to hand
+	// out, because it was closed or because every worker died.
+	ErrNoWorkerAvailable = errors.New("no worker available in the pool")
 )

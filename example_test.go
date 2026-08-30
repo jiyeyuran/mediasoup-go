@@ -119,6 +119,35 @@ func ExampleWorker_OnDied() {
 	<-subprocessClosed
 }
 
+// A worker is pinned to one core, so an application that wants more than one core
+// runs a pool of them and puts each room on a worker.
+func ExampleNewWorkerPool() {
+	// Zero means runtime.NumCPU().
+	pool, err := mediasoup.NewWorkerPool("/path/to/mediasoup-worker", 0)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer pool.Close()
+
+	// The pool skips dead workers but does not replace them: the rooms hosted by a
+	// dead worker are gone, and only the application knows what to do about that.
+	for _, worker := range pool.Workers() {
+		worker := worker // Required before Go 1.22.
+		worker.OnDied(func(ctx context.Context, err error) {
+			log.Printf("worker %d died: %v", worker.Pid(), err)
+			// Signal the clients of that worker's rooms to renegotiate.
+		})
+	}
+
+	// One room per router, on the next worker in the rotation.
+	router, err := pool.CreateRouter(&mediasoup.RouterOptions{})
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	log.Println("room ready on router", router.Id())
+}
+
 // One worker uses one CPU core. To spread a single room across cores, put a
 // router on each worker and pipe producers between them on demand.
 func ExampleRouter_PipeToRouter() {

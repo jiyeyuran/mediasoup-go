@@ -16,8 +16,30 @@ FlatBuffers message rather than at startup, because the protocol changes between
 mediasoup releases.
 
 The worker communicates over extra file descriptors, so Windows is not
-supported. One worker uses one CPU core; to use more cores, run several workers
-and connect their routers with Router.PipeToRouter.
+supported.
+
+# Using more than one core
+
+A worker is a subprocess pinned to a single core, so a single worker caps out at
+one core no matter how many rooms it hosts. WorkerPool starts a group of them and
+hands out a worker per room, round-robin, skipping any that have died:
+
+	pool, err := mediasoup.NewWorkerPool(binPath, 0) // 0 means runtime.NumCPU()
+	if err != nil {
+		return err
+	}
+	defer pool.Close()
+
+	router, err := pool.CreateRouter(&mediasoup.RouterOptions{MediaCodecs: codecs})
+
+Routers on different workers cannot forward media to each other directly, so put
+endpoints that talk to each other on one router where possible, and bridge with
+Router.PipeToRouter where not.
+
+The pool does not restart a worker that dies, because the routers, transports and
+producers on it are gone with the subprocess and only the application knows
+whether the affected clients should renegotiate elsewhere or be dropped. Register
+Worker.OnDied over WorkerPool.Workers to find out.
 
 # Object graph
 

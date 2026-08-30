@@ -14,6 +14,9 @@ Close the remaining API gaps against the mediasoup Node.js binding and fix the
 - `Worker`: add `Died()`, `SubprocessClosed()`, `OnDied()` and `OnSubprocessClose()`.
   Previously a crashed worker could only be noticed by polling `Err()`, and a
   worker killed by `Close()` was indistinguishable from one that died on its own
+- add `WorkerPool`, which runs a group of workers and hands out one per router,
+  round-robin, skipping any that died. A worker is pinned to one CPU core, so
+  using more than one core previously meant hand-rolling this
 - add `WorkerSettings.OnChannelRequest` and `Worker.ChannelPendingRequests()`, so
   the cost of talking to the worker subprocess can be exported as metrics. Request
   latency, request errors and the pending request count were previously invisible
