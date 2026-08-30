@@ -2,7 +2,9 @@
 
 ### 2.5.0
 
-Sync with mediasoup v3.20.0~v3.26.0. Requires a mediasoup-worker v3.20.0 or newer.
+Sync with mediasoup v3.20.0~v3.26.0 changelog. Requires mediasoup-worker **v3.26.0**
+  (earlier 3.20.x/3.23.x workers are not wire-compatible: FBS field ids in
+  `Transport.Options` and `Transport.Dump` shifted).
 
 - **Breaking change:** `WorkerSettings`: remove `UseBuiltInSctpStack` and `DisableLiburing`, the worker
   always uses the built-in SCTP stack and `io_uring` support was dropped
