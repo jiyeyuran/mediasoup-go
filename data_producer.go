@@ -32,9 +32,9 @@ type DataProducer struct {
 	channel                 *channel.Channel
 	data                    *dataProducerData
 	closed                  bool
-	pauseListeners          []func(context.Context)
-	resumeListeners         []func(context.Context)
-	transportCloseListeners []func(context.Context)
+	pauseListeners          listenerList[func(context.Context)]
+	resumeListeners         listenerList[func(context.Context)]
+	transportCloseListeners listenerList[func(context.Context)]
 	logger                  *slog.Logger
 }
 
@@ -210,7 +210,7 @@ func (p *DataProducer) PauseContext(ctx context.Context) error {
 		return err
 	}
 	wasPaused := p.data.Paused
-	listeners := p.pauseListeners
+	listeners := p.pauseListeners.list()
 	p.data.Paused = true
 	p.mu.Unlock()
 
@@ -242,7 +242,7 @@ func (p *DataProducer) ResumeContext(ctx context.Context) error {
 		return err
 	}
 	wasPaused := p.data.Paused
-	listeners := p.resumeListeners
+	listeners := p.resumeListeners.list()
 	p.data.Paused = false
 
 	p.mu.Unlock()
@@ -256,28 +256,22 @@ func (p *DataProducer) ResumeContext(ctx context.Context) error {
 	return err
 }
 
-// OnPause add listener on "pause" event.
-func (p *DataProducer) OnPause(f func(context.Context)) {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-
-	p.pauseListeners = append(p.pauseListeners, f)
+// OnPause adds a listener on the "pause" event. Call the returned function to
+// remove the listener again.
+func (p *DataProducer) OnPause(listener func(context.Context)) (removeListener func()) {
+	return addListener(&p.mu, &p.pauseListeners, listener)
 }
 
-// OnResume add listener on "resume" event.
-func (p *DataProducer) OnResume(f func(context.Context)) {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-
-	p.resumeListeners = append(p.resumeListeners, f)
+// OnResume adds a listener on the "resume" event. Call the returned function to
+// remove the listener again.
+func (p *DataProducer) OnResume(listener func(context.Context)) (removeListener func()) {
+	return addListener(&p.mu, &p.resumeListeners, listener)
 }
 
-// OnTransportClosed add listener on "transportclosed" event.
-func (p *DataProducer) OnTransportClosed(listener func(context.Context)) {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-
-	p.transportCloseListeners = append(p.transportCloseListeners, listener)
+// OnTransportClosed adds a listener on the "transportclosed" event. Call the
+// returned function to remove the listener again.
+func (p *DataProducer) OnTransportClosed(listener func(context.Context)) (removeListener func()) {
+	return addListener(&p.mu, &p.transportCloseListeners, listener)
 }
 
 // Send send binary data.
@@ -347,7 +341,7 @@ func (p *DataProducer) transportClosed(ctx context.Context) {
 		return
 	}
 	p.closed = true
-	listeners := p.transportCloseListeners
+	listeners := p.transportCloseListeners.list()
 	p.mu.Unlock()
 	p.logger.DebugContext(ctx, "transportClosed()")
 

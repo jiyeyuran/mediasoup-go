@@ -51,9 +51,9 @@ type Router struct {
 	dataProducers sync.Map
 	dataConsumers sync.Map
 
-	newRtpObserverListeners []func(context.Context, *RtpObserver)
-	newTransportListeners   []func(context.Context, *Transport)
-	workerCloseListeners    []func(context.Context)
+	newRtpObserverListeners listenerList[func(context.Context, *RtpObserver)]
+	newTransportListeners   listenerList[func(context.Context, *Transport)]
+	workerCloseListeners    listenerList[func(context.Context)]
 
 	routerPipeMu            sync.Mutex
 	mapRouterPipeTransports map[*Router][2]*Transport
@@ -979,23 +979,22 @@ func (r *Router) PipeToRouterContext(ctx context.Context, options *PipeToRouterO
 	}, nil
 }
 
-func (r *Router) OnNewRtpObserver(listener func(context.Context, *RtpObserver)) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	r.newRtpObserverListeners = append(r.newRtpObserverListeners, listener)
+// OnNewRtpObserver adds a listener on the "newrtpobserver" event. Call the
+// returned function to remove the listener again.
+func (r *Router) OnNewRtpObserver(listener func(context.Context, *RtpObserver)) (removeListener func()) {
+	return addListener(&r.mu, &r.newRtpObserverListeners, listener)
 }
 
-func (r *Router) OnNewTransport(listener func(context.Context, *Transport)) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	r.newTransportListeners = append(r.newTransportListeners, listener)
+// OnNewTransport adds a listener on the "newtransport" event. Call the returned
+// function to remove the listener again.
+func (r *Router) OnNewTransport(listener func(context.Context, *Transport)) (removeListener func()) {
+	return addListener(&r.mu, &r.newTransportListeners, listener)
 }
 
-// OnWorkerClosed add listener on "workerclosed" event.
-func (r *Router) OnWorkerClosed(listener func(ctx context.Context)) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	r.workerCloseListeners = append(r.workerCloseListeners, listener)
+// OnWorkerClosed adds a listener on the "workerclosed" event. Call the returned
+// function to remove the listener again.
+func (r *Router) OnWorkerClosed(listener func(ctx context.Context)) (removeListener func()) {
+	return addListener(&r.mu, &r.workerCloseListeners, listener)
 }
 
 func (r *Router) workerClosed(ctx context.Context) {
@@ -1005,7 +1004,7 @@ func (r *Router) workerClosed(ctx context.Context) {
 		return
 	}
 	r.closed = true
-	listeners := r.workerCloseListeners
+	listeners := r.workerCloseListeners.list()
 	r.mu.Unlock()
 	r.logger.DebugContext(ctx, "workerClosed()")
 
@@ -1055,7 +1054,7 @@ func (r *Router) newRtpObserver(ctx context.Context, data *rtpObserverData) (*Rt
 		r.rtpObservers.Delete(rtpObserver.Id())
 	})
 
-	listeners := r.newRtpObserverListeners
+	listeners := r.newRtpObserverListeners.list()
 
 	r.mu.Unlock()
 
@@ -1109,7 +1108,7 @@ func (r *Router) newTransport(ctx context.Context, data *internalTransportData) 
 		r.transports.Delete(transport.Id())
 	})
 
-	listeners := r.newTransportListeners
+	listeners := r.newTransportListeners.list()
 
 	r.mu.Unlock()
 

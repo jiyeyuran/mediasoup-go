@@ -40,15 +40,15 @@ type DataConsumer struct {
 	channel                     *channel.Channel
 	data                        *dataconsumerData
 	closed                      bool
-	pauseListeners              []func(context.Context)
-	resumeListeners             []func(context.Context)
-	transportCloseListeners     []func(context.Context)
-	dataProducerCloseListeners  []func(context.Context)
-	dataProducerPauseListeners  []func(context.Context)
-	dataProducerResumeListeners []func(context.Context)
-	sctpSendBufferFullListeners []func()
-	bufferedAmountLowListeners  []func(bufferAmount uint32)
-	messageListeners            []func(payload []byte, ppid SctpPayloadType)
+	pauseListeners              listenerList[func(context.Context)]
+	resumeListeners             listenerList[func(context.Context)]
+	transportCloseListeners     listenerList[func(context.Context)]
+	dataProducerCloseListeners  listenerList[func(context.Context)]
+	dataProducerPauseListeners  listenerList[func(context.Context)]
+	dataProducerResumeListeners listenerList[func(context.Context)]
+	sctpSendBufferFullListeners listenerList[func()]
+	bufferedAmountLowListeners  listenerList[func(bufferAmount uint32)]
+	messageListeners            listenerList[func(payload []byte, ppid SctpPayloadType)]
 	sub                         *channel.Subscription
 	logger                      *slog.Logger
 }
@@ -253,7 +253,7 @@ func (c *DataConsumer) PauseContext(ctx context.Context) error {
 		return err
 	}
 	wasPaused := c.data.Paused
-	listeners := c.pauseListeners
+	listeners := c.pauseListeners.list()
 	c.data.Paused = true
 	c.mu.Unlock()
 
@@ -285,7 +285,7 @@ func (c *DataConsumer) ResumeContext(ctx context.Context) error {
 		return err
 	}
 	wasPaused := c.data.Paused
-	listeners := c.resumeListeners
+	listeners := c.resumeListeners.list()
 	c.data.Paused = false
 
 	c.mu.Unlock()
@@ -505,67 +505,58 @@ func (c *DataConsumer) RemoveSubChannelContext(ctx context.Context, subchannel u
 	return nil
 }
 
-// OnPause add listener on "pause" event.
-func (c *DataConsumer) OnPause(listener func(ctx context.Context)) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	c.pauseListeners = append(c.pauseListeners, listener)
+// OnPause adds a listener on the "pause" event. Call the returned function to
+// remove the listener again.
+func (c *DataConsumer) OnPause(listener func(ctx context.Context)) (removeListener func()) {
+	return addListener(&c.mu, &c.pauseListeners, listener)
 }
 
-// OnResume add listener on "resume" event.
-func (c *DataConsumer) OnResume(listener func(ctx context.Context)) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	c.resumeListeners = append(c.resumeListeners, listener)
+// OnResume adds a listener on the "resume" event. Call the returned function to
+// remove the listener again.
+func (c *DataConsumer) OnResume(listener func(ctx context.Context)) (removeListener func()) {
+	return addListener(&c.mu, &c.resumeListeners, listener)
 }
 
-// OnTransportClosed add listener on "transportclosed" event.
-func (c *DataConsumer) OnTransportClosed(listener func(ctx context.Context)) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	c.transportCloseListeners = append(c.transportCloseListeners, listener)
+// OnTransportClosed adds a listener on the "transportclosed" event. Call the
+// returned function to remove the listener again.
+func (c *DataConsumer) OnTransportClosed(listener func(ctx context.Context)) (removeListener func()) {
+	return addListener(&c.mu, &c.transportCloseListeners, listener)
 }
 
-// OnProducerClose add listener on "dataproducerclose" event.
-func (c *DataConsumer) OnDataProducerClose(listener func(ctx context.Context)) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	c.dataProducerCloseListeners = append(c.dataProducerCloseListeners, listener)
+// OnDataProducerClose adds a listener on the "dataproducerclose" event. Call the
+// returned function to remove the listener again.
+func (c *DataConsumer) OnDataProducerClose(listener func(ctx context.Context)) (removeListener func()) {
+	return addListener(&c.mu, &c.dataProducerCloseListeners, listener)
 }
 
-// OnProducerPause add listener on "dataproducerpause" event.
-func (c *DataConsumer) OnDataProducerPause(listener func(ctx context.Context)) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	c.dataProducerPauseListeners = append(c.dataProducerPauseListeners, listener)
+// OnDataProducerPause adds a listener on the "dataproducerpause" event. Call the
+// returned function to remove the listener again.
+func (c *DataConsumer) OnDataProducerPause(listener func(ctx context.Context)) (removeListener func()) {
+	return addListener(&c.mu, &c.dataProducerPauseListeners, listener)
 }
 
-// OnProducerResume add listener on "dataproducerresume" event.
-func (c *DataConsumer) OnDataProducerResume(listener func(ctx context.Context)) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	c.dataProducerResumeListeners = append(c.dataProducerResumeListeners, listener)
+// OnDataProducerResume adds a listener on the "dataproducerresume" event. Call
+// the returned function to remove the listener again.
+func (c *DataConsumer) OnDataProducerResume(listener func(ctx context.Context)) (removeListener func()) {
+	return addListener(&c.mu, &c.dataProducerResumeListeners, listener)
 }
 
-// OnSctpSendBufferFull add listener on "sctpsendbufferfull" event
-func (c *DataConsumer) OnSctpSendBufferFull(listener func()) {
-	c.mu.Lock()
-	c.sctpSendBufferFullListeners = append(c.sctpSendBufferFullListeners, listener)
-	c.mu.Unlock()
+// OnSctpSendBufferFull adds a listener on the "sctpsendbufferfull" event. Call
+// the returned function to remove the listener again.
+func (c *DataConsumer) OnSctpSendBufferFull(listener func()) (removeListener func()) {
+	return addListener(&c.mu, &c.sctpSendBufferFullListeners, listener)
 }
 
-// OnBufferedAmountLow add listener on "bufferedamountlow" event
-func (c *DataConsumer) OnBufferedAmountLow(listener func(bufferAmount uint32)) {
-	c.mu.Lock()
-	c.bufferedAmountLowListeners = append(c.bufferedAmountLowListeners, listener)
-	c.mu.Unlock()
+// OnBufferedAmountLow adds a listener on the "bufferedamountlow" event. Call the
+// returned function to remove the listener again.
+func (c *DataConsumer) OnBufferedAmountLow(listener func(bufferAmount uint32)) (removeListener func()) {
+	return addListener(&c.mu, &c.bufferedAmountLowListeners, listener)
 }
 
-// OnMessage add listener on "message" event
-func (c *DataConsumer) OnMessage(listener func(payload []byte, ppid SctpPayloadType)) {
-	c.mu.Lock()
-	c.messageListeners = append(c.messageListeners, listener)
-	c.mu.Unlock()
+// OnMessage adds a listener on the "message" event. Call the returned function to
+// remove the listener again.
+func (c *DataConsumer) OnMessage(listener func(payload []byte, ppid SctpPayloadType)) (removeListener func()) {
+	return addListener(&c.mu, &c.messageListeners, listener)
 }
 
 func (c *DataConsumer) handleWorkerNotifications() *channel.Subscription {
@@ -573,7 +564,7 @@ func (c *DataConsumer) handleWorkerNotifications() *channel.Subscription {
 		switch event, body := notification.Event, notification.Body; event {
 		case FbsNotification.EventDATACONSUMER_DATAPRODUCER_CLOSE:
 			c.mu.RLock()
-			dataProducerCloseListeners := c.dataProducerCloseListeners
+			dataProducerCloseListeners := c.dataProducerCloseListeners.list()
 			c.mu.RUnlock()
 
 			ctx = channel.UnwrapContext(ctx, c.DataProducerId())
@@ -590,8 +581,8 @@ func (c *DataConsumer) handleWorkerNotifications() *channel.Subscription {
 			}
 			c.data.DataProducerPaused = true
 			paused := c.data.Paused
-			listeners := c.pauseListeners
-			dataProducerPauseListeners := c.dataProducerPauseListeners
+			listeners := c.pauseListeners.list()
+			dataProducerPauseListeners := c.dataProducerPauseListeners.list()
 			c.mu.Unlock()
 
 			ctx = channel.UnwrapContext(ctx, c.DataProducerId())
@@ -613,8 +604,8 @@ func (c *DataConsumer) handleWorkerNotifications() *channel.Subscription {
 			}
 			c.data.DataProducerPaused = false
 			paused := c.data.Paused
-			listeners := c.resumeListeners
-			dataProducerResumeListeners := c.dataProducerResumeListeners
+			listeners := c.resumeListeners.list()
+			dataProducerResumeListeners := c.dataProducerResumeListeners.list()
 			c.mu.Unlock()
 
 			ctx = channel.UnwrapContext(ctx, c.DataProducerId())
@@ -630,7 +621,7 @@ func (c *DataConsumer) handleWorkerNotifications() *channel.Subscription {
 
 		case FbsNotification.EventDATACONSUMER_SCTP_SENDBUFFER_FULL:
 			c.mu.RLock()
-			listeners := c.sctpSendBufferFullListeners
+			listeners := c.sctpSendBufferFullListeners.list()
 			c.mu.RUnlock()
 
 			for _, listener := range listeners {
@@ -640,7 +631,7 @@ func (c *DataConsumer) handleWorkerNotifications() *channel.Subscription {
 		case FbsNotification.EventDATACONSUMER_BUFFERED_AMOUNT_LOW:
 			Notification := body.Value.(*FbsDataConsumer.BufferedAmountLowNotificationT)
 			c.mu.RLock()
-			listeners := c.bufferedAmountLowListeners
+			listeners := c.bufferedAmountLowListeners.list()
 			c.mu.RUnlock()
 
 			for _, listener := range listeners {
@@ -650,7 +641,7 @@ func (c *DataConsumer) handleWorkerNotifications() *channel.Subscription {
 		case FbsNotification.EventDATACONSUMER_MESSAGE:
 			notification := body.Value.(*FbsDataConsumer.MessageNotificationT)
 			c.mu.RLock()
-			listeners := c.messageListeners
+			listeners := c.messageListeners.list()
 			c.mu.RUnlock()
 
 			for _, listener := range listeners {
@@ -682,7 +673,7 @@ func (c *DataConsumer) transportClosed(ctx context.Context) {
 		return
 	}
 	c.closed = true
-	listeners := c.transportCloseListeners
+	listeners := c.transportCloseListeners.list()
 	c.mu.Unlock()
 	c.logger.DebugContext(ctx, "transportClosed()")
 

@@ -35,12 +35,12 @@ type Producer struct {
 	data                            *producerData
 	score                           []ProducerScore
 	closed                          bool
-	pauseListeners                  []func(context.Context)
-	resumeListeners                 []func(context.Context)
-	transportCloseListeners         []func(context.Context)
-	scoreListeners                  []func([]ProducerScore)
-	videoOrientationChangeListeners []func(ProducerVideoOrientation)
-	traceListeners                  []func(ProducerTraceEventData)
+	pauseListeners                  listenerList[func(context.Context)]
+	resumeListeners                 listenerList[func(context.Context)]
+	transportCloseListeners         listenerList[func(context.Context)]
+	scoreListeners                  listenerList[func([]ProducerScore)]
+	videoOrientationChangeListeners listenerList[func(ProducerVideoOrientation)]
+	traceListeners                  listenerList[func(ProducerTraceEventData)]
 	sub                             *channel.Subscription
 }
 
@@ -227,7 +227,7 @@ func (p *Producer) PauseContext(ctx context.Context) error {
 		return err
 	}
 	wasPaused := p.data.Paused
-	listeners := p.pauseListeners
+	listeners := p.pauseListeners.list()
 	p.data.Paused = true
 	p.mu.Unlock()
 
@@ -259,7 +259,7 @@ func (p *Producer) ResumeContext(ctx context.Context) error {
 		return err
 	}
 	wasPaused := p.data.Paused
-	listeners := p.resumeListeners
+	listeners := p.resumeListeners.list()
 	p.data.Paused = false
 
 	p.mu.Unlock()
@@ -321,49 +321,40 @@ func (p *Producer) SendContext(ctx context.Context, rtpPacket []byte) error {
 	})
 }
 
-// OnPause add listener on "pause" event.
-func (p *Producer) OnPause(listener func(ctx context.Context)) {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-
-	p.pauseListeners = append(p.pauseListeners, listener)
+// OnPause adds a listener on the "pause" event. Call the returned function to
+// remove the listener again.
+func (p *Producer) OnPause(listener func(ctx context.Context)) (removeListener func()) {
+	return addListener(&p.mu, &p.pauseListeners, listener)
 }
 
-// OnResume add listener on "resume" event.
-func (p *Producer) OnResume(listener func(ctx context.Context)) {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-
-	p.resumeListeners = append(p.resumeListeners, listener)
+// OnResume adds a listener on the "resume" event. Call the returned function to
+// remove the listener again.
+func (p *Producer) OnResume(listener func(ctx context.Context)) (removeListener func()) {
+	return addListener(&p.mu, &p.resumeListeners, listener)
 }
 
-// OnTransportClosed add listener on "transportclosed" event.
-func (p *Producer) OnTransportClosed(listener func(ctx context.Context)) {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-
-	p.transportCloseListeners = append(p.transportCloseListeners, listener)
+// OnTransportClosed adds a listener on the "transportclosed" event. Call the
+// returned function to remove the listener again.
+func (p *Producer) OnTransportClosed(listener func(ctx context.Context)) (removeListener func()) {
+	return addListener(&p.mu, &p.transportCloseListeners, listener)
 }
 
-// OnScore add listener on "score" event
-func (p *Producer) OnScore(listener func(score []ProducerScore)) {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	p.scoreListeners = append(p.scoreListeners, listener)
+// OnScore adds a listener on the "score" event. Call the returned function to
+// remove the listener again.
+func (p *Producer) OnScore(listener func(score []ProducerScore)) (removeListener func()) {
+	return addListener(&p.mu, &p.scoreListeners, listener)
 }
 
-// OnVideoOrientationChange add listener on "videoorientationchange" event
-func (p *Producer) OnVideoOrientationChange(listener func(videoOrientation ProducerVideoOrientation)) {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	p.videoOrientationChangeListeners = append(p.videoOrientationChangeListeners, listener)
+// OnVideoOrientationChange adds a listener on the "videoorientationchange"
+// event. Call the returned function to remove the listener again.
+func (p *Producer) OnVideoOrientationChange(listener func(videoOrientation ProducerVideoOrientation)) (removeListener func()) {
+	return addListener(&p.mu, &p.videoOrientationChangeListeners, listener)
 }
 
-// OnTrace add listener on "trace" event
-func (p *Producer) OnTrace(listener func(trace ProducerTraceEventData)) {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	p.traceListeners = append(p.traceListeners, listener)
+// OnTrace adds a listener on the "trace" event. Call the returned function to
+// remove the listener again.
+func (p *Producer) OnTrace(listener func(trace ProducerTraceEventData)) (removeListener func()) {
+	return addListener(&p.mu, &p.traceListeners, listener)
 }
 
 func (p *Producer) handleWorkerNotifications() {
@@ -382,7 +373,7 @@ func (p *Producer) handleWorkerNotifications() {
 
 			p.mu.Lock()
 			p.score = scores
-			listeners := p.scoreListeners
+			listeners := p.scoreListeners.list()
 			p.mu.Unlock()
 
 			for _, listener := range listeners {
@@ -398,7 +389,7 @@ func (p *Producer) handleWorkerNotifications() {
 			}
 
 			p.mu.RLock()
-			listeners := p.videoOrientationChangeListeners
+			listeners := p.videoOrientationChangeListeners.list()
 			p.mu.RUnlock()
 
 			for _, listener := range listeners {
@@ -415,7 +406,7 @@ func (p *Producer) handleWorkerNotifications() {
 			}
 
 			p.mu.RLock()
-			listeners := p.traceListeners
+			listeners := p.traceListeners.list()
 			p.mu.RUnlock()
 
 			for _, listener := range listeners {
@@ -436,7 +427,7 @@ func (p *Producer) transportClosed(ctx context.Context) {
 		return
 	}
 	p.closed = true
-	listeners := p.transportCloseListeners
+	listeners := p.transportCloseListeners.list()
 	p.mu.Unlock()
 	p.logger.DebugContext(ctx, "transportClosed()")
 

@@ -2,9 +2,18 @@
 
 ### Unreleased
 
-Close the remaining API gaps against the mediasoup Node.js binding and fix three
+Close the remaining API gaps against the mediasoup Node.js binding and fix the
   correctness issues found while auditing that gap.
 
+- **Breaking change:** every `OnXxx()` method now returns a `removeListener func()`
+  that unregisters the listener again. Existing code that ignores the return value
+  keeps working; only code that stored an `OnXxx` method value needs updating.
+  Without this there was no way to unsubscribe, so registering per-call listeners
+  on a long-lived `Router` or `Worker` leaked the listener and everything its
+  closure captured
+- fix(transport): the `PLAINTRANSPORT_RTCP_TUPLE` handler notified `OnTuple`
+  listeners instead of `OnRtcpTuple` ones, so `OnRtcpTuple` never fired and
+  `OnTuple` fired with an RTCP tuple
 - `Transport`: add `SetMaxOutgoingBitrate()` and `SetMinOutgoingBitrate()` (return `ErrNotImplemented`
   on a direct transport, matching Node.js)
 - `Router`: add the missing `AppData()` getter

@@ -37,8 +37,8 @@ type Worker struct {
 	routers                  sync.Map
 	webRtcServers            sync.Map
 	appData                  H
-	newWebRtcServerListeners []func(context.Context, *WebRtcServer)
-	newRouterListeners       []func(context.Context, *Router)
+	newWebRtcServerListeners listenerList[func(context.Context, *WebRtcServer)]
+	newRouterListeners       listenerList[func(context.Context, *Router)]
 	closed                   bool
 	err                      error
 	// waitDone is closed by wait() once cmd.Wait() has returned. It is the
@@ -441,7 +441,7 @@ func (w *Worker) CreateWebRtcServerContext(ctx context.Context, options *WebRtcS
 	server.OnClose(func(ctx context.Context) {
 		w.webRtcServers.Delete(id)
 	})
-	listeners := w.newWebRtcServerListeners
+	listeners := w.newWebRtcServerListeners.list()
 	w.mu.Unlock()
 
 	for _, listener := range listeners {
@@ -494,7 +494,7 @@ func (w *Worker) CreateRouterContext(ctx context.Context, options *RouterOptions
 		w.routers.Delete(router.Id())
 	})
 
-	listeners := w.newRouterListeners
+	listeners := w.newRouterListeners.list()
 	w.mu.Unlock()
 
 	for _, listener := range listeners {
@@ -504,18 +504,16 @@ func (w *Worker) CreateRouterContext(ctx context.Context, options *RouterOptions
 	return router, nil
 }
 
-func (w *Worker) OnNewWebRtcServer(listener func(context.Context, *WebRtcServer)) {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-
-	w.newWebRtcServerListeners = append(w.newWebRtcServerListeners, listener)
+// OnNewWebRtcServer adds a listener on the "newwebrtcserver" event. Call the
+// returned function to remove the listener again.
+func (w *Worker) OnNewWebRtcServer(listener func(context.Context, *WebRtcServer)) (removeListener func()) {
+	return addListener(&w.mu, &w.newWebRtcServerListeners, listener)
 }
 
-func (w *Worker) OnNewRouter(listener func(context.Context, *Router)) {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-
-	w.newRouterListeners = append(w.newRouterListeners, listener)
+// OnNewRouter adds a listener on the "newrouter" event. Call the returned
+// function to remove the listener again.
+func (w *Worker) OnNewRouter(listener func(context.Context, *Router)) (removeListener func()) {
+	return addListener(&w.mu, &w.newRouterListeners, listener)
 }
 
 func (w *Worker) processQuited() {

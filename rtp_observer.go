@@ -31,9 +31,9 @@ type RtpObserver struct {
 	channel                 *channel.Channel
 	paused                  bool
 	closed                  bool
-	dominantSpeakerHandlers []func(AudioLevelObserverDominantSpeaker)
-	volumeHandlers          []func([]AudioLevelObserverVolume)
-	silenceHandlers         []func()
+	dominantSpeakerHandlers listenerList[func(AudioLevelObserverDominantSpeaker)]
+	volumeHandlers          listenerList[func([]AudioLevelObserverVolume)]
+	silenceHandlers         listenerList[func()]
 }
 
 func newRtpObserver(channel *channel.Channel, logger *slog.Logger, data *rtpObserverData) *RtpObserver {
@@ -201,28 +201,22 @@ func (r *RtpObserver) RemoveProducerContext(ctx context.Context, producerId stri
 	return err
 }
 
-// HandleAudioLevelObserverDominantSpeaker add listener on "dominantspeaker" event
-func (r *RtpObserver) OnDominantSpeaker(listener func(AudioLevelObserverDominantSpeaker)) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	r.dominantSpeakerHandlers = append(r.dominantSpeakerHandlers, listener)
+// OnDominantSpeaker adds a listener on the "dominantspeaker" event, emitted by an
+// active speaker observer. Call the returned function to remove the listener again.
+func (r *RtpObserver) OnDominantSpeaker(listener func(AudioLevelObserverDominantSpeaker)) (removeListener func()) {
+	return addListener(&r.mu, &r.dominantSpeakerHandlers, listener)
 }
 
-// HandleVolume add listener on "volumes" event
-func (r *RtpObserver) OnVolume(listener func([]AudioLevelObserverVolume)) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	r.volumeHandlers = append(r.volumeHandlers, listener)
+// OnVolume adds a listener on the "volumes" event, emitted by an audio level
+// observer. Call the returned function to remove the listener again.
+func (r *RtpObserver) OnVolume(listener func([]AudioLevelObserverVolume)) (removeListener func()) {
+	return addListener(&r.mu, &r.volumeHandlers, listener)
 }
 
-// HandleSilence add listener on "silence" event
-func (r *RtpObserver) OnSilence(listener func()) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	r.silenceHandlers = append(r.silenceHandlers, listener)
+// OnSilence adds a listener on the "silence" event, emitted by an audio level
+// observer. Call the returned function to remove the listener again.
+func (r *RtpObserver) OnSilence(listener func()) (removeListener func()) {
+	return addListener(&r.mu, &r.silenceHandlers, listener)
 }
 
 func (r *RtpObserver) handleWorkerNotifications() {
@@ -232,7 +226,7 @@ func (r *RtpObserver) handleWorkerNotifications() {
 			notification := body.Value.(*FbsActiveSpeakerObserver.DominantSpeakerNotificationT)
 
 			r.mu.RLock()
-			handlers := r.dominantSpeakerHandlers
+			handlers := r.dominantSpeakerHandlers.list()
 			r.mu.RUnlock()
 
 			producer := r.data.GetProducerById(notification.ProducerId)
@@ -250,7 +244,7 @@ func (r *RtpObserver) handleWorkerNotifications() {
 			notification := body.Value.(*FbsAudioLevelObserver.VolumesNotificationT)
 
 			r.mu.RLock()
-			handlers := r.volumeHandlers
+			handlers := r.volumeHandlers.list()
 			r.mu.RUnlock()
 
 			volumes := make([]AudioLevelObserverVolume, 0, len(notification.Volumes))
@@ -271,7 +265,7 @@ func (r *RtpObserver) handleWorkerNotifications() {
 
 		case FbsNotification.EventAUDIOLEVELOBSERVER_SILENCE:
 			r.mu.RLock()
-			handlers := r.silenceHandlers
+			handlers := r.silenceHandlers.list()
 			r.mu.RUnlock()
 			for _, listener := range handlers {
 				listener()

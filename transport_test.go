@@ -2,10 +2,13 @@ package mediasoup
 
 import (
 	"context"
+	"net"
 	"regexp"
 	"slices"
 	"strconv"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -200,6 +203,56 @@ func TestTransportSetOutgoingBitrate(t *testing.T) {
 	transport = createDirectTransport(nil)
 	assert.ErrorIs(t, transport.SetMaxOutgoingBitrate(200000), ErrNotImplemented)
 	assert.ErrorIs(t, transport.SetMinOutgoingBitrate(100000), ErrNotImplemented)
+}
+
+// A comedia plain transport with RTCP-mux disabled latches the remote RTCP
+// address from the first RTCP packet it receives and emits "rtcptuple". That
+// event must reach OnRtcpTuple listeners and must not reach OnTuple ones.
+func TestPlainTransportRtcpTuple(t *testing.T) {
+	router := createRouter(nil)
+	transport, err := router.CreatePlainTransport(&PlainTransportOptions{
+		ListenInfo: TransportListenInfo{
+			Protocol: TransportProtocolUDP,
+			Ip:       "127.0.0.1",
+		},
+		RtcpMux: ref(false),
+		Comedia: true,
+	})
+	require.NoError(t, err)
+
+	rtcpTuples := make(chan TransportTuple, 1)
+	transport.OnRtcpTuple(func(tuple TransportTuple) {
+		select {
+		case rtcpTuples <- tuple:
+		default:
+		}
+	})
+
+	var tupleCalls atomic.Int32
+	transport.OnTuple(func(TransportTuple) { tupleCalls.Add(1) })
+
+	rtcpTuple := transport.Data().RtcpTuple
+	require.NotNil(t, rtcpTuple)
+
+	conn, err := net.Dial("udp", net.JoinHostPort(rtcpTuple.LocalAddress, strconv.Itoa(int(rtcpTuple.LocalPort))))
+	require.NoError(t, err)
+	defer conn.Close()
+
+	// A minimal RTCP Receiver Report: version 2, no reports, payload type 201.
+	_, err = conn.Write([]byte{0x80, 0xc9, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01})
+	require.NoError(t, err)
+
+	select {
+	case tuple := <-rtcpTuples:
+		assert.Equal(t, rtcpTuple.LocalPort, tuple.LocalPort)
+		assert.NotZero(t, tuple.RemotePort)
+		assert.NotNil(t, transport.Data().RtcpTuple)
+
+	case <-time.After(2 * time.Second):
+		t.Fatal("timeout waiting for the rtcptuple event")
+	}
+
+	assert.Zero(t, tupleCalls.Load(), "an RTCP packet must not emit the tuple event")
 }
 
 func TestTransportSendRtcp(t *testing.T) {
