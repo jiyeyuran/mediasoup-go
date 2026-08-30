@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"sync"
 	"testing"
 	"time"
 
@@ -97,12 +98,17 @@ func TestSctpMessage(t *testing.T) {
 	require.NoError(t, err)
 
 	numMessages := 20
-	recvBinaryMessages := 0
-	recvStringMessages := 0
-	var sendData []byte
-	var recvData []byte
+	var (
+		mu                 sync.Mutex
+		recvBinaryMessages int
+		recvStringMessages int
+		sendData           []byte
+		recvData           []byte
+	)
 
 	dataConsumer.OnMessage(func(payload []byte, ppid SctpPayloadType) {
+		mu.Lock()
+		defer mu.Unlock()
 		recvData = append(recvData, payload...)
 		switch ppid {
 		case SctpPayloadWebRTCBinary:
@@ -114,14 +120,14 @@ func TestSctpMessage(t *testing.T) {
 	})
 
 	for i := 0; i < numMessages/2; i++ {
-		data := []byte(fmt.Sprintf("%d", i))
+		data := fmt.Appendf(nil, "%d", i)
 		_, err = stcpStream.WriteSCTP(data, sctp.PayloadTypeWebRTCBinary)
 		require.NoError(t, err)
 		sendData = append(sendData, data...)
 	}
 
 	for i := 0; i < numMessages/2; i++ {
-		data := []byte(fmt.Sprintf("%d", i))
+		data := fmt.Appendf(nil, "%d", i)
 		_, err = stcpStream.WriteSCTP(data, sctp.PayloadTypeWebRTCString)
 		require.NoError(t, err)
 		sendData = append(sendData, data...)
@@ -130,10 +136,12 @@ func TestSctpMessage(t *testing.T) {
 	// wait all messages are received
 	time.Sleep(time.Millisecond * 10)
 
+	mu.Lock()
 	assert.Equal(t, numMessages/2, recvBinaryMessages)
 	assert.Equal(t, numMessages/2, recvStringMessages)
 	assert.Equal(t, len(sendData), len(recvData))
 	assert.Equal(t, string(sendData), string(recvData))
+	mu.Unlock()
 
 	dataProducerStats, err := dataProducer.GetStats()
 	assert.NoError(t, err)
