@@ -148,15 +148,6 @@ func (p *WorkerPool) CreateRouterContext(ctx context.Context, options *RouterOpt
 	return worker.CreateRouterContext(ctx, options)
 }
 
-// WebRtcServerFor returns the WebRtcServer created with that router's worker,
-// or nil if WorkerSettings.WebRtcListenInfos was not set.
-func (p *WorkerPool) WebRtcServerFor(router *Router) *WebRtcServer {
-	if router == nil {
-		return nil
-	}
-	return router.Worker().WebRtcServer()
-}
-
 // Closed reports whether the pool has been closed. It says nothing about the
 // individual workers, which can die on their own.
 func (p *WorkerPool) Closed() bool {

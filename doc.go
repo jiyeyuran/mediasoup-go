@@ -55,8 +55,7 @@ a new one when they do not.
 Set WorkerSettings.WebRtcListenInfos to create a WebRtcServer with each worker.
 Worker.WebRtcServer() returns it. CreateWebRtcTransport with neither
 ListenInfos nor WebRtcServer uses that default. Router.Worker says which
-worker a router sits on; WebRtcServerFor returns that worker's server.
-A fixed listen port without
+worker a router sits on. A fixed listen port without
 UDPReusePort is incremented per worker so the binds do not collide.
 
 A worker that dies is replaced with a new empty one so later CreateRouter calls

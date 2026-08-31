@@ -21,8 +21,7 @@
   neither `ListenInfos` nor `WebRtcServer` uses that default. A `WorkerPool`
   increments a fixed listen port per worker unless `UDPReusePort` is set, and
   recreates the server on a replacement worker. `Router.Worker()` says
-  which worker a router sits on; `WebRtcServerFor(router)` is the server
-  on that worker
+  which worker a router sits on
 - `WorkerPool`: a worker that dies is replaced with a new empty one so later
   rooms can still use that core; `OnWorkerDied` / `OnWorkerReplaced` are how
   the application hears about it. Rooms on the dead worker are gone.

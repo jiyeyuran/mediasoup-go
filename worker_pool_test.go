@@ -206,7 +206,6 @@ func TestWorkerPoolCreateWebRtcServer(t *testing.T) {
 	pool := newTestWorkerPool(t, 2, withTestWebRtcListenInfos(0))
 	workers := pool.Workers()
 
-	assert.Nil(t, pool.WebRtcServerFor(nil))
 	require.NotNil(t, workers[0].WebRtcServer())
 	require.NotNil(t, workers[1].WebRtcServer())
 
@@ -222,12 +221,12 @@ func TestWorkerPoolCreateWebRtcServer(t *testing.T) {
 	second, err := pool.CreateRouter(&RouterOptions{})
 	require.NoError(t, err)
 
-	assert.Equal(t, firstDump.WebRtcServerIds[0], pool.WebRtcServerFor(first).Id())
-	assert.Equal(t, secondDump.WebRtcServerIds[0], pool.WebRtcServerFor(second).Id())
-	assert.NotSame(t, pool.WebRtcServerFor(first), pool.WebRtcServerFor(second))
+	assert.Equal(t, firstDump.WebRtcServerIds[0], first.Worker().WebRtcServer().Id())
+	assert.Equal(t, secondDump.WebRtcServerIds[0], second.Worker().WebRtcServer().Id())
+	assert.NotSame(t, first.Worker().WebRtcServer(), second.Worker().WebRtcServer())
 
 	transport, err := first.CreateWebRtcTransport(&WebRtcTransportOptions{
-		WebRtcServer: pool.WebRtcServerFor(first),
+		WebRtcServer: first.Worker().WebRtcServer(),
 	})
 	require.NoError(t, err)
 	assert.False(t, transport.Closed())
@@ -242,9 +241,9 @@ func TestWorkerPoolCreateWebRtcServerIncrementsPortWithoutReuse(t *testing.T) {
 	second, err := pool.CreateRouter(&RouterOptions{})
 	require.NoError(t, err)
 
-	firstDump, err := pool.WebRtcServerFor(first).Dump()
+	firstDump, err := first.Worker().WebRtcServer().Dump()
 	require.NoError(t, err)
-	secondDump, err := pool.WebRtcServerFor(second).Dump()
+	secondDump, err := second.Worker().WebRtcServer().Dump()
 	require.NoError(t, err)
 	require.Len(t, firstDump.UdpSockets, 1)
 	require.Len(t, secondDump.UdpSockets, 1)
@@ -391,7 +390,7 @@ func TestWorkerPoolReplacesWebRtcServerOnDeadWorker(t *testing.T) {
 
 	router, err := next.CreateRouter(&RouterOptions{})
 	require.NoError(t, err)
-	server := pool.WebRtcServerFor(router)
+	server := router.Worker().WebRtcServer()
 	require.NotNil(t, server)
 	assert.False(t, server.Closed())
 
