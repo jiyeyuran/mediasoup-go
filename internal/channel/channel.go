@@ -66,20 +66,20 @@ func WithRequestObserver(observer func(RequestStats)) Option {
 }
 
 type Channel struct {
-	mu           sync.RWMutex
-	subsMu       sync.RWMutex
-	nextId       uint32
-	w            io.WriteCloser
-	r            io.ReadCloser
-	reader       *bufio.Reader
-	writeBuf     *bytes.Buffer
-	waitGroup    sync.WaitGroup
-	fbsBuilder   *flatbuffers.Builder
-	message      *FbsMessage.MessageT
-	timerPool    *sync.Pool
-	ssid         int64
-	subs         map[string][]*Subscription
-	responsesCh  map[uint32]chan *FbsResponse.ResponseT
+	mu              sync.RWMutex
+	subsMu          sync.RWMutex
+	nextId          uint32
+	w               io.WriteCloser
+	r               io.ReadCloser
+	reader          *bufio.Reader
+	writeBuf        *bytes.Buffer
+	waitGroup       sync.WaitGroup
+	fbsBuilder      *flatbuffers.Builder
+	message         *FbsMessage.MessageT
+	timerPool       *sync.Pool
+	ssid            int64
+	subs            map[string][]*Subscription
+	responsesCh     map[uint32]chan *FbsResponse.ResponseT
 	logger          *slog.Logger
 	workerLogger    *slog.Logger
 	timeout         time.Duration
