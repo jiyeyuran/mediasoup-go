@@ -42,8 +42,9 @@ of your own, or any strategy of your own through SchedulerFunc.
 	}))
 
 A scheduler is consulted on every CreateRouter call, so it has to be cheap. Count
-what the application already tracks, or read Worker.RouterCount, rather than
-asking the subprocess through Worker.GetResourceUsage.
+what the application already tracks rather than asking the subprocess through
+Worker.GetResourceUsage. LeastLoaded with no load function of its own weighs the
+producers and consumers already on each worker.
 
 Routers on different workers cannot forward media to each other directly, so put
 endpoints that talk to each other on one router where possible, and bridge with

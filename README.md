@@ -51,7 +51,7 @@ import "github.com/jiyeyuran/mediasoup-go/v2"
 See [mediasoup-go-demo](https://github.com/jiyeyuran/mediasoup-go-demo) for a complete example application.
 
 <details>
-<summary>Click to see code example</summary>
+<summary>Single worker</summary>
 
 ```go
 package main
@@ -82,6 +82,71 @@ func main() {
 
     // Use the transport to produce/consume media
     // ...
+}
+```
+
+</details>
+
+<details>
+<summary>WorkerPool (multi-core)</summary>
+
+A worker is pinned to one CPU core. `WorkerPool` starts one worker per core (or
+as many as you ask for) and puts each new router on the next live worker.
+
+Routers on different workers cannot forward media to each other. Put peers that
+talk to each other on the same router; use `Router.PipeToRouter` when they cannot
+share one.
+
+```go
+package main
+
+import (
+    "context"
+    "log"
+
+    "github.com/jiyeyuran/mediasoup-go/v2"
+)
+
+func main() {
+    // 0 means runtime.NumCPU().
+    pool, err := mediasoup.NewWorkerPool("/path/to/mediasoup-worker", 0)
+    if err != nil {
+        log.Fatal(err)
+    }
+    defer pool.Close()
+
+    // The pool skips a worker that dies but does not replace it: that worker's
+    // rooms are gone. Only the application knows whether those clients should
+    // renegotiate elsewhere or be dropped.
+    for _, worker := range pool.Workers() {
+        worker := worker
+        worker.OnDied(func(ctx context.Context, err error) {
+            log.Printf("worker %d died: %v", worker.Pid(), err)
+        })
+    }
+
+    // Default is round-robin. LeastLoaded(nil) picks the worker carrying the
+    // fewest producers and consumers; pass your own function to weigh rooms
+    // by something the application already tracks.
+    pool.SetScheduler(mediasoup.LeastLoaded(nil))
+
+    router, err := pool.CreateRouter(&mediasoup.RouterOptions{
+        // Configure media codecs
+    })
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    transport, err := router.CreateWebRtcTransport(&mediasoup.WebRtcTransportOptions{
+        ListenInfos: []mediasoup.TransportListenInfo{
+            {Ip: "0.0.0.0", AnnouncedAddress: "your.public.ip"},
+        },
+    })
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    _ = transport
 }
 ```
 

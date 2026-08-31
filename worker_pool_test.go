@@ -130,18 +130,31 @@ func TestWorkerPoolSchedulerDeclining(t *testing.T) {
 	assert.ErrorIs(t, err, ErrNoWorkerAvailable)
 }
 
-func TestWorkerPoolLeastLoadedUsesRouterCountByDefault(t *testing.T) {
+func TestWorkerPoolLeastLoadedDefaultsToRtpStreams(t *testing.T) {
 	pool := newTestWorkerPool(t, 2)
 	workers := pool.Workers()
 	pool.SetScheduler(LeastLoaded(nil))
 
-	// Loading up the worker that round-robin would have picked first, so only a
-	// scheduler actually weighing the workers gets this right.
+	// Three empty rooms on the first worker. Counting rooms would call that
+	// loaded; producers and consumers would not, and both workers are still idle.
 	for i := 0; i < 3; i++ {
 		_, err := workers[0].CreateRouter(&RouterOptions{})
 		require.NoError(t, err)
 	}
+	assert.Same(t, workers[0], pool.Next())
 
+	// Data channels on the first worker still do not count: SCTP is cheap next to
+	// forwarding RTP, and counting it here would pack rooms onto the other worker.
+	sctpRouter := createRouter(workers[0])
+	sctpTransport := createWebRtcTransport(sctpRouter, func(o *WebRtcTransportOptions) {
+		o.EnableSctp = true
+	})
+	createDataProducer(sctpTransport)
+	assert.Same(t, workers[0], pool.Next())
+
+	// A real stream on the first worker is what finally sends the next room elsewhere.
+	mediaRouter := createRouter(workers[0])
+	createAudioProducer(createPlainTransport(mediaRouter))
 	assert.Same(t, workers[1], pool.Next())
 
 	router, err := pool.CreateRouter(&RouterOptions{})

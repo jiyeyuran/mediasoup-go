@@ -51,6 +51,10 @@ type Router struct {
 	dataProducers sync.Map
 	dataConsumers sync.Map
 
+	// Counted alongside the maps above, which have no length of their own, so that
+	// LeastLoaded can weigh a worker without walking every map.
+	counts objectCounters
+
 	newRtpObserverListeners listenerList[func(context.Context, *RtpObserver)]
 	newTransportListeners   listenerList[func(context.Context, *Transport)]
 	workerCloseListeners    listenerList[func(context.Context)]
@@ -79,6 +83,10 @@ func (r *Router) RtpCapabilities() *RtpCapabilities {
 // AppData returns app custom data.
 func (r *Router) AppData() H {
 	return r.data.AppData
+}
+
+func (r *Router) objectCounts() objectCounts {
+	return r.counts.load()
 }
 
 func (r *Router) GetTransportById(id string) *Transport {
@@ -1077,29 +1085,47 @@ func (r *Router) newTransport(ctx context.Context, data *internalTransportData) 
 	data.GetProducerId = r.GetProducerById
 	data.GetDataProducerId = r.GetDataProducerById
 	data.GetRouterRtpCapabilities = r.RtpCapabilities
+	// Swap and LoadAndDelete rather than Store and Delete: the counters have to
+	// follow what the map actually did, not what the caller asked for.
 	data.OnAddProducer = func(p *Producer) {
-		r.producers.Store(p.Id(), p)
+		if _, loaded := r.producers.Swap(p.Id(), p); !loaded {
+			r.counts.producers.Add(1)
+		}
 	}
 	data.OnAddConsumer = func(c *Consumer) {
-		r.consumers.Store(c.Id(), c)
+		if _, loaded := r.consumers.Swap(c.Id(), c); !loaded {
+			r.counts.consumers.Add(1)
+		}
 	}
 	data.OnAddDataProducer = func(p *DataProducer) {
-		r.dataProducers.Store(p.Id(), p)
+		if _, loaded := r.dataProducers.Swap(p.Id(), p); !loaded {
+			r.counts.dataProducers.Add(1)
+		}
 	}
 	data.OnAddDataConsumer = func(c *DataConsumer) {
-		r.dataConsumers.Store(c.Id(), c)
+		if _, loaded := r.dataConsumers.Swap(c.Id(), c); !loaded {
+			r.counts.dataConsumers.Add(1)
+		}
 	}
 	data.OnRemoveProducer = func(p *Producer) {
-		r.producers.Delete(p.Id())
+		if _, loaded := r.producers.LoadAndDelete(p.Id()); loaded {
+			r.counts.producers.Add(-1)
+		}
 	}
 	data.OnRemoveConsumer = func(c *Consumer) {
-		r.consumers.Delete(c.Id())
+		if _, loaded := r.consumers.LoadAndDelete(c.Id()); loaded {
+			r.counts.consumers.Add(-1)
+		}
 	}
 	data.OnRemoveDataProducer = func(p *DataProducer) {
-		r.dataProducers.Delete(p.Id())
+		if _, loaded := r.dataProducers.LoadAndDelete(p.Id()); loaded {
+			r.counts.dataProducers.Add(-1)
+		}
 	}
 	data.OnRemoveDataConsumer = func(c *DataConsumer) {
-		r.dataConsumers.Delete(c.Id())
+		if _, loaded := r.dataConsumers.LoadAndDelete(c.Id()); loaded {
+			r.counts.dataConsumers.Add(-1)
+		}
 	}
 
 	transport := newTransport(r.channel, r.logger, data)

@@ -303,19 +303,6 @@ func ExampleWorkerPool_SetScheduler() {
 	}
 
 	log.Println("room ready on router", router.Id())
-
-	// Any other strategy fits the same interface. This one packs rooms onto the
-	// worker that already has the most, leaving the rest idle enough to scale down.
-	pool.SetScheduler(mediasoup.SchedulerFunc(func(candidates []*mediasoup.Worker) *mediasoup.Worker {
-		fullest := candidates[0]
-		for _, worker := range candidates[1:] {
-			if worker.RouterCount() > fullest.RouterCount() {
-				fullest = worker
-			}
-		}
-
-		return fullest
-	}))
 }
 
 func consumersOn(worker *mediasoup.Worker) int              { return 0 }

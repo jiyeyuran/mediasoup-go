@@ -247,27 +247,43 @@ func TestWorkerClose(t *testing.T) {
 	})
 }
 
-func TestWorkerRouterCount(t *testing.T) {
+func TestWorkerObjectCounts(t *testing.T) {
 	worker := newTestWorker()
 	defer worker.Close()
 
-	assert.Zero(t, worker.RouterCount())
+	assert.Equal(t, objectCounts{}, worker.objectCounts())
 
-	first, err := worker.CreateRouter(&RouterOptions{})
-	require.NoError(t, err)
-	assert.Equal(t, 1, worker.RouterCount())
+	router := createRouter(worker)
+	transport := createPlainTransport(router)
+	sctpTransport := createWebRtcTransport(router, func(o *WebRtcTransportOptions) {
+		o.EnableSctp = true
+	})
 
-	second, err := worker.CreateRouter(&RouterOptions{})
-	require.NoError(t, err)
-	assert.Equal(t, 2, worker.RouterCount())
+	producer := createAudioProducer(transport)
+	consumer := createConsumer(transport, producer.Id())
+	dataProducer := createDataProducer(sctpTransport)
+	dataConsumer := createDataConsumer(sctpTransport, dataProducer.Id())
 
-	// Closed routers stop counting, otherwise a long-lived worker would look busier
-	// and busier to a scheduler weighing it.
-	first.Close()
-	assert.Equal(t, 1, worker.RouterCount())
+	assert.Equal(t, objectCounts{
+		producers:     1,
+		consumers:     1,
+		dataProducers: 1,
+		dataConsumers: 1,
+	}, worker.objectCounts())
+	assert.Equal(t, router.objectCounts(), worker.objectCounts())
+	assert.Equal(t, 2, worker.objectCounts().rtpStreams())
 
-	second.Close()
-	assert.Zero(t, worker.RouterCount())
+	consumer.Close()
+	assert.Equal(t, objectCounts{
+		producers:     1,
+		dataProducers: 1,
+		dataConsumers: 1,
+	}, worker.objectCounts())
+
+	producer.Close()
+	dataConsumer.Close()
+	dataProducer.Close()
+	assert.Equal(t, objectCounts{}, worker.objectCounts())
 }
 
 func TestWorkerChannelRequestObserver(t *testing.T) {

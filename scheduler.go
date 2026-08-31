@@ -11,8 +11,8 @@ import (
 // Pick receives the pool's live workers in pool order, never an empty slice, and
 // runs with no pool lock held, so it may inspect the workers it is given. It is on
 // the path of every WorkerPool.CreateRouter call and should stay cheap: read what
-// the application already tracks, or Worker.RouterCount, rather than asking the
-// subprocess through Worker.GetResourceUsage.
+// the application already tracks rather than asking the subprocess through
+// Worker.GetResourceUsage.
 //
 // Returning nil makes WorkerPool.CreateRouter fail with ErrNoWorkerAvailable.
 type Scheduler interface {
@@ -65,9 +65,14 @@ func Random() Scheduler {
 // LeastLoaded picks the least loaded worker, breaking ties towards the earliest
 // candidate in pool order.
 //
-// What counts as load is the application's to define: the number of consumers it
-// has created, a room weight of its own, or whatever its own accounting tracks. A
-// nil load falls back to Worker.RouterCount, which weighs every router equally.
+// A nil load falls back to how many producers and consumers the worker is
+// carrying, which is what its capacity is measured in, regardless of how many
+// routers those streams are spread over. Data channels are left out: SCTP costs
+// far less per object than forwarding RTP does.
+//
+// Pass a load of your own where that is the wrong weighting: to count data
+// channels too, to weigh simulcast producers above audio ones, or to use a room
+// size the application already tracks.
 //
 // load runs once per candidate on every WorkerPool.CreateRouter call, so it must
 // be cheap and must not block. In particular it must not call
@@ -75,7 +80,7 @@ func Random() Scheduler {
 func LeastLoaded(load func(*Worker) float64) Scheduler {
 	if load == nil {
 		load = func(worker *Worker) float64 {
-			return float64(worker.RouterCount())
+			return float64(worker.objectCounts().rtpStreams())
 		}
 	}
 

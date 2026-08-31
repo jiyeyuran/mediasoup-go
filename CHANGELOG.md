@@ -1,17 +1,17 @@
 # Changelog
 
-### 2.7.0
+### 2.6.1
 
 - `WorkerPool`: add the `Scheduler` interface and `SetScheduler()`, so which worker a
   router lands on is the application's decision. Round-robin stays the default and
   spreads rooms evenly, but it treats every room as equally expensive: `LeastLoaded`
   weighs the workers by a load function of your own, `Random` carries no shared
   state, and `SchedulerFunc` covers any other strategy. A scheduler only ever sees
-  live workers, and is called without the pool lock held so it may consult them
-- `Worker`: add `RouterCount()`, a local count cheap enough to consult on every
-  scheduling decision. `GetResourceUsage()` is a round trip to the subprocess and
-  does not belong on the path of every router creation, which the `Next()`
-  documentation previously suggested it did
+  live workers, and is called without the pool lock held so it may consult them.
+  `LeastLoaded` given no load function of its own weighs producers and consumers,
+  which is what a worker's capacity is measured in. `GetResourceUsage()` is a
+  round trip to the subprocess and does not belong on the path of every router
+  creation
 
 ### 2.6.0
 
