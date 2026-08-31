@@ -247,6 +247,29 @@ func TestWorkerClose(t *testing.T) {
 	})
 }
 
+func TestWorkerRouterCount(t *testing.T) {
+	worker := newTestWorker()
+	defer worker.Close()
+
+	assert.Zero(t, worker.RouterCount())
+
+	first, err := worker.CreateRouter(&RouterOptions{})
+	require.NoError(t, err)
+	assert.Equal(t, 1, worker.RouterCount())
+
+	second, err := worker.CreateRouter(&RouterOptions{})
+	require.NoError(t, err)
+	assert.Equal(t, 2, worker.RouterCount())
+
+	// Closed routers stop counting, otherwise a long-lived worker would look busier
+	// and busier to a scheduler weighing it.
+	first.Close()
+	assert.Equal(t, 1, worker.RouterCount())
+
+	second.Close()
+	assert.Zero(t, worker.RouterCount())
+}
+
 func TestWorkerChannelRequestObserver(t *testing.T) {
 	var (
 		mu    sync.Mutex

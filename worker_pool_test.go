@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"runtime"
+	"slices"
 	"testing"
 	"time"
 
@@ -32,6 +33,123 @@ func TestWorkerPoolRoundRobin(t *testing.T) {
 	for i := 0; i < len(workers)*2; i++ {
 		assert.Same(t, workers[i%len(workers)], pool.Next(), "cycle position %d", i)
 	}
+}
+
+func TestWorkerPoolSetScheduler(t *testing.T) {
+	pool := newTestWorkerPool(t, 3)
+	workers := pool.Workers()
+
+	// Always the last worker, so a router landing anywhere else means the pool
+	// ignored the scheduler.
+	pool.SetScheduler(SchedulerFunc(func(candidates []*Worker) *Worker {
+		return candidates[len(candidates)-1]
+	}))
+
+	for i := 0; i < 3; i++ {
+		assert.Same(t, workers[2], pool.Next(), "call %d", i)
+	}
+
+	router, err := pool.CreateRouter(&RouterOptions{})
+	require.NoError(t, err)
+
+	dump, err := workers[2].Dump()
+	require.NoError(t, err)
+	assert.Contains(t, dump.RouterIds, router.Id())
+}
+
+func TestWorkerPoolSetSchedulerNilRestoresRoundRobin(t *testing.T) {
+	pool := newTestWorkerPool(t, 2)
+	workers := pool.Workers()
+
+	pool.SetScheduler(SchedulerFunc(func(candidates []*Worker) *Worker {
+		return candidates[len(candidates)-1]
+	}))
+	require.Same(t, workers[1], pool.Next())
+
+	pool.SetScheduler(nil)
+	assert.Same(t, workers[0], pool.Next())
+	assert.Same(t, workers[1], pool.Next())
+}
+
+// A scheduler must never have to decide whether a worker is still usable.
+func TestWorkerPoolSchedulerSeesOnlyLiveWorkers(t *testing.T) {
+	pool := newTestWorkerPool(t, 2)
+	workers := pool.Workers()
+
+	var candidates []*Worker
+	pool.SetScheduler(SchedulerFunc(func(live []*Worker) *Worker {
+		candidates = slices.Clone(live)
+		return live[0]
+	}))
+
+	died := make(chan struct{})
+	workers[0].OnDied(func(context.Context, error) {
+		close(died)
+	})
+
+	process, err := os.FindProcess(workers[0].Pid())
+	require.NoError(t, err)
+	require.NoError(t, process.Kill())
+
+	select {
+	case <-died:
+	case <-time.After(5 * time.Second):
+		t.Fatal("timeout waiting for the worker to die")
+	}
+
+	assert.Same(t, workers[1], pool.Next())
+	assert.Equal(t, []*Worker{workers[1]}, candidates)
+}
+
+// Pick runs with no pool lock held, so a scheduler may consult the pool it belongs
+// to. Moving the call back inside the lock would deadlock here.
+func TestWorkerPoolSchedulerMayConsultThePool(t *testing.T) {
+	pool := newTestWorkerPool(t, 2)
+
+	pool.SetScheduler(SchedulerFunc(func(candidates []*Worker) *Worker {
+		if pool.Closed() || len(pool.Workers()) == 0 {
+			return nil
+		}
+
+		return candidates[0]
+	}))
+
+	assert.Same(t, pool.Workers()[0], pool.Next())
+}
+
+func TestWorkerPoolSchedulerDeclining(t *testing.T) {
+	pool := newTestWorkerPool(t, 1)
+
+	pool.SetScheduler(SchedulerFunc(func([]*Worker) *Worker {
+		return nil
+	}))
+
+	assert.Nil(t, pool.Next())
+
+	_, err := pool.CreateRouter(&RouterOptions{})
+	assert.ErrorIs(t, err, ErrNoWorkerAvailable)
+}
+
+func TestWorkerPoolLeastLoadedUsesRouterCountByDefault(t *testing.T) {
+	pool := newTestWorkerPool(t, 2)
+	workers := pool.Workers()
+	pool.SetScheduler(LeastLoaded(nil))
+
+	// Loading up the worker that round-robin would have picked first, so only a
+	// scheduler actually weighing the workers gets this right.
+	for i := 0; i < 3; i++ {
+		_, err := workers[0].CreateRouter(&RouterOptions{})
+		require.NoError(t, err)
+	}
+
+	assert.Same(t, workers[1], pool.Next())
+
+	router, err := pool.CreateRouter(&RouterOptions{})
+	require.NoError(t, err)
+
+	dump, err := workers[1].Dump()
+	require.NoError(t, err)
+	assert.Contains(t, dump.RouterIds, router.Id())
 }
 
 func TestWorkerPoolDefaultSize(t *testing.T) {

@@ -280,6 +280,45 @@ func ExampleWorker_ChannelPendingRequests() {
 	}()
 }
 
+// Round-robin assumes every room costs the same. When a few large rooms sit
+// alongside many small ones, weighing the workers keeps one of them from carrying
+// all the heavy rooms.
+func ExampleWorkerPool_SetScheduler() {
+	pool, err := mediasoup.NewWorkerPool("/path/to/mediasoup-worker", 0)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer pool.Close()
+
+	// Consulted on every CreateRouter call, so it reads what the application
+	// already tracks. Asking the subprocess here, through Worker.GetResourceUsage,
+	// would put an IPC round trip in front of every room.
+	pool.SetScheduler(mediasoup.LeastLoaded(func(worker *mediasoup.Worker) float64 {
+		return float64(consumersOn(worker))
+	}))
+
+	router, err := pool.CreateRouter(&mediasoup.RouterOptions{})
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	log.Println("room ready on router", router.Id())
+
+	// Any other strategy fits the same interface. This one packs rooms onto the
+	// worker that already has the most, leaving the rest idle enough to scale down.
+	pool.SetScheduler(mediasoup.SchedulerFunc(func(candidates []*mediasoup.Worker) *mediasoup.Worker {
+		fullest := candidates[0]
+		for _, worker := range candidates[1:] {
+			if worker.RouterCount() > fullest.RouterCount() {
+				fullest = worker
+			}
+		}
+
+		return fullest
+	}))
+}
+
+func consumersOn(worker *mediasoup.Worker) int              { return 0 }
 func observeRequestDuration(method string, d time.Duration) {}
 func countRequestError(method string, err error)            {}
 func setPendingRequests(n int)                              {}

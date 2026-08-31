@@ -32,6 +32,19 @@ hands out a worker per room, round-robin, skipping any that have died:
 
 	router, err := pool.CreateRouter(&mediasoup.RouterOptions{MediaCodecs: codecs})
 
+Round-robin spreads rooms evenly but treats them all as equally expensive. When
+they are not, WorkerPool.SetScheduler takes a Scheduler that decides which worker
+a new router goes on: Random, LeastLoaded weighing the workers by a load function
+of your own, or any strategy of your own through SchedulerFunc.
+
+	pool.SetScheduler(mediasoup.LeastLoaded(func(worker *mediasoup.Worker) float64 {
+		return float64(consumerCount(worker))
+	}))
+
+A scheduler is consulted on every CreateRouter call, so it has to be cheap. Count
+what the application already tracks, or read Worker.RouterCount, rather than
+asking the subprocess through Worker.GetResourceUsage.
+
 Routers on different workers cannot forward media to each other directly, so put
 endpoints that talk to each other on one router where possible, and bridge with
 Router.PipeToRouter where not.

@@ -12,6 +12,9 @@ import (
 // CPU core, so spreading rooms across a pool is how an application uses more than
 // one core.
 //
+// Which worker a new router goes on comes from the pool's Scheduler, RoundRobin
+// unless SetScheduler says otherwise.
+//
 // Routers on different workers cannot forward media to each other directly. Put
 // everything that talks to each other on one router, and use Router.PipeToRouter
 // when that is not possible.
@@ -21,10 +24,10 @@ import (
 // knows whether the affected clients should renegotiate elsewhere or be dropped.
 // Register Worker.OnDied on the workers to find out.
 type WorkerPool struct {
-	mu      sync.Mutex
-	workers []*Worker
-	next    int
-	closed  bool
+	mu        sync.Mutex
+	workers   []*Worker
+	scheduler Scheduler
+	closed    bool
 }
 
 // NewWorkerPool starts size workers, or runtime.NumCPU() of them when size is not
@@ -37,7 +40,10 @@ func NewWorkerPool(workerBinaryPath string, size int, options ...Option) (*Worke
 		size = runtime.NumCPU()
 	}
 
-	pool := &WorkerPool{workers: make([]*Worker, 0, size)}
+	pool := &WorkerPool{
+		workers:   make([]*Worker, 0, size),
+		scheduler: RoundRobin(),
+	}
 
 	for i := 0; i < size; i++ {
 		worker, err := NewWorker(workerBinaryPath, options...)
@@ -51,30 +57,48 @@ func NewWorkerPool(workerBinaryPath string, size int, options ...Option) (*Worke
 	return pool, nil
 }
 
-// Next returns a worker to put the next router on, cycling through the pool and
-// skipping workers that have died. It returns nil once no worker is left alive.
+// Next returns a worker to put the next router on, skipping workers that have
+// died. It returns nil once no worker is left alive.
 //
-// Round-robin spreads rooms evenly but knows nothing about how expensive each one
-// is. To weigh workers by actual load, range over Workers instead and pick using
-// Worker.ResourceUsage or your own accounting.
+// Which of the live workers it is comes from the pool's Scheduler, RoundRobin
+// unless SetScheduler says otherwise.
 func (p *WorkerPool) Next() *Worker {
 	p.mu.Lock()
-	defer p.mu.Unlock()
-
-	// One full cycle: if no worker is usable there is nothing to hand out.
-	for range p.workers {
-		worker := p.workers[p.next]
-		p.next = (p.next + 1) % len(p.workers)
-
+	scheduler := p.scheduler
+	candidates := make([]*Worker, 0, len(p.workers))
+	for _, worker := range p.workers {
 		// Died has to be consulted too. A worker that dies reports it before it
 		// finishes closing, so between those two points Closed is still false while
 		// the subprocess is already gone.
 		if !worker.Closed() && !worker.Died() {
-			return worker
+			candidates = append(candidates, worker)
 		}
 	}
+	p.mu.Unlock()
 
-	return nil
+	if len(candidates) == 0 {
+		return nil
+	}
+
+	// Picking outside the lock: a scheduler reads the workers it is handed, and an
+	// application's own strategy must not be able to stall the rest of the pool.
+	return scheduler.Pick(candidates)
+}
+
+// SetScheduler replaces the strategy Next uses to choose among the live workers.
+// A nil scheduler restores the default, RoundRobin.
+//
+// It may be called at any time. A scheduler that carries state, as RoundRobin
+// does, starts from whatever it is handed first.
+func (p *WorkerPool) SetScheduler(scheduler Scheduler) {
+	if scheduler == nil {
+		scheduler = RoundRobin()
+	}
+
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	p.scheduler = scheduler
 }
 
 // Workers returns the workers of the pool, including any that have died.

@@ -330,6 +330,22 @@ func (w *Worker) ChannelPendingRequests() int {
 	return w.channel.PendingRequests()
 }
 
+// RouterCount returns how many routers are alive on the worker. It is a local
+// count, cheap enough to consult on every scheduling decision, unlike
+// GetResourceUsage which asks the subprocess.
+//
+// It weighs every router equally, so it only stands in for load while rooms are
+// of a similar size.
+func (w *Worker) RouterCount() int {
+	count := 0
+	w.routers.Range(func(any, any) bool {
+		count++
+		return true
+	})
+
+	return count
+}
+
 // SubprocessClosed reports whether the worker process has fully exited. Close
 // returns as soon as the shutdown has been requested, so the process may still
 // be running for a short while afterwards.

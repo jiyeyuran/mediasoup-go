@@ -24,7 +24,7 @@ Note: Make sure to download the prebuilt mediasoup worker that matches the versi
 - Full mediasoup v3 API support in Go
 - Consistent API design with the original Node.js version
 - Typed event listeners instead of string event names, each removable again
-- Multi-core via `WorkerPool`, with `PipeTransport` to bridge routers across workers
+- Multi-core via `WorkerPool`, with pluggable scheduling and `PipeTransport` to bridge routers across workers
 - Worker channel request latency and pending-request count exposed for metrics
 - Uses `Cmd.ExtraFiles` for worker communication (not compatible with Windows)
 
