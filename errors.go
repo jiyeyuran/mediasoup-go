@@ -21,6 +21,7 @@ var (
 	ErrNotFound = channel.ErrNotFound
 
 	// ErrNoWorkerAvailable reports that a WorkerPool has no worker left to hand
-	// out, because it was closed or because every worker died.
+	// out, because it was closed or because every worker has died and has not
+	// yet been replaced.
 	ErrNoWorkerAvailable = errors.New("no worker available in the pool")
 )

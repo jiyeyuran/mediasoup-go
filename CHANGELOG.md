@@ -12,6 +12,17 @@
   which is what a worker's capacity is measured in. `GetResourceUsage()` is a
   round trip to the subprocess and does not belong on the path of every router
   creation
+- `Router.PipeToRouter()`: when `KeepId` is left unset, two routers on the same
+  worker now get a new producer id instead of failing. A `WorkerPool` does not
+  tell the application which worker a router landed on, so the call no longer
+  has to know
+- `WorkerPool`: add `CreateWebRtcServer()` (one server per live worker) and
+  `WebRtcServerFor(router)`, so a transport can attach the server that shares
+  its router's worker without the application tracking that pairing. A fixed
+  listen port without `UDPReusePort` is incremented per worker so the binds do
+  not collide. A worker that dies is replaced with a new empty one so later
+  rooms can still use that core; `OnWorkerDied` / `OnWorkerReplaced` are how
+  the application hears about it. Rooms on the dead worker are gone.
 
 ### 2.6.0
 

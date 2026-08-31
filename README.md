@@ -95,7 +95,8 @@ as many as you ask for) and puts each new router on the next live worker.
 
 Routers on different workers cannot forward media to each other. Put peers that
 talk to each other on the same router; use `Router.PipeToRouter` when they cannot
-share one.
+share one. You do not have to know which worker each router is on: `PipeToRouter`
+keeps the producer id across workers and generates a new one when they share one.
 
 ```go
 package main
@@ -115,20 +116,31 @@ func main() {
     }
     defer pool.Close()
 
-    // The pool skips a worker that dies but does not replace it: that worker's
-    // rooms are gone. Only the application knows whether those clients should
-    // renegotiate elsewhere or be dropped.
-    for _, worker := range pool.Workers() {
-        worker := worker
-        worker.OnDied(func(ctx context.Context, err error) {
-            log.Printf("worker %d died: %v", worker.Pid(), err)
-        })
-    }
+    // A worker that dies (C++ abort) is replaced with an empty one so later
+    // rooms can still use that core. The rooms it hosted are gone.
+    pool.OnWorkerDied(func(ctx context.Context, worker *mediasoup.Worker, err error) {
+        log.Printf("worker %d died: %v; tell its clients to renegotiate", worker.Pid(), err)
+    })
 
     // Default is round-robin. LeastLoaded(nil) picks the worker carrying the
     // fewest producers and consumers; pass your own function to weigh rooms
     // by something the application already tracks.
     pool.SetScheduler(mediasoup.LeastLoaded(nil))
+
+    // One WebRtcServer per worker. Without UDPReusePort the port is incremented
+    // per worker (44444, 44445, …). Set UDPReusePort to share one port instead.
+    if err := pool.CreateWebRtcServer(&mediasoup.WebRtcServerOptions{
+        ListenInfos: []*mediasoup.TransportListenInfo{
+            {
+                Protocol:         mediasoup.TransportProtocolUDP,
+                Ip:               "0.0.0.0",
+                AnnouncedAddress: "your.public.ip",
+                Port:             44444,
+            },
+        },
+    }); err != nil {
+        log.Fatal(err)
+    }
 
     router, err := pool.CreateRouter(&mediasoup.RouterOptions{
         // Configure media codecs
@@ -137,10 +149,9 @@ func main() {
         log.Fatal(err)
     }
 
+    // The server must be the one that shares this router's worker.
     transport, err := router.CreateWebRtcTransport(&mediasoup.WebRtcTransportOptions{
-        ListenInfos: []mediasoup.TransportListenInfo{
-            {Ip: "0.0.0.0", AnnouncedAddress: "your.public.ip"},
-        },
+        WebRtcServer: pool.WebRtcServerFor(router),
     })
     if err != nil {
         log.Fatal(err)

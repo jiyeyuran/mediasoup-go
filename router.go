@@ -716,7 +716,9 @@ func (r *Router) CreateDirectTransportContext(ctx context.Context, options *Dire
 	return r.newTransport(ctx, data)
 }
 
-// PipeToRouter pipes the given Producer or DataProducer into another Router in same host.
+// PipeToRouter pipes the given Producer or DataProducer into another Router on
+// the same host. The two routers may share a worker: if KeepId is left unset,
+// a new producer id is generated in that case instead of failing.
 func (r *Router) PipeToRouter(options *PipeToRouterOptions) (result *PipeToRouterResult, err error) {
 	return r.PipeToRouterContext(context.Background(), options)
 }
@@ -759,6 +761,15 @@ func (r *Router) PipeToRouterContext(ctx context.Context, options *PipeToRouterO
 	}
 	if o.Router == r {
 		return nil, errors.New("cannot use this Router as destination'")
+	}
+
+	// KeepId defaults to true so Consume() on the far side can use the original
+	// producer id. That id is unique per worker, so two routers on the same
+	// worker cannot keep it. When the caller did not say, drop the id rather
+	// than fail: a WorkerPool spreads rooms without telling the application
+	// which worker each router landed on.
+	if options.KeepId == nil && r.channel == o.Router.channel {
+		o.KeepId = ref(false)
 	}
 
 	var producer *Producer

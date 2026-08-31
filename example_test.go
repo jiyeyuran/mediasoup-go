@@ -129,15 +129,12 @@ func ExampleNewWorkerPool() {
 	}
 	defer pool.Close()
 
-	// The pool skips dead workers but does not replace them: the rooms hosted by a
-	// dead worker are gone, and only the application knows what to do about that.
-	for _, worker := range pool.Workers() {
-		worker := worker // Required before Go 1.22.
-		worker.OnDied(func(ctx context.Context, err error) {
-			log.Printf("worker %d died: %v", worker.Pid(), err)
-			// Signal the clients of that worker's rooms to renegotiate.
-		})
-	}
+	// A died worker is replaced with an empty one so later rooms can still use
+	// that core. The rooms it hosted are gone.
+	pool.OnWorkerDied(func(ctx context.Context, worker *mediasoup.Worker, err error) {
+		log.Printf("worker %d died: %v", worker.Pid(), err)
+		// Signal the clients of that worker's rooms to renegotiate.
+	})
 
 	// One room per router, on the next worker in the rotation.
 	router, err := pool.CreateRouter(&mediasoup.RouterOptions{})

@@ -874,6 +874,17 @@ func TestPipeToRouter(t *testing.T) {
 		assert.True(t, pipeProducer.Paused())
 	})
 
+	t.Run("pipeToRouter on the same Worker generates a new id when KeepId is unset", func(t *testing.T) {
+		router1bis := createRouter(worker1)
+		result, err := router1.PipeToRouter(&PipeToRouterOptions{
+			ProducerId: videoProducer.Id(),
+			Router:     router1bis,
+		})
+		require.NoError(t, err)
+		assert.NotEqual(t, videoProducer.Id(), result.PipeProducer.Id())
+		router1bis.Close()
+	})
+
 	t.Run("pipeToRouter with KeepID: true fails if both Routers belong to the same Worker", func(t *testing.T) {
 		router1bis := createRouter(worker1)
 		_, err := router1.PipeToRouter(&PipeToRouterOptions{
