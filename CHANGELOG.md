@@ -16,11 +16,14 @@
   worker now get a new producer id instead of failing. A `WorkerPool` does not
   tell the application which worker a router landed on, so the call no longer
   has to know
-- `WorkerPool`: add `CreateWebRtcServer()` (one server per live worker) and
-  `WebRtcServerFor(router)`, so a transport can attach the server that shares
-  its router's worker without the application tracking that pairing. A fixed
-  listen port without `UDPReusePort` is incremented per worker so the binds do
-  not collide. A worker that dies is replaced with a new empty one so later
+- `WorkerSettings.WebRtcListenInfos`: if set, a WebRtcServer is created with
+  the worker. `Worker.WebRtcServer()` returns it. `CreateWebRtcTransport` with
+  neither `ListenInfos` nor `WebRtcServer` uses that default. A `WorkerPool`
+  increments a fixed listen port per worker unless `UDPReusePort` is set, and
+  recreates the server on a replacement worker. `Router.Worker()` says
+  which worker a router sits on; `WebRtcServerFor(router)` is the server
+  on that worker
+- `WorkerPool`: a worker that dies is replaced with a new empty one so later
   rooms can still use that core; `OnWorkerDied` / `OnWorkerReplaced` are how
   the application hears about it. Rooms on the dead worker are gone.
 

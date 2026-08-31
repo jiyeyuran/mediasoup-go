@@ -52,11 +52,12 @@ Router.PipeToRouter where not. PipeToRouter does not need to be told whether the
 two routers share a worker: it keeps the producer id across workers and generates
 a new one when they do not.
 
-A WebRtcServer belongs to one worker. WorkerPool.CreateWebRtcServer makes one on
-every live worker; WorkerPool.WebRtcServerFor(router) returns the one that shares
-that router's worker, which is the only one CreateWebRtcTransport may attach. A
-fixed listen port without UDPReusePort is incremented per worker so the binds do
-not collide.
+Set WorkerSettings.WebRtcListenInfos to create a WebRtcServer with each worker.
+Worker.WebRtcServer() returns it. CreateWebRtcTransport with neither
+ListenInfos nor WebRtcServer uses that default. Router.Worker says which
+worker a router sits on; WebRtcServerFor returns that worker's server.
+A fixed listen port without
+UDPReusePort is incremented per worker so the binds do not collide.
 
 A worker that dies is replaced with a new empty one so later CreateRouter calls
 can still use that core. The rooms it hosted are gone; OnWorkerDied is where

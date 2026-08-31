@@ -150,6 +150,20 @@ func TestCreateWebRtcTransport(t *testing.T) {
 	require.Nil(t, transport)
 }
 
+func TestCreateWebRtcTransportUsesWorkerWebRtcServer(t *testing.T) {
+	worker := newTestWorker(func(s *WorkerSettings) {
+		s.WebRtcListenInfos = []*TransportListenInfo{
+			{Protocol: TransportProtocolUDP, Ip: "127.0.0.1"},
+		}
+	})
+	router, err := worker.CreateRouter(&RouterOptions{})
+	require.NoError(t, err)
+
+	transport, err := router.CreateWebRtcTransport(&WebRtcTransportOptions{})
+	require.NoError(t, err)
+	assert.False(t, transport.Closed())
+}
+
 func TestCreateWebRtcTransportWithPortRange(t *testing.T) {
 	worker := newTestWorker()
 	router, _ := worker.CreateRouter(&RouterOptions{})

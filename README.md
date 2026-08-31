@@ -109,8 +109,18 @@ import (
 )
 
 func main() {
-    // 0 means runtime.NumCPU().
-    pool, err := mediasoup.NewWorkerPool("/path/to/mediasoup-worker", 0)
+    // 0 means runtime.NumCPU(). WebRtcServer is created with each worker;
+    // without UDPReusePort the port is incremented per worker (44444, 44445, …).
+    pool, err := mediasoup.NewWorkerPool("/path/to/mediasoup-worker", 0, func(s *mediasoup.WorkerSettings) {
+        s.WebRtcListenInfos = []*mediasoup.TransportListenInfo{
+            {
+                Protocol:         mediasoup.TransportProtocolUDP,
+                Ip:               "0.0.0.0",
+                AnnouncedAddress: "your.public.ip",
+                Port:             44444,
+            },
+        }
+    })
     if err != nil {
         log.Fatal(err)
     }
@@ -127,21 +137,6 @@ func main() {
     // by something the application already tracks.
     pool.SetScheduler(mediasoup.LeastLoaded(nil))
 
-    // One WebRtcServer per worker. Without UDPReusePort the port is incremented
-    // per worker (44444, 44445, …). Set UDPReusePort to share one port instead.
-    if err := pool.CreateWebRtcServer(&mediasoup.WebRtcServerOptions{
-        ListenInfos: []*mediasoup.TransportListenInfo{
-            {
-                Protocol:         mediasoup.TransportProtocolUDP,
-                Ip:               "0.0.0.0",
-                AnnouncedAddress: "your.public.ip",
-                Port:             44444,
-            },
-        },
-    }); err != nil {
-        log.Fatal(err)
-    }
-
     router, err := pool.CreateRouter(&mediasoup.RouterOptions{
         // Configure media codecs
     })
@@ -149,10 +144,9 @@ func main() {
         log.Fatal(err)
     }
 
-    // The server must be the one that shares this router's worker.
-    transport, err := router.CreateWebRtcTransport(&mediasoup.WebRtcTransportOptions{
-        WebRtcServer: pool.WebRtcServerFor(router),
-    })
+    // ListenInfos and WebRtcServer can both be omitted: the worker's default
+    // WebRtcServer is used.
+    transport, err := router.CreateWebRtcTransport(&mediasoup.WebRtcTransportOptions{})
     if err != nil {
         log.Fatal(err)
     }

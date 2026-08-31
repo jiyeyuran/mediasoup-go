@@ -97,6 +97,20 @@ func TestWorkerUpdateSettings(t *testing.T) {
 	assert.Error(t, err)
 }
 
+func TestWorkerSettingsWebRtcServer(t *testing.T) {
+	worker := newTestWorker(func(s *WorkerSettings) {
+		s.WebRtcListenInfos = []*TransportListenInfo{
+			{Protocol: TransportProtocolUDP, Ip: "127.0.0.1"},
+		}
+	})
+	defer worker.Close()
+
+	require.NotNil(t, worker.WebRtcServer())
+	dump, err := worker.Dump()
+	require.NoError(t, err)
+	assert.Contains(t, dump.WebRtcServerIds, worker.WebRtcServer().Id())
+}
+
 func TestWorkerCreateWebRtcServer(t *testing.T) {
 	mymock := new(MockedHandler)
 	defer mymock.AssertExpectations(t)

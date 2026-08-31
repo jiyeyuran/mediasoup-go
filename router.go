@@ -39,6 +39,7 @@ type routerData struct {
 type Router struct {
 	baseListener
 
+	worker  *Worker
 	channel *channel.Channel
 	data    *routerData
 	closed  bool
@@ -63,9 +64,10 @@ type Router struct {
 	mapRouterPipeTransports map[*Router][2]*Transport
 }
 
-func newRouter(channel *channel.Channel, logger *slog.Logger, data *routerData) *Router {
+func newRouter(worker *Worker, logger *slog.Logger, data *routerData) *Router {
 	return &Router{
-		channel:                 channel,
+		worker:                  worker,
+		channel:                 worker.channel,
 		data:                    data,
 		logger:                  logger.With("routerId", data.RouterId),
 		mapRouterPipeTransports: make(map[*Router][2]*Transport),
@@ -74,6 +76,11 @@ func newRouter(channel *channel.Channel, logger *slog.Logger, data *routerData) 
 
 func (r *Router) Id() string {
 	return r.data.RouterId
+}
+
+// Worker returns the worker this router was created on.
+func (r *Router) Worker() *Worker {
+	return r.worker
 }
 
 func (r *Router) RtpCapabilities() *RtpCapabilities {
@@ -405,6 +412,11 @@ func (r *Router) CreateWebRtcTransportContext(ctx context.Context, options *WebR
 		EnableSctp:                      options.EnableSctp,
 		SctpOptions:                     options.withDefaults(),
 		AppData:                         orElse(options.AppData != nil, options.AppData, H{}),
+	}
+	if o.WebRtcServer == nil && len(o.ListenInfos) == 0 {
+		if server := r.worker.WebRtcServer(); server != nil && !server.Closed() {
+			o.WebRtcServer = server
+		}
 	}
 	if len(o.ListenInfos) == 0 && o.WebRtcServer == nil {
 		return nil, errors.New("missing webRtcServerId and listenInfos (one of them is mandatory)")

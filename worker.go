@@ -36,6 +36,7 @@ type Worker struct {
 	logger                   *slog.Logger
 	routers                  sync.Map
 	webRtcServers            sync.Map
+	webRtcServer             *WebRtcServer
 	appData                  H
 	newWebRtcServerListeners listenerList[func(context.Context, *WebRtcServer)]
 	newRouterListeners       listenerList[func(context.Context, *Router)]
@@ -238,11 +239,29 @@ func NewWorker(workerBinaryPath string, options ...Option) (*Worker, error) {
 		if err != nil {
 			return nil, err
 		}
-		return w, nil
 
 	case <-ctx.Done():
 		return nil, ErrWorkerStartTimeout
 	}
+
+	if len(opts.WebRtcListenInfos) > 0 {
+		server, createErr := w.CreateWebRtcServerContext(context.Background(), &WebRtcServerOptions{
+			ListenInfos: opts.WebRtcListenInfos,
+		})
+		if createErr != nil {
+			w.Close()
+			return nil, fmt.Errorf("creating WebRtcServer: %w", createErr)
+		}
+		w.webRtcServer = server
+	}
+
+	return w, nil
+}
+
+// WebRtcServer returns the server created from WorkerSettings.WebRtcListenInfos,
+// or nil if that field was not set.
+func (w *Worker) WebRtcServer() *WebRtcServer {
+	return w.webRtcServer
 }
 
 func (w *Worker) wait(cmd *exec.Cmd, spawnDone *uint32, doneCh chan error) {
@@ -571,7 +590,7 @@ func (w *Worker) CreateRouterContext(ctx context.Context, options *RouterOptions
 		RtpCapabilities: rtpCapabilities,
 		AppData:         orElse(options.AppData == nil, H{}, options.AppData),
 	}
-	router := newRouter(w.channel, w.logger, data)
+	router := newRouter(w, w.logger, data)
 	w.routers.Store(router.Id(), router)
 	router.OnClose(func(ctx context.Context) {
 		w.routers.Delete(router.Id())

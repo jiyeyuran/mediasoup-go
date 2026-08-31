@@ -32,8 +32,6 @@ type WorkerPool struct {
 	options                 []Option
 	workers                 []*Worker
 	scheduler               Scheduler
-	webRtcServerOptions     *WebRtcServerOptions
-	webRtcServers           []*WebRtcServer
 	workerDiedListeners     listenerList[func(context.Context, *Worker, error)]
 	workerReplacedListeners listenerList[func(context.Context, *Worker, *Worker)]
 	closed                  bool
@@ -58,12 +56,11 @@ func NewWorkerPool(workerBinaryPath string, size int, options ...Option) (*Worke
 	}
 
 	for i := 0; i < size; i++ {
-		worker, err := NewWorker(workerBinaryPath, options...)
+		worker, err := pool.startWorker(i)
 		if err != nil {
 			pool.Close()
 			return nil, fmt.Errorf("starting worker %d of %d: %w", i+1, size, err)
 		}
-		pool.watch(worker)
 		pool.workers = append(pool.workers, worker)
 	}
 
@@ -151,75 +148,13 @@ func (p *WorkerPool) CreateRouterContext(ctx context.Context, options *RouterOpt
 	return worker.CreateRouterContext(ctx, options)
 }
 
-// CreateWebRtcServer creates a WebRtcServer on every live worker. A server
-// belongs to one worker; a transport can only use the server that shares its
-// router's worker. WebRtcServerFor picks that one. A worker started later to
-// replace one that died gets a server with the same options.
-//
-// A fixed port without Flags.UDPReusePort is incremented per worker so they
-// do not collide (44444, 44445, …). UDPReusePort, Port 0 and PortRange leave
-// the port as given. The caller's ListenInfos are not modified.
-func (p *WorkerPool) CreateWebRtcServer(options *WebRtcServerOptions) error {
-	return p.CreateWebRtcServerContext(context.Background(), options)
-}
-
-func (p *WorkerPool) CreateWebRtcServerContext(ctx context.Context, options *WebRtcServerOptions) error {
-	p.mu.RLock()
-	workers := slices.Clone(p.workers)
-	p.mu.RUnlock()
-
-	if len(workers) == 0 {
-		return ErrNoWorkerAvailable
-	}
-
-	servers := make([]*WebRtcServer, len(workers))
-	created := 0
-	for i, worker := range workers {
-		if worker.Closed() || worker.Died() {
-			continue
-		}
-		server, err := p.createWebRtcServerOn(ctx, worker, i, options)
-		if err != nil {
-			for _, existing := range servers {
-				if existing != nil {
-					existing.CloseContext(ctx)
-				}
-			}
-			return fmt.Errorf("creating WebRtcServer on worker %d of %d: %w", i+1, len(workers), err)
-		}
-		servers[i] = server
-		created++
-	}
-	if created == 0 {
-		return ErrNoWorkerAvailable
-	}
-
-	p.mu.Lock()
-	p.webRtcServerOptions = cloneWebRtcServerOptions(options)
-	p.webRtcServers = servers
-	p.mu.Unlock()
-
-	return nil
-}
-
-// WebRtcServerFor returns the WebRtcServer that shares router’s worker, or nil
-// if CreateWebRtcServer has not been called or that worker has no server.
+// WebRtcServerFor returns the WebRtcServer created with that router's worker,
+// or nil if WorkerSettings.WebRtcListenInfos was not set.
 func (p *WorkerPool) WebRtcServerFor(router *Router) *WebRtcServer {
 	if router == nil {
 		return nil
 	}
-
-	p.mu.RLock()
-	servers := p.webRtcServers
-	p.mu.RUnlock()
-
-	for _, server := range servers {
-		if server != nil && server.channel == router.channel && !server.Closed() {
-			return server
-		}
-	}
-
-	return nil
+	return router.Worker().WebRtcServer()
 }
 
 // Closed reports whether the pool has been closed. It says nothing about the
@@ -277,14 +212,13 @@ func (p *WorkerPool) replace(dead *Worker) {
 	for {
 		p.mu.RLock()
 		closed := p.closed
-		path := p.workerPath
-		options := p.options
+		slot := slices.Index(p.workers, dead)
 		p.mu.RUnlock()
-		if closed {
+		if closed || slot < 0 {
 			return
 		}
 
-		worker, err := NewWorker(path, options...)
+		worker, err := p.startWorker(slot)
 		if err != nil {
 			time.Sleep(backoff)
 			if backoff < 5*time.Second {
@@ -299,22 +233,13 @@ func (p *WorkerPool) replace(dead *Worker) {
 			worker.Close()
 			return
 		}
-		slot := slices.Index(p.workers, dead)
-		if slot < 0 {
+		if slices.Index(p.workers, dead) != slot {
 			p.mu.Unlock()
 			worker.Close()
 			return
 		}
 		p.workers[slot] = worker
-		p.watch(worker)
-		serverOpts := p.webRtcServerOptions
 		p.mu.Unlock()
-
-		if serverOpts != nil {
-			// Failure leaves the worker in the pool without a server; the next
-			// CreateWebRtcServer call will cover it.
-			_, _ = p.createWebRtcServerOn(context.Background(), worker, slot, serverOpts)
-		}
 
 		p.mu.RLock()
 		listeners := p.workerReplacedListeners.list()
@@ -326,41 +251,27 @@ func (p *WorkerPool) replace(dead *Worker) {
 	}
 }
 
-func (p *WorkerPool) createWebRtcServerOn(ctx context.Context, worker *Worker, slot int, options *WebRtcServerOptions) (*WebRtcServer, error) {
-	listenInfos, err := listenInfosForWorker(options.ListenInfos, slot)
-	if err != nil {
-		return nil, err
+func (p *WorkerPool) startWorker(slot int) (*Worker, error) {
+	probe := &WorkerSettings{}
+	for _, option := range p.options {
+		option(probe)
 	}
-	perWorker := *options
-	perWorker.ListenInfos = listenInfos
-	server, err := worker.CreateWebRtcServerContext(ctx, &perWorker)
-	if err != nil {
+	if _, err := listenInfosForWorker(probe.WebRtcListenInfos, slot); err != nil {
 		return nil, err
 	}
 
-	p.mu.Lock()
-	if slot >= len(p.webRtcServers) {
-		grown := make([]*WebRtcServer, slot+1)
-		copy(grown, p.webRtcServers)
-		p.webRtcServers = grown
+	worker, err := NewWorker(p.workerPath, append(p.options, func(s *WorkerSettings) {
+		infos, err := listenInfosForWorker(s.WebRtcListenInfos, slot)
+		if err != nil {
+			return
+		}
+		s.WebRtcListenInfos = infos
+	})...)
+	if err != nil {
+		return nil, err
 	}
-	p.webRtcServers[slot] = server
-	p.mu.Unlock()
-
-	return server, nil
-}
-
-func cloneWebRtcServerOptions(options *WebRtcServerOptions) *WebRtcServerOptions {
-	if options == nil {
-		return nil
-	}
-	cloned := *options
-	cloned.ListenInfos = make([]*TransportListenInfo, len(options.ListenInfos))
-	for i, info := range options.ListenInfos {
-		copied := *info
-		cloned.ListenInfos[i] = &copied
-	}
-	return &cloned
+	p.watch(worker)
+	return worker, nil
 }
 
 // listenInfosForWorker copies infos and, when a worker would otherwise collide

@@ -12,16 +12,25 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func newTestWorkerPool(t *testing.T, size int) *WorkerPool {
+func newTestWorkerPool(t *testing.T, size int, options ...Option) *WorkerPool {
 	t.Helper()
 
-	pool, err := NewWorkerPool(WorkerBinPath, size, func(s *WorkerSettings) {
+	defaults := []Option{func(s *WorkerSettings) {
 		s.LogLevel = WorkerLogLevelWarn
-	})
+	}}
+	pool, err := NewWorkerPool(WorkerBinPath, size, append(defaults, options...)...)
 	require.NoError(t, err)
 	t.Cleanup(pool.Close)
 
 	return pool
+}
+
+func withTestWebRtcListenInfos(port uint16) Option {
+	return func(s *WorkerSettings) {
+		s.WebRtcListenInfos = []*TransportListenInfo{
+			{Protocol: TransportProtocolUDP, Ip: "127.0.0.1", Port: port},
+		}
+	}
 }
 
 func TestWorkerPoolRoundRobin(t *testing.T) {
@@ -188,20 +197,18 @@ func TestWorkerPoolCreateRouter(t *testing.T) {
 
 	assert.Contains(t, firstDump.RouterIds, first.Id())
 	assert.Contains(t, secondDump.RouterIds, second.Id())
+
+	assert.Same(t, workers[0], first.Worker())
+	assert.Same(t, workers[1], second.Worker())
 }
 
 func TestWorkerPoolCreateWebRtcServer(t *testing.T) {
-	pool := newTestWorkerPool(t, 2)
+	pool := newTestWorkerPool(t, 2, withTestWebRtcListenInfos(0))
 	workers := pool.Workers()
 
 	assert.Nil(t, pool.WebRtcServerFor(nil))
-
-	err := pool.CreateWebRtcServer(&WebRtcServerOptions{
-		ListenInfos: []*TransportListenInfo{
-			{Protocol: TransportProtocolUDP, Ip: "127.0.0.1"},
-		},
-	})
-	require.NoError(t, err)
+	require.NotNil(t, workers[0].WebRtcServer())
+	require.NotNil(t, workers[1].WebRtcServer())
 
 	firstDump, err := workers[0].Dump()
 	require.NoError(t, err)
@@ -227,15 +234,8 @@ func TestWorkerPoolCreateWebRtcServer(t *testing.T) {
 }
 
 func TestWorkerPoolCreateWebRtcServerIncrementsPortWithoutReuse(t *testing.T) {
-	pool := newTestWorkerPool(t, 2)
 	port := pickUdpPort()
-
-	err := pool.CreateWebRtcServer(&WebRtcServerOptions{
-		ListenInfos: []*TransportListenInfo{
-			{Protocol: TransportProtocolUDP, Ip: "127.0.0.1", Port: port},
-		},
-	})
-	require.NoError(t, err)
+	pool := newTestWorkerPool(t, 2, withTestWebRtcListenInfos(port))
 
 	first, err := pool.CreateRouter(&RouterOptions{})
 	require.NoError(t, err)
@@ -294,18 +294,6 @@ func TestListenInfosForWorker(t *testing.T) {
 		Port:     65535,
 	}}, 1)
 	require.Error(t, err)
-}
-
-func TestWorkerPoolCreateWebRtcServerNoWorkerAvailable(t *testing.T) {
-	pool := newTestWorkerPool(t, 1)
-	pool.Close()
-
-	err := pool.CreateWebRtcServer(&WebRtcServerOptions{
-		ListenInfos: []*TransportListenInfo{
-			{Protocol: TransportProtocolUDP, Ip: "127.0.0.1"},
-		},
-	})
-	assert.ErrorIs(t, err, ErrNoWorkerAvailable)
 }
 
 // A dead worker must be skipped rather than handed out. Its routers are gone
@@ -382,15 +370,8 @@ func TestWorkerPoolReplacesDeadWorker(t *testing.T) {
 }
 
 func TestWorkerPoolReplacesWebRtcServerOnDeadWorker(t *testing.T) {
-	pool := newTestWorkerPool(t, 2)
+	pool := newTestWorkerPool(t, 2, withTestWebRtcListenInfos(pickUdpPort()))
 	workers := pool.Workers()
-
-	err := pool.CreateWebRtcServer(&WebRtcServerOptions{
-		ListenInfos: []*TransportListenInfo{
-			{Protocol: TransportProtocolUDP, Ip: "127.0.0.1", Port: pickUdpPort()},
-		},
-	})
-	require.NoError(t, err)
 
 	replaced := make(chan *Worker, 1)
 	pool.OnWorkerReplaced(func(_ context.Context, _, next *Worker) {

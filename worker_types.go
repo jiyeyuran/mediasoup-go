@@ -54,6 +54,12 @@ type WorkerSettings struct {
 	// Defaults to "WebRTC-Bwe-AlrLimitedBackoff/Enabled/".
 	LibwebrtcFieldTrials string `json:"libwebrtcFieldTrials,omitempty"`
 
+	// WebRtcListenInfos, if set, creates a WebRtcServer on this worker listening
+	// on those addresses. CreateWebRtcTransport can then omit ListenInfos and
+	// WebRtcServer. A WorkerPool increments a fixed port per worker unless
+	// UDPReusePort is set.
+	WebRtcListenInfos []*TransportListenInfo `json:"webRtcListenInfos,omitempty"`
+
 	// AppData holds custom application data.
 	AppData H `json:"appData,omitempty"`
 
