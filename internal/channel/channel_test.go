@@ -8,6 +8,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/require"
+
+	flatbuffers "github.com/google/flatbuffers/go"
+	FbsMessage "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/Message"
+	FbsNotification "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/Notification"
 	FbsRequest "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/Request"
 )
 
@@ -189,4 +194,21 @@ func TestSaveContext(t *testing.T) {
 	if length := getListLength(channel.contextList); length != 0 {
 		t.Errorf("Expected list length to be 0, got %d", length)
 	}
+}
+
+func TestPackNotificationAlwaysWritesHandlerId(t *testing.T) {
+	builder := flatbuffers.NewBuilder(1024)
+	payload := packNotification(builder, &FbsNotification.NotificationT{Event: FbsNotification.EventWORKER_CLOSE})
+
+	msg := FbsMessage.GetRootAsMessage(payload, 0)
+	require.Equal(t, FbsMessage.BodyNotification, msg.DataType())
+
+	var table flatbuffers.Table
+	require.True(t, msg.Data(&table))
+	var notification FbsNotification.Notification
+	notification.Init(table.Bytes, table.Pos)
+
+	require.NotNil(t, notification.HandlerId(), "handler_id is required by the schema")
+	require.Equal(t, "", string(notification.HandlerId()))
+	require.Equal(t, FbsNotification.EventWORKER_CLOSE, notification.Event())
 }

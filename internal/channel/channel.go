@@ -142,12 +142,7 @@ func (c *Channel) Notify(ctx context.Context, notification *FbsNotification.Noti
 	c.logger.DebugContext(ctx, "Notify()", "event", notification.Event, "handlerId", notification.HandlerId)
 
 	builder := c.fbsBuilder
-	message := c.message
-	message.Data.Type = FbsMessage.BodyNotification
-	message.Data.Value = notification
-	builder.Finish(message.Pack(builder))
-	payload := builder.FinishedBytes()
-	message.Data.Value = nil
+	payload := packNotification(builder, notification)
 	builder.Reset()
 
 	if len(payload) > MaxMessageLen {
@@ -166,6 +161,27 @@ func (c *Channel) Notify(ctx context.Context, notification *FbsNotification.Noti
 		c.logger.ErrorContext(ctx, "notify failed", "event", notification.Event, "handlerId", notification.HandlerId, "error", err)
 	}
 	return err
+}
+
+func packNotification(builder *flatbuffers.Builder, notification *FbsNotification.NotificationT) []byte {
+	handlerIdOffset := builder.CreateString(notification.HandlerId)
+	bodyOffset := notification.Body.Pack(builder)
+
+	FbsNotification.NotificationStart(builder)
+	FbsNotification.NotificationAddHandlerId(builder, handlerIdOffset)
+	FbsNotification.NotificationAddEvent(builder, notification.Event)
+	if notification.Body != nil {
+		FbsNotification.NotificationAddBodyType(builder, notification.Body.Type)
+	}
+	FbsNotification.NotificationAddBody(builder, bodyOffset)
+	notificationOffset := FbsNotification.NotificationEnd(builder)
+
+	FbsMessage.MessageStart(builder)
+	FbsMessage.MessageAddDataType(builder, FbsMessage.BodyNotification)
+	FbsMessage.MessageAddData(builder, notificationOffset)
+	builder.Finish(FbsMessage.MessageEnd(builder))
+
+	return builder.FinishedBytes()
 }
 
 func (c *Channel) Request(ctx context.Context, req *FbsRequest.RequestT) (result any, err error) {
