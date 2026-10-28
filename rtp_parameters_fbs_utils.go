@@ -27,7 +27,7 @@ func convertRtpParameters(rtpParameters *RtpParameters) *FbsRtpParameters.RtpPar
 						}),
 				}
 			}),
-		HeaderExtensions: collect(rtpParameters.HeaderExtensions,
+		HeaderExtensions: collect(supportedHeaderExtensions(rtpParameters.HeaderExtensions),
 			func(item *RtpHeaderExtensionParameters) *FbsRtpParameters.RtpHeaderExtensionParametersT {
 				return &FbsRtpParameters.RtpHeaderExtensionParametersT{
 					Uri:        convertHeaderExtensionUri(item.Uri),
@@ -214,9 +214,6 @@ func parseRtpHeaderExtensionParameters(headerExtension *FbsRtpParameters.RtpHead
 	case FbsRtpParameters.RtpHeaderExtensionUriVideoOrientation:
 		uri = "urn:3gpp:video-orientation"
 
-	case FbsRtpParameters.RtpHeaderExtensionUriTimeOffset:
-		uri = "urn:ietf:params:rtp-hdrext:toffset"
-
 	case FbsRtpParameters.RtpHeaderExtensionUriAbsCaptureTime:
 		uri = "http://www.webrtc.org/experiments/rtp-hdrext/abs-capture-time"
 
@@ -232,6 +229,24 @@ func parseRtpHeaderExtensionParameters(headerExtension *FbsRtpParameters.RtpHead
 		Id:      headerExtension.Id,
 		Encrypt: headerExtension.Encrypt,
 	}
+}
+
+// supportedHeaderExtensions drops the RTP header extensions the worker no
+// longer knows (mediasoup 3.28.0 removed "urn:ietf:params:rtp-hdrext:toffset"),
+// which endpoints may still negotiate; the worker ignores the unmapped
+// extension in the packets.
+func supportedHeaderExtensions(items []*RtpHeaderExtensionParameters) []*RtpHeaderExtensionParameters {
+	result := make([]*RtpHeaderExtensionParameters, 0, len(items))
+
+	for _, item := range items {
+		if item.Uri == "urn:ietf:params:rtp-hdrext:toffset" {
+			continue
+		}
+
+		result = append(result, item)
+	}
+
+	return result
 }
 
 func convertHeaderExtensionUri(uri string) FbsRtpParameters.RtpHeaderExtensionUri {
@@ -259,9 +274,6 @@ func convertHeaderExtensionUri(uri string) FbsRtpParameters.RtpHeaderExtensionUr
 
 	case "urn:3gpp:video-orientation":
 		return FbsRtpParameters.RtpHeaderExtensionUriVideoOrientation
-
-	case "urn:ietf:params:rtp-hdrext:toffset":
-		return FbsRtpParameters.RtpHeaderExtensionUriTimeOffset
 
 	case "http://www.webrtc.org/experiments/rtp-hdrext/abs-capture-time":
 		return FbsRtpParameters.RtpHeaderExtensionUriAbsCaptureTime
@@ -294,7 +306,7 @@ func parseRtpEncodingParameters(encoding *FbsRtpParameters.RtpEncodingParameters
 		}),
 		Dtx:             encoding.Dtx,
 		ScalabilityMode: encoding.ScalabilityMode,
-		MaxBitrate:      unref(encoding.MaxBitrate),
+		MaxBitrate:      uint32(unref(encoding.MaxBitrate)),
 	}
 }
 

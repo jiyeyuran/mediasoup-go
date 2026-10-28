@@ -346,13 +346,6 @@ func TestRtpParameters(t *testing.T) {
 				PreferredEncrypt: false,
 				Direction:        MediaDirectionSendrecv,
 			},
-			{
-				Kind:             "video",
-				Uri:              "urn:ietf:params:rtp-hdrext:toffset",
-				PreferredId:      9,
-				PreferredEncrypt: false,
-				Direction:        MediaDirectionSendrecv,
-			},
 		},
 	}
 
@@ -360,6 +353,7 @@ func TestRtpParameters(t *testing.T) {
 		consumableRtpParameters,
 		remoteRtpCapabilities,
 		false,
+		true,
 		true,
 	)
 	assert.NoError(t, err)
@@ -402,11 +396,6 @@ func TestRtpParameters(t *testing.T) {
 			Id:      8,
 			Encrypt: false,
 		},
-		{
-			Uri:     "urn:ietf:params:rtp-hdrext:toffset",
-			Id:      9,
-			Encrypt: false,
-		},
 	}, consumerRtpParameters.HeaderExtensions)
 
 	assert.Equal(t, &RtcpParameters{
@@ -414,7 +403,8 @@ func TestRtpParameters(t *testing.T) {
 		ReducedSize: ref(true),
 	}, consumerRtpParameters.Rtcp)
 
-	pipeConsumerRtpParameters := getPipeConsumerRtpParameters(consumableRtpParameters, false)
+	pipeConsumerRtpParameters := getPipeConsumerRtpParameters(
+		consumableRtpParameters, false, routerRtpCapabilities, MediaKindVideo)
 
 	assert.Len(t, pipeConsumerRtpParameters.Codecs, 1)
 	assert.Equal(t, &RtpCodecParameters{

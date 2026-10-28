@@ -18,6 +18,25 @@ func ref[T any](t T) *T {
 	return &t
 }
 
+// optionalBitrate maps a bitrate option where 0 means "unset" to the worker's
+// optional 64 bits field.
+func optionalBitrate(bitrate uint32) *uint64 {
+	if bitrate == 0 {
+		return nil
+	}
+
+	return ref(uint64(bitrate))
+}
+
+// refUint32 narrows an optional 64 bits value to the 32 bits the API exposes.
+func refUint32(v *uint64) *uint32 {
+	if v == nil {
+		return nil
+	}
+
+	return ref(uint32(*v))
+}
+
 func unref[T any](t *T, defaultValue ...T) T {
 	if t != nil {
 		return *t

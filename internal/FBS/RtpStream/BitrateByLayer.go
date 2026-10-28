@@ -8,7 +8,7 @@ import (
 
 type BitrateByLayerT struct {
 	Layer string `json:"layer"`
-	Bitrate uint32 `json:"bitrate"`
+	Bitrate uint64 `json:"bitrate"`
 }
 
 func (t *BitrateByLayerT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
@@ -82,16 +82,16 @@ func (rcv *BitrateByLayer) Layer() []byte {
 	return nil
 }
 
-func (rcv *BitrateByLayer) Bitrate() uint32 {
+func (rcv *BitrateByLayer) Bitrate() uint64 {
 	o := flatbuffers.UOffsetT(rcv._tab.Offset(6))
 	if o != 0 {
-		return rcv._tab.GetUint32(o + rcv._tab.Pos)
+		return rcv._tab.GetUint64(o + rcv._tab.Pos)
 	}
 	return 0
 }
 
-func (rcv *BitrateByLayer) MutateBitrate(n uint32) bool {
-	return rcv._tab.MutateUint32Slot(6, n)
+func (rcv *BitrateByLayer) MutateBitrate(n uint64) bool {
+	return rcv._tab.MutateUint64Slot(6, n)
 }
 
 func BitrateByLayerStart(builder *flatbuffers.Builder) {
@@ -100,8 +100,8 @@ func BitrateByLayerStart(builder *flatbuffers.Builder) {
 func BitrateByLayerAddLayer(builder *flatbuffers.Builder, layer flatbuffers.UOffsetT) {
 	builder.PrependUOffsetTSlot(0, flatbuffers.UOffsetT(layer), 0)
 }
-func BitrateByLayerAddBitrate(builder *flatbuffers.Builder, bitrate uint32) {
-	builder.PrependUint32Slot(1, bitrate, 0)
+func BitrateByLayerAddBitrate(builder *flatbuffers.Builder, bitrate uint64) {
+	builder.PrependUint64Slot(1, bitrate, 0)
 }
 func BitrateByLayerEnd(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	return builder.EndObject()

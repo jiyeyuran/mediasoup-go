@@ -94,12 +94,6 @@ var consumerDeviceCapabilities = &RtpCapabilities{
 			PreferredId:      8,
 			PreferredEncrypt: false,
 		},
-		{
-			Kind:             "video",
-			Uri:              "urn:ietf:params:rtp-hdrext:toffset",
-			PreferredId:      9,
-			PreferredEncrypt: false,
-		},
 	},
 }
 
@@ -136,17 +130,11 @@ func TestConsumerDump(t *testing.T) {
 	assert.EqualValues(t, 2, data.RtpParameters.Codecs[0].Channels)
 	assert.Equal(t, RtpCodecSpecificParameters{Useinbandfec: 1, Usedtx: 1}, data.RtpParameters.Codecs[0].Parameters)
 	assert.Equal(t, []*RtcpFeedback{{Type: "nack"}}, data.RtpParameters.Codecs[0].RtcpFeedback)
-	assert.Len(t, data.RtpParameters.HeaderExtensions, 3)
+	assert.Len(t, data.RtpParameters.HeaderExtensions, 2)
 	assert.Equal(t, []*RtpHeaderExtensionParameters{
 		{
 			Uri:        "urn:ietf:params:rtp-hdrext:sdes:mid",
 			Id:         1,
-			Encrypt:    false,
-			Parameters: RtpCodecSpecificParameters{},
-		},
-		{
-			Uri:        "http://www.webrtc.org/experiments/rtp-hdrext/abs-send-time",
-			Id:         4,
 			Encrypt:    false,
 			Parameters: RtpCodecSpecificParameters{},
 		},
@@ -196,7 +184,7 @@ func TestConsumerDump(t *testing.T) {
 		{Type: "ccm", Parameter: "fir"},
 		{Type: "goog-remb"},
 	}, data.RtpParameters.Codecs[0].RtcpFeedback)
-	assert.Len(t, data.RtpParameters.HeaderExtensions, 4)
+	assert.Len(t, data.RtpParameters.HeaderExtensions, 3)
 	assert.Equal(t, []*RtpHeaderExtensionParameters{
 		{
 			Uri:        "urn:ietf:params:rtp-hdrext:sdes:mid",
@@ -213,12 +201,6 @@ func TestConsumerDump(t *testing.T) {
 		{
 			Uri:        "urn:3gpp:video-orientation",
 			Id:         8,
-			Encrypt:    false,
-			Parameters: RtpCodecSpecificParameters{},
-		},
-		{
-			Uri:        "urn:ietf:params:rtp-hdrext:toffset",
-			Id:         9,
 			Encrypt:    false,
 			Parameters: RtpCodecSpecificParameters{},
 		},

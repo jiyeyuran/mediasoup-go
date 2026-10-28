@@ -13,9 +13,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # FBS is generated from 3.26.0; older workers (e.g. 3.20.0) omit SendResponse
+        # FBS is generated from 3.32.0; older workers (e.g. 3.20.0) omit SendResponse
         # and still try io_uring, so they are not protocol-compatible with this binding.
-        worker_version: ["3.26.0"]
+        worker_version: ["3.32.0"]
 
     steps:
       - name: Checkout code

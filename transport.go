@@ -43,6 +43,9 @@ type internalTransportData struct {
 	// pipe transport specific data
 	Rtx bool
 
+	// whether the transport estimates the bandwidth of its link
+	EnableBwe bool
+
 	// additional functions
 	GetProducerId            func(id string) *Producer
 	GetDataProducerId        func(id string) *DataProducer
@@ -373,24 +376,23 @@ func (t *Transport) GetStatsContext(ctx context.Context) (*TransportStat, error)
 				return SctpState(strings.ToLower(stats.SctpState.String()))
 			}),
 			BytesReceived:            stats.BytesReceived,
-			RecvBitrate:              stats.RecvBitrate,
+			RecvBitrate:              uint32(stats.RecvBitrate),
 			BytesSent:                stats.BytesSent,
-			SendBitrate:              stats.SendBitrate,
+			SendBitrate:              uint32(stats.SendBitrate),
 			RtpBytesReceived:         stats.RtpBytesReceived,
-			RtpRecvBitrate:           stats.RtpRecvBitrate,
+			RtpRecvBitrate:           uint32(stats.RtpRecvBitrate),
 			RtpBytesSent:             stats.RtpBytesSent,
-			RtpSendBitrate:           stats.RtpSendBitrate,
+			RtpSendBitrate:           uint32(stats.RtpSendBitrate),
 			RtxBytesReceived:         stats.RtxBytesReceived,
-			RtxRecvBitrate:           stats.RtxRecvBitrate,
+			RtxRecvBitrate:           uint32(stats.RtxRecvBitrate),
 			RtxBytesSent:             stats.RtxBytesSent,
-			RtxSendBitrate:           stats.RtxSendBitrate,
+			RtxSendBitrate:           uint32(stats.RtxSendBitrate),
 			ProbationBytesSent:       stats.ProbationBytesSent,
-			ProbationSendBitrate:     stats.ProbationSendBitrate,
-			AvailableOutgoingBitrate: stats.AvailableOutgoingBitrate,
-			AvailableIncomingBitrate: stats.AvailableIncomingBitrate,
-			MaxIncomingBitrate:       stats.MaxIncomingBitrate,
-			RtpPacketLossReceived:    stats.RtpPacketLossReceived,
-			RtpPacketLossSent:        stats.RtpPacketLossSent,
+			ProbationSendBitrate:     uint32(stats.ProbationSendBitrate),
+			AvailableOutgoingBitrate: refUint32(stats.AvailableOutgoingBitrate),
+			AvailableIncomingBitrate: refUint32(stats.AvailableIncomingBitrate),
+			MaxIncomingBitrate:       refUint32(stats.MaxIncomingBitrate),
+			RoundTripTime:            stats.RoundTripTime,
 		}
 	}
 
@@ -583,7 +585,7 @@ func (t *Transport) SetMaxIncomingBitrateContext(ctx context.Context, bitrate ui
 		Body: &FbsRequest.BodyT{
 			Type: FbsRequest.BodyTransport_SetMaxIncomingBitrateRequest,
 			Value: &FbsTransport.SetMaxIncomingBitrateRequestT{
-				MaxIncomingBitrate: bitrate,
+				MaxIncomingBitrate: uint64(bitrate),
 			},
 		},
 	})
@@ -607,7 +609,7 @@ func (t *Transport) SetMaxOutgoingBitrateContext(ctx context.Context, bitrate ui
 		Body: &FbsRequest.BodyT{
 			Type: FbsRequest.BodyTransport_SetMaxOutgoingBitrateRequest,
 			Value: &FbsTransport.SetMaxOutgoingBitrateRequestT{
-				MaxOutgoingBitrate: bitrate,
+				MaxOutgoingBitrate: uint64(bitrate),
 			},
 		},
 	})
@@ -631,7 +633,7 @@ func (t *Transport) SetMinOutgoingBitrateContext(ctx context.Context, bitrate ui
 		Body: &FbsRequest.BodyT{
 			Type: FbsRequest.BodyTransport_SetMinOutgoingBitrateRequest,
 			Value: &FbsTransport.SetMinOutgoingBitrateRequestT{
-				MinOutgoingBitrate: bitrate,
+				MinOutgoingBitrate: uint64(bitrate),
 			},
 		},
 	})
@@ -720,6 +722,12 @@ func (t *Transport) ProduceContext(ctx context.Context, options *ProducerOptions
 		return nil, fmt.Errorf("validate rtp parameters failed: %w", err)
 	}
 
+	// A transport that doesn't run bandwidth estimation must not negotiate it,
+	// so whatever was given for it is dropped rather than honoured.
+	if !t.data.EnableBwe {
+		disableBweInRtpParameters(rtpParameters)
+	}
+
 	// If missing or empty encodings, add one.
 	if len(rtpParameters.Encodings) == 0 {
 		rtpParameters.Encodings = []*RtpEncodingParameters{{}}
@@ -774,10 +782,9 @@ func (t *Transport) ProduceContext(ctx context.Context, options *ProducerOptions
 					Encodings: collect(rtpMapping.Encodings,
 						func(item *RtpMappingEncoding) *FbsRtpParameters.EncodingMappingT {
 							return &FbsRtpParameters.EncodingMappingT{
-								Rid:             item.Rid,
-								Ssrc:            item.Ssrc,
-								ScalabilityMode: item.ScalabilityMode,
-								MappedSsrc:      item.MappedSsrc,
+								Rid:        item.Rid,
+								Ssrc:       item.Ssrc,
+								MappedSsrc: item.MappedSsrc,
 							}
 						}),
 				},
@@ -843,14 +850,15 @@ func (t *Transport) ConsumeContext(ctx context.Context, options *ConsumerOptions
 	var rtpParameters *RtpParameters
 
 	if t.Type() == TransportPipe {
-		rtpParameters = getPipeConsumerRtpParameters(producer.ConsumableRtpParameters(), t.data.Rtx)
+		rtpParameters = getPipeConsumerRtpParameters(
+			producer.ConsumableRtpParameters(), t.data.Rtx, t.data.GetRouterRtpCapabilities(), producer.Kind())
 	} else {
 		var (
 			enableRtx = unref(options.EnableRtx, true)
 			err       error
 		)
 		rtpParameters, err = getConsumerRtpParameters(
-			producer.ConsumableRtpParameters(), options.RtpCapabilities, options.Pipe, enableRtx)
+			producer.ConsumableRtpParameters(), options.RtpCapabilities, options.Pipe, enableRtx, t.data.EnableBwe)
 		if err != nil {
 			return nil, err
 		}
@@ -1088,11 +1096,10 @@ func (t *Transport) ConsumeDataContext(ctx context.Context, options *DataConsume
 		if ordered := options.Ordered; ordered != nil {
 			sctpStreamParameters.Ordered = ordered
 		}
-		if maxPacketLifeTime := options.MaxPacketLifeTime; maxPacketLifeTime > 0 {
-			sctpStreamParameters.MaxPacketLifeTime = &maxPacketLifeTime
-		}
-		if maxRetransmits := options.MaxRetransmits; maxRetransmits > 0 {
-			sctpStreamParameters.MaxRetransmits = &maxRetransmits
+		if !unref(options.Ordered) && (options.MaxPacketLifeTime != nil || options.MaxRetransmits != nil) {
+			sctpStreamParameters.Ordered = ref(false)
+			sctpStreamParameters.MaxPacketLifeTime = options.MaxPacketLifeTime
+			sctpStreamParameters.MaxRetransmits = options.MaxRetransmits
 		}
 	}
 
@@ -1123,6 +1130,10 @@ func (t *Transport) ConsumeDataContext(ctx context.Context, options *DataConsume
 		},
 	})
 	if err != nil {
+		// Give the SCTP stream id back, the worker did not take it.
+		if sctpStreamParameters != nil {
+			t.streamIds.Delete(sctpStreamParameters.StreamId)
+		}
 		return nil, err
 	}
 
@@ -1384,18 +1395,18 @@ func (t *Transport) handleWorkerNotifications() {
 				Timestamp: notification.Timestamp,
 				Direction: orElse(notification.Direction == FbsCommon.TraceDirectionDIRECTION_IN, "in", "out"),
 			}
-			if notification.Info.Type == FbsTransport.TraceInfoBweTraceInfo {
+			switch notification.Info.Type {
+			case FbsTransport.TraceInfoBweTraceInfo:
 				info := notification.Info.Value.(*FbsTransport.BweTraceInfoT)
 				trace.Info = H{
-					"bweType":                 strings.ToLower(info.BweType.String()),
-					"desiredBitrate":          info.DesiredBitrate,
-					"effectiveDesiredBitrate": info.EffectiveDesiredBitrate,
-					"minBitrate":              info.MinBitrate,
-					"maxBitrate":              info.MaxBitrate,
-					"startBitrate":            info.StartBitrate,
-					"maxPaddingBitrate":       info.MaxPaddingBitrate,
-					"availableBitrate":        info.AvailableBitrate,
+					"desiredBitrate":   info.DesiredBitrate,
+					"minBitrate":       info.MinBitrate,
+					"maxBitrate":       info.MaxBitrate,
+					"availableBitrate": info.AvailableBitrate,
 				}
+			case FbsTransport.TraceInfoProbationTraceInfo:
+				info := notification.Info.Value.(*FbsTransport.ProbationTraceInfoT)
+				trace.Info = rtpPacketDumpInfo(RtpPacketDump(*info.RtpPacket))
 			}
 
 			t.mu.RLock()

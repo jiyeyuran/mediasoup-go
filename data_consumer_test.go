@@ -14,7 +14,7 @@ import (
 func createDataConsumer(transport *Transport, dataProucerId string, options ...func(*DataConsumerOptions)) *DataConsumer {
 	option := &DataConsumerOptions{
 		DataProducerId:    dataProucerId,
-		MaxPacketLifeTime: 4000,
+		MaxPacketLifeTime: ref[uint16](4000),
 		AppData:           H{"baz": "LOL"},
 	}
 	for _, o := range options {
@@ -73,7 +73,7 @@ func TestDirectTransportDataConsumerDump(t *testing.T) {
 	dataProducer := createDataProducer(transport)
 	dataConsumer, err := transport.ConsumeData(&DataConsumerOptions{
 		DataProducerId:    dataProducer.Id(),
-		MaxPacketLifeTime: 4000,
+		MaxPacketLifeTime: ref[uint16](4000),
 		AppData:           H{"hehe": "HEHE"},
 	})
 	assert.NoError(t, err)
@@ -93,7 +93,7 @@ func TestDataConsumerGetStats(t *testing.T) {
 	dataProducer := createDataProducer(transport)
 	dataConsumer, _ := transport.ConsumeData(&DataConsumerOptions{
 		DataProducerId:    dataProducer.Id(),
-		MaxPacketLifeTime: 4000,
+		MaxPacketLifeTime: ref[uint16](4000),
 		AppData:           H{"hehe": "HEHE"},
 	})
 	stats, err := dataConsumer.GetStats()
@@ -118,7 +118,7 @@ func TestDataConsumerClose(t *testing.T) {
 		dataProducer := createDataProducer(transport)
 		dataConsumer, _ := transport.ConsumeData(&DataConsumerOptions{
 			DataProducerId:    dataProducer.Id(),
-			MaxPacketLifeTime: 4000,
+			MaxPacketLifeTime: ref[uint16](4000),
 			AppData:           H{"baz": "LOL"},
 		})
 		dataConsumer.OnClose(mymock.OnClose)
@@ -163,7 +163,7 @@ func TestDataConsumerClose(t *testing.T) {
 		dataProducer := createDataProducer(transport)
 		dataConsumer, _ := transport.ConsumeData(&DataConsumerOptions{
 			DataProducerId:    dataProducer.Id(),
-			MaxPacketLifeTime: 4000,
+			MaxPacketLifeTime: ref[uint16](4000),
 			AppData:           H{"baz": "LOL"},
 		})
 		dataConsumer.OnClose(mymock.OnClose)
@@ -187,7 +187,7 @@ func TestDataConsumerClose(t *testing.T) {
 		dataProducer := createDataProducer(transport)
 		dataConsumer, _ := transport.ConsumeData(&DataConsumerOptions{
 			DataProducerId:    dataProducer.Id(),
-			MaxPacketLifeTime: 4000,
+			MaxPacketLifeTime: ref[uint16](4000),
 			AppData:           H{"baz": "LOL"},
 		})
 		dataConsumer.OnClose(mymock.OnClose)
@@ -209,7 +209,7 @@ func TestDataConsumerClose(t *testing.T) {
 		dataProducer := createDataProducer(transport)
 		dataConsumer, _ := transport.ConsumeData(&DataConsumerOptions{
 			DataProducerId:    dataProducer.Id(),
-			MaxPacketLifeTime: 4000,
+			MaxPacketLifeTime: ref[uint16](4000),
 			AppData:           H{"baz": "LOL"},
 		})
 		dataConsumer.OnClose(mymock.OnClose)

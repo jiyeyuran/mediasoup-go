@@ -26,7 +26,7 @@ type BaseStatsT struct {
 	Rid string `json:"rid"`
 	RtxSsrc *uint32 `json:"rtx_ssrc"`
 	RtxPacketsDiscarded uint64 `json:"rtx_packets_discarded"`
-	RoundTripTime float32 `json:"round_trip_time"`
+	RoundTripTime *float32 `json:"round_trip_time"`
 	Score byte `json:"score"`
 }
 
@@ -62,7 +62,9 @@ func (t *BaseStatsT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 		BaseStatsAddRtxSsrc(builder, *t.RtxSsrc)
 	}
 	BaseStatsAddRtxPacketsDiscarded(builder, t.RtxPacketsDiscarded)
-	BaseStatsAddRoundTripTime(builder, t.RoundTripTime)
+	if t.RoundTripTime != nil {
+		BaseStatsAddRoundTripTime(builder, *t.RoundTripTime)
+	}
 	BaseStatsAddScore(builder, t.Score)
 	return BaseStatsEnd(builder)
 }
@@ -330,12 +332,13 @@ func (rcv *BaseStats) MutateRtxPacketsDiscarded(n uint64) bool {
 	return rcv._tab.MutateUint64Slot(36, n)
 }
 
-func (rcv *BaseStats) RoundTripTime() float32 {
+func (rcv *BaseStats) RoundTripTime() *float32 {
 	o := flatbuffers.UOffsetT(rcv._tab.Offset(38))
 	if o != 0 {
-		return rcv._tab.GetFloat32(o + rcv._tab.Pos)
+		v := rcv._tab.GetFloat32(o + rcv._tab.Pos)
+		return &v
 	}
-	return 0.0
+	return nil
 }
 
 func (rcv *BaseStats) MutateRoundTripTime(n float32) bool {
@@ -410,7 +413,8 @@ func BaseStatsAddRtxPacketsDiscarded(builder *flatbuffers.Builder, rtxPacketsDis
 	builder.PrependUint64Slot(16, rtxPacketsDiscarded, 0)
 }
 func BaseStatsAddRoundTripTime(builder *flatbuffers.Builder, roundTripTime float32) {
-	builder.PrependFloat32Slot(17, roundTripTime, 0.0)
+	builder.PrependFloat32(roundTripTime)
+	builder.Slot(17)
 }
 func BaseStatsAddScore(builder *flatbuffers.Builder, score byte) {
 	builder.PrependByteSlot(18, score, 0)

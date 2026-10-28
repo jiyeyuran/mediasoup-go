@@ -9,7 +9,6 @@ import (
 type EncodingMappingT struct {
 	Rid string `json:"rid"`
 	Ssrc *uint32 `json:"ssrc"`
-	ScalabilityMode string `json:"scalability_mode"`
 	MappedSsrc uint32 `json:"mapped_ssrc"`
 }
 
@@ -21,16 +20,11 @@ func (t *EncodingMappingT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffse
 	if t.Rid != "" {
 		ridOffset = builder.CreateString(t.Rid)
 	}
-	scalabilityModeOffset := flatbuffers.UOffsetT(0)
-	if t.ScalabilityMode != "" {
-		scalabilityModeOffset = builder.CreateString(t.ScalabilityMode)
-	}
 	EncodingMappingStart(builder)
 	EncodingMappingAddRid(builder, ridOffset)
 	if t.Ssrc != nil {
 		EncodingMappingAddSsrc(builder, *t.Ssrc)
 	}
-	EncodingMappingAddScalabilityMode(builder, scalabilityModeOffset)
 	EncodingMappingAddMappedSsrc(builder, t.MappedSsrc)
 	return EncodingMappingEnd(builder)
 }
@@ -38,7 +32,6 @@ func (t *EncodingMappingT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffse
 func (rcv *EncodingMapping) UnPackTo(t *EncodingMappingT) {
 	t.Rid = string(rcv.Rid())
 	t.Ssrc = rcv.Ssrc()
-	t.ScalabilityMode = string(rcv.ScalabilityMode())
 	t.MappedSsrc = rcv.MappedSsrc()
 }
 
@@ -107,16 +100,8 @@ func (rcv *EncodingMapping) MutateSsrc(n uint32) bool {
 	return rcv._tab.MutateUint32Slot(6, n)
 }
 
-func (rcv *EncodingMapping) ScalabilityMode() []byte {
-	o := flatbuffers.UOffsetT(rcv._tab.Offset(8))
-	if o != 0 {
-		return rcv._tab.ByteVector(o + rcv._tab.Pos)
-	}
-	return nil
-}
-
 func (rcv *EncodingMapping) MappedSsrc() uint32 {
-	o := flatbuffers.UOffsetT(rcv._tab.Offset(10))
+	o := flatbuffers.UOffsetT(rcv._tab.Offset(8))
 	if o != 0 {
 		return rcv._tab.GetUint32(o + rcv._tab.Pos)
 	}
@@ -124,11 +109,11 @@ func (rcv *EncodingMapping) MappedSsrc() uint32 {
 }
 
 func (rcv *EncodingMapping) MutateMappedSsrc(n uint32) bool {
-	return rcv._tab.MutateUint32Slot(10, n)
+	return rcv._tab.MutateUint32Slot(8, n)
 }
 
 func EncodingMappingStart(builder *flatbuffers.Builder) {
-	builder.StartObject(4)
+	builder.StartObject(3)
 }
 func EncodingMappingAddRid(builder *flatbuffers.Builder, rid flatbuffers.UOffsetT) {
 	builder.PrependUOffsetTSlot(0, flatbuffers.UOffsetT(rid), 0)
@@ -137,11 +122,8 @@ func EncodingMappingAddSsrc(builder *flatbuffers.Builder, ssrc uint32) {
 	builder.PrependUint32(ssrc)
 	builder.Slot(1)
 }
-func EncodingMappingAddScalabilityMode(builder *flatbuffers.Builder, scalabilityMode flatbuffers.UOffsetT) {
-	builder.PrependUOffsetTSlot(2, flatbuffers.UOffsetT(scalabilityMode), 0)
-}
 func EncodingMappingAddMappedSsrc(builder *flatbuffers.Builder, mappedSsrc uint32) {
-	builder.PrependUint32Slot(3, mappedSsrc, 0)
+	builder.PrependUint32Slot(2, mappedSsrc, 0)
 }
 func EncodingMappingEnd(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	return builder.EndObject()

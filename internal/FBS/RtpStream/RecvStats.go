@@ -10,7 +10,7 @@ type RecvStatsT struct {
 	Base *StatsT `json:"base"`
 	PacketCount uint64 `json:"packet_count"`
 	ByteCount uint64 `json:"byte_count"`
-	Bitrate uint32 `json:"bitrate"`
+	Bitrate uint64 `json:"bitrate"`
 	BitrateByLayer []*BitrateByLayerT `json:"bitrate_by_layer"`
 }
 
@@ -136,16 +136,16 @@ func (rcv *RecvStats) MutateByteCount(n uint64) bool {
 	return rcv._tab.MutateUint64Slot(8, n)
 }
 
-func (rcv *RecvStats) Bitrate() uint32 {
+func (rcv *RecvStats) Bitrate() uint64 {
 	o := flatbuffers.UOffsetT(rcv._tab.Offset(10))
 	if o != 0 {
-		return rcv._tab.GetUint32(o + rcv._tab.Pos)
+		return rcv._tab.GetUint64(o + rcv._tab.Pos)
 	}
 	return 0
 }
 
-func (rcv *RecvStats) MutateBitrate(n uint32) bool {
-	return rcv._tab.MutateUint32Slot(10, n)
+func (rcv *RecvStats) MutateBitrate(n uint64) bool {
+	return rcv._tab.MutateUint64Slot(10, n)
 }
 
 func (rcv *RecvStats) BitrateByLayer(obj *BitrateByLayer, j int) bool {
@@ -180,8 +180,8 @@ func RecvStatsAddPacketCount(builder *flatbuffers.Builder, packetCount uint64) {
 func RecvStatsAddByteCount(builder *flatbuffers.Builder, byteCount uint64) {
 	builder.PrependUint64Slot(2, byteCount, 0)
 }
-func RecvStatsAddBitrate(builder *flatbuffers.Builder, bitrate uint32) {
-	builder.PrependUint32Slot(3, bitrate, 0)
+func RecvStatsAddBitrate(builder *flatbuffers.Builder, bitrate uint64) {
+	builder.PrependUint64Slot(3, bitrate, 0)
 }
 func RecvStatsAddBitrateByLayer(builder *flatbuffers.Builder, bitrateByLayer flatbuffers.UOffsetT) {
 	builder.PrependUOffsetTSlot(4, flatbuffers.UOffsetT(bitrateByLayer), 0)

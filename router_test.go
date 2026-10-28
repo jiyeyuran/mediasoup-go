@@ -341,23 +341,18 @@ func TestCreatePipeTransport(t *testing.T) {
 				Encrypt: false,
 			},
 			{
-				Uri:     "urn:ietf:params:rtp-hdrext:toffset",
+				Uri:     "http://www.webrtc.org/experiments/rtp-hdrext/abs-capture-time",
 				Id:      9,
 				Encrypt: false,
 			},
 			{
-				Uri:     "http://www.webrtc.org/experiments/rtp-hdrext/abs-capture-time",
+				Uri:     "http://www.webrtc.org/experiments/rtp-hdrext/playout-delay",
 				Id:      10,
 				Encrypt: false,
 			},
 			{
-				Uri:     "http://www.webrtc.org/experiments/rtp-hdrext/playout-delay",
-				Id:      11,
-				Encrypt: false,
-			},
-			{
 				Uri:     "urn:mediasoup:params:rtp-hdrext:packet-id",
-				Id:      12,
+				Id:      11,
 				Encrypt: false,
 			},
 		}, pipeConsumer.RtpParameters().HeaderExtensions)
@@ -685,23 +680,18 @@ func TestPipeToRouter(t *testing.T) {
 				Encrypt: false,
 			},
 			{
-				Uri:     "https://aomediacodec.github.io/av1-rtp-spec/#dependency-descriptor-rtp-header-extension",
-				Id:      7,
-				Encrypt: false,
-			},
-			{
 				Uri:     "http://www.webrtc.org/experiments/rtp-hdrext/abs-capture-time",
-				Id:      10,
+				Id:      9,
 				Encrypt: false,
 			},
 			{
 				Uri:     "http://www.webrtc.org/experiments/rtp-hdrext/playout-delay",
-				Id:      11,
+				Id:      10,
 				Encrypt: false,
 			},
 			{
 				Uri:     "urn:mediasoup:params:rtp-hdrext:packet-id",
-				Id:      12,
+				Id:      11,
 				Encrypt: false,
 			},
 		}, pipeConsumer.RtpParameters().HeaderExtensions)
@@ -735,23 +725,18 @@ func TestPipeToRouter(t *testing.T) {
 				Encrypt: false,
 			},
 			{
-				Uri:     "https://aomediacodec.github.io/av1-rtp-spec/#dependency-descriptor-rtp-header-extension",
-				Id:      7,
-				Encrypt: false,
-			},
-			{
 				Uri:     "http://www.webrtc.org/experiments/rtp-hdrext/abs-capture-time",
-				Id:      10,
+				Id:      9,
 				Encrypt: false,
 			},
 			{
 				Uri:     "http://www.webrtc.org/experiments/rtp-hdrext/playout-delay",
-				Id:      11,
+				Id:      10,
 				Encrypt: false,
 			},
 			{
 				Uri:     "urn:mediasoup:params:rtp-hdrext:packet-id",
-				Id:      12,
+				Id:      11,
 				Encrypt: false,
 			},
 		}, pipeProducer.RtpParameters().HeaderExtensions)
@@ -808,23 +793,18 @@ func TestPipeToRouter(t *testing.T) {
 				Encrypt: false,
 			},
 			{
-				Uri:     "urn:ietf:params:rtp-hdrext:toffset",
+				Uri:     "http://www.webrtc.org/experiments/rtp-hdrext/abs-capture-time",
 				Id:      9,
 				Encrypt: false,
 			},
 			{
-				Uri:     "http://www.webrtc.org/experiments/rtp-hdrext/abs-capture-time",
+				Uri:     "http://www.webrtc.org/experiments/rtp-hdrext/playout-delay",
 				Id:      10,
 				Encrypt: false,
 			},
 			{
-				Uri:     "http://www.webrtc.org/experiments/rtp-hdrext/playout-delay",
-				Id:      11,
-				Encrypt: false,
-			},
-			{
 				Uri:     "urn:mediasoup:params:rtp-hdrext:packet-id",
-				Id:      12,
+				Id:      11,
 				Encrypt: false,
 			},
 		}, pipeConsumer.RtpParameters().HeaderExtensions)
@@ -865,23 +845,18 @@ func TestPipeToRouter(t *testing.T) {
 				Encrypt: false,
 			},
 			{
-				Uri:     "urn:ietf:params:rtp-hdrext:toffset",
+				Uri:     "http://www.webrtc.org/experiments/rtp-hdrext/abs-capture-time",
 				Id:      9,
 				Encrypt: false,
 			},
 			{
-				Uri:     "http://www.webrtc.org/experiments/rtp-hdrext/abs-capture-time",
+				Uri:     "http://www.webrtc.org/experiments/rtp-hdrext/playout-delay",
 				Id:      10,
 				Encrypt: false,
 			},
 			{
-				Uri:     "http://www.webrtc.org/experiments/rtp-hdrext/playout-delay",
-				Id:      11,
-				Encrypt: false,
-			},
-			{
 				Uri:     "urn:mediasoup:params:rtp-hdrext:packet-id",
-				Id:      12,
+				Id:      11,
 				Encrypt: false,
 			},
 		}, pipeProducer.RtpParameters().HeaderExtensions)

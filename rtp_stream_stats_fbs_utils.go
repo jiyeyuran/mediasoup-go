@@ -26,7 +26,7 @@ func parseRtpStreamRecvStats(recvStats *FbsRtpStream.RecvStatsT) *RtpStreamStats
 	stats.Type = "inbound-rtp"
 	stats.PacketCount = recvStats.PacketCount
 	stats.ByteCount = recvStats.ByteCount
-	stats.Bitrate = recvStats.Bitrate
+	stats.Bitrate = uint32(recvStats.Bitrate)
 	stats.BitrateByLayer = parseBitrateByLayer(recvStats)
 
 	return stats
@@ -37,7 +37,7 @@ func parseSendStreamStats(sendStats *FbsRtpStream.SendStatsT) *RtpStreamStats {
 	stats.Type = "outbound-rtp"
 	stats.PacketCount = sendStats.PacketCount
 	stats.ByteCount = sendStats.ByteCount
-	stats.Bitrate = sendStats.Bitrate
+	stats.Bitrate = uint32(sendStats.Bitrate)
 
 	return stats
 }
@@ -60,7 +60,7 @@ func parseBaseStreamStats(stats *FbsRtpStream.BaseStatsT) *RtpStreamStats {
 		FirCount:             stats.FirCount,
 		Rid:                  stats.Rid,
 		RtxSsrc:              stats.RtxSsrc,
-		RoundTripTime:        stats.RoundTripTime,
+		RoundTripTime:        unref(stats.RoundTripTime),
 		RtxPacketsDiscarded:  stats.RtxPacketsDiscarded,
 		Score:                stats.Score,
 	}
@@ -73,7 +73,7 @@ func parseBitrateByLayer(stats *FbsRtpStream.RecvStatsT) map[string]uint32 {
 	bitrateByLayer := make(map[string]uint32)
 
 	for _, layer := range stats.BitrateByLayer {
-		bitrateByLayer[layer.Layer] = layer.Bitrate
+		bitrateByLayer[layer.Layer] = uint32(layer.Bitrate)
 	}
 
 	return bitrateByLayer

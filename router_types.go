@@ -41,6 +41,11 @@ type PipeToRouterOptions struct {
 
 	// EnableSrtp enables SRTP
 	EnableSrtp bool `json:"enableSrtp,omitempty"`
+
+	// SctpZeroChecksum is the SCTP Zero Checksum (RFC 9653) alternate error
+	// detection method the pipe transports announce. Default "trusted-network"
+	// (the PipeTransports listen on localhost by default).
+	SctpZeroChecksum SctpZeroChecksum `json:"sctpZeroChecksum,omitempty"`
 }
 
 // PipeToRouterResult contains the result of piping router
