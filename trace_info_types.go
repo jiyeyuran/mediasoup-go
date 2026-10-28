@@ -16,14 +16,39 @@ type RtpPacketDump struct {
 	Marker             bool    `json:"marker"`
 	Ssrc               uint32  `json:"ssrc"`
 	IsKeyFrame         bool    `json:"isKeyFrame"`
-	Size               uint64  `json:"size"`
-	PayloadSize        uint64  `json:"payloadSize"`
+	Size               uint32  `json:"size"`
+	PayloadSize        uint32  `json:"payloadSize"`
 	SpatialLayer       byte    `json:"spatialLayer"`
 	TemporalLayer      byte    `json:"temporalLayer"`
 	Mid                string  `json:"mid"`
 	Rid                string  `json:"rid"`
 	Rrid               string  `json:"rrid"`
 	WideSequenceNumber *uint16 `json:"wideSequenceNumber,omitempty"`
+}
+
+// rtpPacketDumpInfo is the "trace" event info of a "probation" type: the
+// fields of the probation RTP packet.
+func rtpPacketDumpInfo(dump RtpPacketDump) H {
+	info := H{
+		"payloadType":    dump.PayloadType,
+		"sequenceNumber": dump.SequenceNumber,
+		"timestamp":      dump.Timestamp,
+		"marker":         dump.Marker,
+		"ssrc":           dump.Ssrc,
+		"isKeyFrame":     dump.IsKeyFrame,
+		"size":           dump.Size,
+		"payloadSize":    dump.PayloadSize,
+		"spatialLayer":   dump.SpatialLayer,
+		"temporalLayer":  dump.TemporalLayer,
+		"mid":            dump.Mid,
+		"rid":            dump.Rid,
+		"rrid":           dump.Rrid,
+	}
+	if dump.WideSequenceNumber != nil {
+		info["wideSequenceNumber"] = *dump.WideSequenceNumber
+	}
+
+	return info
 }
 
 // FirTraceInfo is "trace" event data for "fir" type.

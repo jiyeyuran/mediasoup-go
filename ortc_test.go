@@ -346,13 +346,6 @@ func TestRtpParameters(t *testing.T) {
 				PreferredEncrypt: false,
 				Direction:        MediaDirectionSendrecv,
 			},
-			{
-				Kind:             "video",
-				Uri:              "urn:ietf:params:rtp-hdrext:toffset",
-				PreferredId:      9,
-				PreferredEncrypt: false,
-				Direction:        MediaDirectionSendrecv,
-			},
 		},
 	}
 
@@ -360,6 +353,7 @@ func TestRtpParameters(t *testing.T) {
 		consumableRtpParameters,
 		remoteRtpCapabilities,
 		false,
+		true,
 		true,
 	)
 	assert.NoError(t, err)
@@ -400,11 +394,6 @@ func TestRtpParameters(t *testing.T) {
 		{
 			Uri:     "urn:3gpp:video-orientation",
 			Id:      8,
-			Encrypt: false,
-		},
-		{
-			Uri:     "urn:ietf:params:rtp-hdrext:toffset",
-			Id:      9,
 			Encrypt: false,
 		},
 	}, consumerRtpParameters.HeaderExtensions)

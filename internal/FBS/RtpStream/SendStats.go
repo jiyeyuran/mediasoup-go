@@ -10,7 +10,7 @@ type SendStatsT struct {
 	Base *StatsT `json:"base"`
 	PacketCount uint64 `json:"packet_count"`
 	ByteCount uint64 `json:"byte_count"`
-	Bitrate uint32 `json:"bitrate"`
+	Bitrate uint64 `json:"bitrate"`
 }
 
 func (t *SendStatsT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
@@ -114,16 +114,16 @@ func (rcv *SendStats) MutateByteCount(n uint64) bool {
 	return rcv._tab.MutateUint64Slot(8, n)
 }
 
-func (rcv *SendStats) Bitrate() uint32 {
+func (rcv *SendStats) Bitrate() uint64 {
 	o := flatbuffers.UOffsetT(rcv._tab.Offset(10))
 	if o != 0 {
-		return rcv._tab.GetUint32(o + rcv._tab.Pos)
+		return rcv._tab.GetUint64(o + rcv._tab.Pos)
 	}
 	return 0
 }
 
-func (rcv *SendStats) MutateBitrate(n uint32) bool {
-	return rcv._tab.MutateUint32Slot(10, n)
+func (rcv *SendStats) MutateBitrate(n uint64) bool {
+	return rcv._tab.MutateUint64Slot(10, n)
 }
 
 func SendStatsStart(builder *flatbuffers.Builder) {
@@ -138,8 +138,8 @@ func SendStatsAddPacketCount(builder *flatbuffers.Builder, packetCount uint64) {
 func SendStatsAddByteCount(builder *flatbuffers.Builder, byteCount uint64) {
 	builder.PrependUint64Slot(2, byteCount, 0)
 }
-func SendStatsAddBitrate(builder *flatbuffers.Builder, bitrate uint32) {
-	builder.PrependUint32Slot(3, bitrate, 0)
+func SendStatsAddBitrate(builder *flatbuffers.Builder, bitrate uint64) {
+	builder.PrependUint64Slot(3, bitrate, 0)
 }
 func SendStatsEnd(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	return builder.EndObject()

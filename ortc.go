@@ -546,7 +546,7 @@ func CanConsume(consumableRtpParameters *RtpParameters, caps *RtpCapabilities) (
 func getConsumerRtpParameters(
 	consumableRtpParameters *RtpParameters,
 	remoteRtpCapabilities *RtpCapabilities,
-	pipe, enableRtx bool,
+	pipe, enableRtx, enableBwe bool,
 ) (*RtpParameters, error) {
 	for _, capCodec := range remoteRtpCapabilities.Codecs {
 		if err := validateRtpCodecCapability(capCodec); err != nil {
@@ -609,6 +609,13 @@ func getConsumerRtpParameters(
 				break
 			}
 		}
+	}
+
+	// A transport that doesn't run bandwidth estimation must not negotiate it.
+	// Dropping its header extensions is enough, since the RTCP feedback below is
+	// reduced out of them.
+	if !enableBwe {
+		consumerParams.HeaderExtensions = withoutBweHeaderExtensions(consumerParams.HeaderExtensions)
 	}
 
 	// Reduce codecs' RTCP feedback. Use Transport-CC if available, REMB otherwise.
@@ -871,6 +878,33 @@ func matchCodecs(
 	}
 
 	return true
+}
+
+// disableBweInRtpParameters drops what a transport without bandwidth
+// estimation must not negotiate: the BWE RTP header extensions and feedbacks.
+func disableBweInRtpParameters(rtpParameters *RtpParameters) {
+	rtpParameters.HeaderExtensions = withoutBweHeaderExtensions(rtpParameters.HeaderExtensions)
+
+	for _, codec := range rtpParameters.Codecs {
+		codec.RtcpFeedback = filterRtcpFeedback(codec.RtcpFeedback, func(fb *RtcpFeedback) bool {
+			return fb.Type != "transport-cc" && fb.Type != "goog-remb"
+		})
+	}
+}
+
+func withoutBweHeaderExtensions(exts []*RtpHeaderExtensionParameters) []*RtpHeaderExtensionParameters {
+	result := make([]*RtpHeaderExtensionParameters, 0, len(exts))
+
+	for _, ext := range exts {
+		if ext.Uri == "http://www.webrtc.org/experiments/rtp-hdrext/abs-send-time" ||
+			ext.Uri == "http://www.ietf.org/id/draft-holmer-rmcat-transport-wide-cc-extensions-01" {
+			continue
+		}
+
+		result = append(result, ext)
+	}
+
+	return result
 }
 
 func matchHeaderExtensionUri(exts []*RtpHeaderExtensionParameters, uri string) bool {

@@ -352,14 +352,15 @@ func TestWorkerChannelRequestObserver(t *testing.T) {
 	rejected := findRequestStats(observed(), "TRANSPORT_SET_MAX_INCOMING_BITRATE")
 	assert.Nil(t, rejected, "a direct transport rejects this before it reaches the worker")
 
-	plainTransport, err := router.CreatePlainTransport(&PlainTransportOptions{
-		ListenInfo: TransportListenInfo{Protocol: TransportProtocolUDP, Ip: "127.0.0.1"},
+	// Since mediasoup 3.32.0 the worker clamps a max outgoing bitrate below the
+	// min instead of rejecting it; a listen IP this host does not have is still
+	// rejected, by the worker itself when it fails to bind.
+	_, err = router.CreatePlainTransport(&PlainTransportOptions{
+		ListenInfo: TransportListenInfo{Protocol: TransportProtocolUDP, Ip: "203.0.113.1"},
 	})
-	require.NoError(t, err)
-	require.NoError(t, plainTransport.SetMinOutgoingBitrate(600000))
-	require.Error(t, plainTransport.SetMaxOutgoingBitrate(100), "max below min must be rejected")
+	require.Error(t, err, "a listen IP this host does not have must be rejected")
 
-	rejected = findRequestStats(observed(), "TRANSPORT_SET_MAX_OUTGOING_BITRATE")
+	rejected = findRequestStats(observed(), "ROUTER_CREATE_PLAINTRANSPORT")
 	require.NotNil(t, rejected, "the rejected request was not reported")
 	assert.Error(t, rejected.Err)
 	assert.Positive(t, rejected.Duration)

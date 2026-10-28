@@ -69,6 +69,20 @@ func convertSctpOptions(enableSctp bool, options SctpOptions, isDataChannel bool
 	}
 }
 
+// convertSctpZeroChecksum maps the SCTP Zero Checksum method to the worker's enum.
+func convertSctpZeroChecksum(sctpZeroChecksum SctpZeroChecksum) (FbsTransport.SctpZeroChecksum, error) {
+	switch sctpZeroChecksum {
+	case SctpZeroChecksumSctpOverDtls:
+		return FbsTransport.SctpZeroChecksumSCTP_OVER_DTLS, nil
+	case SctpZeroChecksumTrustedNetwork:
+		return FbsTransport.SctpZeroChecksumTRUSTED_NETWORK, nil
+	case SctpZeroChecksumNone:
+		return FbsTransport.SctpZeroChecksumNONE, nil
+	default:
+		return 0, errors.New("invalid sctpZeroChecksum: " + string(sctpZeroChecksum))
+	}
+}
+
 func parseSrtpParameters(srtpParameters *FbsSrtpParameters.SrtpParametersT) *SrtpParameters {
 	if srtpParameters == nil {
 		return nil
@@ -108,7 +122,7 @@ func convertRtpEncodingParameters(encoding *RtpEncodingParameters) *FbsRtpParame
 		}),
 		Dtx:             encoding.Dtx,
 		ScalabilityMode: encoding.ScalabilityMode,
-		MaxBitrate:      orElse(encoding.MaxBitrate > 0, ref(encoding.MaxBitrate), nil),
+		MaxBitrate:      orElse(encoding.MaxBitrate > 0, ref(uint64(encoding.MaxBitrate)), nil),
 	}
 }
 

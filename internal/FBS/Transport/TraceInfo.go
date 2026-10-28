@@ -10,18 +10,21 @@ import (
 type TraceInfo byte
 
 const (
-	TraceInfoNONE         TraceInfo = 0
-	TraceInfoBweTraceInfo TraceInfo = 1
+	TraceInfoNONE               TraceInfo = 0
+	TraceInfoProbationTraceInfo TraceInfo = 1
+	TraceInfoBweTraceInfo       TraceInfo = 2
 )
 
 var EnumNamesTraceInfo = map[TraceInfo]string{
-	TraceInfoNONE:         "NONE",
-	TraceInfoBweTraceInfo: "BweTraceInfo",
+	TraceInfoNONE:               "NONE",
+	TraceInfoProbationTraceInfo: "ProbationTraceInfo",
+	TraceInfoBweTraceInfo:       "BweTraceInfo",
 }
 
 var EnumValuesTraceInfo = map[string]TraceInfo{
-	"NONE":         TraceInfoNONE,
-	"BweTraceInfo": TraceInfoBweTraceInfo,
+	"NONE":               TraceInfoNONE,
+	"ProbationTraceInfo": TraceInfoProbationTraceInfo,
+	"BweTraceInfo":       TraceInfoBweTraceInfo,
 }
 
 func (v TraceInfo) String() string {
@@ -41,6 +44,8 @@ func (t *TraceInfoT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 		return 0
 	}
 	switch t.Type {
+	case TraceInfoProbationTraceInfo:
+		return t.Value.(*ProbationTraceInfoT).Pack(builder)
 	case TraceInfoBweTraceInfo:
 		return t.Value.(*BweTraceInfoT).Pack(builder)
 	}
@@ -49,6 +54,10 @@ func (t *TraceInfoT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 
 func (rcv TraceInfo) UnPack(table flatbuffers.Table) *TraceInfoT {
 	switch rcv {
+	case TraceInfoProbationTraceInfo:
+		var x ProbationTraceInfo
+		x.Init(table.Bytes, table.Pos)
+		return &TraceInfoT{Type: TraceInfoProbationTraceInfo, Value: x.UnPack()}
 	case TraceInfoBweTraceInfo:
 		var x BweTraceInfo
 		x.Init(table.Bytes, table.Pos)

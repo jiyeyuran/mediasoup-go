@@ -409,6 +409,11 @@ func (r *Router) CreateWebRtcTransportContext(ctx context.Context, options *WebR
 		PreferTcp:                       options.PreferTcp,
 		IceConsentTimeout:               ref[uint8](30),
 		InitialAvailableOutgoingBitrate: 600000,
+		EnableBwe:                       ref(true),
+		MaxIncomingBitrate:              options.MaxIncomingBitrate,
+		MaxOutgoingBitrate:              options.MaxOutgoingBitrate,
+		MinOutgoingBitrate:              options.MinOutgoingBitrate,
+		SctpZeroChecksum:                orElse(len(options.SctpZeroChecksum) > 0, options.SctpZeroChecksum, SctpZeroChecksumSctpOverDtls),
 		EnableSctp:                      options.EnableSctp,
 		SctpOptions:                     options.withDefaults(),
 		AppData:                         orElse(options.AppData != nil, options.AppData, H{}),
@@ -427,10 +432,23 @@ func (r *Router) CreateWebRtcTransportContext(ctx context.Context, options *WebR
 	if options.InitialAvailableOutgoingBitrate > 0 {
 		o.InitialAvailableOutgoingBitrate = options.InitialAvailableOutgoingBitrate
 	}
+	if options.EnableBwe != nil {
+		o.EnableBwe = options.EnableBwe
+	}
+
+	sctpZeroChecksum, err := convertSctpZeroChecksum(o.SctpZeroChecksum)
+	if err != nil {
+		return nil, err
+	}
 
 	transportId := UUID(TransportIDPrefix)
 	baseTranportOptions := convertSctpOptions(o.EnableSctp, o.SctpOptions, true)
-	baseTranportOptions.InitialAvailableOutgoingBitrate = ref(o.InitialAvailableOutgoingBitrate)
+	baseTranportOptions.EnableBwe = *o.EnableBwe
+	baseTranportOptions.InitialAvailableOutgoingBitrate = ref(uint64(o.InitialAvailableOutgoingBitrate))
+	baseTranportOptions.MaxIncomingBitrate = optionalBitrate(o.MaxIncomingBitrate)
+	baseTranportOptions.MaxOutgoingBitrate = optionalBitrate(o.MaxOutgoingBitrate)
+	baseTranportOptions.MinOutgoingBitrate = optionalBitrate(o.MinOutgoingBitrate)
+	baseTranportOptions.SctpZeroChecksum = sctpZeroChecksum
 
 	var (
 		method FbsRequest.Method
@@ -482,6 +500,7 @@ func (r *Router) CreateWebRtcTransportContext(ctx context.Context, options *WebR
 	data := &internalTransportData{
 		TransportId:   transportId,
 		TransportType: TransportWebRTC,
+		EnableBwe:     *o.EnableBwe,
 		AppData:       o.AppData,
 		TransportData: &TransportData{
 			WebRtcTransportData: &WebRtcTransportData{
@@ -545,22 +564,45 @@ func (r *Router) CreatePlainTransportContext(ctx context.Context, options *Plain
 	r.logger.DebugContext(ctx, "CreatePlainTransport()")
 
 	o := &PlainTransportOptions{
-		ListenInfo:      options.ListenInfo,
-		RtcpListenInfo:  options.RtcpListenInfo,
-		RtcpMux:         ref(true),
-		Comedia:         options.Comedia,
-		EnableSctp:      options.EnableSctp,
-		SctpOptions:     options.withDefaults(),
-		EnableSrtp:      options.EnableSrtp,
-		SrtpCryptoSuite: AES_CM_128_HMAC_SHA1_80,
-		AppData:         orElse(options.AppData != nil, options.AppData, H{}),
+		ListenInfo:                      options.ListenInfo,
+		RtcpListenInfo:                  options.RtcpListenInfo,
+		RtcpMux:                         ref(true),
+		Comedia:                         options.Comedia,
+		EnableBwe:                       ref(true),
+		InitialAvailableOutgoingBitrate: 600000,
+		MaxIncomingBitrate:              options.MaxIncomingBitrate,
+		MaxOutgoingBitrate:              options.MaxOutgoingBitrate,
+		MinOutgoingBitrate:              options.MinOutgoingBitrate,
+		SctpZeroChecksum:                orElse(len(options.SctpZeroChecksum) > 0, options.SctpZeroChecksum, SctpZeroChecksumNone),
+		EnableSctp:                      options.EnableSctp,
+		SctpOptions:                     options.withDefaults(),
+		EnableSrtp:                      options.EnableSrtp,
+		SrtpCryptoSuite:                 AES_CM_128_HMAC_SHA1_80,
+		AppData:                         orElse(options.AppData != nil, options.AppData, H{}),
 	}
 	if options.RtcpMux != nil {
 		o.RtcpMux = options.RtcpMux
 	}
+	if options.InitialAvailableOutgoingBitrate > 0 {
+		o.InitialAvailableOutgoingBitrate = options.InitialAvailableOutgoingBitrate
+	}
+	if options.EnableBwe != nil {
+		o.EnableBwe = options.EnableBwe
+	}
+
+	sctpZeroChecksum, err := convertSctpZeroChecksum(o.SctpZeroChecksum)
+	if err != nil {
+		return nil, err
+	}
 
 	transportId := UUID(TransportIDPrefix)
 	baseTranportOptions := convertSctpOptions(o.EnableSctp, o.SctpOptions, false)
+	baseTranportOptions.EnableBwe = *o.EnableBwe
+	baseTranportOptions.InitialAvailableOutgoingBitrate = ref(uint64(o.InitialAvailableOutgoingBitrate))
+	baseTranportOptions.MaxIncomingBitrate = optionalBitrate(o.MaxIncomingBitrate)
+	baseTranportOptions.MaxOutgoingBitrate = optionalBitrate(o.MaxOutgoingBitrate)
+	baseTranportOptions.MinOutgoingBitrate = optionalBitrate(o.MinOutgoingBitrate)
+	baseTranportOptions.SctpZeroChecksum = sctpZeroChecksum
 
 	msg, err := r.channel.Request(ctx, &FbsRequest.RequestT{
 		Method:    FbsRequest.MethodROUTER_CREATE_PLAINTRANSPORT,
@@ -593,6 +635,7 @@ func (r *Router) CreatePlainTransportContext(ctx context.Context, options *Plain
 	data := &internalTransportData{
 		TransportId:   transportId,
 		TransportType: TransportPlain,
+		EnableBwe:     *o.EnableBwe,
 		TransportData: &TransportData{
 			PlainTransportData: &PlainTransportData{
 				Tuple:          *parseTransportTuple(result.Tuple),
@@ -620,16 +663,25 @@ func (r *Router) CreatePipeTransportContext(ctx context.Context, options *PipeTr
 	r.logger.DebugContext(ctx, "CreatePipeTransport()")
 
 	o := &PipeTransportOptions{
-		ListenInfo:  options.ListenInfo,
-		EnableSctp:  options.EnableSctp,
-		SctpOptions: options.withDefaults(),
-		EnableSrtp:  options.EnableSrtp,
-		EnableRtx:   options.EnableRtx,
-		AppData:     orElse(options.AppData != nil, options.AppData, H{}),
+		ListenInfo:       options.ListenInfo,
+		EnableSctp:       options.EnableSctp,
+		SctpOptions:      options.withDefaults(),
+		EnableSrtp:       options.EnableSrtp,
+		EnableRtx:        options.EnableRtx,
+		SctpZeroChecksum: orElse(len(options.SctpZeroChecksum) > 0, options.SctpZeroChecksum, SctpZeroChecksumNone),
+		AppData:          orElse(options.AppData != nil, options.AppData, H{}),
+	}
+
+	sctpZeroChecksum, err := convertSctpZeroChecksum(o.SctpZeroChecksum)
+	if err != nil {
+		return nil, err
 	}
 
 	transportId := UUID(TransportIDPrefix)
 	baseTranportOptions := convertSctpOptions(o.EnableSctp, o.SctpOptions, false)
+	// A pipe transport does not estimate the bandwidth of its link.
+	baseTranportOptions.EnableBwe = false
+	baseTranportOptions.SctpZeroChecksum = sctpZeroChecksum
 
 	msg, err := r.channel.Request(ctx, &FbsRequest.RequestT{
 		Method:    FbsRequest.MethodROUTER_CREATE_PIPETRANSPORT,
@@ -743,14 +795,15 @@ func (r *Router) PipeToRouterContext(ctx context.Context, options *PipeToRouterO
 			Protocol: TransportProtocolUDP,
 			Ip:       "127.0.0.1",
 		},
-		ProducerId:     options.ProducerId,
-		DataProducerId: options.DataProducerId,
-		Router:         options.Router,
-		KeepId:         ref(true),
-		EnableSctp:     ref(true),
-		SctpOptions:    options.withDefaults(),
-		EnableRtx:      options.EnableRtx,
-		EnableSrtp:     options.EnableSrtp,
+		ProducerId:       options.ProducerId,
+		DataProducerId:   options.DataProducerId,
+		Router:           options.Router,
+		KeepId:           ref(true),
+		EnableSctp:       ref(true),
+		SctpOptions:      options.withDefaults(),
+		EnableRtx:        options.EnableRtx,
+		EnableSrtp:       options.EnableSrtp,
+		SctpZeroChecksum: orElse(len(options.SctpZeroChecksum) > 0, options.SctpZeroChecksum, SctpZeroChecksumTrustedNetwork),
 	}
 	if options.ListenInfo != (TransportListenInfo{}) {
 		o.ListenInfo = options.ListenInfo
@@ -826,11 +879,12 @@ func (r *Router) PipeToRouterContext(ctx context.Context, options *PipeToRouterO
 			}()
 
 			options := &PipeTransportOptions{
-				ListenInfo:  o.ListenInfo,
-				EnableSctp:  *o.EnableSctp,
-				SctpOptions: o.SctpOptions,
-				EnableRtx:   o.EnableRtx,
-				EnableSrtp:  o.EnableSrtp,
+				ListenInfo:       o.ListenInfo,
+				EnableSctp:       *o.EnableSctp,
+				SctpOptions:      o.SctpOptions,
+				EnableRtx:        o.EnableRtx,
+				EnableSrtp:       o.EnableSrtp,
+				SctpZeroChecksum: o.SctpZeroChecksum,
 			}
 			errgroup := new(errgroup.Group)
 

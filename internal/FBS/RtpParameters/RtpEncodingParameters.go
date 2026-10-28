@@ -13,7 +13,7 @@ type RtpEncodingParametersT struct {
 	Rtx *RtxT `json:"rtx"`
 	Dtx bool `json:"dtx"`
 	ScalabilityMode string `json:"scalability_mode"`
-	MaxBitrate *uint32 `json:"max_bitrate"`
+	MaxBitrate *uint64 `json:"max_bitrate"`
 }
 
 func (t *RtpEncodingParametersT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
@@ -167,17 +167,17 @@ func (rcv *RtpEncodingParameters) ScalabilityMode() []byte {
 	return nil
 }
 
-func (rcv *RtpEncodingParameters) MaxBitrate() *uint32 {
+func (rcv *RtpEncodingParameters) MaxBitrate() *uint64 {
 	o := flatbuffers.UOffsetT(rcv._tab.Offset(16))
 	if o != 0 {
-		v := rcv._tab.GetUint32(o + rcv._tab.Pos)
+		v := rcv._tab.GetUint64(o + rcv._tab.Pos)
 		return &v
 	}
 	return nil
 }
 
-func (rcv *RtpEncodingParameters) MutateMaxBitrate(n uint32) bool {
-	return rcv._tab.MutateUint32Slot(16, n)
+func (rcv *RtpEncodingParameters) MutateMaxBitrate(n uint64) bool {
+	return rcv._tab.MutateUint64Slot(16, n)
 }
 
 func RtpEncodingParametersStart(builder *flatbuffers.Builder) {
@@ -203,8 +203,8 @@ func RtpEncodingParametersAddDtx(builder *flatbuffers.Builder, dtx bool) {
 func RtpEncodingParametersAddScalabilityMode(builder *flatbuffers.Builder, scalabilityMode flatbuffers.UOffsetT) {
 	builder.PrependUOffsetTSlot(5, flatbuffers.UOffsetT(scalabilityMode), 0)
 }
-func RtpEncodingParametersAddMaxBitrate(builder *flatbuffers.Builder, maxBitrate uint32) {
-	builder.PrependUint32(maxBitrate)
+func RtpEncodingParametersAddMaxBitrate(builder *flatbuffers.Builder, maxBitrate uint64) {
+	builder.PrependUint64(maxBitrate)
 	builder.Slot(6)
 }
 func RtpEncodingParametersEnd(builder *flatbuffers.Builder) flatbuffers.UOffsetT {

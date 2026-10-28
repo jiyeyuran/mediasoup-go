@@ -13,8 +13,8 @@ type DumpT struct {
 	Marker bool `json:"marker"`
 	Ssrc uint32 `json:"ssrc"`
 	IsKeyFrame bool `json:"is_key_frame"`
-	Size uint64 `json:"size"`
-	PayloadSize uint64 `json:"payload_size"`
+	Size uint32 `json:"size"`
+	PayloadSize uint32 `json:"payload_size"`
 	SpatialLayer byte `json:"spatial_layer"`
 	TemporalLayer byte `json:"temporal_layer"`
 	Mid string `json:"mid"`
@@ -192,28 +192,28 @@ func (rcv *Dump) MutateIsKeyFrame(n bool) bool {
 	return rcv._tab.MutateBoolSlot(14, n)
 }
 
-func (rcv *Dump) Size() uint64 {
+func (rcv *Dump) Size() uint32 {
 	o := flatbuffers.UOffsetT(rcv._tab.Offset(16))
 	if o != 0 {
-		return rcv._tab.GetUint64(o + rcv._tab.Pos)
+		return rcv._tab.GetUint32(o + rcv._tab.Pos)
 	}
 	return 0
 }
 
-func (rcv *Dump) MutateSize(n uint64) bool {
-	return rcv._tab.MutateUint64Slot(16, n)
+func (rcv *Dump) MutateSize(n uint32) bool {
+	return rcv._tab.MutateUint32Slot(16, n)
 }
 
-func (rcv *Dump) PayloadSize() uint64 {
+func (rcv *Dump) PayloadSize() uint32 {
 	o := flatbuffers.UOffsetT(rcv._tab.Offset(18))
 	if o != 0 {
-		return rcv._tab.GetUint64(o + rcv._tab.Pos)
+		return rcv._tab.GetUint32(o + rcv._tab.Pos)
 	}
 	return 0
 }
 
-func (rcv *Dump) MutatePayloadSize(n uint64) bool {
-	return rcv._tab.MutateUint64Slot(18, n)
+func (rcv *Dump) MutatePayloadSize(n uint32) bool {
+	return rcv._tab.MutateUint32Slot(18, n)
 }
 
 func (rcv *Dump) SpatialLayer() byte {
@@ -298,11 +298,11 @@ func DumpAddSsrc(builder *flatbuffers.Builder, ssrc uint32) {
 func DumpAddIsKeyFrame(builder *flatbuffers.Builder, isKeyFrame bool) {
 	builder.PrependBoolSlot(5, isKeyFrame, false)
 }
-func DumpAddSize(builder *flatbuffers.Builder, size uint64) {
-	builder.PrependUint64Slot(6, size, 0)
+func DumpAddSize(builder *flatbuffers.Builder, size uint32) {
+	builder.PrependUint32Slot(6, size, 0)
 }
-func DumpAddPayloadSize(builder *flatbuffers.Builder, payloadSize uint64) {
-	builder.PrependUint64Slot(7, payloadSize, 0)
+func DumpAddPayloadSize(builder *flatbuffers.Builder, payloadSize uint32) {
+	builder.PrependUint32Slot(7, payloadSize, 0)
 }
 func DumpAddSpatialLayer(builder *flatbuffers.Builder, spatialLayer byte) {
 	builder.PrependByteSlot(8, spatialLayer, 0)

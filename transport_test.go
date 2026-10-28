@@ -197,8 +197,9 @@ func TestTransportSetOutgoingBitrate(t *testing.T) {
 	assert.NoError(t, transport.SetMinOutgoingBitrate(100000))
 	assert.NoError(t, transport.SetMaxOutgoingBitrate(200000))
 
-	// Worker rejects a max lower than the already set min.
-	assert.Error(t, transport.SetMaxOutgoingBitrate(50000))
+	// Since mediasoup 3.32.0 the worker clamps a max lower than the already set
+	// min instead of rejecting it.
+	assert.NoError(t, transport.SetMaxOutgoingBitrate(50000))
 
 	transport = createDirectTransport(nil)
 	assert.ErrorIs(t, transport.SetMaxOutgoingBitrate(200000), ErrNotImplemented)

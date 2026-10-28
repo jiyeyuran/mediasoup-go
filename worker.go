@@ -25,7 +25,7 @@ import (
 )
 
 // MEDIASOUP_WORKER_VERSION is the maximum supported version of the mediasoup C++ subprocess.
-const MEDIASOUP_WORKER_VERSION = "3.26.0"
+const MEDIASOUP_WORKER_VERSION = "3.32.0"
 
 // Worker represents a mediasoup C++ subprocess that runs in a single CPU core and handles Router
 // instances.
@@ -136,10 +136,6 @@ func NewWorker(workerBinaryPath string, options ...Option) (*Worker, error) {
 			"--dtlsCertificateFile="+opts.DtlsCertificateFile,
 			"--dtlsPrivateKeyFile="+opts.DtlsPrivateKeyFile,
 		)
-	}
-
-	if len(opts.LibwebrtcFieldTrials) > 0 {
-		args = append(args, "--libwebrtcFieldTrials="+opts.LibwebrtcFieldTrials)
 	}
 
 	logger.Debug(fmt.Sprintf("starting worker process: %s %s", workerBinaryPath, strings.Join(args, " ")))

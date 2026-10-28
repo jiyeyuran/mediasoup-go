@@ -27,6 +27,23 @@ type WebRtcTransportOptions struct {
 	// InitialAvailableOutgoingBitrate sets the initial available outgoing bitrate (in bps). Default 600000.
 	InitialAvailableOutgoingBitrate uint32 `json:"initialAvailableOutgoingBitrate,omitempty"`
 
+	// EnableBwe estimates the bandwidth of the transport link, as far as the
+	// negotiated RTP parameters allow it. Default true.
+	EnableBwe *bool `json:"enableBwe,omitempty"`
+
+	// MaxIncomingBitrate sets the maximum incoming bitrate (in bps). Unset (0) by default, meaning no limit.
+	MaxIncomingBitrate uint32 `json:"maxIncomingBitrate,omitempty"`
+
+	// MaxOutgoingBitrate sets the maximum outgoing bitrate (in bps). Unset (0) by default, meaning no limit.
+	MaxOutgoingBitrate uint32 `json:"maxOutgoingBitrate,omitempty"`
+
+	// MinOutgoingBitrate sets the minimum outgoing bitrate (in bps). Unset (0) by default, meaning no limit.
+	MinOutgoingBitrate uint32 `json:"minOutgoingBitrate,omitempty"`
+
+	// SctpZeroChecksum is the SCTP Zero Checksum (RFC 9653) alternate error
+	// detection method to announce. Default "sctp-over-dtls".
+	SctpZeroChecksum SctpZeroChecksum `json:"sctpZeroChecksum,omitempty"`
+
 	// EnableSctp enables SCTP association creation. Default false.
 	EnableSctp bool `json:"enableSctp,omitempty"`
 
@@ -113,6 +130,26 @@ type PlainTransportOptions struct {
 	// Default false.
 	Comedia bool `json:"comedia,omitempty"`
 
+	// EnableBwe estimates the bandwidth of the transport link, as far as the
+	// negotiated RTP parameters allow it. Default true.
+	EnableBwe *bool `json:"enableBwe,omitempty"`
+
+	// InitialAvailableOutgoingBitrate sets the initial available outgoing bitrate (in bps). Default 600000.
+	InitialAvailableOutgoingBitrate uint32 `json:"initialAvailableOutgoingBitrate,omitempty"`
+
+	// MaxIncomingBitrate sets the maximum incoming bitrate (in bps). Unset (0) by default, meaning no limit.
+	MaxIncomingBitrate uint32 `json:"maxIncomingBitrate,omitempty"`
+
+	// MaxOutgoingBitrate sets the maximum outgoing bitrate (in bps). Unset (0) by default, meaning no limit.
+	MaxOutgoingBitrate uint32 `json:"maxOutgoingBitrate,omitempty"`
+
+	// MinOutgoingBitrate sets the minimum outgoing bitrate (in bps). Unset (0) by default, meaning no limit.
+	MinOutgoingBitrate uint32 `json:"minOutgoingBitrate,omitempty"`
+
+	// SctpZeroChecksum is the SCTP Zero Checksum (RFC 9653) alternate error
+	// detection method to announce. Default "none".
+	SctpZeroChecksum SctpZeroChecksum `json:"sctpZeroChecksum,omitempty"`
+
 	// EnableSctp define whether create a SCTP association. Default false.
 	EnableSctp bool `json:"enableSctp,omitempty"`
 
@@ -159,6 +196,10 @@ type PipeTransportOptions struct {
 	// located in different hosts and there is packet lost in the link. For this
 	// to work, both PipeTransports must enable this setting. Default false.
 	EnableRtx bool `json:"enableRtx,omitempty"`
+
+	// SctpZeroChecksum is the SCTP Zero Checksum (RFC 9653) alternate error
+	// detection method to announce. Default "none".
+	SctpZeroChecksum SctpZeroChecksum `json:"sctpZeroChecksum,omitempty"`
 
 	// AppData is custom application data.
 	AppData H `json:"appData,omitempty"`
@@ -250,6 +291,22 @@ type TransportTuple struct {
 }
 
 // SctpState represents the SCTP state.
+// SctpZeroChecksum is the SCTP Zero Checksum (RFC 9653) alternate error
+// detection method announced to the remote SCTP endpoint. The CRC32c checksum
+// is only skipped if the remote endpoint announces the same method.
+type SctpZeroChecksum string
+
+const (
+	// SctpZeroChecksumSctpOverDtls is SCTP over DTLS, as defined in RFC 9653.
+	SctpZeroChecksumSctpOverDtls SctpZeroChecksum = "sctp-over-dtls"
+	// SctpZeroChecksumTrustedNetwork is a mediasoup specific method (not assigned
+	// by IANA), only meant to be used between mediasoup endpoints over a trusted
+	// network path (such as localhost).
+	SctpZeroChecksumTrustedNetwork SctpZeroChecksum = "trusted-network"
+	// SctpZeroChecksumNone does not announce Zero Checksum.
+	SctpZeroChecksumNone SctpZeroChecksum = "none"
+)
+
 type SctpState string
 
 const (
@@ -385,8 +442,7 @@ type BaseTransportStat struct {
 	MaxIncomingBitrate       *uint32   `json:"maxIncomingBitrate,omitempty"`
 	MaxOutgoingBitrate       *uint32   `json:"maxOutgoingBitrate,omitempty"`
 	MinOutgoingBitrate       *uint32   `json:"minOutgoingBitrate,omitempty"`
-	RtpPacketLossReceived    *float64  `json:"rtpPacketLossReceived,omitempty"`
-	RtpPacketLossSent        *float64  `json:"rtpPacketLossSent,omitempty"`
+	RoundTripTime            *float32  `json:"roundTripTime,omitempty"`
 }
 
 type WebRtcTransportStat struct {
