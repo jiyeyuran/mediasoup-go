@@ -261,26 +261,18 @@ var supportedRtpCapabilities = RtpCapabilities{
 			Direction:        MediaDirectionRecvonly,
 		},
 		{
-			Kind:             MediaKindAudio,
-			Uri:              "http://www.webrtc.org/experiments/rtp-hdrext/abs-send-time",
-			PreferredId:      4,
-			PreferredEncrypt: false,
-			Direction:        MediaDirectionSendrecv,
-		},
-		{
 			Kind:             MediaKindVideo,
 			Uri:              "http://www.webrtc.org/experiments/rtp-hdrext/abs-send-time",
 			PreferredId:      4,
 			PreferredEncrypt: false,
 			Direction:        MediaDirectionSendrecv,
 		},
-		// NOTE: For audio we just enable transport-wide-cc-01 when receiving media.
 		{
 			Kind:             MediaKindAudio,
 			Uri:              "http://www.ietf.org/id/draft-holmer-rmcat-transport-wide-cc-extensions-01",
 			PreferredId:      5,
 			PreferredEncrypt: false,
-			Direction:        MediaDirectionRecvonly,
+			Direction:        MediaDirectionSendrecv,
 		},
 		{
 			Kind:             MediaKindVideo,

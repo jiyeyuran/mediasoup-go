@@ -18,29 +18,6 @@ var availablePayloadTypes = [...]uint8{
 	57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71,
 }
 
-// TODO: Remove this if we switch to 'sendrecv' in Dependency-Descriptor header
-// extension.
-var dependencyDescriptorHeaderExtensionParametersForPipeConsumer *RtpHeaderExtensionParameters
-
-func init() {
-	// TODO: Remove this if we switch to 'sendrecv' in Dependency-Descriptor header
-	// extension.
-	//
-	// We need to create and store this Dependency-Descriptor header extension to
-	// leter be used by `getPipeConsumerRtpParameters()` function.
-	for _, ext := range supportedRtpCapabilities.HeaderExtensions {
-		if ext.Uri == "https://aomediacodec.github.io/av1-rtp-spec/#dependency-descriptor-rtp-header-extension" &&
-			ext.Direction != MediaDirectionSendrecv {
-			dependencyDescriptorHeaderExtensionParametersForPipeConsumer = &RtpHeaderExtensionParameters{
-				Uri:     ext.Uri,
-				Id:      ext.PreferredId,
-				Encrypt: ext.PreferredEncrypt,
-			}
-			break
-		}
-	}
-}
-
 type matchOptions struct {
 	strict bool
 	modify bool
@@ -355,7 +332,7 @@ func getProducerRtpParametersMapping(params *RtpParameters, caps *RtpCapabilitie
 
 		// Search for the associated media codec.
 		for _, mediaCodec := range params.Codecs {
-			if mediaCodec.PayloadType == codec.Parameters.Apt {
+			if !mediaCodec.isRtxCodec() && mediaCodec.PayloadType == codec.Parameters.Apt {
 				associatedMediaCodec = mediaCodec
 				break
 			}
@@ -585,7 +562,7 @@ func getConsumerRtpParameters(
 			found := false
 			// Search for the associated media codec.
 			for _, mediaCodec := range consumerParams.Codecs {
-				if mediaCodec.PayloadType == codec.Parameters.Apt {
+				if !mediaCodec.isRtxCodec() && mediaCodec.PayloadType == codec.Parameters.Apt {
 					rtxSupported = true
 					found = true
 					break
@@ -711,7 +688,12 @@ func getConsumerRtpParameters(
 //
 // It keeps all original consumable encodings and removes support for BWE. If
 // enableRtx is false, it also removes RTX and NACK support.
-func getPipeConsumerRtpParameters(consumableRtpParameters *RtpParameters, enableRtx bool) *RtpParameters {
+func getPipeConsumerRtpParameters(
+	consumableRtpParameters *RtpParameters,
+	enableRtx bool,
+	routerRtpCapabilities *RtpCapabilities,
+	kind MediaKind,
+) *RtpParameters {
 	consumerParams := &RtpParameters{
 		Rtcp: consumableRtpParameters.Rtcp,
 		Msid: consumableRtpParameters.Msid,
@@ -724,10 +706,11 @@ func getPipeConsumerRtpParameters(consumableRtpParameters *RtpParameters, enable
 			continue
 		}
 
+		// Reduce RTCP feedbacks by removing BWE related ones and NACK (without
+		// parameter) unless RTX is enabled.
 		codec.RtcpFeedback = filterRtcpFeedback(codec.RtcpFeedback, func(fb *RtcpFeedback) bool {
-			return (fb.Type == "nack" && fb.Parameter == "pli") ||
-				(fb.Type == "ccm" && fb.Parameter == "fir") ||
-				(enableRtx && fb.Type == "nack" && len(fb.Parameter) == 0)
+			return fb.Type != "goog-remb" && fb.Type != "transport-cc" &&
+				(enableRtx || fb.Type != "nack" || len(fb.Parameter) > 0)
 		})
 		consumerParams.Codecs = append(consumerParams.Codecs, codec)
 	}
@@ -741,17 +724,26 @@ func getPipeConsumerRtpParameters(consumableRtpParameters *RtpParameters, enable
 		}
 	}
 
-	// TODO: Remove this if we switch to 'sendrecv' in Dependency-Descriptor header
-	// extension.
-	//
-	// We need to add Dependency-Descriptor header extension manually since it's
-	// 'recvonly' so it's not present in received `consumableRtpParameters`.
-	if dependencyDescriptorHeaderExtensionParametersForPipeConsumer != nil {
-		consumerParams.HeaderExtensions = append(consumerParams.HeaderExtensions, dependencyDescriptorHeaderExtensionParametersForPipeConsumer)
-		// Sort header extensions by ID.
-		sort.Slice(consumerParams.HeaderExtensions, func(i, j int) bool {
-			return consumerParams.HeaderExtensions[i].Id < consumerParams.HeaderExtensions[j].Id
-		})
+	// The Dependency Descriptor header extension is not in the consumable RTP
+	// parameters when the router capabilities do not send it, so the pipe
+	// consumer carries it explicitly for the remote router to receive it.
+	if routerRtpCapabilities != nil {
+		for _, capExt := range routerRtpCapabilities.HeaderExtensions {
+			if capExt.Kind == kind &&
+				capExt.Uri == "https://aomediacodec.github.io/av1-rtp-spec/#dependency-descriptor-rtp-header-extension" &&
+				capExt.Direction != MediaDirectionSendrecv && capExt.Direction != MediaDirectionSendonly {
+				consumerParams.HeaderExtensions = append(consumerParams.HeaderExtensions, &RtpHeaderExtensionParameters{
+					Uri:     capExt.Uri,
+					Id:      capExt.PreferredId,
+					Encrypt: capExt.PreferredEncrypt,
+				})
+				// Sort header extensions by ID.
+				sort.Slice(consumerParams.HeaderExtensions, func(i, j int) bool {
+					return consumerParams.HeaderExtensions[i].Id < consumerParams.HeaderExtensions[j].Id
+				})
+				break
+			}
+		}
 	}
 
 	baseSsrc := generateSsrc()

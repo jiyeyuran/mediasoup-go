@@ -130,17 +130,11 @@ func TestConsumerDump(t *testing.T) {
 	assert.EqualValues(t, 2, data.RtpParameters.Codecs[0].Channels)
 	assert.Equal(t, RtpCodecSpecificParameters{Useinbandfec: 1, Usedtx: 1}, data.RtpParameters.Codecs[0].Parameters)
 	assert.Equal(t, []*RtcpFeedback{{Type: "nack"}}, data.RtpParameters.Codecs[0].RtcpFeedback)
-	assert.Len(t, data.RtpParameters.HeaderExtensions, 3)
+	assert.Len(t, data.RtpParameters.HeaderExtensions, 2)
 	assert.Equal(t, []*RtpHeaderExtensionParameters{
 		{
 			Uri:        "urn:ietf:params:rtp-hdrext:sdes:mid",
 			Id:         1,
-			Encrypt:    false,
-			Parameters: RtpCodecSpecificParameters{},
-		},
-		{
-			Uri:        "http://www.webrtc.org/experiments/rtp-hdrext/abs-send-time",
-			Id:         4,
 			Encrypt:    false,
 			Parameters: RtpCodecSpecificParameters{},
 		},

@@ -15,13 +15,13 @@ type DataConsumerOptions struct {
 	// When ordered is false indicates the time (in milliseconds) after which a
 	// SCTP packet will stop being retransmitted. Defaults to the value in the
 	// DataProducer if it has type 'sctp' or unset if it has type 'direct'.
-	MaxPacketLifeTime uint16 `json:"maxPacketLifeTime,omitempty"`
+	MaxPacketLifeTime *uint16 `json:"maxPacketLifeTime,omitempty"`
 
 	// MaxRetransmits define just if consuming over SCTP.
 	// When ordered is false indicates the maximum number of times a packet will
 	// be retransmitted. Defaults to the value in the DataProducer if it has type
 	// 'sctp' or unset if it has type 'direct'.
-	MaxRetransmits uint16 `json:"maxRetransmits,omitempty"`
+	MaxRetransmits *uint16 `json:"maxRetransmits,omitempty"`
 
 	// Paused indicates whether the data consumer must start in paused mode. Default false.
 	Paused bool `json:"paused,omitempty"`

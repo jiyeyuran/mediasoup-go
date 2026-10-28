@@ -874,7 +874,7 @@ func TestTransportConsumeData(t *testing.T) {
 		})
 		dataConsumer, err := transport.ConsumeData(&DataConsumerOptions{
 			DataProducerId:    dataProducer.Id(),
-			MaxPacketLifeTime: 4000,
+			MaxPacketLifeTime: ref[uint16](4000),
 			AppData:           H{"baz": "LOL"},
 		})
 		assert.NoError(t, err, transport.Type())

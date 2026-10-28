@@ -403,7 +403,8 @@ func TestRtpParameters(t *testing.T) {
 		ReducedSize: ref(true),
 	}, consumerRtpParameters.Rtcp)
 
-	pipeConsumerRtpParameters := getPipeConsumerRtpParameters(consumableRtpParameters, false)
+	pipeConsumerRtpParameters := getPipeConsumerRtpParameters(
+		consumableRtpParameters, false, routerRtpCapabilities, MediaKindVideo)
 
 	assert.Len(t, pipeConsumerRtpParameters.Codecs, 1)
 	assert.Equal(t, &RtpCodecParameters{

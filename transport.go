@@ -850,7 +850,8 @@ func (t *Transport) ConsumeContext(ctx context.Context, options *ConsumerOptions
 	var rtpParameters *RtpParameters
 
 	if t.Type() == TransportPipe {
-		rtpParameters = getPipeConsumerRtpParameters(producer.ConsumableRtpParameters(), t.data.Rtx)
+		rtpParameters = getPipeConsumerRtpParameters(
+			producer.ConsumableRtpParameters(), t.data.Rtx, t.data.GetRouterRtpCapabilities(), producer.Kind())
 	} else {
 		var (
 			enableRtx = unref(options.EnableRtx, true)
@@ -1095,11 +1096,10 @@ func (t *Transport) ConsumeDataContext(ctx context.Context, options *DataConsume
 		if ordered := options.Ordered; ordered != nil {
 			sctpStreamParameters.Ordered = ordered
 		}
-		if maxPacketLifeTime := options.MaxPacketLifeTime; maxPacketLifeTime > 0 {
-			sctpStreamParameters.MaxPacketLifeTime = &maxPacketLifeTime
-		}
-		if maxRetransmits := options.MaxRetransmits; maxRetransmits > 0 {
-			sctpStreamParameters.MaxRetransmits = &maxRetransmits
+		if !unref(options.Ordered) && (options.MaxPacketLifeTime != nil || options.MaxRetransmits != nil) {
+			sctpStreamParameters.Ordered = ref(false)
+			sctpStreamParameters.MaxPacketLifeTime = options.MaxPacketLifeTime
+			sctpStreamParameters.MaxRetransmits = options.MaxRetransmits
 		}
 	}
 
@@ -1130,6 +1130,10 @@ func (t *Transport) ConsumeDataContext(ctx context.Context, options *DataConsume
 		},
 	})
 	if err != nil {
+		// Give the SCTP stream id back, the worker did not take it.
+		if sctpStreamParameters != nil {
+			t.streamIds.Delete(sctpStreamParameters.StreamId)
+		}
 		return nil, err
 	}
 
