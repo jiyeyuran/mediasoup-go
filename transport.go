@@ -746,6 +746,10 @@ func (t *Transport) ProduceContext(ctx context.Context, options *ProducerOptions
 		})
 		// Override Producer's CNAME.
 		rtpParameters.Rtcp.Cname = t.cname
+	} else if len(rtpParameters.Rtcp.Cname) == 0 {
+		// PipeTransports keep the CNAME of each Producer, but a Producer without a
+		// CNAME still gets a random one, as in the Node implementation.
+		rtpParameters.Rtcp.Cname = randString(8)
 	}
 
 	routerRtpCapabilities := t.data.GetRouterRtpCapabilities()

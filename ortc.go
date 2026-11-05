@@ -213,8 +213,10 @@ func validateSctpStreamParameters(params *SctpStreamParameters) (err error) {
 // generateRouterRtpCapabilities generate RTP capabilities for the Router based on the given media
 // codecs and mediasoup supported RTP capabilities.
 func generateRouterRtpCapabilities(mediaCodecs []*RtpCodecCapability) (caps *RtpCapabilities, err error) {
+	// Clone the supported header extensions so that each Router owns its copy and
+	// cannot affect the global supported capabilities, as in the Node implementation.
 	caps = &RtpCapabilities{
-		HeaderExtensions: supportedRtpCapabilities.HeaderExtensions,
+		HeaderExtensions: clone(supportedRtpCapabilities.HeaderExtensions),
 	}
 
 	availablePayloadTypesCopy := availablePayloadTypes

@@ -1010,8 +1010,8 @@ func TestPipeToRouter(t *testing.T) {
 
 	t.Run("data", func(t *testing.T) {
 		// clear old transports
-		for _, transports := range router1.mapRouterPipeTransports {
-			for _, transport := range transports {
+		for _, transport := range pipeTransportTo(router1, router2) {
+			if transport != nil {
 				transport.Close()
 			}
 		}
@@ -1179,20 +1179,69 @@ func TestPipeToRouter(t *testing.T) {
 			return pipedRouterCount(routerA) == 0 && pipedRouterCount(routerB) == 0
 		}, notificationTimeout, time.Millisecond, "the pipe transport pair was not forgotten")
 	})
+
+	t.Run("PipeToRouter called sequentially in both directions reuses the single PipeTransport pair", func(t *testing.T) {
+		routerA := createRouter(nil)
+		routerB := createRouter(nil)
+		defer routerA.Close()
+		defer routerB.Close()
+
+		transportA := createWebRtcTransport(routerA)
+		transportB := createWebRtcTransport(routerB)
+		audioProducerA := createAudioProducer(transportA)
+		audioProducerB := createAudioProducer(transportB)
+
+		_, err := routerA.PipeToRouter(&PipeToRouterOptions{
+			ProducerId: audioProducerA.Id(),
+			Router:     routerB,
+		})
+		require.NoError(t, err)
+
+		// The first call has fully finished, so there is no in-flight call left to
+		// deduplicate. The reverse call must still find the pair created above.
+		_, err = routerB.PipeToRouter(&PipeToRouterOptions{
+			ProducerId: audioProducerB.Id(),
+			Router:     routerA,
+		})
+		require.NoError(t, err)
+
+		dumpA, err := routerA.Dump()
+		require.NoError(t, err)
+		// One WebRtcTransport plus one PipeTransport (used in both directions).
+		assert.Len(t, dumpA.TransportIds, 2)
+
+		dumpB, err := routerB.Dump()
+		require.NoError(t, err)
+		assert.Len(t, dumpB.TransportIds, 2)
+
+		pairA := pipeTransportTo(routerA, routerB)
+		pairB := pipeTransportTo(routerB, routerA)
+		require.NotNil(t, pairA[0])
+		require.NotNil(t, pairB[0])
+
+		assert.Same(t, pairA[0], pairB[1], "routerB reused a different PipeTransport towards routerA")
+		assert.Same(t, pairA[1], pairB[0], "routerA reused a different PipeTransport towards routerB")
+	})
 }
 
 // mapRouterPipeTransports is guarded by routerPipeMu, and pipe transports are torn
 // down from another goroutine, so tests must not read the map bare.
 func pipedRouterCount(r *Router) int {
-	r.routerPipeMu.Lock()
-	defer r.routerPipeMu.Unlock()
+	routerPipeMu.Lock()
+	defer routerPipeMu.Unlock()
 
-	return len(r.mapRouterPipeTransports)
+	return len(mapRouterPipeTransports[r])
 }
 
+// pipeTransportTo returns the pair oriented for "from": [local, remote]. The pair
+// is complete because PipeToRouter only returns once the promise is resolved.
 func pipeTransportTo(from, to *Router) [2]*Transport {
-	from.routerPipeMu.Lock()
-	defer from.routerPipeMu.Unlock()
+	routerPipeMu.Lock()
+	defer routerPipeMu.Unlock()
 
-	return from.mapRouterPipeTransports[to]
+	promise := mapRouterPipeTransports[from][to]
+	if promise == nil {
+		return [2]*Transport{}
+	}
+	return promise.pairFor(from)
 }

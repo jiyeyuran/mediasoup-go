@@ -23,12 +23,7 @@ import (
 
 	"github.com/jiyeyuran/mediasoup-go/v2/internal/channel"
 	"golang.org/x/sync/errgroup"
-	"golang.org/x/sync/singleflight"
 )
-
-// pipeRouterGroup is a singleflight group to avoid pipe the same routers pair
-// at the same time.
-var pipeRouterGroup = &singleflight.Group{}
 
 type routerData struct {
 	RouterId        string
@@ -59,18 +54,14 @@ type Router struct {
 	newRtpObserverListeners listenerList[func(context.Context, *RtpObserver)]
 	newTransportListeners   listenerList[func(context.Context, *Transport)]
 	workerCloseListeners    listenerList[func(context.Context)]
-
-	routerPipeMu            sync.Mutex
-	mapRouterPipeTransports map[*Router][2]*Transport
 }
 
 func newRouter(worker *Worker, logger *slog.Logger, data *routerData) *Router {
 	return &Router{
-		worker:                  worker,
-		channel:                 worker.channel,
-		data:                    data,
-		logger:                  logger.With("routerId", data.RouterId),
-		mapRouterPipeTransports: make(map[*Router][2]*Transport),
+		worker:  worker,
+		channel: worker.channel,
+		data:    data,
+		logger:  logger.With("routerId", data.RouterId),
 	}
 }
 
@@ -84,7 +75,9 @@ func (r *Router) Worker() *Worker {
 }
 
 func (r *Router) RtpCapabilities() *RtpCapabilities {
-	return r.data.RtpCapabilities
+	// Return a copy so that callers cannot mutate the capabilities shared with
+	// other Routers, as the Node implementation does.
+	return clone(r.data.RtpCapabilities)
 }
 
 // AppData returns app custom data.
@@ -826,97 +819,29 @@ func (r *Router) PipeToRouterContext(ctx context.Context, options *PipeToRouterO
 		}
 	}
 
-	r.routerPipeMu.Lock()
-	pipeTransportPair, ok := r.mapRouterPipeTransports[o.Router]
-	if !ok {
-		// Here we may have to create a new PipeTransport pair to connect source and
-		// destination Routers. We just want to keep a PipeTransport pair for each
-		// pair of Routers. Since this operation is async, it may happen that two
-		// simultaneous calls to router1.pipeToRouter({ producerId: xxx, router: router2 })
-		// would end up generating two pairs of PipeTranports. To prevent that, let's
-		// use singleflight.
-		keyParts := []string{r.Id(), o.Router.Id()}
-		if keyParts[0] > keyParts[1] {
-			keyParts[0], keyParts[1] = keyParts[1], keyParts[0]
+	// Keep a single PipeTransport pair per pair of Routers. The promise is
+	// registered on both Routers before the transports are created, so a
+	// concurrent reverse call awaits it instead of creating a second pair and a
+	// later serial reverse call finds the finished pair.
+	promise, create := getOrCreatePipeTransportPair(r, o.Router)
+	if create {
+		promise.pair, promise.err = r.createPipeTransportPair(ctx, o)
+		if promise.err != nil {
+			deletePipeTransportPair(r, o.Router)
 		}
-		key := strings.Join(keyParts, "-")
-		v, err, _ := pipeRouterGroup.Do(key, func() (result any, err error) {
-			var localPipeTransport, remotePipeTransport *Transport
-			defer func() {
-				if err != nil {
-					if localPipeTransport != nil {
-						localPipeTransport.CloseContext(ctx)
-					}
-					if remotePipeTransport != nil {
-						remotePipeTransport.CloseContext(ctx)
-					}
-				}
-			}()
-
-			options := &PipeTransportOptions{
-				ListenInfo:  o.ListenInfo,
-				EnableSctp:  *o.EnableSctp,
-				SctpOptions: o.SctpOptions,
-				EnableRtx:   o.EnableRtx,
-				EnableSrtp:  o.EnableSrtp,
-			}
-			errgroup := new(errgroup.Group)
-
-			errgroup.Go(func() error {
-				transport, err := r.CreatePipeTransportContext(ctx, options)
-				localPipeTransport = transport
-				return err
-			})
-			errgroup.Go(func() error {
-				transport, err := o.Router.CreatePipeTransportContext(ctx, options)
-				remotePipeTransport = transport
-				return err
-			})
-			if err = errgroup.Wait(); err != nil {
-				return
-			}
-			errgroup.Go(func() error {
-				data := remotePipeTransport.Data().PipeTransportData
-				return localPipeTransport.ConnectContext(ctx, &TransportConnectOptions{
-					Ip:             data.Tuple.LocalAddress,
-					Port:           ref(data.Tuple.LocalPort),
-					SrtpParameters: data.SrtpParameters,
-				})
-			})
-			errgroup.Go(func() error {
-				data := localPipeTransport.Data().PipeTransportData
-				return remotePipeTransport.ConnectContext(ctx, &TransportConnectOptions{
-					Ip:             data.Tuple.LocalAddress,
-					Port:           ref(data.Tuple.LocalPort),
-					SrtpParameters: data.SrtpParameters,
-				})
-			})
-			if err = errgroup.Wait(); err != nil {
-				return
-			}
-			return [2]any{r, [2]*Transport{localPipeTransport, remotePipeTransport}}, nil
-		})
-		if err != nil {
-			r.routerPipeMu.Unlock()
-			return nil, err
+		close(promise.done)
+	} else {
+		select {
+		case <-promise.done:
+		case <-ctx.Done():
+			return nil, ctx.Err()
 		}
-		result := v.([2]any)
-		pipeTransportPair = result[1].([2]*Transport)
-		// swap local and remote PipeTransport if pipeTransportPair is shared from the other router
-		if result[0].(*Router) != r {
-			pipeTransportPair[0], pipeTransportPair[1] = pipeTransportPair[1], pipeTransportPair[0]
-		}
-		r.mapRouterPipeTransports[o.Router] = pipeTransportPair
-
-		pipeTransportPair[0].OnClose(func(ctx context.Context) {
-			pipeTransportPair[1].CloseContext(ctx)
-			r.routerPipeMu.Lock()
-			delete(r.mapRouterPipeTransports, o.Router)
-			r.routerPipeMu.Unlock()
-		})
 	}
-	r.routerPipeMu.Unlock()
+	if promise.err != nil {
+		return nil, promise.err
+	}
 
+	pipeTransportPair := promise.pairFor(r)
 	localPipeTransport, remotePipeTransport := pipeTransportPair[0], pipeTransportPair[1]
 
 	if producer != nil {
@@ -1036,6 +961,79 @@ func (r *Router) PipeToRouterContext(ctx context.Context, options *PipeToRouterO
 		PipeDataConsumer: pipeDataConsumer,
 		PipeDataProducer: pipeDataProducer,
 	}, nil
+}
+
+// createPipeTransportPair creates and connects the two PipeTransports of a
+// Router pair. The returned pair is oriented for r: pair[0] is the local
+// transport and pair[1] the one living in the remote Router.
+func (r *Router) createPipeTransportPair(ctx context.Context, o *PipeToRouterOptions) (pair [2]*Transport, err error) {
+	options := &PipeTransportOptions{
+		ListenInfo:  o.ListenInfo,
+		EnableSctp:  *o.EnableSctp,
+		SctpOptions: o.SctpOptions,
+		EnableRtx:   o.EnableRtx,
+		EnableSrtp:  o.EnableSrtp,
+	}
+
+	var localPipeTransport, remotePipeTransport *Transport
+	defer func() {
+		if err != nil {
+			if localPipeTransport != nil {
+				localPipeTransport.CloseContext(ctx)
+			}
+			if remotePipeTransport != nil {
+				remotePipeTransport.CloseContext(ctx)
+			}
+		}
+	}()
+
+	group := new(errgroup.Group)
+	group.Go(func() error {
+		transport, err := r.CreatePipeTransportContext(ctx, options)
+		localPipeTransport = transport
+		return err
+	})
+	group.Go(func() error {
+		transport, err := o.Router.CreatePipeTransportContext(ctx, options)
+		remotePipeTransport = transport
+		return err
+	})
+	if err = group.Wait(); err != nil {
+		return
+	}
+
+	group.Go(func() error {
+		data := remotePipeTransport.Data().PipeTransportData
+		return localPipeTransport.ConnectContext(ctx, &TransportConnectOptions{
+			Ip:             data.Tuple.LocalAddress,
+			Port:           ref(data.Tuple.LocalPort),
+			SrtpParameters: data.SrtpParameters,
+		})
+	})
+	group.Go(func() error {
+		data := localPipeTransport.Data().PipeTransportData
+		return remotePipeTransport.ConnectContext(ctx, &TransportConnectOptions{
+			Ip:             data.Tuple.LocalAddress,
+			Port:           ref(data.Tuple.LocalPort),
+			SrtpParameters: data.SrtpParameters,
+		})
+	})
+	if err = group.Wait(); err != nil {
+		return
+	}
+
+	// Closing either transport tears down the other one and forgets the pair on
+	// both Routers, as in the Node implementation.
+	localPipeTransport.OnClose(func(ctx context.Context) {
+		remotePipeTransport.CloseContext(ctx)
+		deletePipeTransportPair(r, o.Router)
+	})
+	remotePipeTransport.OnClose(func(ctx context.Context) {
+		localPipeTransport.CloseContext(ctx)
+		deletePipeTransportPair(r, o.Router)
+	})
+
+	return [2]*Transport{localPipeTransport, remotePipeTransport}, nil
 }
 
 // OnNewRtpObserver adds a listener on the "newrtpobserver" event. Call the
