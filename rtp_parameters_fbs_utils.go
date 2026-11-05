@@ -8,6 +8,21 @@ import (
 )
 
 func convertRtpParameters(rtpParameters *RtpParameters) *FbsRtpParameters.RtpParametersT {
+	// Unknown header extension URIs cannot be represented in the worker, so drop them.
+	headerExtensions := make([]*FbsRtpParameters.RtpHeaderExtensionParametersT, 0, len(rtpParameters.HeaderExtensions))
+	for _, item := range rtpParameters.HeaderExtensions {
+		uri, ok := convertHeaderExtensionUri(item.Uri)
+		if !ok {
+			continue
+		}
+		headerExtensions = append(headerExtensions, &FbsRtpParameters.RtpHeaderExtensionParametersT{
+			Uri:        uri,
+			Id:         item.Id,
+			Encrypt:    item.Encrypt,
+			Parameters: convertRtpCodecSpecificParameters(&item.Parameters),
+		})
+	}
+
 	return &FbsRtpParameters.RtpParametersT{
 		Mid: rtpParameters.Mid,
 		Codecs: collect(rtpParameters.Codecs,
@@ -27,15 +42,7 @@ func convertRtpParameters(rtpParameters *RtpParameters) *FbsRtpParameters.RtpPar
 						}),
 				}
 			}),
-		HeaderExtensions: collect(rtpParameters.HeaderExtensions,
-			func(item *RtpHeaderExtensionParameters) *FbsRtpParameters.RtpHeaderExtensionParametersT {
-				return &FbsRtpParameters.RtpHeaderExtensionParametersT{
-					Uri:        convertHeaderExtensionUri(item.Uri),
-					Id:         item.Id,
-					Encrypt:    item.Encrypt,
-					Parameters: convertRtpCodecSpecificParameters(&item.Parameters),
-				}
-			}),
+		HeaderExtensions: headerExtensions,
 		Encodings: collect(rtpParameters.Encodings,
 			func(item *RtpEncodingParameters) *FbsRtpParameters.RtpEncodingParametersT {
 				return &FbsRtpParameters.RtpEncodingParametersT{
@@ -232,43 +239,43 @@ func parseRtpHeaderExtensionParameters(headerExtension *FbsRtpParameters.RtpHead
 	}
 }
 
-func convertHeaderExtensionUri(uri string) FbsRtpParameters.RtpHeaderExtensionUri {
+func convertHeaderExtensionUri(uri string) (FbsRtpParameters.RtpHeaderExtensionUri, bool) {
 	switch uri {
 	case "urn:ietf:params:rtp-hdrext:sdes:mid":
-		return FbsRtpParameters.RtpHeaderExtensionUriMid
+		return FbsRtpParameters.RtpHeaderExtensionUriMid, true
 
 	case "urn:ietf:params:rtp-hdrext:sdes:rtp-stream-id":
-		return FbsRtpParameters.RtpHeaderExtensionUriRtpStreamId
+		return FbsRtpParameters.RtpHeaderExtensionUriRtpStreamId, true
 
 	case "urn:ietf:params:rtp-hdrext:sdes:repaired-rtp-stream-id":
-		return FbsRtpParameters.RtpHeaderExtensionUriRepairRtpStreamId
+		return FbsRtpParameters.RtpHeaderExtensionUriRepairRtpStreamId, true
 
 	case "http://www.webrtc.org/experiments/rtp-hdrext/abs-send-time":
-		return FbsRtpParameters.RtpHeaderExtensionUriAbsSendTime
+		return FbsRtpParameters.RtpHeaderExtensionUriAbsSendTime, true
 
 	case "http://www.ietf.org/id/draft-holmer-rmcat-transport-wide-cc-extensions-01":
-		return FbsRtpParameters.RtpHeaderExtensionUriTransportWideCcDraft01
+		return FbsRtpParameters.RtpHeaderExtensionUriTransportWideCcDraft01, true
 
 	case "urn:ietf:params:rtp-hdrext:ssrc-audio-level":
-		return FbsRtpParameters.RtpHeaderExtensionUriSsrcAudioLevel
+		return FbsRtpParameters.RtpHeaderExtensionUriSsrcAudioLevel, true
 
 	case "https://aomediacodec.github.io/av1-rtp-spec/#dependency-descriptor-rtp-header-extension":
-		return FbsRtpParameters.RtpHeaderExtensionUriDependencyDescriptor
+		return FbsRtpParameters.RtpHeaderExtensionUriDependencyDescriptor, true
 
 	case "urn:3gpp:video-orientation":
-		return FbsRtpParameters.RtpHeaderExtensionUriVideoOrientation
+		return FbsRtpParameters.RtpHeaderExtensionUriVideoOrientation, true
 
 	case "http://www.webrtc.org/experiments/rtp-hdrext/abs-capture-time":
-		return FbsRtpParameters.RtpHeaderExtensionUriAbsCaptureTime
+		return FbsRtpParameters.RtpHeaderExtensionUriAbsCaptureTime, true
 
 	case "urn:ietf:params:rtp-hdrext:playout-delay":
-		return FbsRtpParameters.RtpHeaderExtensionUriPlayoutDelay
+		return FbsRtpParameters.RtpHeaderExtensionUriPlayoutDelay, true
 
 	case "urn:mediasoup:params:rtp-hdrext:packet-id":
-		return FbsRtpParameters.RtpHeaderExtensionUriMediasoupPacketId
+		return FbsRtpParameters.RtpHeaderExtensionUriMediasoupPacketId, true
 
 	default:
-		return FbsRtpParameters.EnumValuesRtpHeaderExtensionUri[uri]
+		return 0, false
 	}
 }
 
