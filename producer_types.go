@@ -85,10 +85,9 @@ type RtpMappingCodec struct {
 }
 
 type RtpMappingEncoding struct {
-	Rid             string  `json:"rid,omitempty"`
-	Ssrc            *uint32 `json:"ssrc,omitempty"`
-	ScalabilityMode string  `json:"scalabilityMode,omitempty"`
-	MappedSsrc      uint32  `json:"mappedSsrc"`
+	Rid        string  `json:"rid,omitempty"`
+	Ssrc       *uint32 `json:"ssrc,omitempty"`
+	MappedSsrc uint32  `json:"mappedSsrc"`
 }
 
 // ProducerTraceEventType define the type for "trace" event.

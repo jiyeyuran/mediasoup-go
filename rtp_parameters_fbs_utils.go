@@ -49,6 +49,7 @@ func convertRtpParameters(rtpParameters *RtpParameters) *FbsRtpParameters.RtpPar
 					}),
 					Dtx:             item.Dtx,
 					ScalabilityMode: item.ScalabilityMode,
+					MaxBitrate:      orElse(item.MaxBitrate > 0, ref(item.MaxBitrate), nil),
 				}
 			},
 		),
@@ -214,9 +215,6 @@ func parseRtpHeaderExtensionParameters(headerExtension *FbsRtpParameters.RtpHead
 	case FbsRtpParameters.RtpHeaderExtensionUriVideoOrientation:
 		uri = "urn:3gpp:video-orientation"
 
-	case FbsRtpParameters.RtpHeaderExtensionUriTimeOffset:
-		uri = "urn:ietf:params:rtp-hdrext:toffset"
-
 	case FbsRtpParameters.RtpHeaderExtensionUriAbsCaptureTime:
 		uri = "http://www.webrtc.org/experiments/rtp-hdrext/abs-capture-time"
 
@@ -259,9 +257,6 @@ func convertHeaderExtensionUri(uri string) FbsRtpParameters.RtpHeaderExtensionUr
 
 	case "urn:3gpp:video-orientation":
 		return FbsRtpParameters.RtpHeaderExtensionUriVideoOrientation
-
-	case "urn:ietf:params:rtp-hdrext:toffset":
-		return FbsRtpParameters.RtpHeaderExtensionUriTimeOffset
 
 	case "http://www.webrtc.org/experiments/rtp-hdrext/abs-capture-time":
 		return FbsRtpParameters.RtpHeaderExtensionUriAbsCaptureTime

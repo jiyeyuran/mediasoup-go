@@ -18,13 +18,13 @@ type RtpStreamStats struct {
 	FirCount             uint64    `json:"firCount"`
 	Rid                  string    `json:"rid,omitempty"`
 	RtxSsrc              *uint32   `json:"rtxSsrc,omitempty"`
-	RoundTripTime        float32   `json:"roundTripTime,omitempty"`
+	RoundTripTime        *float32  `json:"roundTripTime,omitempty"`
 	RtxPacketsDiscarded  uint64    `json:"rtxPacketsDiscarded,omitempty"`
 	PacketCount          uint64    `json:"packetCount"`
 	ByteCount            uint64    `json:"byteCount"`
-	Bitrate              uint32    `json:"bitrate"`
+	Bitrate              uint64    `json:"bitrate"`
 	Score                uint8     `json:"score"`
 
 	// specific stats of our recv stream.
-	BitrateByLayer map[string]uint32 `json:"bitrateByLayer,omitempty"`
+	BitrateByLayer map[string]uint64 `json:"bitrateByLayer,omitempty"`
 }

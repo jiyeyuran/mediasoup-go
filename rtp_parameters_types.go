@@ -242,7 +242,7 @@ type RtpEncodingParameters struct {
 
 	// Others.
 	ScaleResolutionDownBy int    `json:"scaleResolutionDownBy,omitempty"`
-	MaxBitrate            uint32 `json:"maxBitrate,omitempty"`
+	MaxBitrate            uint64 `json:"maxBitrate,omitempty"`
 }
 
 // RtpEncodingRtx represents the associated RTX stream for RTP stream.

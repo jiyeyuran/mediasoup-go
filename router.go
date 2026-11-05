@@ -23,12 +23,7 @@ import (
 
 	"github.com/jiyeyuran/mediasoup-go/v2/internal/channel"
 	"golang.org/x/sync/errgroup"
-	"golang.org/x/sync/singleflight"
 )
-
-// pipeRouterGroup is a singleflight group to avoid pipe the same routers pair
-// at the same time.
-var pipeRouterGroup = &singleflight.Group{}
 
 type routerData struct {
 	RouterId        string
@@ -59,18 +54,14 @@ type Router struct {
 	newRtpObserverListeners listenerList[func(context.Context, *RtpObserver)]
 	newTransportListeners   listenerList[func(context.Context, *Transport)]
 	workerCloseListeners    listenerList[func(context.Context)]
-
-	routerPipeMu            sync.Mutex
-	mapRouterPipeTransports map[*Router][2]*Transport
 }
 
 func newRouter(worker *Worker, logger *slog.Logger, data *routerData) *Router {
 	return &Router{
-		worker:                  worker,
-		channel:                 worker.channel,
-		data:                    data,
-		logger:                  logger.With("routerId", data.RouterId),
-		mapRouterPipeTransports: make(map[*Router][2]*Transport),
+		worker:  worker,
+		channel: worker.channel,
+		data:    data,
+		logger:  logger.With("routerId", data.RouterId),
 	}
 }
 
@@ -84,7 +75,9 @@ func (r *Router) Worker() *Worker {
 }
 
 func (r *Router) RtpCapabilities() *RtpCapabilities {
-	return r.data.RtpCapabilities
+	// Return a copy so that callers cannot mutate the capabilities shared with
+	// other Routers, as the Node implementation does.
+	return clone(r.data.RtpCapabilities)
 }
 
 // AppData returns app custom data.
@@ -401,17 +394,17 @@ func (r *Router) CreateWebRtcTransportContext(ctx context.Context, options *WebR
 	r.logger.DebugContext(ctx, "CreateWebRtcTransport()")
 
 	o := &WebRtcTransportOptions{
-		WebRtcServer:                    options.WebRtcServer,
-		ListenInfos:                     options.ListenInfos,
-		EnableUdp:                       ref(true),
-		EnableTcp:                       options.EnableTcp,
-		PreferUdp:                       options.PreferUdp,
-		PreferTcp:                       options.PreferTcp,
-		IceConsentTimeout:               ref[uint8](30),
-		InitialAvailableOutgoingBitrate: 600000,
-		EnableSctp:                      options.EnableSctp,
-		SctpOptions:                     options.withDefaults(),
-		AppData:                         orElse(options.AppData != nil, options.AppData, H{}),
+		WebRtcServer:      options.WebRtcServer,
+		ListenInfos:       options.ListenInfos,
+		EnableUdp:         ref(true),
+		EnableTcp:         options.EnableTcp,
+		PreferUdp:         options.PreferUdp,
+		PreferTcp:         options.PreferTcp,
+		IceConsentTimeout: ref[uint8](30),
+		BweOptions:        options.BweOptions.withDefaults(),
+		EnableSctp:        options.EnableSctp,
+		SctpOptions:       options.SctpOptions.withDefaults(SctpZeroChecksumSctpOverDtls),
+		AppData:           orElse(options.AppData != nil, options.AppData, H{}),
 	}
 	if o.WebRtcServer == nil && len(o.ListenInfos) == 0 {
 		if server := r.worker.WebRtcServer(); server != nil && !server.Closed() {
@@ -424,13 +417,17 @@ func (r *Router) CreateWebRtcTransportContext(ctx context.Context, options *WebR
 	if options.EnableUdp != nil {
 		o.EnableUdp = options.EnableUdp
 	}
-	if options.InitialAvailableOutgoingBitrate > 0 {
-		o.InitialAvailableOutgoingBitrate = options.InitialAvailableOutgoingBitrate
-	}
 
 	transportId := UUID(TransportIDPrefix)
-	baseTranportOptions := convertSctpOptions(o.EnableSctp, o.SctpOptions, true)
-	baseTranportOptions.InitialAvailableOutgoingBitrate = ref(o.InitialAvailableOutgoingBitrate)
+	baseTransportOptions, err := convertTransportOptions(
+		o.BweOptions,
+		o.EnableSctp,
+		o.SctpOptions,
+		true,
+	)
+	if err != nil {
+		return nil, err
+	}
 
 	var (
 		method FbsRequest.Method
@@ -463,7 +460,7 @@ func (r *Router) CreateWebRtcTransportContext(ctx context.Context, options *WebR
 			Value: &FbsRouter.CreateWebRtcTransportRequestT{
 				TransportId: transportId,
 				Options: &FbsWebRtcTransport.WebRtcTransportOptionsT{
-					Base:              baseTranportOptions,
+					Base:              baseTransportOptions,
 					Listen:            listen,
 					EnableUdp:         *o.EnableUdp,
 					EnableTcp:         o.EnableTcp,
@@ -482,49 +479,48 @@ func (r *Router) CreateWebRtcTransportContext(ctx context.Context, options *WebR
 	data := &internalTransportData{
 		TransportId:   transportId,
 		TransportType: TransportWebRTC,
+		EnableBwe:     *o.EnableBwe,
 		AppData:       o.AppData,
-		TransportData: &TransportData{
-			WebRtcTransportData: &WebRtcTransportData{
-				IceRole: strings.ToLower(result.IceRole.String()),
-				IceParameters: IceParameters{
-					UsernameFragment: result.IceParameters.UsernameFragment,
-					Password:         result.IceParameters.Password,
-					IceLite:          result.IceParameters.IceLite,
-				},
-				IceCandidates: collect(result.IceCandidates, func(item *FbsWebRtcTransport.IceCandidateT) IceCandidate {
-					return IceCandidate{
-						Foundation: item.Foundation,
-						Priority:   item.Priority,
-						Address:    item.Address,
-						Protocol:   TransportProtocol(strings.ToLower(item.Protocol.String())),
-						Port:       item.Port,
-						Type:       strings.ToLower(item.Type.String()),
-						TcpType: ifElse(item.TcpType != nil, func() string {
-							return strings.ToLower(item.TcpType.String())
-						}),
-					}
-				}),
-				IceState: IceState(strings.ToLower(result.IceState.String())),
-				IceSelectedTuple: ifElse(result.IceSelectedTuple != nil, func() *TransportTuple {
-					return &TransportTuple{
-						Protocol:     TransportProtocol(strings.ToLower(result.IceSelectedTuple.Protocol.String())),
-						LocalAddress: result.IceSelectedTuple.LocalAddress,
-						LocalPort:    result.IceSelectedTuple.LocalPort,
-						RemoteIp:     result.IceSelectedTuple.RemoteIp,
-						RemotePort:   result.IceSelectedTuple.RemotePort,
-					}
-				}),
-				DtlsParameters: DtlsParameters{
-					Role:         DtlsRole(strings.ToLower(result.DtlsParameters.Role.String())),
-					Fingerprints: collect(result.DtlsParameters.Fingerprints, parseDtlsFingerprint),
-				},
-				DtlsState:      DtlsState(strings.ToLower(result.DtlsState.String())),
-				SctpParameters: parseSctpParameters(result.Base.SctpParameters),
-				SctpState: ifElse(result.Base.SctpState != nil, func() SctpState {
-					return SctpState(strings.ToLower(result.Base.SctpState.String()))
-				}),
-				SctpNegotiatedCapabilities: parseSctpNegotiatedCapabilities(result.Base.SctpNegotiatedCapabilities),
+		webRtcTransportData: &WebRtcTransportData{
+			IceRole: strings.ToLower(result.IceRole.String()),
+			IceParameters: IceParameters{
+				UsernameFragment: result.IceParameters.UsernameFragment,
+				Password:         result.IceParameters.Password,
+				IceLite:          result.IceParameters.IceLite,
 			},
+			IceCandidates: collect(result.IceCandidates, func(item *FbsWebRtcTransport.IceCandidateT) IceCandidate {
+				return IceCandidate{
+					Foundation: item.Foundation,
+					Priority:   item.Priority,
+					Address:    item.Address,
+					Protocol:   TransportProtocol(strings.ToLower(item.Protocol.String())),
+					Port:       item.Port,
+					Type:       strings.ToLower(item.Type.String()),
+					TcpType: ifElse(item.TcpType != nil, func() string {
+						return strings.ToLower(item.TcpType.String())
+					}),
+				}
+			}),
+			IceState: IceState(strings.ToLower(result.IceState.String())),
+			IceSelectedTuple: ifElse(result.IceSelectedTuple != nil, func() *TransportTuple {
+				return &TransportTuple{
+					Protocol:     TransportProtocol(strings.ToLower(result.IceSelectedTuple.Protocol.String())),
+					LocalAddress: result.IceSelectedTuple.LocalAddress,
+					LocalPort:    result.IceSelectedTuple.LocalPort,
+					RemoteIp:     result.IceSelectedTuple.RemoteIp,
+					RemotePort:   result.IceSelectedTuple.RemotePort,
+				}
+			}),
+			DtlsParameters: DtlsParameters{
+				Role:         DtlsRole(strings.ToLower(result.DtlsParameters.Role.String())),
+				Fingerprints: collect(result.DtlsParameters.Fingerprints, parseDtlsFingerprint),
+			},
+			DtlsState:      DtlsState(strings.ToLower(result.DtlsState.String())),
+			SctpParameters: parseSctpParameters(result.Base.SctpParameters),
+			SctpState: ifElse(result.Base.SctpState != nil, func() SctpState {
+				return SctpState(strings.ToLower(result.Base.SctpState.String()))
+			}),
+			SctpNegotiatedCapabilities: parseSctpNegotiatedCapabilities(result.Base.SctpNegotiatedCapabilities),
 		},
 	}
 	transport, err := r.newTransport(ctx, data)
@@ -549,8 +545,9 @@ func (r *Router) CreatePlainTransportContext(ctx context.Context, options *Plain
 		RtcpListenInfo:  options.RtcpListenInfo,
 		RtcpMux:         ref(true),
 		Comedia:         options.Comedia,
+		BweOptions:      options.BweOptions.withDefaults(),
 		EnableSctp:      options.EnableSctp,
-		SctpOptions:     options.withDefaults(),
+		SctpOptions:     options.SctpOptions.withDefaults(SctpZeroChecksumNone),
 		EnableSrtp:      options.EnableSrtp,
 		SrtpCryptoSuite: AES_CM_128_HMAC_SHA1_80,
 		AppData:         orElse(options.AppData != nil, options.AppData, H{}),
@@ -560,7 +557,15 @@ func (r *Router) CreatePlainTransportContext(ctx context.Context, options *Plain
 	}
 
 	transportId := UUID(TransportIDPrefix)
-	baseTranportOptions := convertSctpOptions(o.EnableSctp, o.SctpOptions, false)
+	baseTransportOptions, err := convertTransportOptions(
+		o.BweOptions,
+		o.EnableSctp,
+		o.SctpOptions,
+		false,
+	)
+	if err != nil {
+		return nil, err
+	}
 
 	msg, err := r.channel.Request(ctx, &FbsRequest.RequestT{
 		Method:    FbsRequest.MethodROUTER_CREATE_PLAINTRANSPORT,
@@ -570,7 +575,7 @@ func (r *Router) CreatePlainTransportContext(ctx context.Context, options *Plain
 			Value: &FbsRouter.CreatePlainTransportRequestT{
 				TransportId: transportId,
 				Options: &FbsPlainTransport.PlainTransportOptionsT{
-					Base:       baseTranportOptions,
+					Base:       baseTransportOptions,
 					ListenInfo: convertTransportListenInfo(o.ListenInfo),
 					RtcpListenInfo: ifElse(o.RtcpListenInfo != nil, func() *FbsTransport.ListenInfoT {
 						return convertTransportListenInfo(*o.RtcpListenInfo)
@@ -593,17 +598,16 @@ func (r *Router) CreatePlainTransportContext(ctx context.Context, options *Plain
 	data := &internalTransportData{
 		TransportId:   transportId,
 		TransportType: TransportPlain,
-		TransportData: &TransportData{
-			PlainTransportData: &PlainTransportData{
-				Tuple:          *parseTransportTuple(result.Tuple),
-				RtcpTuple:      parseTransportTuple(result.Tuple),
-				SctpParameters: parseSctpParameters(result.Base.SctpParameters),
-				SctpState: ifElse(result.Base.SctpState != nil, func() SctpState {
-					return SctpState(strings.ToLower(result.Base.SctpState.String()))
-				}),
-				SctpNegotiatedCapabilities: parseSctpNegotiatedCapabilities(result.Base.SctpNegotiatedCapabilities),
-				SrtpParameters:             parseSrtpParameters(result.SrtpParameters),
-			},
+		EnableBwe:     *o.EnableBwe,
+		plainTransportData: &PlainTransportData{
+			Tuple:          *parseTransportTuple(result.Tuple),
+			RtcpTuple:      parseTransportTuple(result.Tuple),
+			SctpParameters: parseSctpParameters(result.Base.SctpParameters),
+			SctpState: ifElse(result.Base.SctpState != nil, func() SctpState {
+				return SctpState(strings.ToLower(result.Base.SctpState.String()))
+			}),
+			SctpNegotiatedCapabilities: parseSctpNegotiatedCapabilities(result.Base.SctpNegotiatedCapabilities),
+			SrtpParameters:             parseSrtpParameters(result.SrtpParameters),
 		},
 		RtcpMux: result.RtcpMux,
 		Comedia: result.Comedia,
@@ -622,14 +626,22 @@ func (r *Router) CreatePipeTransportContext(ctx context.Context, options *PipeTr
 	o := &PipeTransportOptions{
 		ListenInfo:  options.ListenInfo,
 		EnableSctp:  options.EnableSctp,
-		SctpOptions: options.withDefaults(),
+		SctpOptions: options.withDefaults(SctpZeroChecksumNone),
 		EnableSrtp:  options.EnableSrtp,
 		EnableRtx:   options.EnableRtx,
 		AppData:     orElse(options.AppData != nil, options.AppData, H{}),
 	}
 
 	transportId := UUID(TransportIDPrefix)
-	baseTranportOptions := convertSctpOptions(o.EnableSctp, o.SctpOptions, false)
+	baseTransportOptions, err := convertTransportOptions(
+		BweOptions{EnableBwe: ref(false)}.withDefaults(),
+		o.EnableSctp,
+		o.SctpOptions,
+		false,
+	)
+	if err != nil {
+		return nil, err
+	}
 
 	msg, err := r.channel.Request(ctx, &FbsRequest.RequestT{
 		Method:    FbsRequest.MethodROUTER_CREATE_PIPETRANSPORT,
@@ -639,7 +651,7 @@ func (r *Router) CreatePipeTransportContext(ctx context.Context, options *PipeTr
 			Value: &FbsRouter.CreatePipeTransportRequestT{
 				TransportId: transportId,
 				Options: &FbsPipeTransport.PipeTransportOptionsT{
-					Base:       baseTranportOptions,
+					Base:       baseTransportOptions,
 					ListenInfo: convertTransportListenInfo(o.ListenInfo),
 					EnableRtx:  o.EnableRtx,
 					EnableSrtp: o.EnableSrtp,
@@ -654,16 +666,15 @@ func (r *Router) CreatePipeTransportContext(ctx context.Context, options *PipeTr
 	data := &internalTransportData{
 		TransportId:   transportId,
 		TransportType: TransportPipe,
-		TransportData: &TransportData{
-			PipeTransportData: &PipeTransportData{
-				Tuple:          *parseTransportTuple(result.Tuple),
-				SctpParameters: parseSctpParameters(result.Base.SctpParameters),
-				SctpState: ifElse(result.Base.SctpState != nil, func() SctpState {
-					return SctpState(strings.ToLower(result.Base.SctpState.String()))
-				}),
-				SctpNegotiatedCapabilities: parseSctpNegotiatedCapabilities(result.Base.SctpNegotiatedCapabilities),
-				SrtpParameters:             parseSrtpParameters(result.SrtpParameters),
-			},
+		EnableBwe:     false,
+		pipeTransportData: &PipeTransportData{
+			Tuple:          *parseTransportTuple(result.Tuple),
+			SctpParameters: parseSctpParameters(result.Base.SctpParameters),
+			SctpState: ifElse(result.Base.SctpState != nil, func() SctpState {
+				return SctpState(strings.ToLower(result.Base.SctpState.String()))
+			}),
+			SctpNegotiatedCapabilities: parseSctpNegotiatedCapabilities(result.Base.SctpNegotiatedCapabilities),
+			SrtpParameters:             parseSrtpParameters(result.SrtpParameters),
 		},
 		Rtx:     result.Rtx,
 		AppData: o.AppData,
@@ -722,7 +733,7 @@ func (r *Router) CreateDirectTransportContext(ctx context.Context, options *Dire
 	data := &internalTransportData{
 		TransportId:   transportId,
 		TransportType: TransportDirect,
-		TransportData: &TransportData{},
+		EnableBwe:     false,
 		AppData:       o.AppData,
 	}
 	return r.newTransport(ctx, data)
@@ -748,7 +759,7 @@ func (r *Router) PipeToRouterContext(ctx context.Context, options *PipeToRouterO
 		Router:         options.Router,
 		KeepId:         ref(true),
 		EnableSctp:     ref(true),
-		SctpOptions:    options.withDefaults(),
+		SctpOptions:    options.withDefaults(SctpZeroChecksumTrustedNetwork),
 		EnableRtx:      options.EnableRtx,
 		EnableSrtp:     options.EnableSrtp,
 	}
@@ -798,97 +809,29 @@ func (r *Router) PipeToRouterContext(ctx context.Context, options *PipeToRouterO
 		}
 	}
 
-	r.routerPipeMu.Lock()
-	pipeTransportPair, ok := r.mapRouterPipeTransports[o.Router]
-	if !ok {
-		// Here we may have to create a new PipeTransport pair to connect source and
-		// destination Routers. We just want to keep a PipeTransport pair for each
-		// pair of Routers. Since this operation is async, it may happen that two
-		// simultaneous calls to router1.pipeToRouter({ producerId: xxx, router: router2 })
-		// would end up generating two pairs of PipeTranports. To prevent that, let's
-		// use singleflight.
-		keyParts := []string{r.Id(), o.Router.Id()}
-		if keyParts[0] > keyParts[1] {
-			keyParts[0], keyParts[1] = keyParts[1], keyParts[0]
+	// Keep a single PipeTransport pair per pair of Routers. The promise is
+	// registered on both Routers before the transports are created, so a
+	// concurrent reverse call awaits it instead of creating a second pair and a
+	// later serial reverse call finds the finished pair.
+	promise, create := getOrCreatePipeTransportPair(r, o.Router)
+	if create {
+		promise.pair, promise.err = r.createPipeTransportPair(ctx, o)
+		if promise.err != nil {
+			deletePipeTransportPair(r, o.Router)
 		}
-		key := strings.Join(keyParts, "-")
-		v, err, _ := pipeRouterGroup.Do(key, func() (result any, err error) {
-			var localPipeTransport, remotePipeTransport *Transport
-			defer func() {
-				if err != nil {
-					if localPipeTransport != nil {
-						localPipeTransport.CloseContext(ctx)
-					}
-					if remotePipeTransport != nil {
-						remotePipeTransport.CloseContext(ctx)
-					}
-				}
-			}()
-
-			options := &PipeTransportOptions{
-				ListenInfo:  o.ListenInfo,
-				EnableSctp:  *o.EnableSctp,
-				SctpOptions: o.SctpOptions,
-				EnableRtx:   o.EnableRtx,
-				EnableSrtp:  o.EnableSrtp,
-			}
-			errgroup := new(errgroup.Group)
-
-			errgroup.Go(func() error {
-				transport, err := r.CreatePipeTransportContext(ctx, options)
-				localPipeTransport = transport
-				return err
-			})
-			errgroup.Go(func() error {
-				transport, err := o.Router.CreatePipeTransportContext(ctx, options)
-				remotePipeTransport = transport
-				return err
-			})
-			if err = errgroup.Wait(); err != nil {
-				return
-			}
-			errgroup.Go(func() error {
-				data := remotePipeTransport.Data().PipeTransportData
-				return localPipeTransport.ConnectContext(ctx, &TransportConnectOptions{
-					Ip:             data.Tuple.LocalAddress,
-					Port:           ref(data.Tuple.LocalPort),
-					SrtpParameters: data.SrtpParameters,
-				})
-			})
-			errgroup.Go(func() error {
-				data := localPipeTransport.Data().PipeTransportData
-				return remotePipeTransport.ConnectContext(ctx, &TransportConnectOptions{
-					Ip:             data.Tuple.LocalAddress,
-					Port:           ref(data.Tuple.LocalPort),
-					SrtpParameters: data.SrtpParameters,
-				})
-			})
-			if err = errgroup.Wait(); err != nil {
-				return
-			}
-			return [2]any{r, [2]*Transport{localPipeTransport, remotePipeTransport}}, nil
-		})
-		if err != nil {
-			r.routerPipeMu.Unlock()
-			return nil, err
+		close(promise.done)
+	} else {
+		select {
+		case <-promise.done:
+		case <-ctx.Done():
+			return nil, ctx.Err()
 		}
-		result := v.([2]any)
-		pipeTransportPair = result[1].([2]*Transport)
-		// swap local and remote PipeTransport if pipeTransportPair is shared from the other router
-		if result[0].(*Router) != r {
-			pipeTransportPair[0], pipeTransportPair[1] = pipeTransportPair[1], pipeTransportPair[0]
-		}
-		r.mapRouterPipeTransports[o.Router] = pipeTransportPair
-
-		pipeTransportPair[0].OnClose(func(ctx context.Context) {
-			pipeTransportPair[1].CloseContext(ctx)
-			r.routerPipeMu.Lock()
-			delete(r.mapRouterPipeTransports, o.Router)
-			r.routerPipeMu.Unlock()
-		})
 	}
-	r.routerPipeMu.Unlock()
+	if promise.err != nil {
+		return nil, promise.err
+	}
 
+	pipeTransportPair := promise.pairFor(r)
 	localPipeTransport, remotePipeTransport := pipeTransportPair[0], pipeTransportPair[1]
 
 	if producer != nil {
@@ -1008,6 +951,79 @@ func (r *Router) PipeToRouterContext(ctx context.Context, options *PipeToRouterO
 		PipeDataConsumer: pipeDataConsumer,
 		PipeDataProducer: pipeDataProducer,
 	}, nil
+}
+
+// createPipeTransportPair creates and connects the two PipeTransports of a
+// Router pair. The returned pair is oriented for r: pair[0] is the local
+// transport and pair[1] the one living in the remote Router.
+func (r *Router) createPipeTransportPair(ctx context.Context, o *PipeToRouterOptions) (pair [2]*Transport, err error) {
+	options := &PipeTransportOptions{
+		ListenInfo:  o.ListenInfo,
+		EnableSctp:  *o.EnableSctp,
+		SctpOptions: o.SctpOptions,
+		EnableRtx:   o.EnableRtx,
+		EnableSrtp:  o.EnableSrtp,
+	}
+
+	var localPipeTransport, remotePipeTransport *Transport
+	defer func() {
+		if err != nil {
+			if localPipeTransport != nil {
+				localPipeTransport.CloseContext(ctx)
+			}
+			if remotePipeTransport != nil {
+				remotePipeTransport.CloseContext(ctx)
+			}
+		}
+	}()
+
+	group := new(errgroup.Group)
+	group.Go(func() error {
+		transport, err := r.CreatePipeTransportContext(ctx, options)
+		localPipeTransport = transport
+		return err
+	})
+	group.Go(func() error {
+		transport, err := o.Router.CreatePipeTransportContext(ctx, options)
+		remotePipeTransport = transport
+		return err
+	})
+	if err = group.Wait(); err != nil {
+		return
+	}
+
+	group.Go(func() error {
+		data := remotePipeTransport.Data().PipeTransportData
+		return localPipeTransport.ConnectContext(ctx, &TransportConnectOptions{
+			Ip:             data.Tuple.LocalAddress,
+			Port:           ref(data.Tuple.LocalPort),
+			SrtpParameters: data.SrtpParameters,
+		})
+	})
+	group.Go(func() error {
+		data := localPipeTransport.Data().PipeTransportData
+		return remotePipeTransport.ConnectContext(ctx, &TransportConnectOptions{
+			Ip:             data.Tuple.LocalAddress,
+			Port:           ref(data.Tuple.LocalPort),
+			SrtpParameters: data.SrtpParameters,
+		})
+	})
+	if err = group.Wait(); err != nil {
+		return
+	}
+
+	// Closing either transport tears down the other one and forgets the pair on
+	// both Routers, as in the Node implementation.
+	localPipeTransport.OnClose(func(ctx context.Context) {
+		remotePipeTransport.CloseContext(ctx)
+		deletePipeTransportPair(r, o.Router)
+	})
+	remotePipeTransport.OnClose(func(ctx context.Context) {
+		localPipeTransport.CloseContext(ctx)
+		deletePipeTransportPair(r, o.Router)
+	})
+
+	return [2]*Transport{localPipeTransport, remotePipeTransport}, nil
 }
 
 // OnNewRtpObserver adds a listener on the "newrtpobserver" event. Call the

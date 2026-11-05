@@ -7,7 +7,7 @@ import (
 )
 
 type SetMaxIncomingBitrateRequestT struct {
-	MaxIncomingBitrate uint32 `json:"max_incoming_bitrate"`
+	MaxIncomingBitrate uint64 `json:"max_incoming_bitrate"`
 }
 
 func (t *SetMaxIncomingBitrateRequestT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
@@ -67,23 +67,23 @@ func (rcv *SetMaxIncomingBitrateRequest) Table() flatbuffers.Table {
 	return rcv._tab
 }
 
-func (rcv *SetMaxIncomingBitrateRequest) MaxIncomingBitrate() uint32 {
+func (rcv *SetMaxIncomingBitrateRequest) MaxIncomingBitrate() uint64 {
 	o := flatbuffers.UOffsetT(rcv._tab.Offset(4))
 	if o != 0 {
-		return rcv._tab.GetUint32(o + rcv._tab.Pos)
+		return rcv._tab.GetUint64(o + rcv._tab.Pos)
 	}
 	return 0
 }
 
-func (rcv *SetMaxIncomingBitrateRequest) MutateMaxIncomingBitrate(n uint32) bool {
-	return rcv._tab.MutateUint32Slot(4, n)
+func (rcv *SetMaxIncomingBitrateRequest) MutateMaxIncomingBitrate(n uint64) bool {
+	return rcv._tab.MutateUint64Slot(4, n)
 }
 
 func SetMaxIncomingBitrateRequestStart(builder *flatbuffers.Builder) {
 	builder.StartObject(1)
 }
-func SetMaxIncomingBitrateRequestAddMaxIncomingBitrate(builder *flatbuffers.Builder, maxIncomingBitrate uint32) {
-	builder.PrependUint32Slot(0, maxIncomingBitrate, 0)
+func SetMaxIncomingBitrateRequestAddMaxIncomingBitrate(builder *flatbuffers.Builder, maxIncomingBitrate uint64) {
+	builder.PrependUint64Slot(0, maxIncomingBitrate, 0)
 }
 func SetMaxIncomingBitrateRequestEnd(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	return builder.EndObject()

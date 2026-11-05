@@ -29,12 +29,16 @@ import (
 )
 
 type internalTransportData struct {
-	*TransportData
-
 	RouterId      string
 	TransportId   string
 	TransportType TransportType
+	EnableBwe     bool
 	AppData       H
+
+	// Exactly one of the following is set, depending on TransportType.
+	webRtcTransportData *WebRtcTransportData
+	plainTransportData  *PlainTransportData
+	pipeTransportData   *PipeTransportData
 
 	// plain transport specific data
 	RtcpMux bool
@@ -55,6 +59,61 @@ type internalTransportData struct {
 	OnRemoveDataProducer     func(dataProducer *DataProducer)
 	OnRemoveConsumer         func(consumer *Consumer)
 	OnRemoveDataConsumer     func(dataConsumer *DataConsumer)
+}
+
+// transportData builds the public view holding the type specific data.
+func (d *internalTransportData) transportData() *TransportData {
+	return &TransportData{
+		WebRtcTransportData: d.webRtcTransportData,
+		PlainTransportData:  d.plainTransportData,
+		PipeTransportData:   d.pipeTransportData,
+	}
+}
+
+func (d *internalTransportData) sctpParameters() *SctpParameters {
+	switch {
+	case d.webRtcTransportData != nil:
+		return d.webRtcTransportData.SctpParameters
+	case d.plainTransportData != nil:
+		return d.plainTransportData.SctpParameters
+	case d.pipeTransportData != nil:
+		return d.pipeTransportData.SctpParameters
+	}
+	return nil
+}
+
+func (d *internalTransportData) sctpNegotiatedCapabilities() *SctpNegotiatedCapabilities {
+	switch {
+	case d.webRtcTransportData != nil:
+		return d.webRtcTransportData.SctpNegotiatedCapabilities
+	case d.plainTransportData != nil:
+		return d.plainTransportData.SctpNegotiatedCapabilities
+	case d.pipeTransportData != nil:
+		return d.pipeTransportData.SctpNegotiatedCapabilities
+	}
+	return nil
+}
+
+func (d *internalTransportData) setSctpNegotiatedCapabilities(capabilities *SctpNegotiatedCapabilities) {
+	switch {
+	case d.webRtcTransportData != nil:
+		d.webRtcTransportData.SctpNegotiatedCapabilities = capabilities
+	case d.plainTransportData != nil:
+		d.plainTransportData.SctpNegotiatedCapabilities = capabilities
+	case d.pipeTransportData != nil:
+		d.pipeTransportData.SctpNegotiatedCapabilities = capabilities
+	}
+}
+
+func (d *internalTransportData) setSctpState(state SctpState) {
+	switch {
+	case d.webRtcTransportData != nil:
+		d.webRtcTransportData.SctpState = state
+	case d.plainTransportData != nil:
+		d.plainTransportData.SctpState = state
+	case d.pipeTransportData != nil:
+		d.pipeTransportData.SctpState = state
+	}
 }
 
 type Transport struct {
@@ -120,7 +179,7 @@ func (t *Transport) Data() TransportData {
 	t.mu.RLock()
 	defer t.mu.RUnlock()
 
-	return *t.data.clone()
+	return *t.data.transportData().clone()
 }
 
 func (t *Transport) AppData() H {
@@ -389,8 +448,9 @@ func (t *Transport) GetStatsContext(ctx context.Context) (*TransportStat, error)
 			AvailableOutgoingBitrate: stats.AvailableOutgoingBitrate,
 			AvailableIncomingBitrate: stats.AvailableIncomingBitrate,
 			MaxIncomingBitrate:       stats.MaxIncomingBitrate,
-			RtpPacketLossReceived:    stats.RtpPacketLossReceived,
-			RtpPacketLossSent:        stats.RtpPacketLossSent,
+			MaxOutgoingBitrate:       stats.MaxOutgoingBitrate,
+			MinOutgoingBitrate:       stats.MinOutgoingBitrate,
+			RoundTripTime:            stats.RoundTripTime,
 		}
 	}
 
@@ -476,7 +536,7 @@ func (t *Transport) ConnectContext(ctx context.Context, connectOpts *TransportCo
 		result := resp.(*FbsWebRtcTransport.ConnectResponseT)
 		// Update data.
 		t.mu.Lock()
-		t.data.DtlsParameters.Role = DtlsRole(strings.ToLower(result.DtlsLocalRole.String()))
+		t.data.webRtcTransportData.DtlsParameters.Role = DtlsRole(strings.ToLower(result.DtlsLocalRole.String()))
 		t.mu.Unlock()
 
 	case TransportPlain:
@@ -499,7 +559,7 @@ func (t *Transport) ConnectContext(ctx context.Context, connectOpts *TransportCo
 		result := resp.(*FbsPlainTransport.ConnectResponseT)
 		// Update data.
 		t.mu.Lock()
-		data := t.data.PlainTransportData
+		data := t.data.plainTransportData
 		if tuple := parseTransportTuple(result.Tuple); tuple != nil {
 			data.Tuple = *tuple
 		}
@@ -526,7 +586,7 @@ func (t *Transport) ConnectContext(ctx context.Context, connectOpts *TransportCo
 		result := resp.(*FbsPipeTransport.ConnectResponseT)
 		// Update data.
 		t.mu.Lock()
-		t.data.PipeTransportData.Tuple = *parseTransportTuple(result.Tuple)
+		t.data.pipeTransportData.Tuple = *parseTransportTuple(result.Tuple)
 		t.mu.Unlock()
 	}
 
@@ -560,18 +620,18 @@ func (t *Transport) RestartIceContext(ctx context.Context) (*IceParameters, erro
 
 	// Update data.
 	t.mu.Lock()
-	t.data.IceParameters = iceParameters
+	t.data.webRtcTransportData.IceParameters = iceParameters
 	t.mu.Unlock()
 
 	return &iceParameters, nil
 }
 
 // SetMaxIncomingBitrate set maximum incoming bitrate for receiving media.
-func (t *Transport) SetMaxIncomingBitrate(bitrate uint32) error {
+func (t *Transport) SetMaxIncomingBitrate(bitrate uint64) error {
 	return t.SetMaxIncomingBitrateContext(context.Background(), bitrate)
 }
 
-func (t *Transport) SetMaxIncomingBitrateContext(ctx context.Context, bitrate uint32) error {
+func (t *Transport) SetMaxIncomingBitrateContext(ctx context.Context, bitrate uint64) error {
 	if t.Type() == TransportDirect {
 		return ErrNotImplemented
 	}
@@ -591,11 +651,11 @@ func (t *Transport) SetMaxIncomingBitrateContext(ctx context.Context, bitrate ui
 }
 
 // SetMaxOutgoingBitrate set maximum outgoing bitrate for sending media.
-func (t *Transport) SetMaxOutgoingBitrate(bitrate uint32) error {
+func (t *Transport) SetMaxOutgoingBitrate(bitrate uint64) error {
 	return t.SetMaxOutgoingBitrateContext(context.Background(), bitrate)
 }
 
-func (t *Transport) SetMaxOutgoingBitrateContext(ctx context.Context, bitrate uint32) error {
+func (t *Transport) SetMaxOutgoingBitrateContext(ctx context.Context, bitrate uint64) error {
 	if t.Type() == TransportDirect {
 		return ErrNotImplemented
 	}
@@ -615,11 +675,11 @@ func (t *Transport) SetMaxOutgoingBitrateContext(ctx context.Context, bitrate ui
 }
 
 // SetMinOutgoingBitrate set minimum outgoing bitrate for sending media.
-func (t *Transport) SetMinOutgoingBitrate(bitrate uint32) error {
+func (t *Transport) SetMinOutgoingBitrate(bitrate uint64) error {
 	return t.SetMinOutgoingBitrateContext(context.Background(), bitrate)
 }
 
-func (t *Transport) SetMinOutgoingBitrateContext(ctx context.Context, bitrate uint32) error {
+func (t *Transport) SetMinOutgoingBitrateContext(ctx context.Context, bitrate uint64) error {
 	if t.Type() == TransportDirect {
 		return ErrNotImplemented
 	}
@@ -720,6 +780,11 @@ func (t *Transport) ProduceContext(ctx context.Context, options *ProducerOptions
 		return nil, fmt.Errorf("validate rtp parameters failed: %w", err)
 	}
 
+	// A transport that does not run bandwidth estimation must not negotiate it.
+	if !t.data.EnableBwe {
+		disableBweInRtpParameters(rtpParameters)
+	}
+
 	// If missing or empty encodings, add one.
 	if len(rtpParameters.Encodings) == 0 {
 		rtpParameters.Encodings = []*RtpEncodingParameters{{}}
@@ -739,6 +804,10 @@ func (t *Transport) ProduceContext(ctx context.Context, options *ProducerOptions
 		})
 		// Override Producer's CNAME.
 		rtpParameters.Rtcp.Cname = t.cname
+	} else if len(rtpParameters.Rtcp.Cname) == 0 {
+		// PipeTransports keep the CNAME of each Producer, but a Producer without a
+		// CNAME still gets a random one, as in the Node implementation.
+		rtpParameters.Rtcp.Cname = randString(8)
 	}
 
 	routerRtpCapabilities := t.data.GetRouterRtpCapabilities()
@@ -774,10 +843,9 @@ func (t *Transport) ProduceContext(ctx context.Context, options *ProducerOptions
 					Encodings: collect(rtpMapping.Encodings,
 						func(item *RtpMappingEncoding) *FbsRtpParameters.EncodingMappingT {
 							return &FbsRtpParameters.EncodingMappingT{
-								Rid:             item.Rid,
-								Ssrc:            item.Ssrc,
-								ScalabilityMode: item.ScalabilityMode,
-								MappedSsrc:      item.MappedSsrc,
+								Rid:        item.Rid,
+								Ssrc:       item.Ssrc,
+								MappedSsrc: item.MappedSsrc,
 							}
 						}),
 				},
@@ -843,14 +911,19 @@ func (t *Transport) ConsumeContext(ctx context.Context, options *ConsumerOptions
 	var rtpParameters *RtpParameters
 
 	if t.Type() == TransportPipe {
-		rtpParameters = getPipeConsumerRtpParameters(producer.ConsumableRtpParameters(), t.data.Rtx)
+		rtpParameters = getPipeConsumerRtpParameters(
+			producer.ConsumableRtpParameters(),
+			t.data.GetRouterRtpCapabilities(),
+			producer.Kind(),
+			t.data.Rtx,
+		)
 	} else {
 		var (
 			enableRtx = unref(options.EnableRtx, true)
 			err       error
 		)
 		rtpParameters, err = getConsumerRtpParameters(
-			producer.ConsumableRtpParameters(), options.RtpCapabilities, options.Pipe, enableRtx)
+			producer.ConsumableRtpParameters(), options.RtpCapabilities, options.Pipe, enableRtx, t.data.EnableBwe)
 		if err != nil {
 			return nil, err
 		}
@@ -1270,7 +1343,7 @@ func (t *Transport) handleWorkerNotifications() {
 			tuple := *parseTransportTuple(notification.Tuple)
 
 			t.mu.Lock()
-			t.data.PlainTransportData.Tuple = tuple
+			t.data.plainTransportData.Tuple = tuple
 			listeners := t.tupleListeners.list()
 			t.mu.Unlock()
 
@@ -1283,7 +1356,7 @@ func (t *Transport) handleWorkerNotifications() {
 			rtcpTuple := *parseTransportTuple(notification.Tuple)
 
 			t.mu.Lock()
-			t.data.RtcpTuple = &rtcpTuple
+			t.data.plainTransportData.RtcpTuple = &rtcpTuple
 			listeners := t.rtcpTupleListeners.list()
 			t.mu.Unlock()
 
@@ -1296,14 +1369,7 @@ func (t *Transport) handleWorkerNotifications() {
 			state := SctpState(strings.ToLower(notification.SctpState.String()))
 
 			t.mu.Lock()
-			switch t.Type() {
-			case TransportPlain:
-				t.data.PlainTransportData.SctpState = state
-			case TransportPipe:
-				t.data.PipeTransportData.SctpState = state
-			case TransportWebRTC:
-				t.data.WebRtcTransportData.SctpState = state
-			}
+			t.data.setSctpState(state)
 			listeners := t.sctpStateChangeListeners.list()
 			t.mu.Unlock()
 
@@ -1331,7 +1397,7 @@ func (t *Transport) handleWorkerNotifications() {
 			state := IceState(strings.ToLower(notification.IceState.String()))
 
 			t.mu.Lock()
-			t.data.IceState = state
+			t.data.webRtcTransportData.IceState = state
 			listeners := t.iceStateChangeListeners.list()
 			t.mu.Unlock()
 
@@ -1344,7 +1410,7 @@ func (t *Transport) handleWorkerNotifications() {
 			tuple := *parseTransportTuple(notification.Tuple)
 
 			t.mu.Lock()
-			t.data.IceSelectedTuple = &tuple
+			t.data.webRtcTransportData.IceSelectedTuple = &tuple
 			listeners := t.iceSelectedTupleChangeListeners.list()
 			t.mu.Unlock()
 
@@ -1357,7 +1423,7 @@ func (t *Transport) handleWorkerNotifications() {
 			state := DtlsState(strings.ToLower(notification.DtlsState.String()))
 
 			t.mu.Lock()
-			t.data.DtlsState = state
+			t.data.webRtcTransportData.DtlsState = state
 			listeners := t.dtlsStateChangeListeners.list()
 			t.mu.Unlock()
 
@@ -1384,18 +1450,18 @@ func (t *Transport) handleWorkerNotifications() {
 				Timestamp: notification.Timestamp,
 				Direction: orElse(notification.Direction == FbsCommon.TraceDirectionDIRECTION_IN, "in", "out"),
 			}
-			if notification.Info.Type == FbsTransport.TraceInfoBweTraceInfo {
+			switch notification.Info.Type {
+			case FbsTransport.TraceInfoBweTraceInfo:
 				info := notification.Info.Value.(*FbsTransport.BweTraceInfoT)
 				trace.Info = H{
-					"bweType":                 strings.ToLower(info.BweType.String()),
-					"desiredBitrate":          info.DesiredBitrate,
-					"effectiveDesiredBitrate": info.EffectiveDesiredBitrate,
-					"minBitrate":              info.MinBitrate,
-					"maxBitrate":              info.MaxBitrate,
-					"startBitrate":            info.StartBitrate,
-					"maxPaddingBitrate":       info.MaxPaddingBitrate,
-					"availableBitrate":        info.AvailableBitrate,
+					"desiredBitrate":   info.DesiredBitrate,
+					"minBitrate":       info.MinBitrate,
+					"maxBitrate":       info.MaxBitrate,
+					"availableBitrate": info.AvailableBitrate,
 				}
+			case FbsTransport.TraceInfoProbationTraceInfo:
+				info := notification.Info.Value.(*FbsTransport.ProbationTraceInfoT)
+				trace.Info = parseRtpPacketDump(info.RtpPacket)
 			}
 
 			t.mu.RLock()
@@ -1456,16 +1522,7 @@ func (t *Transport) getNextSctpStreamId() (uint16, error) {
 }
 
 func (t *Transport) getSctpParameters() *SctpParameters {
-	if t.data.WebRtcTransportData != nil {
-		return t.data.WebRtcTransportData.SctpParameters
-	}
-	if t.data.PlainTransportData != nil {
-		return t.data.PlainTransportData.SctpParameters
-	}
-	if t.data.PipeTransportData != nil {
-		return t.data.PipeTransportData.SctpParameters
-	}
-	return nil
+	return t.data.sctpParameters()
 }
 
 // SctpNegotiatedCapabilities returns the SCTP capabilities negotiated with the remote endpoint,
@@ -1481,27 +1538,11 @@ func (t *Transport) SctpNegotiatedCapabilities() *SctpNegotiatedCapabilities {
 }
 
 func (t *Transport) getSctpNegotiatedCapabilities() *SctpNegotiatedCapabilities {
-	if t.data.WebRtcTransportData != nil {
-		return t.data.WebRtcTransportData.SctpNegotiatedCapabilities
-	}
-	if t.data.PlainTransportData != nil {
-		return t.data.PlainTransportData.SctpNegotiatedCapabilities
-	}
-	if t.data.PipeTransportData != nil {
-		return t.data.PipeTransportData.SctpNegotiatedCapabilities
-	}
-	return nil
+	return t.data.sctpNegotiatedCapabilities()
 }
 
 func (t *Transport) setSctpNegotiatedCapabilities(capabilities *SctpNegotiatedCapabilities) {
-	switch {
-	case t.data.WebRtcTransportData != nil:
-		t.data.WebRtcTransportData.SctpNegotiatedCapabilities = capabilities
-	case t.data.PlainTransportData != nil:
-		t.data.PlainTransportData.SctpNegotiatedCapabilities = capabilities
-	case t.data.PipeTransportData != nil:
-		t.data.PipeTransportData.SctpNegotiatedCapabilities = capabilities
-	}
+	t.data.setSctpNegotiatedCapabilities(capabilities)
 }
 
 func (t *Transport) routerClosed(ctx context.Context) {

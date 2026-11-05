@@ -172,10 +172,9 @@ func (p *Producer) DumpContext(ctx context.Context) (*ProducerDump, error) {
 			}),
 			Encodings: collect(resp.RtpMapping.Encodings, func(encoding *FbsRtpParameters.EncodingMappingT) *RtpMappingEncoding {
 				return &RtpMappingEncoding{
-					Rid:             encoding.Rid,
-					Ssrc:            encoding.Ssrc,
-					ScalabilityMode: encoding.ScalabilityMode,
-					MappedSsrc:      encoding.MappedSsrc,
+					Rid:        encoding.Rid,
+					Ssrc:       encoding.Ssrc,
+					MappedSsrc: encoding.MappedSsrc,
 				}
 			}),
 		},
