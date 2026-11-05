@@ -626,7 +626,7 @@ func (r *Router) CreatePipeTransportContext(ctx context.Context, options *PipeTr
 	o := &PipeTransportOptions{
 		ListenInfo:  options.ListenInfo,
 		EnableSctp:  options.EnableSctp,
-		SctpOptions: options.SctpOptions.withDefaults(SctpZeroChecksumNone),
+		SctpOptions: options.withDefaults(SctpZeroChecksumNone),
 		EnableSrtp:  options.EnableSrtp,
 		EnableRtx:   options.EnableRtx,
 		AppData:     orElse(options.AppData != nil, options.AppData, H{}),

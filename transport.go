@@ -1450,7 +1450,8 @@ func (t *Transport) handleWorkerNotifications() {
 				Timestamp: notification.Timestamp,
 				Direction: orElse(notification.Direction == FbsCommon.TraceDirectionDIRECTION_IN, "in", "out"),
 			}
-			if notification.Info.Type == FbsTransport.TraceInfoBweTraceInfo {
+			switch notification.Info.Type {
+			case FbsTransport.TraceInfoBweTraceInfo:
 				info := notification.Info.Value.(*FbsTransport.BweTraceInfoT)
 				trace.Info = H{
 					"desiredBitrate":   info.DesiredBitrate,
@@ -1458,7 +1459,7 @@ func (t *Transport) handleWorkerNotifications() {
 					"maxBitrate":       info.MaxBitrate,
 					"availableBitrate": info.AvailableBitrate,
 				}
-			} else if notification.Info.Type == FbsTransport.TraceInfoProbationTraceInfo {
+			case FbsTransport.TraceInfoProbationTraceInfo:
 				info := notification.Info.Value.(*FbsTransport.ProbationTraceInfoT)
 				trace.Info = parseRtpPacketDump(info.RtpPacket)
 			}
