@@ -519,10 +519,9 @@ func TestConvertTransportOptionsBweAndSctpZeroChecksum(t *testing.T) {
 			MaxIncomingBitrate:              2 << 33,
 			MaxOutgoingBitrate:              3 << 33,
 			MinOutgoingBitrate:              1 << 32,
-		},
-		SctpZeroChecksumNone,
+		}.withDefaults(),
 		true,
-		SctpOptions{SctpZeroChecksum: SctpZeroChecksumTrustedNetwork},
+		SctpOptions{SctpZeroChecksum: SctpZeroChecksumTrustedNetwork}.withDefaults(SctpZeroChecksumNone),
 		false,
 	)
 	assert.NoError(t, err)
@@ -534,10 +533,9 @@ func TestConvertTransportOptionsBweAndSctpZeroChecksum(t *testing.T) {
 	assert.Equal(t, FbsTransport.SctpZeroChecksumTRUSTED_NETWORK, options.SctpZeroChecksum)
 
 	_, err = convertTransportOptions(
-		BweOptions{EnableBwe: ref(true)},
-		SctpZeroChecksumNone,
+		BweOptions{EnableBwe: ref(true)}.withDefaults(),
 		true,
-		SctpOptions{SctpZeroChecksum: "invalid"},
+		SctpOptions{SctpZeroChecksum: "invalid"}.withDefaults(SctpZeroChecksumNone),
 		false,
 	)
 	assert.Error(t, err)

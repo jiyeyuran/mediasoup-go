@@ -26,26 +26,11 @@ func parseTransportTuple(tuple *FbsTransport.TupleT) *TransportTuple {
 	}
 }
 
-func parseRtpPacketDump(packet *FbsRtpPacket.DumpT) H {
+func parseRtpPacketDump(packet *FbsRtpPacket.DumpT) *RtpPacketDump {
 	if packet == nil {
 		return nil
 	}
-	return H{
-		"payloadType":        packet.PayloadType,
-		"sequenceNumber":     packet.SequenceNumber,
-		"timestamp":          packet.Timestamp,
-		"marker":             packet.Marker,
-		"ssrc":               packet.Ssrc,
-		"isKeyFrame":         packet.IsKeyFrame,
-		"size":               packet.Size,
-		"payloadSize":        packet.PayloadSize,
-		"spatialLayer":       packet.SpatialLayer,
-		"temporalLayer":      packet.TemporalLayer,
-		"mid":                packet.Mid,
-		"rid":                packet.Rid,
-		"rrid":               packet.Rrid,
-		"wideSequenceNumber": packet.WideSequenceNumber,
-	}
+	return ref(RtpPacketDump(*packet))
 }
 
 func parseSctpParameters(sctpParameters *FbsSctpParameters.SctpParametersT) *SctpParameters {
@@ -76,20 +61,18 @@ func parseSctpNegotiatedCapabilities(capabilities *FbsSctpAssociation.SctpNegoti
 	}
 }
 
-// convertTransportOptions builds the base transport options.
+// convertTransportOptions builds the base transport options. Both bwe and options must already
+// hold their defaults (BweOptions.withDefaults and SctpOptions.withDefaults).
 func convertTransportOptions(
 	bwe BweOptions,
-	defaultSctpZeroChecksum SctpZeroChecksum,
 	enableSctp bool,
 	options SctpOptions,
 	isDataChannel bool,
 ) (*FbsTransport.OptionsT, error) {
-	o := options.withDefaults(defaultSctpZeroChecksum)
-	sctpZeroChecksum, err := serializeSctpZeroChecksum(o.SctpZeroChecksum)
+	sctpZeroChecksum, err := serializeSctpZeroChecksum(options.SctpZeroChecksum)
 	if err != nil {
 		return nil, err
 	}
-	bwe = bwe.withDefaults()
 
 	return &FbsTransport.OptionsT{
 		EnableBwe:                                   *bwe.EnableBwe,
@@ -98,12 +81,12 @@ func convertTransportOptions(
 		MaxOutgoingBitrate:                          positiveUint64(bwe.MaxOutgoingBitrate),
 		MinOutgoingBitrate:                          positiveUint64(bwe.MinOutgoingBitrate),
 		EnableSctp:                                  enableSctp,
-		MaxSendMessageSize:                          o.MaxSendMessageSize,
-		MaxReceiveMessageSize:                       o.MaxReceiveMessageSize,
-		SctpSendBufferSize:                          o.SctpSendBufferSize,
-		SctpPerStreamSendQueueLimit:                 o.SctpPerStreamSendQueueLimit,
-		SctpMaxReceiverWindowBufferSize:             o.SctpMaxReceiverWindowBufferSize,
-		SctpDefaultStreamBufferedAmountLowThreshold: o.SctpDefaultStreamBufferedAmountLowThreshold,
+		MaxSendMessageSize:                          options.MaxSendMessageSize,
+		MaxReceiveMessageSize:                       options.MaxReceiveMessageSize,
+		SctpSendBufferSize:                          options.SctpSendBufferSize,
+		SctpPerStreamSendQueueLimit:                 options.SctpPerStreamSendQueueLimit,
+		SctpMaxReceiverWindowBufferSize:             options.SctpMaxReceiverWindowBufferSize,
+		SctpDefaultStreamBufferedAmountLowThreshold: options.SctpDefaultStreamBufferedAmountLowThreshold,
 		SctpZeroChecksum:                            sctpZeroChecksum,
 		IsDataChannel:                               isDataChannel,
 	}, nil

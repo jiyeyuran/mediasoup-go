@@ -421,7 +421,6 @@ func (r *Router) CreateWebRtcTransportContext(ctx context.Context, options *WebR
 	transportId := UUID(TransportIDPrefix)
 	baseTransportOptions, err := convertTransportOptions(
 		o.BweOptions,
-		SctpZeroChecksumSctpOverDtls,
 		o.EnableSctp,
 		o.SctpOptions,
 		true,
@@ -482,48 +481,46 @@ func (r *Router) CreateWebRtcTransportContext(ctx context.Context, options *WebR
 		TransportType: TransportWebRTC,
 		EnableBwe:     *o.EnableBwe,
 		AppData:       o.AppData,
-		TransportData: &TransportData{
-			WebRtcTransportData: &WebRtcTransportData{
-				IceRole: strings.ToLower(result.IceRole.String()),
-				IceParameters: IceParameters{
-					UsernameFragment: result.IceParameters.UsernameFragment,
-					Password:         result.IceParameters.Password,
-					IceLite:          result.IceParameters.IceLite,
-				},
-				IceCandidates: collect(result.IceCandidates, func(item *FbsWebRtcTransport.IceCandidateT) IceCandidate {
-					return IceCandidate{
-						Foundation: item.Foundation,
-						Priority:   item.Priority,
-						Address:    item.Address,
-						Protocol:   TransportProtocol(strings.ToLower(item.Protocol.String())),
-						Port:       item.Port,
-						Type:       strings.ToLower(item.Type.String()),
-						TcpType: ifElse(item.TcpType != nil, func() string {
-							return strings.ToLower(item.TcpType.String())
-						}),
-					}
-				}),
-				IceState: IceState(strings.ToLower(result.IceState.String())),
-				IceSelectedTuple: ifElse(result.IceSelectedTuple != nil, func() *TransportTuple {
-					return &TransportTuple{
-						Protocol:     TransportProtocol(strings.ToLower(result.IceSelectedTuple.Protocol.String())),
-						LocalAddress: result.IceSelectedTuple.LocalAddress,
-						LocalPort:    result.IceSelectedTuple.LocalPort,
-						RemoteIp:     result.IceSelectedTuple.RemoteIp,
-						RemotePort:   result.IceSelectedTuple.RemotePort,
-					}
-				}),
-				DtlsParameters: DtlsParameters{
-					Role:         DtlsRole(strings.ToLower(result.DtlsParameters.Role.String())),
-					Fingerprints: collect(result.DtlsParameters.Fingerprints, parseDtlsFingerprint),
-				},
-				DtlsState:      DtlsState(strings.ToLower(result.DtlsState.String())),
-				SctpParameters: parseSctpParameters(result.Base.SctpParameters),
-				SctpState: ifElse(result.Base.SctpState != nil, func() SctpState {
-					return SctpState(strings.ToLower(result.Base.SctpState.String()))
-				}),
-				SctpNegotiatedCapabilities: parseSctpNegotiatedCapabilities(result.Base.SctpNegotiatedCapabilities),
+		webRtcTransportData: &WebRtcTransportData{
+			IceRole: strings.ToLower(result.IceRole.String()),
+			IceParameters: IceParameters{
+				UsernameFragment: result.IceParameters.UsernameFragment,
+				Password:         result.IceParameters.Password,
+				IceLite:          result.IceParameters.IceLite,
 			},
+			IceCandidates: collect(result.IceCandidates, func(item *FbsWebRtcTransport.IceCandidateT) IceCandidate {
+				return IceCandidate{
+					Foundation: item.Foundation,
+					Priority:   item.Priority,
+					Address:    item.Address,
+					Protocol:   TransportProtocol(strings.ToLower(item.Protocol.String())),
+					Port:       item.Port,
+					Type:       strings.ToLower(item.Type.String()),
+					TcpType: ifElse(item.TcpType != nil, func() string {
+						return strings.ToLower(item.TcpType.String())
+					}),
+				}
+			}),
+			IceState: IceState(strings.ToLower(result.IceState.String())),
+			IceSelectedTuple: ifElse(result.IceSelectedTuple != nil, func() *TransportTuple {
+				return &TransportTuple{
+					Protocol:     TransportProtocol(strings.ToLower(result.IceSelectedTuple.Protocol.String())),
+					LocalAddress: result.IceSelectedTuple.LocalAddress,
+					LocalPort:    result.IceSelectedTuple.LocalPort,
+					RemoteIp:     result.IceSelectedTuple.RemoteIp,
+					RemotePort:   result.IceSelectedTuple.RemotePort,
+				}
+			}),
+			DtlsParameters: DtlsParameters{
+				Role:         DtlsRole(strings.ToLower(result.DtlsParameters.Role.String())),
+				Fingerprints: collect(result.DtlsParameters.Fingerprints, parseDtlsFingerprint),
+			},
+			DtlsState:      DtlsState(strings.ToLower(result.DtlsState.String())),
+			SctpParameters: parseSctpParameters(result.Base.SctpParameters),
+			SctpState: ifElse(result.Base.SctpState != nil, func() SctpState {
+				return SctpState(strings.ToLower(result.Base.SctpState.String()))
+			}),
+			SctpNegotiatedCapabilities: parseSctpNegotiatedCapabilities(result.Base.SctpNegotiatedCapabilities),
 		},
 	}
 	transport, err := r.newTransport(ctx, data)
@@ -562,7 +559,6 @@ func (r *Router) CreatePlainTransportContext(ctx context.Context, options *Plain
 	transportId := UUID(TransportIDPrefix)
 	baseTransportOptions, err := convertTransportOptions(
 		o.BweOptions,
-		SctpZeroChecksumNone,
 		o.EnableSctp,
 		o.SctpOptions,
 		false,
@@ -603,17 +599,15 @@ func (r *Router) CreatePlainTransportContext(ctx context.Context, options *Plain
 		TransportId:   transportId,
 		TransportType: TransportPlain,
 		EnableBwe:     *o.EnableBwe,
-		TransportData: &TransportData{
-			PlainTransportData: &PlainTransportData{
-				Tuple:          *parseTransportTuple(result.Tuple),
-				RtcpTuple:      parseTransportTuple(result.Tuple),
-				SctpParameters: parseSctpParameters(result.Base.SctpParameters),
-				SctpState: ifElse(result.Base.SctpState != nil, func() SctpState {
-					return SctpState(strings.ToLower(result.Base.SctpState.String()))
-				}),
-				SctpNegotiatedCapabilities: parseSctpNegotiatedCapabilities(result.Base.SctpNegotiatedCapabilities),
-				SrtpParameters:             parseSrtpParameters(result.SrtpParameters),
-			},
+		plainTransportData: &PlainTransportData{
+			Tuple:          *parseTransportTuple(result.Tuple),
+			RtcpTuple:      parseTransportTuple(result.Tuple),
+			SctpParameters: parseSctpParameters(result.Base.SctpParameters),
+			SctpState: ifElse(result.Base.SctpState != nil, func() SctpState {
+				return SctpState(strings.ToLower(result.Base.SctpState.String()))
+			}),
+			SctpNegotiatedCapabilities: parseSctpNegotiatedCapabilities(result.Base.SctpNegotiatedCapabilities),
+			SrtpParameters:             parseSrtpParameters(result.SrtpParameters),
 		},
 		RtcpMux: result.RtcpMux,
 		Comedia: result.Comedia,
@@ -640,8 +634,7 @@ func (r *Router) CreatePipeTransportContext(ctx context.Context, options *PipeTr
 
 	transportId := UUID(TransportIDPrefix)
 	baseTransportOptions, err := convertTransportOptions(
-		BweOptions{EnableBwe: ref(false)},
-		SctpZeroChecksumNone,
+		BweOptions{EnableBwe: ref(false)}.withDefaults(),
 		o.EnableSctp,
 		o.SctpOptions,
 		false,
@@ -674,16 +667,14 @@ func (r *Router) CreatePipeTransportContext(ctx context.Context, options *PipeTr
 		TransportId:   transportId,
 		TransportType: TransportPipe,
 		EnableBwe:     false,
-		TransportData: &TransportData{
-			PipeTransportData: &PipeTransportData{
-				Tuple:          *parseTransportTuple(result.Tuple),
-				SctpParameters: parseSctpParameters(result.Base.SctpParameters),
-				SctpState: ifElse(result.Base.SctpState != nil, func() SctpState {
-					return SctpState(strings.ToLower(result.Base.SctpState.String()))
-				}),
-				SctpNegotiatedCapabilities: parseSctpNegotiatedCapabilities(result.Base.SctpNegotiatedCapabilities),
-				SrtpParameters:             parseSrtpParameters(result.SrtpParameters),
-			},
+		pipeTransportData: &PipeTransportData{
+			Tuple:          *parseTransportTuple(result.Tuple),
+			SctpParameters: parseSctpParameters(result.Base.SctpParameters),
+			SctpState: ifElse(result.Base.SctpState != nil, func() SctpState {
+				return SctpState(strings.ToLower(result.Base.SctpState.String()))
+			}),
+			SctpNegotiatedCapabilities: parseSctpNegotiatedCapabilities(result.Base.SctpNegotiatedCapabilities),
+			SrtpParameters:             parseSrtpParameters(result.SrtpParameters),
 		},
 		Rtx:     result.Rtx,
 		AppData: o.AppData,
@@ -743,7 +734,6 @@ func (r *Router) CreateDirectTransportContext(ctx context.Context, options *Dire
 		TransportId:   transportId,
 		TransportType: TransportDirect,
 		EnableBwe:     false,
-		TransportData: &TransportData{},
 		AppData:       o.AppData,
 	}
 	return r.newTransport(ctx, data)

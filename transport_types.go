@@ -356,7 +356,8 @@ type TransportTraceEventData struct {
 	Type      TransportTraceEventType `json:"type"`
 	Timestamp uint64                  `json:"timestamp"`
 	Direction string                  `json:"direction"` // "in" or "out"
-	Info      H                       `json:"info"`
+	// Info is a H for the "bwe" type and a *RtpPacketDump for the "probation" type.
+	Info any `json:"info"`
 }
 
 type TransportDump struct {
