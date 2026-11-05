@@ -1,5 +1,18 @@
 # Changelog
 
+### 2.7.1
+
+- fix(ortc): skip RTX codecs when resolving the media codec referenced by an
+  RTX codec's `apt` payload type, so an RTX codec can no longer be associated
+  with another RTX codec
+- fix(rtpParameters): drop RTP header extensions whose URI is not supported by
+  the worker instead of sending them with an empty URI
+- fix(transport): `ConsumeData()` forces `ordered: false` when
+  `MaxPacketLifeTime` or `MaxRetransmits` is set, and ignores those fields when
+  `Ordered: true` is given explicitly, matching mediasoup `Transport.ts`
+- fix(transport): release the reserved SCTP stream id when `ConsumeData()` fails
+  or the transport is already closed
+
 ### 2.7.0
 
 Sync with mediasoup **v3.32.2**. This release requires the matching
