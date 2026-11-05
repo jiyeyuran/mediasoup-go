@@ -1140,13 +1140,14 @@ func (t *Transport) ConsumeDataContext(ctx context.Context, options *DataConsume
 	}
 	var (
 		typ                  = DataConsumerDirect
+		sctpStreamId         uint16
 		sctpStreamParameters *SctpStreamParameters
 	)
 
 	if t.Type() != TransportDirect {
 		typ = DataConsumerSctp
-		sctpStreamId, err := t.getNextSctpStreamId()
-		if err != nil {
+		var err error
+		if sctpStreamId, err = t.getNextSctpStreamId(); err != nil {
 			return nil, err
 		}
 		if sctpStreamParameters = dataProducer.SctpStreamParameters(); sctpStreamParameters == nil {
@@ -1160,12 +1161,21 @@ func (t *Transport) ConsumeDataContext(ctx context.Context, options *DataConsume
 		// Override if given.
 		if ordered := options.Ordered; ordered != nil {
 			sctpStreamParameters.Ordered = ordered
+			if *ordered {
+				sctpStreamParameters.MaxPacketLifeTime = nil
+				sctpStreamParameters.MaxRetransmits = nil
+			}
 		}
-		if maxPacketLifeTime := options.MaxPacketLifeTime; maxPacketLifeTime > 0 {
-			sctpStreamParameters.MaxPacketLifeTime = &maxPacketLifeTime
-		}
-		if maxRetransmits := options.MaxRetransmits; maxRetransmits > 0 {
-			sctpStreamParameters.MaxRetransmits = &maxRetransmits
+		// maxPacketLifeTime and maxRetransmits require an unordered stream.
+		if !unref(options.Ordered) &&
+			(options.MaxPacketLifeTime > 0 || options.MaxRetransmits > 0) {
+			sctpStreamParameters.Ordered = ref(false)
+			if maxPacketLifeTime := options.MaxPacketLifeTime; maxPacketLifeTime > 0 {
+				sctpStreamParameters.MaxPacketLifeTime = &maxPacketLifeTime
+			}
+			if maxRetransmits := options.MaxRetransmits; maxRetransmits > 0 {
+				sctpStreamParameters.MaxRetransmits = &maxRetransmits
+			}
 		}
 	}
 
@@ -1196,12 +1206,18 @@ func (t *Transport) ConsumeDataContext(ctx context.Context, options *DataConsume
 		},
 	})
 	if err != nil {
+		if typ == DataConsumerSctp {
+			t.streamIds.Delete(sctpStreamId)
+		}
 		return nil, err
 	}
 
 	t.mu.Lock()
 	if t.closed {
 		t.mu.Unlock()
+		if typ == DataConsumerSctp {
+			t.streamIds.Delete(sctpStreamId)
+		}
 		return nil, ErrTransportClosed
 	}
 

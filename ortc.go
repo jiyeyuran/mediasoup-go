@@ -334,7 +334,7 @@ func getProducerRtpParametersMapping(params *RtpParameters, caps *RtpCapabilitie
 
 		// Search for the associated media codec.
 		for _, mediaCodec := range params.Codecs {
-			if mediaCodec.PayloadType == codec.Parameters.Apt {
+			if !mediaCodec.isRtxCodec() && mediaCodec.PayloadType == codec.Parameters.Apt {
 				associatedMediaCodec = mediaCodec
 				break
 			}
@@ -563,7 +563,7 @@ func getConsumerRtpParameters(
 			found := false
 			// Search for the associated media codec.
 			for _, mediaCodec := range consumerParams.Codecs {
-				if mediaCodec.PayloadType == codec.Parameters.Apt {
+				if !mediaCodec.isRtxCodec() && mediaCodec.PayloadType == codec.Parameters.Apt {
 					rtxSupported = true
 					found = true
 					break
