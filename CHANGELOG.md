@@ -1,5 +1,41 @@
 # Changelog
 
+### 2.7.0
+
+Sync with mediasoup **v3.32.2**. This release requires the matching
+mediasoup-worker binary because the worker FlatBuffers protocol changed.
+
+- **Breaking change:** sync transport and RTP-stream bitrates to the worker's
+  `uint64` fields. `RtpEncodingParameters.MaxBitrate`, transport stat bitrates,
+  `Transport.SetMaxIncomingBitrate()`, `Transport.SetMaxOutgoingBitrate()` and
+  `Transport.SetMinOutgoingBitrate()` now use `uint64`
+- **Breaking change:** remove `WorkerSettings.LibwebrtcFieldTrials`, which
+  mediasoup removed together with the old libwebrtc BWE stack
+- **Breaking change:** remove the unsupported `urn:ietf:params:rtp-hdrext:toffset`
+  extension from supported RTP capabilities and remove
+  `RtpMappingEncoding.ScalabilityMode` from the worker protocol mapping
+- **Breaking change:** the transport `bwe` trace payload now contains
+  `desiredBitrate`, `minBitrate`, `maxBitrate` and `availableBitrate`; transport
+  stats remove `rtpPacketLossReceived` and `rtpPacketLossSent`
+- `WebRtcTransportOptions` and `PlainTransportOptions` add `EnableBwe`,
+  `InitialAvailableOutgoingBitrate`, `MaxIncomingBitrate`, `MaxOutgoingBitrate`
+  and `MinOutgoingBitrate`; Producers and Consumers no longer negotiate BWE
+  extensions or feedback on a transport with BWE disabled
+- `SctpOptions` adds `SctpZeroChecksum` for RFC 9653. It defaults to
+  `sctp-over-dtls` for WebRTC, `none` for plain/pipe transports and
+  `trusted-network` for `Router.PipeToRouter()`
+- `TransportStats` adds optional `RoundTripTime`; RTP-stream
+  `RoundTripTime` is now omitted when the worker reports no RTT
+- `Router.PipeToRouter()` uses the new trusted-network Zero Checksum default and
+  pipe Consumers keep only RTX-compatible NACK feedback while forwarding all
+  producer layers
+- serialize `RtpEncodingParameters.MaxBitrate`, including producer requests;
+  previously the client-side value was dropped before reaching the worker
+- align RTP trace packet sizes with the worker's `uint32` protocol fields and
+  parse `probation` trace payloads
+- Consumer stats automatically include the additional `inbound-rtp` entries that
+  recent workers return for forwarded pipe producer streams
+
 ### 2.6.1
 
 - `WorkerPool`: add the `Scheduler` interface and `SetScheduler()`, so which worker a

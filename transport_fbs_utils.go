@@ -4,6 +4,7 @@ import (
 	"errors"
 	"strings"
 
+	FbsRtpPacket "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/RtpPacket"
 	FbsRtpParameters "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/RtpParameters"
 	FbsSctpAssociation "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/SctpAssociation"
 	FbsSctpParameters "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/SctpParameters"
@@ -23,6 +24,13 @@ func parseTransportTuple(tuple *FbsTransport.TupleT) *TransportTuple {
 		RemoteIp:     tuple.RemoteIp,
 		RemotePort:   tuple.RemotePort,
 	}
+}
+
+func parseRtpPacketDump(packet *FbsRtpPacket.DumpT) *RtpPacketDump {
+	if packet == nil {
+		return nil
+	}
+	return ref(RtpPacketDump(*packet))
 }
 
 func parseSctpParameters(sctpParameters *FbsSctpParameters.SctpParametersT) *SctpParameters {
@@ -53,20 +61,55 @@ func parseSctpNegotiatedCapabilities(capabilities *FbsSctpAssociation.SctpNegoti
 	}
 }
 
-// convertSctpOptions builds the SCTP related part of the base transport options.
-func convertSctpOptions(enableSctp bool, options SctpOptions, isDataChannel bool) *FbsTransport.OptionsT {
-	o := options.withDefaults()
+// convertTransportOptions builds the base transport options. Both bwe and options must already
+// hold their defaults (BweOptions.withDefaults and SctpOptions.withDefaults).
+func convertTransportOptions(
+	bwe BweOptions,
+	enableSctp bool,
+	options SctpOptions,
+	isDataChannel bool,
+) (*FbsTransport.OptionsT, error) {
+	sctpZeroChecksum, err := serializeSctpZeroChecksum(options.SctpZeroChecksum)
+	if err != nil {
+		return nil, err
+	}
 
 	return &FbsTransport.OptionsT{
+		EnableBwe:                                   *bwe.EnableBwe,
+		InitialAvailableOutgoingBitrate:             positiveUint64(bwe.InitialAvailableOutgoingBitrate),
+		MaxIncomingBitrate:                          positiveUint64(bwe.MaxIncomingBitrate),
+		MaxOutgoingBitrate:                          positiveUint64(bwe.MaxOutgoingBitrate),
+		MinOutgoingBitrate:                          positiveUint64(bwe.MinOutgoingBitrate),
 		EnableSctp:                                  enableSctp,
-		MaxSendMessageSize:                          o.MaxSendMessageSize,
-		MaxReceiveMessageSize:                       o.MaxReceiveMessageSize,
-		SctpSendBufferSize:                          o.SctpSendBufferSize,
-		SctpPerStreamSendQueueLimit:                 o.SctpPerStreamSendQueueLimit,
-		SctpMaxReceiverWindowBufferSize:             o.SctpMaxReceiverWindowBufferSize,
-		SctpDefaultStreamBufferedAmountLowThreshold: o.SctpDefaultStreamBufferedAmountLowThreshold,
+		MaxSendMessageSize:                          options.MaxSendMessageSize,
+		MaxReceiveMessageSize:                       options.MaxReceiveMessageSize,
+		SctpSendBufferSize:                          options.SctpSendBufferSize,
+		SctpPerStreamSendQueueLimit:                 options.SctpPerStreamSendQueueLimit,
+		SctpMaxReceiverWindowBufferSize:             options.SctpMaxReceiverWindowBufferSize,
+		SctpDefaultStreamBufferedAmountLowThreshold: options.SctpDefaultStreamBufferedAmountLowThreshold,
+		SctpZeroChecksum:                            sctpZeroChecksum,
 		IsDataChannel:                               isDataChannel,
+	}, nil
+}
+
+func serializeSctpZeroChecksum(value SctpZeroChecksum) (FbsTransport.SctpZeroChecksum, error) {
+	switch value {
+	case SctpZeroChecksumNone:
+		return FbsTransport.SctpZeroChecksumNONE, nil
+	case SctpZeroChecksumSctpOverDtls:
+		return FbsTransport.SctpZeroChecksumSCTP_OVER_DTLS, nil
+	case SctpZeroChecksumTrustedNetwork:
+		return FbsTransport.SctpZeroChecksumTRUSTED_NETWORK, nil
+	default:
+		return 0, errors.New("invalid SctpZeroChecksum: " + string(value))
 	}
+}
+
+func positiveUint64(value uint64) *uint64 {
+	if value == 0 {
+		return nil
+	}
+	return ref(value)
 }
 
 func parseSrtpParameters(srtpParameters *FbsSrtpParameters.SrtpParametersT) *SrtpParameters {

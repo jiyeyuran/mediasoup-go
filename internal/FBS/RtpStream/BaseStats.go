@@ -9,25 +9,25 @@ import (
 )
 
 type BaseStatsT struct {
-	Timestamp uint64 `json:"timestamp"`
-	Ssrc uint32 `json:"ssrc"`
-	Kind FBS__RtpParameters.MediaKind `json:"kind"`
-	MimeType string `json:"mime_type"`
-	PacketsLost int32 `json:"packets_lost"`
-	FractionLost byte `json:"fraction_lost"`
-	Jitter uint32 `json:"jitter"`
-	PacketsDiscarded uint64 `json:"packets_discarded"`
-	PacketsRetransmitted uint64 `json:"packets_retransmitted"`
-	PacketsRepaired uint64 `json:"packets_repaired"`
-	NackCount uint64 `json:"nack_count"`
-	NackPacketCount uint64 `json:"nack_packet_count"`
-	PliCount uint64 `json:"pli_count"`
-	FirCount uint64 `json:"fir_count"`
-	Rid string `json:"rid"`
-	RtxSsrc *uint32 `json:"rtx_ssrc"`
-	RtxPacketsDiscarded uint64 `json:"rtx_packets_discarded"`
-	RoundTripTime float32 `json:"round_trip_time"`
-	Score byte `json:"score"`
+	Timestamp            uint64                       `json:"timestamp"`
+	Ssrc                 uint32                       `json:"ssrc"`
+	Kind                 FBS__RtpParameters.MediaKind `json:"kind"`
+	MimeType             string                       `json:"mime_type"`
+	PacketsLost          int32                        `json:"packets_lost"`
+	FractionLost         byte                         `json:"fraction_lost"`
+	Jitter               uint32                       `json:"jitter"`
+	PacketsDiscarded     uint64                       `json:"packets_discarded"`
+	PacketsRetransmitted uint64                       `json:"packets_retransmitted"`
+	PacketsRepaired      uint64                       `json:"packets_repaired"`
+	NackCount            uint64                       `json:"nack_count"`
+	NackPacketCount      uint64                       `json:"nack_packet_count"`
+	PliCount             uint64                       `json:"pli_count"`
+	FirCount             uint64                       `json:"fir_count"`
+	Rid                  string                       `json:"rid"`
+	RtxSsrc              *uint32                      `json:"rtx_ssrc"`
+	RtxPacketsDiscarded  uint64                       `json:"rtx_packets_discarded"`
+	RoundTripTime        *float32                     `json:"round_trip_time"`
+	Score                byte                         `json:"score"`
 }
 
 func (t *BaseStatsT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
@@ -62,7 +62,9 @@ func (t *BaseStatsT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 		BaseStatsAddRtxSsrc(builder, *t.RtxSsrc)
 	}
 	BaseStatsAddRtxPacketsDiscarded(builder, t.RtxPacketsDiscarded)
-	BaseStatsAddRoundTripTime(builder, t.RoundTripTime)
+	if t.RoundTripTime != nil {
+		BaseStatsAddRoundTripTime(builder, *t.RoundTripTime)
+	}
 	BaseStatsAddScore(builder, t.Score)
 	return BaseStatsEnd(builder)
 }
@@ -330,12 +332,13 @@ func (rcv *BaseStats) MutateRtxPacketsDiscarded(n uint64) bool {
 	return rcv._tab.MutateUint64Slot(36, n)
 }
 
-func (rcv *BaseStats) RoundTripTime() float32 {
+func (rcv *BaseStats) RoundTripTime() *float32 {
 	o := flatbuffers.UOffsetT(rcv._tab.Offset(38))
 	if o != 0 {
-		return rcv._tab.GetFloat32(o + rcv._tab.Pos)
+		v := rcv._tab.GetFloat32(o + rcv._tab.Pos)
+		return &v
 	}
-	return 0.0
+	return nil
 }
 
 func (rcv *BaseStats) MutateRoundTripTime(n float32) bool {
@@ -410,7 +413,8 @@ func BaseStatsAddRtxPacketsDiscarded(builder *flatbuffers.Builder, rtxPacketsDis
 	builder.PrependUint64Slot(16, rtxPacketsDiscarded, 0)
 }
 func BaseStatsAddRoundTripTime(builder *flatbuffers.Builder, roundTripTime float32) {
-	builder.PrependFloat32Slot(17, roundTripTime, 0.0)
+	builder.PrependFloat32(roundTripTime)
+	builder.Slot(17)
 }
 func BaseStatsAddScore(builder *flatbuffers.Builder, score byte) {
 	builder.PrependByteSlot(18, score, 0)

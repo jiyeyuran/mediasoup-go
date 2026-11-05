@@ -197,8 +197,8 @@ func TestTransportSetOutgoingBitrate(t *testing.T) {
 	assert.NoError(t, transport.SetMinOutgoingBitrate(100000))
 	assert.NoError(t, transport.SetMaxOutgoingBitrate(200000))
 
-	// Worker rejects a max lower than the already set min.
-	assert.Error(t, transport.SetMaxOutgoingBitrate(50000))
+	// The new BWE stack normalizes limits rather than rejecting this update.
+	assert.NoError(t, transport.SetMaxOutgoingBitrate(50000))
 
 	transport = createDirectTransport(nil)
 	assert.ErrorIs(t, transport.SetMaxOutgoingBitrate(200000), ErrNotImplemented)
@@ -726,10 +726,10 @@ func TestTransportConsumeCreatedWithUserProvidedMid(t *testing.T) {
 
 	audioConsumer2, _ := transport.Consume(&ConsumerOptions{
 		ProducerId:      audioProducer.Id(),
-		Mid:             "custom-mid",
+		Mid:             "custom1",
 		RtpCapabilities: consumerDeviceCapabilities,
 	})
-	assert.Equal(t, "custom-mid", audioConsumer2.RtpParameters().Mid)
+	assert.Equal(t, "custom1", audioConsumer2.RtpParameters().Mid)
 
 	audioConsumer3, _ := transport.Consume(&ConsumerOptions{
 		ProducerId:      audioProducer.Id(),

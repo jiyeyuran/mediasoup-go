@@ -66,11 +66,11 @@ func parseBaseStreamStats(stats *FbsRtpStream.BaseStatsT) *RtpStreamStats {
 	}
 }
 
-func parseBitrateByLayer(stats *FbsRtpStream.RecvStatsT) map[string]uint32 {
+func parseBitrateByLayer(stats *FbsRtpStream.RecvStatsT) map[string]uint64 {
 	if stats == nil {
 		return nil
 	}
-	bitrateByLayer := make(map[string]uint32)
+	bitrateByLayer := make(map[string]uint64)
 
 	for _, layer := range stats.BitrateByLayer {
 		bitrateByLayer[layer.Layer] = layer.Bitrate

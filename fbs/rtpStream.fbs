@@ -30,7 +30,7 @@ table Dump {
 
 table BitrateByLayer {
     layer: string (required);
-    bitrate: uint32;
+    bitrate: uint64;
 }
 
 union StatsData {
@@ -61,7 +61,7 @@ table BaseStats {
     rid: string;
     rtx_ssrc: uint32 = null;
     rtx_packets_discarded: uint64;
-    round_trip_time: float;
+    round_trip_time: float = null;
     score: uint8;
 }
 
@@ -69,7 +69,7 @@ table RecvStats {
     base: Stats (required);
     packet_count: uint64;
     byte_count: uint64;
-    bitrate: uint32;
+    bitrate: uint64;
     bitrate_by_layer: [BitrateByLayer] (required);
 }
 
@@ -77,6 +77,6 @@ table SendStats {
     base: Stats (required);
     packet_count: uint64;
     byte_count: uint64;
-    bitrate: uint32;
+    bitrate: uint64;
 }
 

@@ -49,11 +49,6 @@ type WorkerSettings struct {
 	// If empty, a certificate is generated dynamically.
 	DtlsPrivateKeyFile string `json:"dtlsPrivateKeyFile,omitempty"`
 
-	// LibwebrtcFieldTrials sets libwebrtc field trials (advanced).
-	// WARNING: Invalid values will crash the worker.
-	// Defaults to "WebRTC-Bwe-AlrLimitedBackoff/Enabled/".
-	LibwebrtcFieldTrials string `json:"libwebrtcFieldTrials,omitempty"`
-
 	// WebRtcListenInfos, if set, creates a WebRtcServer on this worker listening
 	// on those addresses. CreateWebRtcTransport can then omit ListenInfos and
 	// WebRtcServer. A WorkerPool increments a fixed port per worker unless
