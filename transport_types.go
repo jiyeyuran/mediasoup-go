@@ -24,8 +24,8 @@ type WebRtcTransportOptions struct {
 	// IceConsentTimeout is ICE consent timeout in seconds. If 0 it is disabled. Default 30.
 	IceConsentTimeout *uint8 `json:"iceConsentTimeout,omitempty"`
 
-	// InitialAvailableOutgoingBitrate sets the initial available outgoing bitrate (in bps). Default 600000.
-	InitialAvailableOutgoingBitrate uint32 `json:"initialAvailableOutgoingBitrate,omitempty"`
+	// BweOptions configures bandwidth estimation for the transport link.
+	BweOptions
 
 	// EnableSctp enables SCTP association creation. Default false.
 	EnableSctp bool `json:"enableSctp,omitempty"`
@@ -63,10 +63,14 @@ type SctpOptions struct {
 	// SctpDefaultStreamBufferedAmountLowThreshold is the default buffered amount low threshold
 	// in bytes applied to every DataConsumer of the transport. Default 1024.
 	SctpDefaultStreamBufferedAmountLowThreshold uint32 `json:"sctpDefaultStreamBufferedAmountLowThreshold,omitempty"`
+
+	// SctpZeroChecksum is the SCTP Zero Checksum (RFC 9653) alternate error
+	// detection method to announce. Default depends on the transport type.
+	SctpZeroChecksum SctpZeroChecksum `json:"sctpZeroChecksum,omitempty"`
 }
 
 // withDefaults returns a copy of the options in which unset fields hold the mediasoup defaults.
-func (o SctpOptions) withDefaults() SctpOptions {
+func (o SctpOptions) withDefaults(defaultSctpZeroChecksum SctpZeroChecksum) SctpOptions {
 	defaults := SctpOptions{
 		MaxSendMessageSize:                          262144,
 		MaxReceiveMessageSize:                       262144,
@@ -74,6 +78,7 @@ func (o SctpOptions) withDefaults() SctpOptions {
 		SctpPerStreamSendQueueLimit:                 2000000,
 		SctpMaxReceiverWindowBufferSize:             5242880,
 		SctpDefaultStreamBufferedAmountLowThreshold: 1024,
+		SctpZeroChecksum:                            defaultSctpZeroChecksum,
 	}
 	if o.MaxSendMessageSize > 0 {
 		defaults.MaxSendMessageSize = o.MaxSendMessageSize
@@ -92,6 +97,67 @@ func (o SctpOptions) withDefaults() SctpOptions {
 	}
 	if o.SctpDefaultStreamBufferedAmountLowThreshold > 0 {
 		defaults.SctpDefaultStreamBufferedAmountLowThreshold = o.SctpDefaultStreamBufferedAmountLowThreshold
+	}
+	if len(o.SctpZeroChecksum) > 0 {
+		defaults.SctpZeroChecksum = o.SctpZeroChecksum
+	}
+	return defaults
+}
+
+// SctpZeroChecksum selects the SCTP Zero Checksum (RFC 9653) alternate error
+// detection method announced to the remote SCTP endpoint.
+type SctpZeroChecksum string
+
+const (
+	// SctpZeroChecksumNone does not announce Zero Checksum support.
+	SctpZeroChecksumNone SctpZeroChecksum = "none"
+
+	// SctpZeroChecksumSctpOverDtls is SCTP over DTLS, as defined in RFC 9653.
+	SctpZeroChecksumSctpOverDtls SctpZeroChecksum = "sctp-over-dtls"
+
+	// SctpZeroChecksumTrustedNetwork is a mediasoup-specific method intended only
+	// for trusted network paths, such as localhost pipe transports.
+	SctpZeroChecksumTrustedNetwork SctpZeroChecksum = "trusted-network"
+)
+
+// BweOptions configures bandwidth estimation on transports that support it.
+type BweOptions struct {
+	// EnableBwe estimates the bandwidth of the transport link whenever the
+	// negotiated RTP parameters allow it. Default true.
+	EnableBwe *bool `json:"enableBwe,omitempty"`
+
+	// InitialAvailableOutgoingBitrate is the initial available outgoing bitrate
+	// in bps. Default 600000.
+	InitialAvailableOutgoingBitrate uint64 `json:"initialAvailableOutgoingBitrate,omitempty"`
+
+	// MaxIncomingBitrate is the maximum incoming bitrate in bps. Zero leaves the
+	// limit unset.
+	MaxIncomingBitrate uint64 `json:"maxIncomingBitrate,omitempty"`
+
+	// MaxOutgoingBitrate is the maximum outgoing bitrate in bps. Zero leaves the
+	// limit unset.
+	MaxOutgoingBitrate uint64 `json:"maxOutgoingBitrate,omitempty"`
+
+	// MinOutgoingBitrate is the minimum outgoing bitrate in bps. Zero leaves the
+	// limit unset.
+	MinOutgoingBitrate uint64 `json:"minOutgoingBitrate,omitempty"`
+}
+
+// withDefaults returns a copy of the options in which unset fields hold the
+// mediasoup defaults.
+func (o BweOptions) withDefaults() BweOptions {
+	defaults := BweOptions{
+		EnableBwe:                       ref(true),
+		InitialAvailableOutgoingBitrate: 600000,
+		MaxIncomingBitrate:              o.MaxIncomingBitrate,
+		MaxOutgoingBitrate:              o.MaxOutgoingBitrate,
+		MinOutgoingBitrate:              o.MinOutgoingBitrate,
+	}
+	if o.EnableBwe != nil {
+		defaults.EnableBwe = o.EnableBwe
+	}
+	if o.InitialAvailableOutgoingBitrate > 0 {
+		defaults.InitialAvailableOutgoingBitrate = o.InitialAvailableOutgoingBitrate
 	}
 	return defaults
 }
@@ -112,6 +178,9 @@ type PlainTransportOptions struct {
 	// SRTP is enabled. If so, it must be called with just remote SRTP parameters.
 	// Default false.
 	Comedia bool `json:"comedia,omitempty"`
+
+	// BweOptions configures bandwidth estimation for the transport link.
+	BweOptions
 
 	// EnableSctp define whether create a SCTP association. Default false.
 	EnableSctp bool `json:"enableSctp,omitempty"`
@@ -367,26 +436,25 @@ type BaseTransportStat struct {
 	Timestamp                uint64    `json:"timestamp"`
 	SctpState                SctpState `json:"sctpState"`
 	BytesReceived            uint64    `json:"bytesReceived"`
-	RecvBitrate              uint32    `json:"recvBitrate"`
+	RecvBitrate              uint64    `json:"recvBitrate"`
 	BytesSent                uint64    `json:"bytesSent"`
-	SendBitrate              uint32    `json:"sendBitrate"`
+	SendBitrate              uint64    `json:"sendBitrate"`
 	RtpBytesReceived         uint64    `json:"rtpBytesReceived"`
-	RtpRecvBitrate           uint32    `json:"rtpRecvBitrate"`
+	RtpRecvBitrate           uint64    `json:"rtpRecvBitrate"`
 	RtpBytesSent             uint64    `json:"rtpBytesSent"`
-	RtpSendBitrate           uint32    `json:"rtpSendBitrate"`
+	RtpSendBitrate           uint64    `json:"rtpSendBitrate"`
 	RtxBytesReceived         uint64    `json:"rtxBytesReceived"`
-	RtxRecvBitrate           uint32    `json:"rtxRecvBitrate"`
+	RtxRecvBitrate           uint64    `json:"rtxRecvBitrate"`
 	RtxBytesSent             uint64    `json:"rtxBytesSent"`
-	RtxSendBitrate           uint32    `json:"rtxSendBitrate"`
+	RtxSendBitrate           uint64    `json:"rtxSendBitrate"`
 	ProbationBytesSent       uint64    `json:"probationBytesSent"`
-	ProbationSendBitrate     uint32    `json:"probationSendBitrate"`
-	AvailableOutgoingBitrate *uint32   `json:"availableOutgoingBitrate,omitempty"`
-	AvailableIncomingBitrate *uint32   `json:"availableIncomingBitrate,omitempty"`
-	MaxIncomingBitrate       *uint32   `json:"maxIncomingBitrate,omitempty"`
-	MaxOutgoingBitrate       *uint32   `json:"maxOutgoingBitrate,omitempty"`
-	MinOutgoingBitrate       *uint32   `json:"minOutgoingBitrate,omitempty"`
-	RtpPacketLossReceived    *float64  `json:"rtpPacketLossReceived,omitempty"`
-	RtpPacketLossSent        *float64  `json:"rtpPacketLossSent,omitempty"`
+	ProbationSendBitrate     uint64    `json:"probationSendBitrate"`
+	AvailableOutgoingBitrate *uint64   `json:"availableOutgoingBitrate,omitempty"`
+	AvailableIncomingBitrate *uint64   `json:"availableIncomingBitrate,omitempty"`
+	MaxIncomingBitrate       *uint64   `json:"maxIncomingBitrate,omitempty"`
+	MaxOutgoingBitrate       *uint64   `json:"maxOutgoingBitrate,omitempty"`
+	MinOutgoingBitrate       *uint64   `json:"minOutgoingBitrate,omitempty"`
+	RoundTripTime            *float32  `json:"roundTripTime,omitempty"`
 }
 
 type WebRtcTransportStat struct {

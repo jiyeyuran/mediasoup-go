@@ -401,17 +401,17 @@ func (r *Router) CreateWebRtcTransportContext(ctx context.Context, options *WebR
 	r.logger.DebugContext(ctx, "CreateWebRtcTransport()")
 
 	o := &WebRtcTransportOptions{
-		WebRtcServer:                    options.WebRtcServer,
-		ListenInfos:                     options.ListenInfos,
-		EnableUdp:                       ref(true),
-		EnableTcp:                       options.EnableTcp,
-		PreferUdp:                       options.PreferUdp,
-		PreferTcp:                       options.PreferTcp,
-		IceConsentTimeout:               ref[uint8](30),
-		InitialAvailableOutgoingBitrate: 600000,
-		EnableSctp:                      options.EnableSctp,
-		SctpOptions:                     options.withDefaults(),
-		AppData:                         orElse(options.AppData != nil, options.AppData, H{}),
+		WebRtcServer:      options.WebRtcServer,
+		ListenInfos:       options.ListenInfos,
+		EnableUdp:         ref(true),
+		EnableTcp:         options.EnableTcp,
+		PreferUdp:         options.PreferUdp,
+		PreferTcp:         options.PreferTcp,
+		IceConsentTimeout: ref[uint8](30),
+		BweOptions:        options.BweOptions.withDefaults(),
+		EnableSctp:        options.EnableSctp,
+		SctpOptions:       options.SctpOptions.withDefaults(SctpZeroChecksumSctpOverDtls),
+		AppData:           orElse(options.AppData != nil, options.AppData, H{}),
 	}
 	if o.WebRtcServer == nil && len(o.ListenInfos) == 0 {
 		if server := r.worker.WebRtcServer(); server != nil && !server.Closed() {
@@ -424,13 +424,18 @@ func (r *Router) CreateWebRtcTransportContext(ctx context.Context, options *WebR
 	if options.EnableUdp != nil {
 		o.EnableUdp = options.EnableUdp
 	}
-	if options.InitialAvailableOutgoingBitrate > 0 {
-		o.InitialAvailableOutgoingBitrate = options.InitialAvailableOutgoingBitrate
-	}
 
 	transportId := UUID(TransportIDPrefix)
-	baseTranportOptions := convertSctpOptions(o.EnableSctp, o.SctpOptions, true)
-	baseTranportOptions.InitialAvailableOutgoingBitrate = ref(o.InitialAvailableOutgoingBitrate)
+	baseTransportOptions, err := convertTransportOptions(
+		o.BweOptions,
+		SctpZeroChecksumSctpOverDtls,
+		o.EnableSctp,
+		o.SctpOptions,
+		true,
+	)
+	if err != nil {
+		return nil, err
+	}
 
 	var (
 		method FbsRequest.Method
@@ -463,7 +468,7 @@ func (r *Router) CreateWebRtcTransportContext(ctx context.Context, options *WebR
 			Value: &FbsRouter.CreateWebRtcTransportRequestT{
 				TransportId: transportId,
 				Options: &FbsWebRtcTransport.WebRtcTransportOptionsT{
-					Base:              baseTranportOptions,
+					Base:              baseTransportOptions,
 					Listen:            listen,
 					EnableUdp:         *o.EnableUdp,
 					EnableTcp:         o.EnableTcp,
@@ -482,6 +487,7 @@ func (r *Router) CreateWebRtcTransportContext(ctx context.Context, options *WebR
 	data := &internalTransportData{
 		TransportId:   transportId,
 		TransportType: TransportWebRTC,
+		EnableBwe:     *o.EnableBwe,
 		AppData:       o.AppData,
 		TransportData: &TransportData{
 			WebRtcTransportData: &WebRtcTransportData{
@@ -549,8 +555,9 @@ func (r *Router) CreatePlainTransportContext(ctx context.Context, options *Plain
 		RtcpListenInfo:  options.RtcpListenInfo,
 		RtcpMux:         ref(true),
 		Comedia:         options.Comedia,
+		BweOptions:      options.BweOptions.withDefaults(),
 		EnableSctp:      options.EnableSctp,
-		SctpOptions:     options.withDefaults(),
+		SctpOptions:     options.SctpOptions.withDefaults(SctpZeroChecksumNone),
 		EnableSrtp:      options.EnableSrtp,
 		SrtpCryptoSuite: AES_CM_128_HMAC_SHA1_80,
 		AppData:         orElse(options.AppData != nil, options.AppData, H{}),
@@ -560,7 +567,16 @@ func (r *Router) CreatePlainTransportContext(ctx context.Context, options *Plain
 	}
 
 	transportId := UUID(TransportIDPrefix)
-	baseTranportOptions := convertSctpOptions(o.EnableSctp, o.SctpOptions, false)
+	baseTransportOptions, err := convertTransportOptions(
+		o.BweOptions,
+		SctpZeroChecksumNone,
+		o.EnableSctp,
+		o.SctpOptions,
+		false,
+	)
+	if err != nil {
+		return nil, err
+	}
 
 	msg, err := r.channel.Request(ctx, &FbsRequest.RequestT{
 		Method:    FbsRequest.MethodROUTER_CREATE_PLAINTRANSPORT,
@@ -570,7 +586,7 @@ func (r *Router) CreatePlainTransportContext(ctx context.Context, options *Plain
 			Value: &FbsRouter.CreatePlainTransportRequestT{
 				TransportId: transportId,
 				Options: &FbsPlainTransport.PlainTransportOptionsT{
-					Base:       baseTranportOptions,
+					Base:       baseTransportOptions,
 					ListenInfo: convertTransportListenInfo(o.ListenInfo),
 					RtcpListenInfo: ifElse(o.RtcpListenInfo != nil, func() *FbsTransport.ListenInfoT {
 						return convertTransportListenInfo(*o.RtcpListenInfo)
@@ -593,6 +609,7 @@ func (r *Router) CreatePlainTransportContext(ctx context.Context, options *Plain
 	data := &internalTransportData{
 		TransportId:   transportId,
 		TransportType: TransportPlain,
+		EnableBwe:     *o.EnableBwe,
 		TransportData: &TransportData{
 			PlainTransportData: &PlainTransportData{
 				Tuple:          *parseTransportTuple(result.Tuple),
@@ -622,14 +639,23 @@ func (r *Router) CreatePipeTransportContext(ctx context.Context, options *PipeTr
 	o := &PipeTransportOptions{
 		ListenInfo:  options.ListenInfo,
 		EnableSctp:  options.EnableSctp,
-		SctpOptions: options.withDefaults(),
+		SctpOptions: options.SctpOptions.withDefaults(SctpZeroChecksumNone),
 		EnableSrtp:  options.EnableSrtp,
 		EnableRtx:   options.EnableRtx,
 		AppData:     orElse(options.AppData != nil, options.AppData, H{}),
 	}
 
 	transportId := UUID(TransportIDPrefix)
-	baseTranportOptions := convertSctpOptions(o.EnableSctp, o.SctpOptions, false)
+	baseTransportOptions, err := convertTransportOptions(
+		BweOptions{EnableBwe: ref(false)},
+		SctpZeroChecksumNone,
+		o.EnableSctp,
+		o.SctpOptions,
+		false,
+	)
+	if err != nil {
+		return nil, err
+	}
 
 	msg, err := r.channel.Request(ctx, &FbsRequest.RequestT{
 		Method:    FbsRequest.MethodROUTER_CREATE_PIPETRANSPORT,
@@ -639,7 +665,7 @@ func (r *Router) CreatePipeTransportContext(ctx context.Context, options *PipeTr
 			Value: &FbsRouter.CreatePipeTransportRequestT{
 				TransportId: transportId,
 				Options: &FbsPipeTransport.PipeTransportOptionsT{
-					Base:       baseTranportOptions,
+					Base:       baseTransportOptions,
 					ListenInfo: convertTransportListenInfo(o.ListenInfo),
 					EnableRtx:  o.EnableRtx,
 					EnableSrtp: o.EnableSrtp,
@@ -654,6 +680,7 @@ func (r *Router) CreatePipeTransportContext(ctx context.Context, options *PipeTr
 	data := &internalTransportData{
 		TransportId:   transportId,
 		TransportType: TransportPipe,
+		EnableBwe:     false,
 		TransportData: &TransportData{
 			PipeTransportData: &PipeTransportData{
 				Tuple:          *parseTransportTuple(result.Tuple),
@@ -722,6 +749,7 @@ func (r *Router) CreateDirectTransportContext(ctx context.Context, options *Dire
 	data := &internalTransportData{
 		TransportId:   transportId,
 		TransportType: TransportDirect,
+		EnableBwe:     false,
 		TransportData: &TransportData{},
 		AppData:       o.AppData,
 	}
@@ -748,7 +776,7 @@ func (r *Router) PipeToRouterContext(ctx context.Context, options *PipeToRouterO
 		Router:         options.Router,
 		KeepId:         ref(true),
 		EnableSctp:     ref(true),
-		SctpOptions:    options.withDefaults(),
+		SctpOptions:    options.withDefaults(SctpZeroChecksumTrustedNetwork),
 		EnableRtx:      options.EnableRtx,
 		EnableSrtp:     options.EnableSrtp,
 	}

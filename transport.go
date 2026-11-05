@@ -34,6 +34,7 @@ type internalTransportData struct {
 	RouterId      string
 	TransportId   string
 	TransportType TransportType
+	EnableBwe     bool
 	AppData       H
 
 	// plain transport specific data
@@ -389,8 +390,9 @@ func (t *Transport) GetStatsContext(ctx context.Context) (*TransportStat, error)
 			AvailableOutgoingBitrate: stats.AvailableOutgoingBitrate,
 			AvailableIncomingBitrate: stats.AvailableIncomingBitrate,
 			MaxIncomingBitrate:       stats.MaxIncomingBitrate,
-			RtpPacketLossReceived:    stats.RtpPacketLossReceived,
-			RtpPacketLossSent:        stats.RtpPacketLossSent,
+			MaxOutgoingBitrate:       stats.MaxOutgoingBitrate,
+			MinOutgoingBitrate:       stats.MinOutgoingBitrate,
+			RoundTripTime:            stats.RoundTripTime,
 		}
 	}
 
@@ -567,11 +569,11 @@ func (t *Transport) RestartIceContext(ctx context.Context) (*IceParameters, erro
 }
 
 // SetMaxIncomingBitrate set maximum incoming bitrate for receiving media.
-func (t *Transport) SetMaxIncomingBitrate(bitrate uint32) error {
+func (t *Transport) SetMaxIncomingBitrate(bitrate uint64) error {
 	return t.SetMaxIncomingBitrateContext(context.Background(), bitrate)
 }
 
-func (t *Transport) SetMaxIncomingBitrateContext(ctx context.Context, bitrate uint32) error {
+func (t *Transport) SetMaxIncomingBitrateContext(ctx context.Context, bitrate uint64) error {
 	if t.Type() == TransportDirect {
 		return ErrNotImplemented
 	}
@@ -591,11 +593,11 @@ func (t *Transport) SetMaxIncomingBitrateContext(ctx context.Context, bitrate ui
 }
 
 // SetMaxOutgoingBitrate set maximum outgoing bitrate for sending media.
-func (t *Transport) SetMaxOutgoingBitrate(bitrate uint32) error {
+func (t *Transport) SetMaxOutgoingBitrate(bitrate uint64) error {
 	return t.SetMaxOutgoingBitrateContext(context.Background(), bitrate)
 }
 
-func (t *Transport) SetMaxOutgoingBitrateContext(ctx context.Context, bitrate uint32) error {
+func (t *Transport) SetMaxOutgoingBitrateContext(ctx context.Context, bitrate uint64) error {
 	if t.Type() == TransportDirect {
 		return ErrNotImplemented
 	}
@@ -615,11 +617,11 @@ func (t *Transport) SetMaxOutgoingBitrateContext(ctx context.Context, bitrate ui
 }
 
 // SetMinOutgoingBitrate set minimum outgoing bitrate for sending media.
-func (t *Transport) SetMinOutgoingBitrate(bitrate uint32) error {
+func (t *Transport) SetMinOutgoingBitrate(bitrate uint64) error {
 	return t.SetMinOutgoingBitrateContext(context.Background(), bitrate)
 }
 
-func (t *Transport) SetMinOutgoingBitrateContext(ctx context.Context, bitrate uint32) error {
+func (t *Transport) SetMinOutgoingBitrateContext(ctx context.Context, bitrate uint64) error {
 	if t.Type() == TransportDirect {
 		return ErrNotImplemented
 	}
@@ -720,6 +722,11 @@ func (t *Transport) ProduceContext(ctx context.Context, options *ProducerOptions
 		return nil, fmt.Errorf("validate rtp parameters failed: %w", err)
 	}
 
+	// A transport that does not run bandwidth estimation must not negotiate it.
+	if !t.data.EnableBwe {
+		disableBweInRtpParameters(rtpParameters)
+	}
+
 	// If missing or empty encodings, add one.
 	if len(rtpParameters.Encodings) == 0 {
 		rtpParameters.Encodings = []*RtpEncodingParameters{{}}
@@ -774,10 +781,9 @@ func (t *Transport) ProduceContext(ctx context.Context, options *ProducerOptions
 					Encodings: collect(rtpMapping.Encodings,
 						func(item *RtpMappingEncoding) *FbsRtpParameters.EncodingMappingT {
 							return &FbsRtpParameters.EncodingMappingT{
-								Rid:             item.Rid,
-								Ssrc:            item.Ssrc,
-								ScalabilityMode: item.ScalabilityMode,
-								MappedSsrc:      item.MappedSsrc,
+								Rid:        item.Rid,
+								Ssrc:       item.Ssrc,
+								MappedSsrc: item.MappedSsrc,
 							}
 						}),
 				},
@@ -843,14 +849,19 @@ func (t *Transport) ConsumeContext(ctx context.Context, options *ConsumerOptions
 	var rtpParameters *RtpParameters
 
 	if t.Type() == TransportPipe {
-		rtpParameters = getPipeConsumerRtpParameters(producer.ConsumableRtpParameters(), t.data.Rtx)
+		rtpParameters = getPipeConsumerRtpParameters(
+			producer.ConsumableRtpParameters(),
+			t.data.GetRouterRtpCapabilities(),
+			producer.Kind(),
+			t.data.Rtx,
+		)
 	} else {
 		var (
 			enableRtx = unref(options.EnableRtx, true)
 			err       error
 		)
 		rtpParameters, err = getConsumerRtpParameters(
-			producer.ConsumableRtpParameters(), options.RtpCapabilities, options.Pipe, enableRtx)
+			producer.ConsumableRtpParameters(), options.RtpCapabilities, options.Pipe, enableRtx, t.data.EnableBwe)
 		if err != nil {
 			return nil, err
 		}
@@ -1387,15 +1398,14 @@ func (t *Transport) handleWorkerNotifications() {
 			if notification.Info.Type == FbsTransport.TraceInfoBweTraceInfo {
 				info := notification.Info.Value.(*FbsTransport.BweTraceInfoT)
 				trace.Info = H{
-					"bweType":                 strings.ToLower(info.BweType.String()),
-					"desiredBitrate":          info.DesiredBitrate,
-					"effectiveDesiredBitrate": info.EffectiveDesiredBitrate,
-					"minBitrate":              info.MinBitrate,
-					"maxBitrate":              info.MaxBitrate,
-					"startBitrate":            info.StartBitrate,
-					"maxPaddingBitrate":       info.MaxPaddingBitrate,
-					"availableBitrate":        info.AvailableBitrate,
+					"desiredBitrate":   info.DesiredBitrate,
+					"minBitrate":       info.MinBitrate,
+					"maxBitrate":       info.MaxBitrate,
+					"availableBitrate": info.AvailableBitrate,
 				}
+			} else if notification.Info.Type == FbsTransport.TraceInfoProbationTraceInfo {
+				info := notification.Info.Value.(*FbsTransport.ProbationTraceInfoT)
+				trace.Info = parseRtpPacketDump(info.RtpPacket)
 			}
 
 			t.mu.RLock()

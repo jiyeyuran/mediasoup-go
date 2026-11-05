@@ -7,7 +7,7 @@ import (
 )
 
 type SetMinOutgoingBitrateRequestT struct {
-	MinOutgoingBitrate uint32 `json:"min_outgoing_bitrate"`
+	MinOutgoingBitrate uint64 `json:"min_outgoing_bitrate"`
 }
 
 func (t *SetMinOutgoingBitrateRequestT) Pack(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
@@ -67,23 +67,23 @@ func (rcv *SetMinOutgoingBitrateRequest) Table() flatbuffers.Table {
 	return rcv._tab
 }
 
-func (rcv *SetMinOutgoingBitrateRequest) MinOutgoingBitrate() uint32 {
+func (rcv *SetMinOutgoingBitrateRequest) MinOutgoingBitrate() uint64 {
 	o := flatbuffers.UOffsetT(rcv._tab.Offset(4))
 	if o != 0 {
-		return rcv._tab.GetUint32(o + rcv._tab.Pos)
+		return rcv._tab.GetUint64(o + rcv._tab.Pos)
 	}
 	return 0
 }
 
-func (rcv *SetMinOutgoingBitrateRequest) MutateMinOutgoingBitrate(n uint32) bool {
-	return rcv._tab.MutateUint32Slot(4, n)
+func (rcv *SetMinOutgoingBitrateRequest) MutateMinOutgoingBitrate(n uint64) bool {
+	return rcv._tab.MutateUint64Slot(4, n)
 }
 
 func SetMinOutgoingBitrateRequestStart(builder *flatbuffers.Builder) {
 	builder.StartObject(1)
 }
-func SetMinOutgoingBitrateRequestAddMinOutgoingBitrate(builder *flatbuffers.Builder, minOutgoingBitrate uint32) {
-	builder.PrependUint32Slot(0, minOutgoingBitrate, 0)
+func SetMinOutgoingBitrateRequestAddMinOutgoingBitrate(builder *flatbuffers.Builder, minOutgoingBitrate uint64) {
+	builder.PrependUint64Slot(0, minOutgoingBitrate, 0)
 }
 func SetMinOutgoingBitrateRequestEnd(builder *flatbuffers.Builder) flatbuffers.UOffsetT {
 	return builder.EndObject()

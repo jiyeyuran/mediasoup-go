@@ -70,7 +70,6 @@ enum RtpHeaderExtensionUri: uint8 {
     SsrcAudioLevel,
     DependencyDescriptor,
     VideoOrientation,
-    TimeOffset,
     AbsCaptureTime,
     PlayoutDelay,
     MediasoupPacketId,
@@ -94,7 +93,7 @@ table RtpEncodingParameters {
     rtx: Rtx;
     dtx: bool = false;
     scalability_mode: string;
-    max_bitrate: uint32 = null;
+    max_bitrate: uint64 = null;
 }
 
 table RtcpParameters {
@@ -119,7 +118,6 @@ table CodecMapping {
 table EncodingMapping {
     rid: string;
     ssrc: uint32 = null;
-    scalability_mode: string;
     mapped_ssrc: uint32;
 }
 

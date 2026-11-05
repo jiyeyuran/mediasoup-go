@@ -18,29 +18,6 @@ var availablePayloadTypes = [...]uint8{
 	57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71,
 }
 
-// TODO: Remove this if we switch to 'sendrecv' in Dependency-Descriptor header
-// extension.
-var dependencyDescriptorHeaderExtensionParametersForPipeConsumer *RtpHeaderExtensionParameters
-
-func init() {
-	// TODO: Remove this if we switch to 'sendrecv' in Dependency-Descriptor header
-	// extension.
-	//
-	// We need to create and store this Dependency-Descriptor header extension to
-	// leter be used by `getPipeConsumerRtpParameters()` function.
-	for _, ext := range supportedRtpCapabilities.HeaderExtensions {
-		if ext.Uri == "https://aomediacodec.github.io/av1-rtp-spec/#dependency-descriptor-rtp-header-extension" &&
-			ext.Direction != MediaDirectionSendrecv {
-			dependencyDescriptorHeaderExtensionParametersForPipeConsumer = &RtpHeaderExtensionParameters{
-				Uri:     ext.Uri,
-				Id:      ext.PreferredId,
-				Encrypt: ext.PreferredEncrypt,
-			}
-			break
-		}
-	}
-}
-
 type matchOptions struct {
 	strict bool
 	modify bool
@@ -402,10 +379,9 @@ func getProducerRtpParametersMapping(params *RtpParameters, caps *RtpCapabilitie
 
 	for _, encoding := range params.Encodings {
 		mappedEncoding := &RtpMappingEncoding{
-			Rid:             encoding.Rid,
-			Ssrc:            orElse(encoding.Ssrc > 0, ref(encoding.Ssrc), nil),
-			MappedSsrc:      mappedSsrc,
-			ScalabilityMode: encoding.ScalabilityMode,
+			Rid:        encoding.Rid,
+			Ssrc:       orElse(encoding.Ssrc > 0, ref(encoding.Ssrc), nil),
+			MappedSsrc: mappedSsrc,
 		}
 		mappedSsrc++
 		rtpMapping.Encodings = append(rtpMapping.Encodings, mappedEncoding)
@@ -546,7 +522,7 @@ func CanConsume(consumableRtpParameters *RtpParameters, caps *RtpCapabilities) (
 func getConsumerRtpParameters(
 	consumableRtpParameters *RtpParameters,
 	remoteRtpCapabilities *RtpCapabilities,
-	pipe, enableRtx bool,
+	pipe, enableRtx, enableBwe bool,
 ) (*RtpParameters, error) {
 	for _, capCodec := range remoteRtpCapabilities.Codecs {
 		if err := validateRtpCodecCapability(capCodec); err != nil {
@@ -609,6 +585,19 @@ func getConsumerRtpParameters(
 				break
 			}
 		}
+	}
+
+	// A transport that does not run bandwidth estimation must not negotiate it.
+	// Dropping its header extensions is enough because the RTCP feedback below
+	// is reduced based on them.
+	if !enableBwe {
+		consumerParams.HeaderExtensions = filter(
+			consumerParams.HeaderExtensions,
+			func(ext *RtpHeaderExtensionParameters) bool {
+				return ext.Uri != "http://www.webrtc.org/experiments/rtp-hdrext/abs-send-time" &&
+					ext.Uri != "http://www.ietf.org/id/draft-holmer-rmcat-transport-wide-cc-extensions-01"
+			},
+		)
 	}
 
 	// Reduce codecs' RTCP feedback. Use Transport-CC if available, REMB otherwise.
@@ -680,7 +669,7 @@ func getConsumerRtpParameters(
 
 		consumerEncoding.ScalabilityMode = scalabilityMode
 
-		maxEncodingMaxBitrate := uint32(0)
+		maxEncodingMaxBitrate := uint64(0)
 
 		// Use the maximum maxBitrate in any encoding and honor it in the Consumer's encoding.
 		for _, encoding := range consumableRtpParameters.Encodings {
@@ -704,7 +693,12 @@ func getConsumerRtpParameters(
 //
 // It keeps all original consumable encodings and removes support for BWE. If
 // enableRtx is false, it also removes RTX and NACK support.
-func getPipeConsumerRtpParameters(consumableRtpParameters *RtpParameters, enableRtx bool) *RtpParameters {
+func getPipeConsumerRtpParameters(
+	consumableRtpParameters *RtpParameters,
+	routerRtpCapabilities *RtpCapabilities,
+	kind MediaKind,
+	enableRtx bool,
+) *RtpParameters {
 	consumerParams := &RtpParameters{
 		Rtcp: consumableRtpParameters.Rtcp,
 		Msid: consumableRtpParameters.Msid,
@@ -718,9 +712,9 @@ func getPipeConsumerRtpParameters(consumableRtpParameters *RtpParameters, enable
 		}
 
 		codec.RtcpFeedback = filterRtcpFeedback(codec.RtcpFeedback, func(fb *RtcpFeedback) bool {
-			return (fb.Type == "nack" && fb.Parameter == "pli") ||
-				(fb.Type == "ccm" && fb.Parameter == "fir") ||
-				(enableRtx && fb.Type == "nack" && len(fb.Parameter) == 0)
+			return fb.Type != "goog-remb" &&
+				fb.Type != "transport-cc" &&
+				(enableRtx || fb.Type != "nack" || len(fb.Parameter) > 0)
 		})
 		consumerParams.Codecs = append(consumerParams.Codecs, codec)
 	}
@@ -734,13 +728,27 @@ func getPipeConsumerRtpParameters(consumableRtpParameters *RtpParameters, enable
 		}
 	}
 
-	// TODO: Remove this if we switch to 'sendrecv' in Dependency-Descriptor header
-	// extension.
+	// TODO: Remove this once the Dependency-Descriptor header extension has
+	// direction 'sendrecv' in supported RTP capabilities.
 	//
-	// We need to add Dependency-Descriptor header extension manually since it's
-	// 'recvonly' so it's not present in received `consumableRtpParameters`.
-	if dependencyDescriptorHeaderExtensionParametersForPipeConsumer != nil {
-		consumerParams.HeaderExtensions = append(consumerParams.HeaderExtensions, dependencyDescriptorHeaderExtensionParametersForPipeConsumer)
+	// A pipe Consumer forwards all layers of the Producer, so the receiving
+	// Router needs the Dependency-Descriptor header extension to tell them apart.
+	// It is not present in consumableRtpParameters because its capability is
+	// recvonly.
+	for _, capExt := range routerRtpCapabilities.HeaderExtensions {
+		if capExt.Kind == kind &&
+			capExt.Uri == "https://aomediacodec.github.io/av1-rtp-spec/#dependency-descriptor-rtp-header-extension" &&
+			capExt.Direction != MediaDirectionSendrecv &&
+			capExt.Direction != MediaDirectionSendonly {
+			consumerParams.HeaderExtensions = append(consumerParams.HeaderExtensions, &RtpHeaderExtensionParameters{
+				Uri:     capExt.Uri,
+				Id:      capExt.PreferredId,
+				Encrypt: capExt.PreferredEncrypt,
+			})
+			break
+		}
+	}
+	if len(consumerParams.HeaderExtensions) > 1 {
 		// Sort header extensions by ID.
 		sort.Slice(consumerParams.HeaderExtensions, func(i, j int) bool {
 			return consumerParams.HeaderExtensions[i].Id < consumerParams.HeaderExtensions[j].Id
@@ -764,6 +772,23 @@ func getPipeConsumerRtpParameters(consumableRtpParameters *RtpParameters, enable
 	}
 
 	return consumerParams
+}
+
+// disableBweInRtpParameters removes everything related to bandwidth estimation
+// from a clone of application-provided RTP parameters.
+func disableBweInRtpParameters(rtpParameters *RtpParameters) {
+	rtpParameters.HeaderExtensions = filter(
+		rtpParameters.HeaderExtensions,
+		func(ext *RtpHeaderExtensionParameters) bool {
+			return ext.Uri != "http://www.webrtc.org/experiments/rtp-hdrext/abs-send-time" &&
+				ext.Uri != "http://www.ietf.org/id/draft-holmer-rmcat-transport-wide-cc-extensions-01"
+		},
+	)
+	for _, codec := range rtpParameters.Codecs {
+		codec.RtcpFeedback = filterRtcpFeedback(codec.RtcpFeedback, func(fb *RtcpFeedback) bool {
+			return fb.Type != "transport-cc" && fb.Type != "goog-remb"
+		})
+	}
 }
 
 func findMatchedCodec(

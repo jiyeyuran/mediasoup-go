@@ -3,7 +3,9 @@ package mediasoup
 import (
 	"testing"
 
+	FbsTransport "github.com/jiyeyuran/mediasoup-go/v2/internal/FBS/Transport"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestGenerateRouterRtpCapabilities(t *testing.T) {
@@ -346,13 +348,6 @@ func TestRtpParameters(t *testing.T) {
 				PreferredEncrypt: false,
 				Direction:        MediaDirectionSendrecv,
 			},
-			{
-				Kind:             "video",
-				Uri:              "urn:ietf:params:rtp-hdrext:toffset",
-				PreferredId:      9,
-				PreferredEncrypt: false,
-				Direction:        MediaDirectionSendrecv,
-			},
 		},
 	}
 
@@ -360,6 +355,7 @@ func TestRtpParameters(t *testing.T) {
 		consumableRtpParameters,
 		remoteRtpCapabilities,
 		false,
+		true,
 		true,
 	)
 	assert.NoError(t, err)
@@ -402,11 +398,6 @@ func TestRtpParameters(t *testing.T) {
 			Id:      8,
 			Encrypt: false,
 		},
-		{
-			Uri:     "urn:ietf:params:rtp-hdrext:toffset",
-			Id:      9,
-			Encrypt: false,
-		},
 	}, consumerRtpParameters.HeaderExtensions)
 
 	assert.Equal(t, &RtcpParameters{
@@ -414,7 +405,12 @@ func TestRtpParameters(t *testing.T) {
 		ReducedSize: ref(true),
 	}, consumerRtpParameters.Rtcp)
 
-	pipeConsumerRtpParameters := getPipeConsumerRtpParameters(consumableRtpParameters, false)
+	pipeConsumerRtpParameters := getPipeConsumerRtpParameters(
+		consumableRtpParameters,
+		routerRtpCapabilities,
+		MediaKindVideo,
+		false,
+	)
 
 	assert.Len(t, pipeConsumerRtpParameters.Codecs, 1)
 	assert.Equal(t, &RtpCodecParameters{
@@ -449,6 +445,111 @@ func TestRtpParameters(t *testing.T) {
 		Cname:       rtpParameters.Rtcp.Cname,
 		ReducedSize: ref(true),
 	}, pipeConsumerRtpParameters.Rtcp)
+}
+
+func TestGetConsumerRtpParametersWithBweDisabled(t *testing.T) {
+	consumableRtpParameters := &RtpParameters{
+		Codecs: []*RtpCodecParameters{{
+			MimeType:    "video/VP8",
+			PayloadType: 101,
+			ClockRate:   90000,
+			RtcpFeedback: []*RtcpFeedback{
+				{Type: "nack"},
+				{Type: "transport-cc"},
+				{Type: "goog-remb"},
+			},
+		}},
+		HeaderExtensions: []*RtpHeaderExtensionParameters{
+			{Uri: "urn:ietf:params:rtp-hdrext:sdes:mid", Id: 1},
+			{Uri: "http://www.webrtc.org/experiments/rtp-hdrext/abs-send-time", Id: 4},
+			{Uri: "http://www.ietf.org/id/draft-holmer-rmcat-transport-wide-cc-extensions-01", Id: 5},
+		},
+		Encodings: []*RtpEncodingParameters{{Ssrc: 11111111}},
+	}
+	remoteRtpCapabilities := &RtpCapabilities{
+		Codecs: []*RtpCodecCapability{{
+			Kind:                 "video",
+			MimeType:             "video/VP8",
+			PreferredPayloadType: 101,
+			ClockRate:            90000,
+			RtcpFeedback: []*RtcpFeedback{
+				{Type: "nack"},
+				{Type: "transport-cc"},
+				{Type: "goog-remb"},
+			},
+		}},
+		HeaderExtensions: []*RtpHeaderExtension{
+			{
+				Kind:        "video",
+				Uri:         "urn:ietf:params:rtp-hdrext:sdes:mid",
+				PreferredId: 1,
+			},
+			{
+				Kind:        "video",
+				Uri:         "http://www.webrtc.org/experiments/rtp-hdrext/abs-send-time",
+				PreferredId: 4,
+			},
+			{
+				Kind:        "video",
+				Uri:         "http://www.ietf.org/id/draft-holmer-rmcat-transport-wide-cc-extensions-01",
+				PreferredId: 5,
+			},
+		},
+	}
+
+	rtpParameters, err := getConsumerRtpParameters(
+		consumableRtpParameters,
+		remoteRtpCapabilities,
+		false,
+		true,
+		false,
+	)
+	assert.NoError(t, err)
+	assert.Equal(t, []*RtpHeaderExtensionParameters{
+		{Uri: "urn:ietf:params:rtp-hdrext:sdes:mid", Id: 1},
+	}, rtpParameters.HeaderExtensions)
+	assert.Equal(t, []*RtcpFeedback{{Type: "nack"}}, rtpParameters.Codecs[0].RtcpFeedback)
+}
+
+func TestConvertTransportOptionsBweAndSctpZeroChecksum(t *testing.T) {
+	options, err := convertTransportOptions(
+		BweOptions{
+			EnableBwe:                       ref(false),
+			InitialAvailableOutgoingBitrate: 1 << 33,
+			MaxIncomingBitrate:              2 << 33,
+			MaxOutgoingBitrate:              3 << 33,
+			MinOutgoingBitrate:              1 << 32,
+		},
+		SctpZeroChecksumNone,
+		true,
+		SctpOptions{SctpZeroChecksum: SctpZeroChecksumTrustedNetwork},
+		false,
+	)
+	assert.NoError(t, err)
+	assert.False(t, options.EnableBwe)
+	assert.EqualValues(t, 1<<33, *options.InitialAvailableOutgoingBitrate)
+	assert.EqualValues(t, 2<<33, *options.MaxIncomingBitrate)
+	assert.EqualValues(t, 3<<33, *options.MaxOutgoingBitrate)
+	assert.EqualValues(t, 1<<32, *options.MinOutgoingBitrate)
+	assert.Equal(t, FbsTransport.SctpZeroChecksumTRUSTED_NETWORK, options.SctpZeroChecksum)
+
+	_, err = convertTransportOptions(
+		BweOptions{EnableBwe: ref(true)},
+		SctpZeroChecksumNone,
+		true,
+		SctpOptions{SctpZeroChecksum: "invalid"},
+		false,
+	)
+	assert.Error(t, err)
+}
+
+func TestConvertRtpParametersPreservesMaxBitrate(t *testing.T) {
+	converted := convertRtpParameters(&RtpParameters{
+		Encodings: []*RtpEncodingParameters{{MaxBitrate: 1 << 34}},
+	})
+
+	require.Len(t, converted.Encodings, 1)
+	assert.EqualValues(t, 1<<34, *converted.Encodings[0].MaxBitrate)
 }
 
 func TestGetProducerRtpParametersMappingWithIncompatibleParams(t *testing.T) {

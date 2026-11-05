@@ -16,8 +16,8 @@ type RtpPacketDump struct {
 	Marker             bool    `json:"marker"`
 	Ssrc               uint32  `json:"ssrc"`
 	IsKeyFrame         bool    `json:"isKeyFrame"`
-	Size               uint64  `json:"size"`
-	PayloadSize        uint64  `json:"payloadSize"`
+	Size               uint32  `json:"size"`
+	PayloadSize        uint32  `json:"payloadSize"`
 	SpatialLayer       byte    `json:"spatialLayer"`
 	TemporalLayer      byte    `json:"temporalLayer"`
 	Mid                string  `json:"mid"`
