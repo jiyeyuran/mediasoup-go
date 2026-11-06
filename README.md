@@ -158,6 +158,12 @@ func main() {
 
 </details>
 
+## Related Projects
+
+- [AxonKit](https://axonkit.io) — an open source distributed SFU built on mediasoup and NATS JetStream,
+  with multi-region media routing, self-healing failover and a LiveKit-compatible client SDK. A scalable
+  foundation for video conferencing, live streaming and real-time AI applications.
+
 ## License
 
 [ISC](/LICENSE)
