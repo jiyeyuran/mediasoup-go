@@ -1019,6 +1019,7 @@ func (t *Transport) ConsumeContext(ctx context.Context, options *ConsumerOptions
 
 	// producer state may change before consumer created.
 	if producer.Closed() {
+		t.mu.Unlock()
 		consumer.CloseContext(ctx)
 		return nil, errors.New("original Producer closed")
 	}
@@ -1249,6 +1250,7 @@ func (t *Transport) ConsumeDataContext(ctx context.Context, options *DataConsume
 
 	// dataProducer state may change before dataConsumer created.
 	if dataProducer.Closed() {
+		t.mu.Unlock()
 		dataConsumer.CloseContext(ctx)
 		return nil, errors.New("original DataProducer closed")
 	}
